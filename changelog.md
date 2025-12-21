@@ -4,6 +4,64 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.20.2] - 2025-12-21
+
+### Fixed
+
+- Write conflict prevention for heartbeat mutation
+  - Increased backend dedup window from 10s to 20s
+  - Increased frontend debounce from 10s to 20s to match backend
+  - Added random jitter (±5s) to heartbeat intervals to prevent synchronized calls across tabs
+  - Simplified early return to skip ANY update within dedup window (not just same path)
+  - Prevents "Documents read from or written to the activeSessions table changed" errors
+
+## [1.20.1] - 2025-12-21
+
+### Changed
+
+- Visitor map styling improvements
+  - Removed box-shadow from map wrapper for cleaner flat design
+  - Increased land dot contrast for better globe visibility on all themes
+  - Increased land dot opacity from 0.6 to 0.85
+  - Darker/more visible land colors for light, tan, and cloud themes
+  - Lighter land color for dark theme to stand out on dark background
+
+## [1.20.0] - 2025-12-21
+
+### Added
+
+- Real-time visitor map on stats page
+  - Displays live visitor locations on a dotted world map
+  - Uses Netlify's built-in geo detection via edge function (no third-party API needed)
+  - Privacy friendly: stores city, country, and coordinates only (no IP addresses)
+  - Theme-aware colors for all four themes (dark, light, tan, cloud)
+  - Animated pulsing dots for active visitors
+  - Visitor count badge showing online visitors
+  - Configurable via `siteConfig.visitorMap`
+- New Netlify edge function: `netlify/edge-functions/geo.ts`
+  - Returns user geo data from Netlify's automatic geo headers
+  - Endpoint: `/api/geo`
+- New React component: `src/components/VisitorMap.tsx`
+  - SVG-based world map with simplified continent outlines
+  - Lightweight (no external map library needed)
+  - Responsive design scales on mobile
+
+### Changed
+
+- Updated `convex/schema.ts`: Added optional location fields to `activeSessions` table (city, country, latitude, longitude)
+- Updated `convex/stats.ts`: Heartbeat mutation accepts geo args, getStats returns visitor locations
+- Updated `src/hooks/usePageTracking.ts`: Fetches geo data once on mount, passes to heartbeat
+- Updated `src/pages/Stats.tsx`: Displays VisitorMap above "Currently Viewing" section
+- Updated `src/config/siteConfig.ts`: Added `VisitorMapConfig` interface and `visitorMap` config option
+
+### Documentation
+
+- Updated setup-guide.md with Visitor Map section
+- Updated docs.md with Visitor Map configuration
+- Updated FORK_CONFIG.md with visitorMap config
+- Updated fork-config.json.example with visitorMap option
+- Updated fork-configuration-guide.md with visitorMap example
+
 ## [1.19.1] - 2025-12-21
 
 ### Added

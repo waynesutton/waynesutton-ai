@@ -132,6 +132,12 @@ export const siteConfig: SiteConfig = {
     title: "GitHub Activity",
   },
 
+  // Visitor map (stats page)
+  visitorMap: {
+    enabled: true,
+    title: "Live Visitors",
+  },
+
   // Blog page
   blogPage: {
     enabled: true,

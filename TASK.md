@@ -4,9 +4,19 @@
 
 ## Current Status
 
-v1.19.1 deployed. Author display (authorName/authorImage) and GitHub Stars on Stats page.
+v1.20.2 deployed. Write conflict prevention for heartbeat mutations.
 
 ## Completed
+
+- [x] Write conflict prevention: increased dedup windows, added heartbeat jitter
+- [x] Visitor map styling: removed box-shadow, increased land dot contrast and opacity
+- [x] Real-time visitor map on stats page showing live visitor locations
+- [x] Netlify edge function for geo detection (geo.ts)
+- [x] VisitorMap component with dotted world map and pulsing dots
+- [x] Theme-aware colors for all four themes (dark, light, tan, cloud)
+- [x] visitorMap config option in siteConfig.ts to enable/disable
+- [x] Privacy friendly: no IP addresses stored, only city/country/coordinates
+- [x] Documentation updated: setup-guide, docs, FORK_CONFIG, fork-config.json.example
 
 - [x] Author display for posts and pages with authorName and authorImage frontmatter fields
 - [x] Round avatar image displayed next to date and read time on post/page views

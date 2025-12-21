@@ -6,7 +6,7 @@ slug: "new-features-search-featured-logos"
 published: true
 tags: ["features", "search", "convex", "updates"]
 readTime: "4 min read"
-featured: true
+featured: false
 featuredOrder: 5
 authorName: "Markdown"
 authorImage: "/images/authors/markdown.png"

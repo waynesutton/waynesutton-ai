@@ -5,7 +5,7 @@ date: "2025-12-14"
 slug: "using-images-in-posts"
 published: true
 featured: true
-featuredOrder: 3
+featuredOrder: 4
 tags: ["images", "tutorial", "markdown", "open-graph"]
 readTime: "4 min read"
 authorName: "Markdown"

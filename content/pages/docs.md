@@ -360,6 +360,24 @@ gitHubContributions: {
 
 Theme-aware colors match each site theme. Uses public API (no GitHub token required).
 
+### Visitor map
+
+Display real-time visitor locations on a world map on the stats page. Uses Netlify's built-in geo detection (no third-party API needed). Privacy friendly: only stores city, country, and coordinates. No IP addresses stored.
+
+```typescript
+visitorMap: {
+  enabled: true,        // Set to false to hide
+  title: "Live Visitors", // Optional title above the map
+},
+```
+
+| Option    | Description                                 |
+| --------- | ------------------------------------------- |
+| `enabled` | `true` to show, `false` to hide             |
+| `title`   | Text above map (`undefined` to hide)        |
+
+The map displays with theme-aware colors. Visitor dots pulse to indicate live sessions. Location data comes from Netlify's automatic geo headers at the edge.
+
 ### Logo gallery
 
 The homepage includes a logo gallery that can scroll infinitely or display as a static grid. Each logo can link to a URL.

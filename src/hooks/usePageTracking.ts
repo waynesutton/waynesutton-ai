@@ -3,14 +3,25 @@ import { useMutation } from "convex/react";
 import { useLocation } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 
-// Heartbeat interval: 30 seconds
+// Heartbeat interval: 30 seconds (with jitter added to prevent synchronized calls)
 const HEARTBEAT_INTERVAL_MS = 30 * 1000;
 
-// Minimum time between heartbeats to prevent write conflicts: 10 seconds (matches backend dedup window)
-const HEARTBEAT_DEBOUNCE_MS = 10 * 1000;
+// Minimum time between heartbeats to prevent write conflicts: 20 seconds (matches backend dedup window)
+const HEARTBEAT_DEBOUNCE_MS = 20 * 1000;
+
+// Jitter range: ±5 seconds to prevent synchronized heartbeats across tabs
+const HEARTBEAT_JITTER_MS = 5 * 1000;
 
 // Session ID key in localStorage
 const SESSION_ID_KEY = "markdown_blog_session_id";
+
+// Geo data interface from Netlify edge function
+interface GeoData {
+  city?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+}
 
 /**
  * Generate a random session ID (UUID v4 format)
@@ -55,6 +66,7 @@ function getPageType(path: string): string {
 
 /**
  * Hook to track page views and maintain active session presence
+ * Fetches geo location from Netlify edge function for visitor map
  */
 export function usePageTracking(): void {
   const location = useLocation();
@@ -70,9 +82,47 @@ export function usePageTracking(): void {
   const lastHeartbeatTime = useRef(0);
   const lastHeartbeatPath = useRef<string | null>(null);
 
-  // Initialize session ID
+  // Geo data ref (fetched once on mount)
+  const geoDataRef = useRef<GeoData | null>(null);
+  const geoFetchedRef = useRef(false);
+
+  // Initialize session ID and fetch geo data once on mount
   useEffect(() => {
     sessionIdRef.current = getSessionId();
+
+    // Fetch geo data once (skip if already fetched)
+    if (!geoFetchedRef.current) {
+      geoFetchedRef.current = true;
+
+      // Check if running on localhost (edge functions don't work locally)
+      const isLocalhost =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1";
+
+      if (isLocalhost) {
+        // Use mock geo data for localhost testing
+        // This allows the visitor map to work during local development
+        geoDataRef.current = {
+          city: "San Francisco",
+          country: "US",
+          latitude: 37.7749,
+          longitude: -122.4194,
+        };
+      } else {
+        // Fetch real geo data from Netlify edge function in production
+        fetch("/api/geo")
+          .then((res) => res.json())
+          .then((data: GeoData) => {
+            // Only store if we have valid coordinates
+            if (data.latitude && data.longitude) {
+              geoDataRef.current = data;
+            }
+          })
+          .catch(() => {
+            // Silently fail - geo data is optional
+          });
+      }
+    }
   }, []);
 
   // Debounced heartbeat function to prevent write conflicts
@@ -101,9 +151,15 @@ export function usePageTracking(): void {
       lastHeartbeatPath.current = path;
 
       try {
+        // Include geo data if available
+        const geo = geoDataRef.current;
         await heartbeatMutation({
           sessionId,
           currentPath: path,
+          ...(geo?.city && { city: geo.city }),
+          ...(geo?.country && { country: geo.country }),
+          ...(geo?.latitude && { latitude: geo.latitude }),
+          ...(geo?.longitude && { longitude: geo.longitude }),
         });
       } catch {
         // Silently fail - analytics shouldn't break the app
@@ -139,17 +195,35 @@ export function usePageTracking(): void {
   useEffect(() => {
     const path = location.pathname;
 
-    // Send initial heartbeat for this path
-    sendHeartbeat(path);
+    // Add random jitter to initial delay to prevent synchronized heartbeats across tabs
+    const initialJitter = Math.random() * HEARTBEAT_JITTER_MS;
 
-    // Set up interval for ongoing heartbeats
-    const intervalId = setInterval(() => {
+    // Send initial heartbeat after jitter delay
+    const initialTimeoutId = setTimeout(() => {
       sendHeartbeat(path);
-    }, HEARTBEAT_INTERVAL_MS);
+    }, initialJitter);
+
+    // Set up interval for ongoing heartbeats with jitter
+    // Using recursive setTimeout instead of setInterval for variable timing
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const scheduleNextHeartbeat = () => {
+      const jitter = (Math.random() - 0.5) * 2 * HEARTBEAT_JITTER_MS; // ±5 seconds
+      const nextDelay = HEARTBEAT_INTERVAL_MS + jitter;
+      timeoutId = setTimeout(() => {
+        sendHeartbeat(path);
+        scheduleNextHeartbeat();
+      }, nextDelay);
+    };
+
+    // Start the heartbeat loop after initial heartbeat
+    const loopTimeoutId = setTimeout(() => {
+      scheduleNextHeartbeat();
+    }, initialJitter + HEARTBEAT_INTERVAL_MS);
 
     return () => {
-      clearInterval(intervalId);
+      clearTimeout(initialTimeoutId);
+      clearTimeout(loopTimeoutId);
+      clearTimeout(timeoutId);
     };
   }, [location.pathname, sendHeartbeat]);
 }
-

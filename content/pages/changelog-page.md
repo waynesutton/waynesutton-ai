@@ -7,6 +7,62 @@ order: 5
 
 All notable changes to this project.
 
+## v1.20.2
+
+Released December 21, 2025
+
+**Write conflict prevention for heartbeat mutation**
+
+- Increased backend dedup window from 10s to 20s
+- Increased frontend debounce from 10s to 20s to match backend
+- Added random jitter (±5s) to heartbeat intervals to prevent synchronized calls across tabs
+- Simplified early return to skip ANY update within dedup window
+- Prevents "Documents read from or written to the activeSessions table changed" errors
+
+## v1.20.1
+
+Released December 21, 2025
+
+**Visitor map styling improvements**
+
+- Removed box-shadow from map wrapper for cleaner flat design
+- Increased land dot contrast for better globe visibility on all themes
+- Increased land dot opacity from 0.6 to 0.85
+- Darker/more visible land colors for light, tan, and cloud themes
+- Lighter land color for dark theme to stand out on dark background
+
+## v1.20.0
+
+Released December 21, 2025
+
+**Real-time visitor map on stats page**
+
+- Displays live visitor locations on a dotted world map
+- Uses Netlify's built-in geo detection via edge function (no third-party API needed)
+- Privacy friendly: stores city, country, and coordinates only (no IP addresses)
+- Theme-aware colors for all four themes (dark, light, tan, cloud)
+- Animated pulsing dots for active visitors
+- Configurable via `siteConfig.visitorMap`
+
+New files:
+
+- `netlify/edge-functions/geo.ts`: Edge function returning geo data from Netlify headers
+- `src/components/VisitorMap.tsx`: SVG world map component with visitor dots
+
+Configuration:
+
+```typescript
+// src/config/siteConfig.ts
+visitorMap: {
+  enabled: true,        // Set to false to hide
+  title: "Live Visitors", // Optional title above the map
+},
+```
+
+Updated files: `convex/schema.ts`, `convex/stats.ts`, `src/hooks/usePageTracking.ts`, `src/pages/Stats.tsx`, `src/config/siteConfig.ts`, `src/styles/global.css`
+
+Documentation updated: setup-guide.md, docs.md, FORK_CONFIG.md, fork-config.json.example, fork-configuration-guide.md
+
 ## v1.19.2
 
 Released December 21, 2025

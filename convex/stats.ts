@@ -10,8 +10,8 @@ const DEDUP_WINDOW_MS = 30 * 60 * 1000;
 // Session timeout: 2 minutes in milliseconds
 const SESSION_TIMEOUT_MS = 2 * 60 * 1000;
 
-// Heartbeat dedup window: 10 seconds (prevents write conflicts from rapid calls)
-const HEARTBEAT_DEDUP_MS = 10 * 1000;
+// Heartbeat dedup window: 20 seconds (prevents write conflicts from rapid calls or multiple tabs)
+const HEARTBEAT_DEDUP_MS = 20 * 1000;
 
 /**
  * Aggregate for page views by path.
@@ -73,7 +73,7 @@ export const recordPageView = mutation({
     const recentView = await ctx.db
       .query("pageViews")
       .withIndex("by_session_path", (q) =>
-        q.eq("sessionId", args.sessionId).eq("path", args.path)
+        q.eq("sessionId", args.sessionId).eq("path", args.path),
       )
       .order("desc")
       .first();
@@ -116,12 +116,23 @@ export const recordPageView = mutation({
 /**
  * Update active session heartbeat.
  * Creates or updates session with current path and timestamp.
+ * Accepts optional geo location data from Netlify edge function.
  * Idempotent: skips update if recently updated with same path (prevents write conflicts).
+ *
+ * Write conflict prevention:
+ * - Uses 20-second dedup window to skip redundant updates
+ * - Frontend uses matching debounce with jitter to prevent synchronized calls
+ * - Early return pattern minimizes conflict window
  */
 export const heartbeat = mutation({
   args: {
     sessionId: v.string(),
     currentPath: v.string(),
+    // Optional geo data from Netlify geo headers
+    city: v.optional(v.string()),
+    country: v.optional(v.string()),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -134,27 +145,33 @@ export const heartbeat = mutation({
       .first();
 
     if (existingSession) {
-      // Early return if same path and recently updated (idempotent - prevents write conflicts)
-      if (
-        existingSession.currentPath === args.currentPath &&
-        now - existingSession.lastSeen < HEARTBEAT_DEDUP_MS
-      ) {
+      // Early return if recently updated (idempotent - prevents write conflicts)
+      // Even if path changed, skip update if within dedup window to reduce conflicts
+      if (now - existingSession.lastSeen < HEARTBEAT_DEDUP_MS) {
         return null;
       }
 
-      // Patch directly with new data
+      // Patch directly with new data including location if provided
       await ctx.db.patch(existingSession._id, {
         currentPath: args.currentPath,
         lastSeen: now,
+        ...(args.city !== undefined && { city: args.city }),
+        ...(args.country !== undefined && { country: args.country }),
+        ...(args.latitude !== undefined && { latitude: args.latitude }),
+        ...(args.longitude !== undefined && { longitude: args.longitude }),
       });
       return null;
     }
 
-    // Create new session only if none exists
+    // Create new session only if none exists (with location data if provided)
     await ctx.db.insert("activeSessions", {
       sessionId: args.sessionId,
       currentPath: args.currentPath,
       lastSeen: now,
+      ...(args.city !== undefined && { city: args.city }),
+      ...(args.country !== undefined && { country: args.country }),
+      ...(args.latitude !== undefined && { latitude: args.latitude }),
+      ...(args.longitude !== undefined && { longitude: args.longitude }),
     });
 
     return null;
@@ -165,6 +182,7 @@ export const heartbeat = mutation({
  * Get all stats for the stats page.
  * Real-time subscription via useQuery.
  * Uses aggregate components for O(log n) counts instead of O(n) table scans.
+ * Returns visitor locations for the world map display.
  */
 export const getStats = query({
   args: {},
@@ -174,7 +192,7 @@ export const getStats = query({
       v.object({
         path: v.string(),
         count: v.number(),
-      })
+      }),
     ),
     totalPageViews: v.number(),
     uniqueVisitors: v.number(),
@@ -187,7 +205,16 @@ export const getStats = query({
         title: v.string(),
         pageType: v.string(),
         views: v.number(),
-      })
+      }),
+    ),
+    // Visitor locations for world map display
+    visitorLocations: v.array(
+      v.object({
+        latitude: v.number(),
+        longitude: v.number(),
+        city: v.optional(v.string()),
+        country: v.optional(v.string()),
+      }),
     ),
   }),
   handler: async (ctx) => {
@@ -214,11 +241,11 @@ export const getStats = query({
     // We use direct counting until aggregates are fully backfilled
     const allPageViews = await ctx.db.query("pageViews").collect();
     const totalPageViewsCount = allPageViews.length;
-    
+
     // Count unique sessions from the views
     const uniqueSessions = new Set(allPageViews.map((v) => v.sessionId));
     const uniqueVisitorsCount = uniqueSessions.size;
-    
+
     // Count views per path from the raw data
     const pathCountsFromDb: Record<string, number> = {};
     for (const view of allPageViews) {
@@ -248,7 +275,7 @@ export const getStats = query({
     // Build page stats using direct counts (always accurate)
     const pageStatsPromises = allPaths.map(async (path) => {
       const views = pathCountsFromDb[path] || 0;
-      
+
       // Match path to post or page for title
       const slug = path.startsWith("/") ? path.slice(1) : path;
       const post = posts.find((p) => p.slug === slug);
@@ -280,8 +307,24 @@ export const getStats = query({
     });
 
     const pageStats = (await Promise.all(pageStatsPromises)).sort(
-      (a, b) => b.views - a.views
+      (a, b) => b.views - a.views,
     );
+
+    // Extract visitor locations from active sessions (only those with coordinates)
+    const visitorLocations = activeSessions
+      .filter(
+        (s): s is typeof s & { latitude: number; longitude: number } =>
+          s.latitude !== undefined &&
+          s.longitude !== undefined &&
+          s.latitude !== null &&
+          s.longitude !== null,
+      )
+      .map((s) => ({
+        latitude: s.latitude,
+        longitude: s.longitude,
+        city: s.city,
+        country: s.country,
+      }));
 
     return {
       activeVisitors: activeSessions.length,
@@ -292,6 +335,7 @@ export const getStats = query({
       publishedPages: pages.length,
       trackingSince,
       pageStats,
+      visitorLocations,
     };
   },
 });
@@ -313,7 +357,9 @@ export const cleanupStaleSessions = internalMutation({
       .collect();
 
     // Delete in parallel
-    await Promise.all(staleSessions.map((session) => ctx.db.delete(session._id)));
+    await Promise.all(
+      staleSessions.map((session) => ctx.db.delete(session._id)),
+    );
 
     return staleSessions.length;
   },
@@ -376,12 +422,13 @@ export const backfillAggregatesChunk = internalMutation({
       await ctx.scheduler.runAfter(
         0,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (await import("./_generated/api")).internal.stats.backfillAggregatesChunk as any,
+        (await import("./_generated/api")).internal.stats
+          .backfillAggregatesChunk as any,
         {
           cursor: result.continueCursor,
           totalProcessed: newTotalProcessed,
           seenSessionIds: sessionArray,
-        }
+        },
       );
 
       return {
@@ -423,15 +470,15 @@ export const backfillAggregates = internalMutation({
     await ctx.scheduler.runAfter(
       0,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (await import("./_generated/api")).internal.stats.backfillAggregatesChunk as any,
+      (await import("./_generated/api")).internal.stats
+        .backfillAggregatesChunk as any,
       {
         cursor: null,
         totalProcessed: 0,
         seenSessionIds: [],
-      }
+      },
     );
 
     return { message: "Backfill started. Check logs for progress." };
   },
 });
-

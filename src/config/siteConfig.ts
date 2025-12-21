@@ -13,6 +13,13 @@ export interface GitHubContributionsConfig {
   title?: string; // Optional title above the graph
 }
 
+// Visitor map configuration
+// Displays real-time visitor locations on a world map on the stats page
+export interface VisitorMapConfig {
+  enabled: boolean; // Enable/disable the visitor map
+  title?: string; // Optional title above the map
+}
+
 // Blog page configuration
 // Controls whether posts appear on homepage, dedicated blog page, or both
 export interface BlogPageConfig {
@@ -48,6 +55,9 @@ export interface SiteConfig {
 
   // GitHub contributions graph configuration
   gitHubContributions: GitHubContributionsConfig;
+
+  // Visitor map configuration (stats page)
+  visitorMap: VisitorMapConfig;
 
   // Blog page configuration
   blogPage: BlogPageConfig;
@@ -123,6 +133,13 @@ export const siteConfig: SiteConfig = {
     showYearNavigation: true, // Show arrows to navigate between years
     linkToProfile: true, // Click graph to open GitHub profile
     title: "GitHub Activity", // Optional title above the graph
+  },
+
+  // Visitor map configuration
+  // Displays real-time visitor locations on the stats page
+  visitorMap: {
+    enabled: true, // Set to false to hide the visitor map
+    title: "Live Visitors", // Optional title above the map
   },
 
   // Blog page configuration

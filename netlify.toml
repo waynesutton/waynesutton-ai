@@ -39,6 +39,11 @@
   path = "/api/export"
   function = "api"
 
+# Geo location API for visitor map
+[[edge_functions]]
+  path = "/api/geo"
+  function = "geo"
+
 # Open Graph bot detection (catches all other routes)
 [[edge_functions]]
   path = "/*"

@@ -11,6 +11,8 @@ import {
   Activity,
 } from "lucide-react";
 import { GithubLogo } from "@phosphor-icons/react";
+import VisitorMap from "../components/VisitorMap";
+import siteConfig from "../config/siteConfig";
 
 // Site launched Dec 14, 2025 at 1:00 PM (v1.0.0), stats added same day (v1.2.0)
 const SITE_LAUNCH_DATE = "Dec 14, 2025 at 1:00 PM";
@@ -140,6 +142,14 @@ export default function Stats() {
           );
         })}
       </section>
+
+      {/* Visitor map showing real-time locations */}
+      {siteConfig.visitorMap.enabled && stats.visitorLocations.length > 0 && (
+        <VisitorMap
+          locations={stats.visitorLocations}
+          title={siteConfig.visitorMap.title}
+        />
+      )}
 
       {/* Active visitors by page */}
       {stats.activeByPath.length > 0 && (

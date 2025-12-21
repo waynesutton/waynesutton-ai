@@ -128,6 +128,10 @@ The JSON config file supports additional options:
     "linkToProfile": true,
     "title": "GitHub Activity"
   },
+  "visitorMap": {
+    "enabled": true,
+    "title": "Live Visitors"
+  },
   "blogPage": {
     "enabled": true,
     "showInNav": true,

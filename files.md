@@ -60,6 +60,7 @@ A brief description of each file in the codebase.
 | `MobileMenu.tsx`          | Slide-out drawer menu for mobile navigation with hamburger button |
 | `ScrollToTop.tsx`         | Configurable scroll-to-top button with Phosphor ArrowUp icon |
 | `GitHubContributions.tsx` | GitHub activity graph with theme-aware colors and year navigation |
+| `VisitorMap.tsx`          | Real-time visitor location map with dotted world display and theme-aware colors |
 
 ### Context (`src/context/`)
 
@@ -177,6 +178,7 @@ Frontmatter is the YAML metadata at the top of each markdown file. Here is how i
 | `rss.ts`     | Proxies `/rss.xml` and `/rss-full.xml` to Convex HTTP        |
 | `sitemap.ts` | Proxies `/sitemap.xml` to Convex HTTP                        |
 | `api.ts`     | Proxies `/api/posts`, `/api/post`, `/api/export` to Convex   |
+| `geo.ts`     | Returns user geo location from Netlify's automatic geo headers for visitor map |
 
 ## Public Assets (`public/`)
 

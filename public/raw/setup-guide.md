@@ -53,6 +53,7 @@ This guide walks you through forking [this markdown framework](https://github.co
     - [Update Site Configuration](#update-site-configuration)
     - [Featured Section](#featured-section)
     - [GitHub Contributions Graph](#github-contributions-graph)
+    - [Visitor Map](#visitor-map)
     - [Logo Gallery](#logo-gallery)
     - [Blog page](#blog-page)
     - [Scroll-to-top button](#scroll-to-top-button)
@@ -693,6 +694,26 @@ gitHubContributions: {
 | `title`              | Text above graph (set to `undefined` to hide) |
 
 The graph displays with theme-aware colors that match each site theme (dark, light, tan, cloud). Uses the public `github-contributions-api.jogruber.de` API (no GitHub token required).
+
+### Visitor Map
+
+Display real-time visitor locations on a world map on the stats page. Uses Netlify's built-in geo detection (no third-party API needed). Privacy friendly: only stores city, country, and coordinates. No IP addresses stored.
+
+Configure in `siteConfig`:
+
+```typescript
+visitorMap: {
+  enabled: true,        // Set to false to hide the visitor map
+  title: "Live Visitors", // Optional title above the map
+},
+```
+
+| Option    | Description                                 |
+| --------- | ------------------------------------------- |
+| `enabled` | `true` to show, `false` to hide             |
+| `title`   | Text above map (set to `undefined` to hide) |
+
+The map displays with theme-aware colors. Visitor dots pulse to indicate live sessions. Location data comes from Netlify's automatic geo headers at the edge.
 
 ### Logo Gallery
 

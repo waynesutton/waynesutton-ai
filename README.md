@@ -366,6 +366,26 @@ The graph displays with theme-aware colors that match each site theme:
 
 Uses the public `github-contributions-api.jogruber.de` API (no GitHub token required).
 
+## Visitor Map
+
+Display real-time visitor locations on a world map on the stats page. Uses Netlify's built-in geo detection (no third-party API needed). Privacy friendly: only stores city, country, and coordinates. No IP addresses stored.
+
+Configure in `src/config/siteConfig.ts`:
+
+```typescript
+visitorMap: {
+  enabled: true,        // Set to false to hide the visitor map
+  title: "Live Visitors", // Optional title above the map
+},
+```
+
+| Option    | Description                                 |
+| --------- | ------------------------------------------- |
+| `enabled` | `true` to show, `false` to hide             |
+| `title`   | Text above map (set to `undefined` to hide) |
+
+The map displays with theme-aware colors. Visitor dots pulse to indicate live sessions. Location data comes from Netlify's automatic geo headers at the edge.
+
 ### Favicon
 
 Replace `public/favicon.svg` with your own icon. The default is a rounded square with the letter "m". Edit the SVG to change the letter or style.

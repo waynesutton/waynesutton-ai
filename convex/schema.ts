@@ -88,6 +88,11 @@ export default defineSchema({
     sessionId: v.string(),
     currentPath: v.string(),
     lastSeen: v.number(),
+    // Location data (optional, from Netlify geo headers)
+    city: v.optional(v.string()),
+    country: v.optional(v.string()),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
   })
     .index("by_sessionId", ["sessionId"])
     .index("by_lastSeen", ["lastSeen"]),
