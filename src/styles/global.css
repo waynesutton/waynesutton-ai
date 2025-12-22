@@ -2692,8 +2692,14 @@ body {
 .visitor-map-title {
   font-size: var(--font-size-stats-section-title);
   color: var(--text-primary);
-  margin-bottom: 16px;
+  margin-bottom: 4px;
   font-weight: 600;
+}
+
+.visitor-map-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0 0 16px 0;
 }
 
 .visitor-map-wrapper {

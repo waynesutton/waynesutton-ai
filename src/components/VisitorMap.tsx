@@ -84,6 +84,7 @@ export default function VisitorMap({ locations, title }: VisitorMapProps) {
   return (
     <div className="visitor-map-container">
       {title && <h2 className="visitor-map-title">{title}</h2>}
+      <p className="visitor-map-subtitle">Location-enabled sessions</p>
       <div className="visitor-map-wrapper">
         <svg
           viewBox="0 0 800 400"
