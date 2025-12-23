@@ -18,6 +18,7 @@ export default defineSchema({
     featuredOrder: v.optional(v.number()), // Order in featured section (lower = first)
     authorName: v.optional(v.string()), // Author display name
     authorImage: v.optional(v.string()), // Author avatar image URL (round)
+    layout: v.optional(v.string()), // Layout type: "sidebar" for docs-style layout
     lastSyncedAt: v.number(),
   })
     .index("by_slug", ["slug"])

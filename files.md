@@ -41,7 +41,7 @@ A brief description of each file in the codebase.
 | ----------- | ----------------------------------------------------------------- |
 | `Home.tsx`  | Landing page with featured content and optional post list         |
 | `Blog.tsx`  | Dedicated blog page with post list or card grid view (configurable via siteConfig.blogPage, supports view toggle) |
-| `Post.tsx`  | Individual blog post view (update SITE_URL/SITE_NAME when forking) |
+| `Post.tsx`  | Individual blog post or page view with optional sidebar layout (update SITE_URL/SITE_NAME when forking) |
 | `Stats.tsx` | Real-time analytics dashboard with visitor stats and GitHub stars |
 | `Write.tsx` | Three-column markdown writing page with Cursor docs-style UI, frontmatter reference with copy buttons, theme toggle, font switcher (serif/sans-serif), and localStorage persistence (not linked in nav) |
 

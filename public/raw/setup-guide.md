@@ -910,21 +910,21 @@ order: 1
 Your page content here...
 ```
 
-| Field         | Required | Description                            |
-| ------------- | -------- | -------------------------------------- |
-| `title`       | Yes      | Page title (shown in nav)              |
-| `slug`        | Yes      | URL path (e.g., `/about`)              |
-| `published`   | Yes      | Set `true` to show                     |
-| `order`       | No       | Display order (lower = first)          |
-| `authorName`  | No       | Author display name shown next to date |
-| `authorImage` | No       | Round author avatar image URL          |
+| Field         | Required | Description                                       |
+| ------------- | -------- | ------------------------------------------------- |
+| `title`       | Yes      | Page title (shown in nav)                         |
+| `slug`        | Yes      | URL path (e.g., `/about`)                         |
+| `published`   | Yes      | Set `true` to show                                |
+| `order`       | No       | Display order (lower = first)                     |
+| `authorName`  | No       | Author display name shown next to date            |
+| `authorImage` | No       | Round author avatar image URL                     |
 | `layout`      | No       | Set to `"sidebar"` for docs-style layout with TOC |
 
 3. Run `npm run sync` to sync pages
 
 Pages appear automatically in the navigation when published.
 
-**Sidebar layout:** Add `layout: "sidebar"` to any page frontmatter to enable a docs-style layout with a table of contents sidebar. The sidebar extracts headings (H1, H2, H3) automatically and provides smooth scroll navigation. Only appears if headings exist in the page content.
+**Sidebar layout:** Add `layout: "sidebar"` to any post or page frontmatter to enable a docs-style layout with a table of contents sidebar. The sidebar extracts headings (H1, H2, H3) automatically and provides smooth scroll navigation. Only appears if headings exist in the content.
 
 ### Update SEO Meta Tags
 

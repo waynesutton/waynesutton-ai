@@ -15,7 +15,7 @@
 
 ## Current Status
 
-v1.21.0 deployed. Blog page view mode toggle with list and card views.
+v1.24.0 deployed. Sidebar layout support for blog posts.
 
 ## Completed
 

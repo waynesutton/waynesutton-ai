@@ -269,7 +269,13 @@ export default function Home() {
           >
             GitHub
           </a>
-          .
+          . This project is licensed under the MIT{" "}
+          <a
+            href="https://github.com/waynesutton/markdown-site?tab=MIT-1-ov-file"
+            className="home-text-link"
+          >
+            License.
+          </a>{" "}
         </p>
       </section>
     </div>

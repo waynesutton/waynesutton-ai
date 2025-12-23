@@ -82,21 +82,22 @@ image: "/images/og-image.png"
 Content here...
 ```
 
-| Field           | Required | Description                            |
-| --------------- | -------- | -------------------------------------- |
-| `title`         | Yes      | Post title                             |
-| `description`   | Yes      | SEO description                        |
-| `date`          | Yes      | YYYY-MM-DD format                      |
-| `slug`          | Yes      | URL path (unique)                      |
-| `published`     | Yes      | `true` to show                         |
-| `tags`          | Yes      | Array of strings                       |
-| `readTime`      | No       | Display time estimate                  |
-| `image`         | No       | OG image and featured card thumbnail   |
-| `excerpt`       | No       | Short text for card view               |
-| `featured`      | No       | `true` to show in featured section     |
-| `featuredOrder` | No       | Order in featured (lower = first)      |
-| `authorName`    | No       | Author display name shown next to date |
-| `authorImage`   | No       | Round author avatar image URL          |
+| Field           | Required | Description                                       |
+| --------------- | -------- | ------------------------------------------------- |
+| `title`         | Yes      | Post title                                        |
+| `description`   | Yes      | SEO description                                   |
+| `date`          | Yes      | YYYY-MM-DD format                                 |
+| `slug`          | Yes      | URL path (unique)                                 |
+| `published`     | Yes      | `true` to show                                    |
+| `tags`          | Yes      | Array of strings                                  |
+| `readTime`      | No       | Display time estimate                             |
+| `image`         | No       | OG image and featured card thumbnail              |
+| `excerpt`       | No       | Short text for card view                          |
+| `featured`      | No       | `true` to show in featured section                |
+| `featuredOrder` | No       | Order in featured (lower = first)                 |
+| `authorName`    | No       | Author display name shown next to date            |
+| `authorImage`   | No       | Round author avatar image URL                     |
+| `layout`        | No       | Set to `"sidebar"` for docs-style layout with TOC |
 
 ### Static pages
 
@@ -129,7 +130,7 @@ Content here...
 
 ### Sidebar layout
 
-Pages can use a docs-style layout with a table of contents sidebar. Add `layout: "sidebar"` to the page frontmatter:
+Posts and pages can use a docs-style layout with a table of contents sidebar. Add `layout: "sidebar"` to the frontmatter:
 
 ```markdown
 ---
@@ -152,12 +153,35 @@ layout: "sidebar"
 
 - Left sidebar displays table of contents extracted from H1, H2, H3 headings
 - Two-column layout: 220px sidebar + flexible content area
-- Sidebar only appears if headings exist in the page content
+- Sidebar only appears if headings exist in the content
 - Active heading highlighting as you scroll
 - Smooth scroll navigation when clicking TOC links
 - Mobile responsive: stacks to single column below 1024px
+- Works for both blog posts and static pages
 
 The sidebar extracts headings automatically from your markdown content. No manual TOC needed.
+
+**Example for blog post:**
+
+```markdown
+---
+title: "My Tutorial"
+description: "A detailed guide"
+date: "2025-01-20"
+slug: "my-tutorial"
+published: true
+tags: ["tutorial"]
+layout: "sidebar"
+---
+
+# Introduction
+
+## Getting Started
+
+### Prerequisites
+
+## Advanced Topics
+```
 
 ### How frontmatter works
 

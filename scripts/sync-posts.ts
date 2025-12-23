@@ -36,6 +36,7 @@ interface PostFrontmatter {
   featuredOrder?: number; // Order in featured section (lower = first)
   authorName?: string; // Author display name
   authorImage?: string; // Author avatar image URL (round)
+  layout?: string; // Layout type: "sidebar" for docs-style layout
 }
 
 interface ParsedPost {
@@ -53,6 +54,7 @@ interface ParsedPost {
   featuredOrder?: number; // Order in featured section (lower = first)
   authorName?: string; // Author display name
   authorImage?: string; // Author avatar image URL (round)
+  layout?: string; // Layout type: "sidebar" for docs-style layout
 }
 
 // Page frontmatter (for static pages like About, Projects, Contact)
@@ -122,6 +124,7 @@ function parseMarkdownFile(filePath: string): ParsedPost | null {
       featuredOrder: frontmatter.featuredOrder, // Order in featured section
       authorName: frontmatter.authorName, // Author display name
       authorImage: frontmatter.authorImage, // Author avatar image URL
+      layout: frontmatter.layout, // Layout type: "sidebar" for docs-style layout
     };
   } catch (error) {
     console.error(`Error parsing ${filePath}:`, error);

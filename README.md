@@ -16,6 +16,12 @@ npm run sync        # dev
 npm run sync:prod   # production
 ```
 
+## Documentation
+
+- **[Setup Guide](content/blog/setup-guide.md)** - Complete fork and deployment guide
+- **[Configuration Guide](content/blog/fork-configuration-guide.md)** - Automated or manual fork setup
+- **[Full Documentation](content/pages/docs.md)** - Reference for all features and configuration
+
 ## Fork Configuration
 
 After forking this project, you have two options to configure your site:
@@ -40,24 +46,6 @@ This updates all 11 configuration files in one step.
 ### Option 2: Manual
 
 Follow the step-by-step guide in `FORK_CONFIG.md` to update each file manually. This guide includes code snippets and an AI agent prompt for assistance.
-
-### Files Updated
-
-| File                                | What to update                                                              |
-| ----------------------------------- | --------------------------------------------------------------------------- |
-| `src/config/siteConfig.ts`          | Site name, title, intro, bio, blog page, logo gallery, GitHub contributions |
-| `src/pages/Home.tsx`                | Intro paragraph text, footer links                                          |
-| `convex/http.ts`                    | `SITE_URL`, `SITE_NAME`, description strings                                |
-| `convex/rss.ts`                     | `SITE_URL`, `SITE_TITLE`, `SITE_DESCRIPTION`                                |
-| `src/pages/Post.tsx`                | `SITE_URL`, `SITE_NAME`, `DEFAULT_OG_IMAGE`                                 |
-| `index.html`                        | Title, meta description, OG tags, JSON-LD                                   |
-| `public/llms.txt`                   | Site name, URL, description, topics                                         |
-| `public/robots.txt`                 | Sitemap URL and header comment                                              |
-| `public/openapi.yaml`               | API title, server URL, site name                                            |
-| `public/.well-known/ai-plugin.json` | Site name, descriptions                                                     |
-| `src/context/ThemeContext.tsx`      | Default theme                                                               |
-
-See `FORK_CONFIG.md` for detailed configuration examples and the full JSON schema.
 
 ## Features
 
@@ -169,130 +157,6 @@ excerpt: "Short text for featured cards"
 Your markdown content here...
 ```
 
-## Images
-
-### Open Graph Images
-
-Add an `image` field to frontmatter for social media previews:
-
-```yaml
-image: "/images/my-header.png"
-```
-
-Recommended dimensions: 1200x630 pixels. Images can be local (`/images/...`) or external URLs.
-
-### Inline Images
-
-Add images in markdown content:
-
-```markdown
-![Alt text description](/images/screenshot.png)
-```
-
-Place image files in `public/images/`. The alt text displays as a caption.
-
-### Image deployment
-
-Images are served as static files from your git repository, not synced to Convex. After adding images:
-
-1. Add image files to `public/images/`
-2. Reference in frontmatter (`image: "/images/my-image.png"`) or markdown (`![Alt](/images/my-image.png)`)
-3. Commit and push to git
-4. Netlify rebuilds and serves the images
-
-The `npm run sync` command only syncs markdown text content. Images require a full deploy via git push.
-
-### Site Logo
-
-Edit `src/pages/Home.tsx` to set your site logo:
-
-```typescript
-const siteConfig = {
-  logo: "/images/logo.svg", // Set to null to hide
-  // ...
-};
-```
-
-Replace `public/images/logo.svg` with your own logo file.
-
-## Featured Section
-
-Posts and pages with `featured: true` in frontmatter appear in the featured section.
-
-### Add to Featured
-
-Add these fields to any post or page frontmatter:
-
-```yaml
-featured: true
-featuredOrder: 1
-excerpt: "A short description for the card view."
-image: "/images/thumbnail.png"
-```
-
-Then run `npm run sync` (dev) or `npm run sync:prod` (production). No redeploy needed.
-
-| Field           | Description                               |
-| --------------- | ----------------------------------------- |
-| `featured`      | Set `true` to show in featured section      |
-| `featuredOrder` | Order in featured section (lower = first)   |
-| `excerpt`       | Short description for card view             |
-| `image`         | Thumbnail for card view (displays square)   |
-| `authorName`    | Author display name shown next to date      |
-| `authorImage`   | Round author avatar image URL               |
-
-### Display Modes
-
-The featured section supports two display modes:
-
-- **List view** (default): Bullet list of links
-- **Card view**: Grid of cards with thumbnail, title, and excerpt
-
-Users can toggle between views. To change the default:
-
-```typescript
-const siteConfig = {
-  featuredViewMode: "cards", // 'list' or 'cards'
-  showViewToggle: true, // Allow users to switch views
-};
-```
-
-### Thumbnail Images
-
-In card view, the `image` field displays as a square thumbnail above the title. Non-square images are automatically cropped to center. The list view shows links only (no images).
-
-Square thumbnails: 400x400px minimum (800x800px for retina). The same image can serve as both the OG image for social sharing and the featured card thumbnail.
-
-## Blog Page
-
-The site supports a dedicated blog page at `/blog`. Configure in `src/config/siteConfig.ts`:
-
-```typescript
-blogPage: {
-  enabled: true,         // Enable /blog route
-  showInNav: true,       // Show in navigation
-  title: "Blog",         // Nav link and page title
-  order: 0,              // Nav order (lower = first)
-},
-displayOnHomepage: true, // Show posts on homepage
-```
-
-| Option              | Description                            |
-| ------------------- | -------------------------------------- |
-| `enabled`           | Enable the `/blog` route               |
-| `showInNav`         | Show Blog link in navigation           |
-| `title`             | Text for nav link and page heading     |
-| `order`             | Position in navigation (lower = first) |
-| `displayOnHomepage` | Show post list on homepage             |
-
-**Display options:**
-
-- Homepage only: `displayOnHomepage: true`, `blogPage.enabled: false`
-- Blog page only: `displayOnHomepage: false`, `blogPage.enabled: true`
-- Both: `displayOnHomepage: true`, `blogPage.enabled: true`
-
-**Navigation order:** The Blog link merges with page links and sorts by order. Pages use the `order` field in frontmatter. Set `blogPage.order: 5` to position Blog after pages with order 0-4.
-
 ## Logo Gallery
 
 The homepage includes a scrolling logo gallery with sample logos. Configure in `siteConfig`:
@@ -305,35 +169,6 @@ logoGallery: {
   // ...
 },
 ```
-
-### Replace with your own logos
-
-1. Add logo images to `public/images/logos/` (SVG recommended)
-2. Update the images array with logos and links:
-
-```typescript
-logoGallery: {
-  enabled: true,
-  images: [
-    { src: "/images/logos/your-logo-1.svg", href: "https://example.com" },
-    { src: "/images/logos/your-logo-2.svg", href: "https://anothersite.com" },
-  ],
-  position: "above-footer", // or "below-featured"
-  speed: 30, // Seconds for one scroll cycle
-  title: "Trusted by", // Set to undefined to hide
-},
-```
-
-Each logo object supports:
-
-- `src`: Path to the logo image (required)
-- `href`: URL to link to when clicked (optional)
-
-### Remove sample logos
-
-Delete sample files from `public/images/logos/` and replace the images array with your own logos, or set `enabled: false` to hide the gallery entirely.
-
-The gallery uses CSS animations for smooth infinite scrolling. Logos appear grayscale and colorize on hover.
 
 ## GitHub Contributions Graph
 
@@ -349,23 +184,6 @@ gitHubContributions: {
 },
 ```
 
-| Option               | Description                                   |
-| -------------------- | --------------------------------------------- |
-| `enabled`            | `true` to show, `false` to hide               |
-| `username`           | Your GitHub username                          |
-| `showYearNavigation` | Show prev/next year navigation buttons        |
-| `linkToProfile`      | Click graph to visit GitHub profile           |
-| `title`              | Text above graph (set to `undefined` to hide) |
-
-The graph displays with theme-aware colors that match each site theme:
-
-- **Dark**: GitHub green on dark background
-- **Light**: Standard GitHub green
-- **Tan**: Warm brown tones
-- **Cloud**: Gray-blue tones
-
-Uses the public `github-contributions-api.jogruber.de` API (no GitHub token required).
-
 ## Visitor Map
 
 Display real-time visitor locations on a world map on the stats page. Uses Netlify's built-in geo detection (no third-party API needed). Privacy friendly: only stores city, country, and coordinates. No IP addresses stored.
@@ -377,27 +195,6 @@ visitorMap: {
   enabled: true,        // Set to false to hide the visitor map
   title: "Live Visitors", // Optional title above the map
 },
-```
-
-| Option    | Description                                 |
-| --------- | ------------------------------------------- |
-| `enabled` | `true` to show, `false` to hide             |
-| `title`   | Text above map (set to `undefined` to hide) |
-
-The map displays with theme-aware colors. Visitor dots pulse to indicate live sessions. Location data comes from Netlify's automatic geo headers at the edge.
-
-### Favicon
-
-Replace `public/favicon.svg` with your own icon. The default is a rounded square with the letter "m". Edit the SVG to change the letter or style.
-
-### Default Open Graph Image
-
-The default OG image is used when posts do not have an `image` field. Replace `public/images/og-default.svg` with your own image (1200x630 recommended).
-
-Update the reference in `src/pages/Post.tsx`:
-
-```typescript
-const DEFAULT_OG_IMAGE = "/images/og-default.svg";
 ```
 
 ## Syncing Posts
@@ -602,25 +399,6 @@ FIRECRAWL_API_KEY=fc-your-api-key
 
 Imported posts are created as drafts (`published: false`). Review, edit, set `published: true`, then sync.
 
-## How Blog Post Slugs Work
-
-Slugs are defined in the frontmatter of each markdown file:
-
-```markdown
----
-slug: "my-post-slug"
----
-```
-
-The slug becomes the URL path: `yourdomain.com/my-post-slug`
-
-Rules:
-
-- Slugs must be unique across all posts
-- Use lowercase letters, numbers, and hyphens
-- The sync script reads the `slug` field from frontmatter
-- Posts are queried by slug using a Convex index
-
 ## Theme Configuration
 
 The default theme is Tan. Users can cycle through themes using the toggle:
@@ -640,67 +418,22 @@ const DEFAULT_THEME: Theme = "tan"; // Change to "dark", "light", or "cloud"
 
 The blog uses a serif font (New York) by default. To switch fonts, edit `src/styles/global.css`:
 
-```css
-body {
-  /* Sans-serif option */
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
-
-  /* Serif option (default) */
-  font-family:
-    "New York",
-    -apple-system-ui-serif,
-    ui-serif,
-    Georgia,
-    Cambria,
-    "Times New Roman",
-    Times,
-    serif;
-}
-```
-
-Replace the `font-family` property with your preferred font stack.
-
 ### Font Sizes
 
 All font sizes use CSS variables defined in `:root`. Customize sizes by editing the variables:
 
-```css
-:root {
-  /* Base size scale */
-  --font-size-base: 16px;
-  --font-size-sm: 13px;
-  --font-size-lg: 17px;
-  --font-size-xl: 18px;
-  --font-size-2xl: 20px;
-  --font-size-3xl: 24px;
-
-  /* Component-specific (examples) */
-  --font-size-blog-content: 17px;
-  --font-size-post-title: 32px;
-  --font-size-nav-link: 14px;
-}
-```
-
-Mobile responsive sizes are defined in a `@media (max-width: 768px)` block with smaller values.
-
 ## Write Page
 
-A public markdown writing page at `/write` (not linked in navigation). Features:
-
-- Three-column Cursor docs-style layout
-- Content type selector (Blog Post or Page) with dynamic frontmatter templates
-- Frontmatter reference panel with copy buttons for each field
-- Font switcher (Serif/Sans-serif) with localStorage persistence
-- Theme toggle matching the site themes (Moon, Sun, Half2Icon, Cloud)
-- Word, line, and character counts
-- localStorage persistence for content, content type, and font preference
-- Works with Grammarly and browser spellcheck
-- Warning message about refresh losing content
+A public markdown writing page at `/write` (not linked in navigation).
 
 Access directly at `yourdomain.com/write`. Content is stored in localStorage only (not synced to database). Use it to draft posts, then copy the content to a markdown file in `content/blog/` or `content/pages/` and run `npm run sync`.
 
 ## Source
 
 Fork this project: [github.com/waynesutton/markdown-site](https://github.com/waynesutton/markdown-site)
+
+## License
+
+This project is licensed under the [MIT License](https://github.com/waynesutton/markdown-site/blob/main/LICENSE).
+
+You are free to use, modify, and distribute this project in accordance with the [MIT license terms](https://opensource.org/licenses/MIT).

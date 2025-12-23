@@ -119,6 +119,7 @@ export const getPostBySlug = query({
       featuredOrder: v.optional(v.number()),
       authorName: v.optional(v.string()),
       authorImage: v.optional(v.string()),
+      layout: v.optional(v.string()),
     }),
     v.null(),
   ),
@@ -149,6 +150,7 @@ export const getPostBySlug = query({
       featuredOrder: post.featuredOrder,
       authorName: post.authorName,
       authorImage: post.authorImage,
+      layout: post.layout,
     };
   },
 });
@@ -172,6 +174,7 @@ export const syncPosts = internalMutation({
         featuredOrder: v.optional(v.number()),
         authorName: v.optional(v.string()),
         authorImage: v.optional(v.string()),
+        layout: v.optional(v.string()),
       }),
     ),
   },
@@ -212,6 +215,7 @@ export const syncPosts = internalMutation({
           featuredOrder: post.featuredOrder,
           authorName: post.authorName,
           authorImage: post.authorImage,
+          layout: post.layout,
           lastSyncedAt: now,
         });
         updated++;
@@ -256,6 +260,7 @@ export const syncPostsPublic = mutation({
         featuredOrder: v.optional(v.number()),
         authorName: v.optional(v.string()),
         authorImage: v.optional(v.string()),
+        layout: v.optional(v.string()),
       }),
     ),
   },
@@ -296,6 +301,7 @@ export const syncPostsPublic = mutation({
           featuredOrder: post.featuredOrder,
           authorName: post.authorName,
           authorImage: post.authorImage,
+          layout: post.layout,
           lastSyncedAt: now,
         });
         updated++;

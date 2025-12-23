@@ -37,6 +37,7 @@ const POST_FIELDS = [
   { name: "featuredOrder", required: false, example: "1" },
   { name: "authorName", required: false, example: '"Jane Doe"' },
   { name: "authorImage", required: false, example: '"/images/authors/jane.png"' },
+  { name: "layout", required: false, example: '"sidebar"' },
 ];
 
 // Frontmatter field definitions for pages

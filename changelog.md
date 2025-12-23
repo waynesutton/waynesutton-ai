@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.24.0] - 2025-12-23
+
+### Added
+
+- Sidebar layout support for blog posts
+  - Blog posts can now use `layout: "sidebar"` frontmatter field (previously only available for pages)
+  - Enables docs-style layout with table of contents sidebar for long-form posts
+  - Same features as page sidebar: automatic TOC extraction, active heading highlighting, smooth scroll navigation
+  - Mobile responsive: stacks to single column below 1024px
+
+### Changed
+
+- Updated `Post.tsx` to handle sidebar layout for both posts and pages
+- Updated `Write.tsx` to include `layout` field in blog post frontmatter reference
+
+### Technical
+
+- Updated `convex/schema.ts`: Added optional `layout` field to posts table
+- Updated `scripts/sync-posts.ts`: Parses `layout` field from post frontmatter
+- Updated `convex/posts.ts`: Includes `layout` field in queries, mutations, and sync operations
+- Reuses existing sidebar components and CSS (no new components needed)
+
+### Documentation
+
+- Updated `docs.md`: Added `layout` field to blog posts frontmatter table, updated sidebar layout section
+- Updated `setup-guide.md`: Clarified sidebar layout works for both posts and pages
+- Updated `how-to-publish.md`: Added `layout` field to frontmatter reference table
+
 ## [1.23.0] - 2025-12-23
 
 ### Added

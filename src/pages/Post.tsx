@@ -236,10 +236,14 @@ export default function Post() {
     );
   };
 
+  // Extract headings for sidebar TOC (only for posts with layout: "sidebar")
+  const headings = post?.layout === "sidebar" ? extractHeadings(post.content) : [];
+  const hasSidebar = headings.length > 0;
+
   // Render blog post with full metadata
   return (
-    <div className="post-page">
-      <nav className="post-nav">
+    <div className={`post-page ${hasSidebar ? "post-page-with-sidebar" : ""}`}>
+      <nav className={`post-nav ${hasSidebar ? "post-nav-with-sidebar" : ""}`}>
         <button onClick={() => navigate("/")} className="back-button">
           <ArrowLeft size={16} />
           <span>Back</span>
@@ -257,7 +261,15 @@ export default function Post() {
         />
       </nav>
 
-      <article className="post-article">
+      <div className={hasSidebar ? "post-content-with-sidebar" : ""}>
+        {/* Left sidebar - TOC */}
+        {hasSidebar && (
+          <aside className="post-sidebar-wrapper post-sidebar-left">
+            <PageSidebar headings={headings} activeId={location.hash.slice(1)} />
+          </aside>
+        )}
+
+        <article className={`post-article ${hasSidebar ? "post-article-with-sidebar" : ""}`}>
         <header className="post-header">
           <h1 className="post-title">{post.title}</h1>
           <div className="post-meta-header">
@@ -335,6 +347,7 @@ export default function Post() {
           )}
         </footer>
       </article>
+      </div>
     </div>
   );
 }

@@ -88,6 +88,7 @@ readTime: "5 min read"
 | `featured`      | No       | Set `true` to show in featured section              |
 | `featuredOrder` | No       | Order in featured section (lower first)             |
 | `excerpt`       | No       | Short description for card view                     |
+| `layout`        | No       | Set to `"sidebar"` for docs-style layout with TOC   |
 
 ## Write Your Content
 

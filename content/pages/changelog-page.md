@@ -8,6 +8,38 @@ layout: "sidebar"
 
 All notable changes to this project.
 
+## v1.24.0
+
+Released December 23, 2025
+
+**Sidebar layout for blog posts**
+
+- Blog posts now support `layout: "sidebar"` frontmatter field
+- Previously only available for static pages, now works for posts too
+- Enables docs-style layout with table of contents sidebar for long-form content
+- Same features as page sidebar: automatic TOC extraction, active heading highlighting, smooth scroll navigation
+- Mobile responsive: stacks to single column below 1024px
+
+Add `layout: "sidebar"` to any blog post frontmatter to enable the sidebar layout. The sidebar extracts headings (H1, H2, H3) automatically and only appears if headings exist in the content.
+
+Example:
+
+```yaml
+---
+title: "My Tutorial"
+description: "A detailed guide"
+date: "2025-01-20"
+slug: "my-tutorial"
+published: true
+tags: ["tutorial"]
+layout: "sidebar"
+---
+```
+
+Updated files: `convex/schema.ts`, `scripts/sync-posts.ts`, `convex/posts.ts`, `src/pages/Post.tsx`, `src/pages/Write.tsx`
+
+Documentation updated: `docs.md`, `setup-guide.md`, `how-to-publish.md`
+
 ## v1.23.0
 
 Released December 23, 2025
