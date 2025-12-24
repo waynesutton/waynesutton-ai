@@ -41,6 +41,7 @@ export default defineSchema({
     content: v.string(),
     published: v.boolean(),
     order: v.optional(v.number()), // Display order in nav
+    showInNav: v.optional(v.boolean()), // Show in navigation menu (default: true)
     excerpt: v.optional(v.string()), // Short excerpt for card view
     image: v.optional(v.string()), // Thumbnail/OG image URL for featured cards
     featured: v.optional(v.boolean()), // Show in featured section

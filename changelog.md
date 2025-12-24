@@ -4,6 +4,61 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.24.4] - 2025-12-23
+
+### Added
+
+- `showInNav` field for pages to control navigation visibility
+  - Pages can be published and accessible but hidden from navigation menu
+  - Set `showInNav: false` in page frontmatter to hide from nav
+  - Defaults to `true` for backwards compatibility (all existing pages show in nav)
+  - Pages with `showInNav: false` remain:
+    - Published and accessible via direct URL
+    - Searchable via search indexes
+    - Available via API endpoints
+    - Just hidden from the navigation menu
+  - Matches the pattern used for `blogPage.showInNav` in siteConfig.ts
+- Hardcoded navigation items configuration for React routes
+  - Add React route pages (like `/stats`, `/write`) to navigation via `siteConfig.hardcodedNavItems`
+  - Configure navigation order, title, and visibility per route
+  - Set `showInNav: false` to hide from nav while keeping route accessible
+  - Navigation combines Blog link, hardcoded nav items, and markdown pages
+  - All nav items sorted by `order` field (lower = first)
+  - Example: Configure `/stats` and `/write` routes in `siteConfig.ts`
+
+### Technical
+
+- Updated `convex/schema.ts`: Added optional `showInNav` field to pages table
+- Updated `convex/pages.ts`: `getAllPages` query filters out pages where `showInNav === false`
+- Updated `scripts/sync-posts.ts`: Parses `showInNav` from page frontmatter
+- Updated `src/pages/Write.tsx`: Added `showInNav` field to page template and PAGE_FIELDS reference
+- Updated `src/config/siteConfig.ts`: Added `HardcodedNavItem` interface and `hardcodedNavItems` config array
+- Updated `src/components/Layout.tsx`: Reads `hardcodedNavItems` from siteConfig and combines with Blog link and pages
+
+### Documentation
+
+- Updated `content/pages/docs.md`: Added `showInNav` to static pages frontmatter table
+- Updated `content/blog/setup-guide.md`: Added `showInNav` to static pages frontmatter table
+
+## [1.24.3] - 2025-12-23
+
+### Added
+
+- Inner page logo configuration
+  - Logo displays in header on blog page, individual posts, and static pages
+  - Desktop: logo positioned on the left (before back button)
+  - Mobile: logo positioned on the right (smaller size for compact header)
+  - Configurable via `siteConfig.innerPageLogo.enabled` and `siteConfig.innerPageLogo.size`
+  - Does not affect homepage logo (controlled separately)
+  - Logo links to homepage when clicked
+
+### Technical
+
+- Updated `src/config/siteConfig.ts`: Added `InnerPageLogoConfig` interface and `innerPageLogo` config option
+- Updated `src/pages/Blog.tsx`: Added logo to header navigation
+- Updated `src/pages/Post.tsx`: Added logo to header navigation for both posts and pages
+- Updated `src/styles/global.css`: Added CSS for desktop (left) and mobile (right) logo positioning with responsive sizing
+
 ## [1.24.2] - 2025-12-23
 
 ### Changed

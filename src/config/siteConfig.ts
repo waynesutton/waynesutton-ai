@@ -47,6 +47,15 @@ export interface PostsDisplayConfig {
   showOnBlogPage: boolean; // Show post list on /blog page (requires blogPage.enabled)
 }
 
+// Hardcoded navigation item configuration
+// For React route pages (like /stats, /write) that aren't markdown pages
+export interface HardcodedNavItem {
+  slug: string; // URL path (e.g., "stats", "write")
+  title: string; // Display name in navigation
+  order?: number; // Nav order (lower = first, matches page frontmatter order)
+  showInNav?: boolean; // Show in navigation menu (default: true)
+}
+
 // Site configuration interface
 export interface SiteConfig {
   // Basic site info
@@ -74,6 +83,9 @@ export interface SiteConfig {
 
   // Blog page configuration
   blogPage: BlogPageConfig;
+
+  // Hardcoded navigation items for React routes (like /stats, /write)
+  hardcodedNavItems: HardcodedNavItem[];
 
   // Posts display configuration
   postsDisplay: PostsDisplayConfig;
@@ -174,6 +186,24 @@ export const siteConfig: SiteConfig = {
     viewMode: "list", // Default view mode: "list" or "cards"
     showViewToggle: true, // Show toggle button to switch between list and card views
   },
+
+  // Hardcoded navigation items for React routes
+  // Add React route pages (like /stats, /write) that should appear in navigation
+  // Set showInNav: false to hide from nav while keeping the route accessible
+  hardcodedNavItems: [
+    {
+      slug: "stats",
+      title: "Stats",
+      order: 10,
+      showInNav: true,
+    },
+    {
+      slug: "write",
+      title: "Write",
+      order: 20,
+      showInNav: true,
+    },
+  ],
 
   // Posts display configuration
   // Controls where the post list appears

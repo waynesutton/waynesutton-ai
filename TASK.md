@@ -15,7 +15,7 @@
 
 ## Current Status
 
-v1.24.2 deployed. Mobile menu redesigned with sidebar integration and typography standardization.
+v1.24.4 deployed. Added `showInNav` field for pages and hardcoded navigation items configuration for React routes.
 
 ## Completed
 
@@ -172,6 +172,15 @@ v1.24.2 deployed. Mobile menu redesigned with sidebar integration and typography
 - [x] SidebarContext created to share sidebar data between components
 - [x] Mobile menu typography standardized with CSS variables
 - [x] Font-family standardized using inherit for consistency
+- [x] `showInNav` field for pages to control navigation visibility
+- [x] Pages can be published but hidden from navigation menu
+- [x] Defaults to `true` for backwards compatibility
+- [x] Pages with `showInNav: false` remain accessible via direct URL, searchable, and available via API
+- [x] Hardcoded navigation items configuration in siteConfig.ts
+- [x] Add React route pages (like /stats, /write) to navigation via hardcodedNavItems
+- [x] Configure navigation order, title, and visibility per route
+- [x] Navigation combines Blog link, hardcoded nav items, and markdown pages
+- [x] All nav items sorted by order field (lower = first)
 
 ## Deployment Steps
 

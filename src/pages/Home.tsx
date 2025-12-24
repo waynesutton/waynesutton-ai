@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import PostList from "../components/PostList";
@@ -166,9 +167,9 @@ export default function Home() {
               <ul className="home-featured-list">
                 {featuredList.map((item) => (
                   <li key={item.slug}>
-                    <a href={`/${item.slug}`} className="home-featured-link">
+                    <Link to={`/${item.slug}`} className="home-featured-link">
                       {item.title}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -229,9 +230,9 @@ export default function Home() {
             project on GitHub
           </a>{" "}
           to fork and deploy your own. View{" "}
-          <a href="/stats" className="home-text-link">
+          <Link to="/stats" className="home-text-link">
             real-time site stats
-          </a>
+          </Link>
           .
         </p>
         <p></p>

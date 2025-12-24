@@ -63,6 +63,7 @@ interface PageFrontmatter {
   slug: string;
   published: boolean;
   order?: number; // Display order in navigation
+  showInNav?: boolean; // Show in navigation menu (default: true)
   excerpt?: string; // Short excerpt for card view
   image?: string; // Thumbnail/OG image URL for featured cards
   featured?: boolean; // Show in featured section
@@ -78,6 +79,7 @@ interface ParsedPage {
   content: string;
   published: boolean;
   order?: number;
+  showInNav?: boolean; // Show in navigation menu (default: true)
   excerpt?: string; // Short excerpt for card view
   image?: string; // Thumbnail/OG image URL for featured cards
   featured?: boolean; // Show in featured section
@@ -168,6 +170,7 @@ function parsePageFile(filePath: string): ParsedPage | null {
       content: content.trim(),
       published: frontmatter.published ?? true,
       order: frontmatter.order,
+      showInNav: frontmatter.showInNav, // Show in navigation menu (default: true)
       excerpt: frontmatter.excerpt, // Short excerpt for card view
       image: frontmatter.image, // Thumbnail/OG image URL for featured cards
       featured: frontmatter.featured, // Show in featured section

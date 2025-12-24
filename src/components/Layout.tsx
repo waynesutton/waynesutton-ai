@@ -80,8 +80,8 @@ export default function Layout({ children }: LayoutProps) {
   const showBlogInNav =
     siteConfig.blogPage.enabled && siteConfig.blogPage.showInNav;
 
-  // Combine Blog link with pages and sort by order
-  // This allows Blog to be positioned anywhere in the nav via siteConfig.blogPage.order
+  // Combine Blog link, hardcoded nav items, and pages, then sort by order
+  // This allows all nav items to be positioned anywhere via order field
   type NavItem = {
     slug: string;
     title: string;
@@ -98,6 +98,20 @@ export default function Layout({ children }: LayoutProps) {
       title: siteConfig.blogPage.title,
       order: siteConfig.blogPage.order ?? 0,
       isBlog: true,
+    });
+  }
+
+  // Add hardcoded nav items (React routes like /stats, /write)
+  if (siteConfig.hardcodedNavItems && siteConfig.hardcodedNavItems.length > 0) {
+    siteConfig.hardcodedNavItems.forEach((item) => {
+      // Only add if showInNav is true (defaults to true)
+      if (item.showInNav !== false) {
+        navItems.push({
+          slug: item.slug,
+          title: item.title,
+          order: item.order ?? 999,
+        });
+      }
     });
   }
 

@@ -2,6 +2,7 @@
 title: "Projects"
 slug: "projects"
 published: true
+showInNav: false
 order: 3
 ---
 

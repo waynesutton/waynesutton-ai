@@ -1,4 +1,5 @@
 import { useQuery } from "convex/react";
+import { Link } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 
 // Type for featured item from Convex (used for backwards compatibility)
@@ -142,7 +143,7 @@ export default function FeaturedCards({
   return (
     <div className="featured-cards">
       {featuredData.map((item) => (
-        <a key={item.slug} href={`/${item.slug}`} className="featured-card">
+        <Link key={item.slug} to={`/${item.slug}`} className="featured-card">
           {/* Thumbnail image displayed as square using object-fit: cover */}
           {item.image && (
             <div className="featured-card-image-wrapper">
@@ -160,7 +161,7 @@ export default function FeaturedCards({
               <p className="featured-card-excerpt">{item.excerpt}</p>
             )}
           </div>
-        </a>
+        </Link>
       ))}
     </div>
   );

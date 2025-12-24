@@ -8,6 +8,79 @@ layout: "sidebar"
 
 All notable changes to this project.
 
+## v1.24.4
+
+Released December 23, 2025
+
+**Navigation visibility control and hardcoded nav items**
+
+- `showInNav` field for pages to control navigation visibility
+  - Pages can be published and accessible but hidden from navigation menu
+  - Set `showInNav: false` in page frontmatter to hide from nav
+  - Defaults to `true` for backwards compatibility (all existing pages show in nav)
+  - Pages with `showInNav: false` remain:
+    - Published and accessible via direct URL
+    - Searchable via search indexes
+    - Available via API endpoints
+    - Just hidden from the navigation menu
+  - Matches the pattern used for `blogPage.showInNav` in siteConfig.ts
+
+- Hardcoded navigation items configuration for React routes
+  - Add React route pages (like `/stats`, `/write`) to navigation via `siteConfig.hardcodedNavItems`
+  - Configure navigation order, title, and visibility per route
+  - Set `showInNav: false` to hide from nav while keeping route accessible
+  - Navigation combines Blog link, hardcoded nav items, and markdown pages
+  - All nav items sorted by `order` field (lower = first)
+
+Example configuration:
+
+```typescript
+// src/config/siteConfig.ts
+hardcodedNavItems: [
+  {
+    slug: "stats",
+    title: "Stats",
+    order: 10,
+    showInNav: true,
+  },
+  {
+    slug: "write",
+    title: "Write",
+    order: 20,
+    showInNav: true,
+  },
+],
+```
+
+Updated files: `convex/schema.ts`, `convex/pages.ts`, `scripts/sync-posts.ts`, `src/pages/Write.tsx`, `src/config/siteConfig.ts`, `src/components/Layout.tsx`
+
+Documentation updated: `content/pages/docs.md`, `content/blog/setup-guide.md`
+
+## v1.24.3
+
+Released December 23, 2025
+
+**Inner page logo configuration**
+
+- Logo displays in header on blog page, individual posts, and static pages
+- Desktop: logo positioned on the left (before back button)
+- Mobile: logo positioned on the right (smaller size for compact header)
+- Configurable via `siteConfig.innerPageLogo.enabled` and `siteConfig.innerPageLogo.size`
+- Does not affect homepage logo (controlled separately)
+- Logo links to homepage when clicked
+
+Configuration:
+
+```typescript
+// src/config/siteConfig.ts
+innerPageLogo: {
+  enabled: true,  // Set to false to hide logo on inner pages
+  size: 28,      // Logo height in pixels (keeps aspect ratio)
+},
+```
+
+Updated files: `src/config/siteConfig.ts`, `src/pages/Blog.tsx`, `src/pages/Post.tsx`, `src/styles/global.css`
+
 ## v1.24.2
 
 Released December 23, 2025

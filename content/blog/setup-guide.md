@@ -570,16 +570,29 @@ To use a different letter or icon, edit the SVG directly or replace the file.
 
 ### Change the Site Logo
 
-The logo appears on the homepage. Edit `src/pages/Home.tsx`:
+The site uses two logo configurations:
+
+**Homepage logo:** Edit `src/config/siteConfig.ts`:
 
 ```typescript
-const siteConfig = {
+export default {
   logo: "/images/logo.svg", // Set to null to hide the logo
   // ...
 };
 ```
 
 Replace `public/images/logo.svg` with your own logo file. Recommended: SVG format, 512x512 pixels.
+
+**Inner page logo:** Shows on blog page, individual posts, and static pages. Configure in `src/config/siteConfig.ts`:
+
+```typescript
+innerPageLogo: {
+  enabled: true, // Set to false to hide logo on inner pages
+  size: 28, // Logo height in pixels (keeps aspect ratio)
+},
+```
+
+The inner page logo appears in the top left corner on desktop and top right on mobile. It uses the same logo file as the homepage logo. Set `enabled: false` to hide it on inner pages while keeping the homepage logo.
 
 ### Change the Default Open Graph Image
 
@@ -601,6 +614,7 @@ Edit `src/config/siteConfig.ts` to customize:
 export default {
   name: "Your Name",
   title: "Your Title",
+  logo: "/images/logo.svg", // null to hide homepage logo
   intro: "Your introduction...",
   bio: "Your bio...",
 
@@ -611,7 +625,28 @@ export default {
     title: "Blog", // Nav link and page title
     order: 0, // Nav order (lower = first)
   },
-  displayOnHomepage: true, // Show posts on homepage
+
+  // Hardcoded navigation items for React routes
+  hardcodedNavItems: [
+    {
+      slug: "stats",
+      title: "Stats",
+      order: 10,
+      showInNav: true, // Set to false to hide from nav
+    },
+    {
+      slug: "write",
+      title: "Write",
+      order: 20,
+      showInNav: true,
+    },
+  ],
+
+  // Inner page logo configuration
+  innerPageLogo: {
+    enabled: true, // Set to false to hide logo on inner pages
+    size: 28, // Logo height in pixels (keeps aspect ratio)
+  },
 
   // Featured section options
   featuredViewMode: "list", // 'list' or 'cards'
@@ -827,6 +862,39 @@ Cards display post thumbnails (from `image` frontmatter field), titles, excerpts
 
 **View preference:** User's view mode choice is saved to localStorage and persists across page visits.
 
+### Hardcoded Navigation Items
+
+Add React route pages (like `/stats`, `/write`) to the navigation menu via `siteConfig.ts`. These pages are React components, not markdown files.
+
+Configure in `src/config/siteConfig.ts`:
+
+```typescript
+hardcodedNavItems: [
+  {
+    slug: "stats",
+    title: "Stats",
+    order: 10,
+    showInNav: true, // Set to false to hide from nav
+  },
+  {
+    slug: "write",
+    title: "Write",
+    order: 20,
+    showInNav: true,
+  },
+],
+```
+
+Navigation combines three sources in this order:
+
+1. Blog link (if `blogPage.enabled` and `blogPage.showInNav` are true)
+2. Hardcoded nav items (from `hardcodedNavItems` array)
+3. Markdown pages (from `content/pages/` with `showInNav: true`)
+
+All items sort by `order` field (lower numbers first), then alphabetically by title.
+
+**Hide from navigation:** Set `showInNav: false` to keep a route accessible but hidden from the nav menu. The route still works at its URL, just won't appear in navigation links.
+
 ### Scroll-to-top button
 
 A scroll-to-top button appears after scrolling down on posts and pages. Configure it in `src/components/Layout.tsx`:
@@ -922,6 +990,7 @@ Your page content here...
 | `slug`        | Yes      | URL path (e.g., `/about`)                         |
 | `published`   | Yes      | Set `true` to show                                |
 | `order`       | No       | Display order (lower = first)                     |
+| `showInNav`   | No       | Show in navigation menu (default: `true`)         |
 | `authorName`  | No       | Author display name shown next to date            |
 | `authorImage` | No       | Round author avatar image URL                     |
 | `layout`      | No       | Set to `"sidebar"` for docs-style layout with TOC |
@@ -929,6 +998,8 @@ Your page content here...
 3. Run `npm run sync` to sync pages
 
 Pages appear automatically in the navigation when published.
+
+**Hide pages from navigation:** Set `showInNav: false` in page frontmatter to keep a page published and accessible via direct URL, but hidden from the navigation menu. Useful for pages like `/projects` that you want to link directly but not show in the main nav. Pages with `showInNav: false` remain searchable and available via API endpoints.
 
 **Sidebar layout:** Add `layout: "sidebar"` to any post or page frontmatter to enable a docs-style layout with a table of contents sidebar. The sidebar extracts headings (H1, H2, H3) automatically and provides smooth scroll navigation. Only appears if headings exist in the content.
 

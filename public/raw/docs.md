@@ -2,7 +2,7 @@
 
 ---
 Type: page
-Date: 2025-12-23
+Date: 2025-12-24
 ---
 
 Reference documentation for setting up, customizing, and deploying this markdown framework.
@@ -120,6 +120,7 @@ Content here...
 | `slug`          | Yes      | URL path                                          |
 | `published`     | Yes      | `true` to show                                    |
 | `order`         | No       | Nav order (lower = first)                         |
+| `showInNav`     | No       | Show in navigation menu (default: `true`)         |
 | `excerpt`       | No       | Short text for card view                          |
 | `image`         | No       | Thumbnail for featured card view                  |
 | `featured`      | No       | `true` to show in featured section                |
@@ -127,6 +128,8 @@ Content here...
 | `authorName`    | No       | Author display name shown next to date            |
 | `authorImage`   | No       | Round author avatar image URL                     |
 | `layout`        | No       | Set to `"sidebar"` for docs-style layout with TOC |
+
+**Hide pages from navigation:** Set `showInNav: false` to keep a page published and accessible via direct URL, but hidden from the navigation menu. Pages with `showInNav: false` remain searchable and available via API endpoints. Useful for pages you want to link directly but not show in the main nav.
 
 ### Sidebar layout
 
@@ -319,7 +322,7 @@ Edit `src/config/siteConfig.ts`:
 export default {
   name: "Site Name",
   title: "Tagline",
-  logo: "/images/logo.svg", // null to hide
+  logo: "/images/logo.svg", // null to hide homepage logo
   intro: "Introduction text...",
   bio: "Bio text...",
 
@@ -330,7 +333,28 @@ export default {
     title: "Blog", // Nav link and page title
     order: 0, // Nav order (lower = first)
   },
-  displayOnHomepage: true, // Show posts on homepage
+
+  // Hardcoded navigation items for React routes
+  hardcodedNavItems: [
+    {
+      slug: "stats",
+      title: "Stats",
+      order: 10,
+      showInNav: true, // Set to false to hide from nav
+    },
+    {
+      slug: "write",
+      title: "Write",
+      order: 20,
+      showInNav: true,
+    },
+  ],
+
+  // Inner page logo configuration
+  innerPageLogo: {
+    enabled: true, // Set to false to hide logo on inner pages
+    size: 28, // Logo height in pixels (keeps aspect ratio)
+  },
 
   // Featured section
   featuredViewMode: "list", // 'list' or 'cards'
@@ -353,6 +377,21 @@ export default {
   },
 };
 ```
+
+**Logo configuration:**
+
+- `logo`: Homepage logo path (set to `null` to hide). Uses `public/images/logo.svg` by default.
+- `innerPageLogo`: Logo shown on blog page, posts, and static pages. Desktop: top left. Mobile: top right. Set `enabled: false` to hide on inner pages while keeping homepage logo.
+
+**Navigation structure:**
+
+Navigation combines three sources sorted by `order`:
+
+1. Blog link (if `blogPage.enabled` and `blogPage.showInNav` are true)
+2. Hardcoded nav items (React routes from `hardcodedNavItems`)
+3. Markdown pages (from `content/pages/` with `showInNav: true`)
+
+All items sort by `order` (lower first), then alphabetically by title.
 
 ### Featured items
 
@@ -602,6 +641,11 @@ Mobile sizes defined in `@media (max-width: 768px)` block.
 3. Wait for Netlify to rebuild
 
 The `npm run sync` command only syncs markdown text content. Images are deployed when Netlify builds your site.
+
+**Logo options:**
+
+- **Homepage logo:** Configured via `logo` in `siteConfig.ts`. Set to `null` to hide.
+- **Inner page logo:** Configured via `innerPageLogo` in `siteConfig.ts`. Shows on blog page, posts, and static pages. Desktop: top left corner. Mobile: top right corner (smaller). Set `enabled: false` to hide on inner pages while keeping homepage logo.
 
 ## Search
 

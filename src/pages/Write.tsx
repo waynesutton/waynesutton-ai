@@ -46,6 +46,7 @@ const PAGE_FIELDS = [
   { name: "slug", required: true, example: '"page-url"' },
   { name: "published", required: true, example: "true" },
   { name: "order", required: false, example: "1" },
+  { name: "showInNav", required: false, example: "true" },
   { name: "excerpt", required: false, example: '"Short description"' },
   { name: "image", required: false, example: '"/images/thumbnail.png"' },
   { name: "featured", required: false, example: "true" },
@@ -96,6 +97,7 @@ title: "Page Title"
 slug: "page-url"
 published: true
 order: 1
+showInNav: true
 layout: "sidebar"
 ---
 

@@ -11,6 +11,7 @@ export const getAllPages = query({
       title: v.string(),
       published: v.boolean(),
       order: v.optional(v.number()),
+      showInNav: v.optional(v.boolean()),
       excerpt: v.optional(v.string()),
       image: v.optional(v.string()),
       featured: v.optional(v.boolean()),
@@ -26,8 +27,14 @@ export const getAllPages = query({
       .withIndex("by_published", (q) => q.eq("published", true))
       .collect();
 
+    // Filter out pages where showInNav is explicitly false
+    // Default to true for backwards compatibility (undefined/null = show in nav)
+    const visiblePages = pages.filter(
+      (page) => page.showInNav !== false,
+    );
+
     // Sort by order (lower numbers first), then by title
-    const sortedPages = pages.sort((a, b) => {
+    const sortedPages = visiblePages.sort((a, b) => {
       const orderA = a.order ?? 999;
       const orderB = b.order ?? 999;
       if (orderA !== orderB) return orderA - orderB;
@@ -40,6 +47,7 @@ export const getAllPages = query({
       title: page.title,
       published: page.published,
       order: page.order,
+      showInNav: page.showInNav,
       excerpt: page.excerpt,
       image: page.image,
       featured: page.featured,
@@ -103,6 +111,7 @@ export const getPageBySlug = query({
       content: v.string(),
       published: v.boolean(),
       order: v.optional(v.number()),
+      showInNav: v.optional(v.boolean()),
       excerpt: v.optional(v.string()),
       image: v.optional(v.string()),
       featured: v.optional(v.boolean()),
@@ -130,6 +139,7 @@ export const getPageBySlug = query({
       content: page.content,
       published: page.published,
       order: page.order,
+      showInNav: page.showInNav,
       excerpt: page.excerpt,
       image: page.image,
       featured: page.featured,
@@ -151,6 +161,7 @@ export const syncPagesPublic = mutation({
         content: v.string(),
         published: v.boolean(),
         order: v.optional(v.number()),
+        showInNav: v.optional(v.boolean()),
         excerpt: v.optional(v.string()),
         image: v.optional(v.string()),
         featured: v.optional(v.boolean()),
@@ -189,6 +200,7 @@ export const syncPagesPublic = mutation({
           content: page.content,
           published: page.published,
           order: page.order,
+          showInNav: page.showInNav,
           excerpt: page.excerpt,
           image: page.image,
           featured: page.featured,

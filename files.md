@@ -33,7 +33,7 @@ A brief description of each file in the codebase.
 
 | File            | Description                                                                                               |
 | --------------- | --------------------------------------------------------------------------------------------------------- |
-| `siteConfig.ts` | Centralized site configuration (name, logo, blog page, posts display, GitHub contributions, nav order) |
+| `siteConfig.ts` | Centralized site configuration (name, logo, blog page, posts display, GitHub contributions, nav order, inner page logo settings, hardcoded navigation items for React routes) |
 
 ### Pages (`src/pages/`)
 
@@ -49,7 +49,7 @@ A brief description of each file in the codebase.
 
 | File                      | Description                                                |
 | ------------------------- | ---------------------------------------------------------- |
-| `Layout.tsx`              | Page wrapper with search button, theme toggle, mobile menu (left-aligned on mobile), and scroll-to-top |
+| `Layout.tsx`              | Page wrapper with search button, theme toggle, mobile menu (left-aligned on mobile), and scroll-to-top. Combines Blog link, hardcoded nav items, and markdown pages for navigation |
 | `ThemeToggle.tsx`         | Theme switcher (dark/light/tan/cloud)                      |
 | `PostList.tsx`            | Year-grouped blog post list or card grid (supports list/cards view modes) |
 | `BlogPost.tsx`            | Markdown renderer with syntax highlighting and collapsible sections (details/summary) |
@@ -149,10 +149,11 @@ Markdown files for static pages like About, Projects, Contact, Changelog.
 | `slug`          | URL path for the page                     |
 | `published`     | Whether page is public                    |
 | `order`         | Display order in navigation (lower first) |
+| `showInNav`     | Show in navigation menu (default: true)   |
 | `excerpt`       | Short excerpt for card view (optional)    |
-| `featured`      | Show in featured section (optional)       |
-| `featuredOrder` | Order in featured section (optional)      |
-| `authorName`    | Author display name (optional)            |
+| `featured`      | Show in featured section (optional)      |
+| `featuredOrder` | Order in featured section (optional)     |
+| `authorName`    | Author display name (optional)           |
 | `authorImage`   | Round author avatar image URL (optional)  |
 
 ## Scripts (`scripts/`)
