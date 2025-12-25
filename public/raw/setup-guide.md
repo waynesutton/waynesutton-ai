@@ -180,8 +180,18 @@ export default defineSchema({
 
 Blog posts live in `content/blog/` as markdown files. Sync them to Convex:
 
+**Development:**
 ```bash
-npm run sync
+npm run sync              # Sync markdown content
+npm run sync:discovery    # Update discovery files (AGENTS.md, llms.txt)
+npm run sync:all          # Sync content + discovery files together
+```
+
+**Production:**
+```bash
+npm run sync:prod              # Sync markdown content
+npm run sync:discovery:prod   # Update discovery files
+npm run sync:all:prod         # Sync content + discovery files together
 ```
 
 This reads all markdown files, parses the frontmatter, and uploads them to your Convex database.
@@ -385,16 +395,17 @@ This image appears when sharing on social media. Recommended: 1200x630 pixels.
 2. Push to GitHub
 3. Wait for Netlify to rebuild
 
-The `npm run sync` command only syncs markdown text content. Images are deployed when Netlify builds your site.
+The `npm run sync` command only syncs markdown text content. Images are deployed when Netlify builds your site. Use `npm run sync:discovery` to update discovery files (AGENTS.md, llms.txt) when site configuration changes.
 
 ### Sync After Adding Posts
 
 After adding or editing posts, sync to Convex.
 
 **Development sync:**
-
 ```bash
-npm run sync
+npm run sync              # Sync markdown content
+npm run sync:discovery    # Update discovery files
+npm run sync:all          # Sync everything together
 ```
 
 **Production sync:**
@@ -408,9 +419,10 @@ VITE_CONVEX_URL=https://your-prod-deployment.convex.cloud
 Get your production URL from the [Convex Dashboard](https://dashboard.convex.dev) by selecting your project and switching to the Production deployment.
 
 Then sync:
-
 ```bash
-npm run sync:prod
+npm run sync:prod              # Sync markdown content
+npm run sync:discovery:prod   # Update discovery files
+npm run sync:all:prod         # Sync everything together
 ```
 
 ### Environment Files
@@ -429,6 +441,7 @@ Both files are gitignored. Each developer creates their own local environment fi
 | Blog posts in `content/blog/`    | `npm run sync`             | Instant (no rebuild) |
 | Pages in `content/pages/`        | `npm run sync`             | Instant (no rebuild) |
 | Featured items (via frontmatter) | `npm run sync`             | Instant (no rebuild) |
+| Site config changes              | `npm run sync:discovery`   | Updates discovery files |
 | Import external URL              | `npm run import` then sync | Instant (no rebuild) |
 | Images in `public/images/`       | Git commit + push          | Requires rebuild     |
 | `siteConfig` in `Home.tsx`       | Redeploy                   | Requires rebuild     |
@@ -1074,8 +1087,9 @@ Each post and page includes a share dropdown with options for AI tools:
 | What you want                        | Command needed                 |
 | ------------------------------------ | ------------------------------ |
 | Content visible on your site         | `npm run sync` or `sync:prod`  |
+| Discovery files updated              | `npm run sync:discovery` or `sync:discovery:prod` |
 | AI links (ChatGPT/Claude/Perplexity) | `git push` to GitHub           |
-| Both                                 | `npm run sync` then `git push` |
+| Both content and discovery           | `npm run sync:all` or `sync:all:prod` |
 
 **Download as SKILL.md** formats the content as an Anthropic Agent Skills file with metadata, triggers, and instructions sections.
 
@@ -1125,6 +1139,7 @@ The import script will:
 
 - Run `npm run sync` to push to development
 - Run `npm run sync:prod` to push to production
+- Use `npm run sync:all` or `npm run sync:all:prod` to sync content and update discovery files together
 
 Imported posts are created as drafts (`published: false`). Review, edit, set `published: true`, then sync to your target environment.
 
@@ -1135,7 +1150,8 @@ Imported posts are created as drafts (`published: false`). Review, edit, set `pu
 1. Check that `published: true` in frontmatter
 2. Run `npm run sync` to sync posts to development
 3. Run `npm run sync:prod` to sync posts to production
-4. Verify posts exist in Convex dashboard
+4. Use `npm run sync:all` or `npm run sync:all:prod` to sync content and update discovery files together
+5. Verify posts exist in Convex dashboard
 
 ### RSS/Sitemap not working
 

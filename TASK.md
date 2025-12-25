@@ -8,9 +8,16 @@
 
 ## Current Status
 
-v1.27.0 ready. Added homepage post limit and optional "read more" link configuration.
+v1.28.0 ready. Added discovery files sync automation with new sync commands.
 
 ## Completed
+
+- [x] Discovery files sync script (sync-discovery-files.ts)
+- [x] Automated updates for AGENTS.md and llms.txt with current app data
+- [x] New npm scripts: sync:discovery, sync:discovery:prod, sync:all, sync:all:prod
+- [x] Fork configuration updated to support gitHubRepo config
+- [x] Backward compatibility for legacy githubUsername/githubRepo fields
+- [x] Documentation updated across all files with new sync commands
 
 - [x] Homepage post limit configuration (homePostsLimit in siteConfig.postsDisplay)
 - [x] Optional "read more" link below limited post list (homePostsReadMore config)

@@ -14,6 +14,18 @@ An open-source publishing framework for AI agents and developers. Write markdown
 
 **CLI publishing workflow.** Write markdown locally, then run `npm run sync` (dev) or `npm run sync:prod` (production). Content appears instantly via Convex real-time sync. Images require git commit and push since they are served as static files from Netlify.
 
+**Sync commands:**
+
+**Development:**
+- `npm run sync` - Sync markdown content
+- `npm run sync:discovery` - Update discovery files (AGENTS.md, llms.txt)
+- `npm run sync:all` - Sync content + discovery files together
+
+**Production:**
+- `npm run sync:prod` - Sync markdown content
+- `npm run sync:discovery:prod` - Update discovery files
+- `npm run sync:all:prod` - Sync content + discovery files together
+
 **Version controlled.** Markdown source files live in your repo alongside code. Commit changes, review diffs, roll back like any codebase. The sync command pushes content to the database.
 
 ```bash

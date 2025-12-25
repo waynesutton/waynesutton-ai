@@ -2,12 +2,24 @@
 
 ---
 Type: page
-Date: 2025-12-24
+Date: 2025-12-25
 ---
 
 Reference documentation for setting up, customizing, and deploying this markdown framework.
 
 **How publishing works:** Write posts in markdown, run `npm run sync` for development or `npm run sync:prod` for production, and they appear on your live site immediately. No rebuild or redeploy needed. Convex handles real-time data sync, so connected browsers update automatically.
+
+**Sync commands:**
+
+**Development:**
+- `npm run sync` - Sync markdown content
+- `npm run sync:discovery` - Update discovery files (AGENTS.md, llms.txt)
+- `npm run sync:all` - Sync content + discovery files together
+
+**Production:**
+- `npm run sync:prod` - Sync markdown content
+- `npm run sync:discovery:prod` - Update discovery files
+- `npm run sync:all:prod` - Sync content + discovery files together
 
 ## Quick start
 
@@ -213,12 +225,24 @@ To add a custom frontmatter field, update these files:
 
 ### Syncing content
 
+**Development:**
 ```bash
-# Development
-npm run sync
+npm run sync              # Sync markdown content
+npm run sync:discovery    # Update discovery files (AGENTS.md, llms.txt)
+npm run sync:all          # Sync content + discovery files together
+```
 
-# Production
-npm run sync:prod
+**Production:**
+```bash
+npm run sync:prod              # Sync markdown content
+npm run sync:discovery:prod   # Update discovery files
+npm run sync:all:prod         # Sync content + discovery files together
+```
+
+**Sync everything together:**
+```bash
+npm run sync:all        # Development: content + discovery
+npm run sync:all:prod   # Production: content + discovery
 ```
 
 ### When to sync vs deploy
@@ -228,6 +252,7 @@ npm run sync:prod
 | Blog posts in `content/blog/`    | `npm run sync`             | Instant (no rebuild) |
 | Pages in `content/pages/`        | `npm run sync`             | Instant (no rebuild) |
 | Featured items (via frontmatter) | `npm run sync`             | Instant (no rebuild) |
+| Site config changes              | `npm run sync:discovery`   | Updates discovery files |
 | Import external URL              | `npm run import` then sync | Instant (no rebuild) |
 | Images in `public/images/`       | Git commit + push          | Requires rebuild     |
 | `siteConfig` in `Home.tsx`       | Redeploy                   | Requires rebuild     |
@@ -407,7 +432,7 @@ excerpt: "Short description for card view."
 image: "/images/thumbnail.png"
 ```
 
-Then run `npm run sync`. No redeploy needed.
+Then run `npm run sync` or `npm run sync:all`. No redeploy needed.
 
 | Field           | Description                                  |
 | --------------- | -------------------------------------------- |
@@ -640,7 +665,7 @@ Mobile sizes defined in `@media (max-width: 768px)` block.
 2. Push to GitHub
 3. Wait for Netlify to rebuild
 
-The `npm run sync` command only syncs markdown text content. Images are deployed when Netlify builds your site.
+The `npm run sync` command only syncs markdown text content. Images are deployed when Netlify builds your site. Use `npm run sync:discovery` to update discovery files (AGENTS.md, llms.txt) when site configuration changes.
 
 **Logo options:**
 
@@ -691,8 +716,9 @@ Each post and page includes a share dropdown with options:
 | What you want                        | Command needed                 |
 | ------------------------------------ | ------------------------------ |
 | Content visible on your site         | `npm run sync` or `sync:prod`  |
+| Discovery files updated              | `npm run sync:discovery` or `sync:discovery:prod` |
 | AI links (ChatGPT/Claude/Perplexity) | `git push` to GitHub           |
-| Both                                 | `npm run sync` then `git push` |
+| Both content and discovery           | `npm run sync:all` or `sync:all:prod` |
 
 **Download as SKILL.md:** Downloads the content formatted as an Anthropic Agent Skills file with metadata, triggers, and instructions sections.
 
@@ -726,7 +752,7 @@ All stats update automatically via Convex subscriptions.
 
 ## Raw markdown files
 
-When you run `npm run sync` (development) or `npm run sync:prod` (production), static `.md` files are generated in `public/raw/` for each published post and page.
+When you run `npm run sync` (development) or `npm run sync:prod` (production), static `.md` files are generated in `public/raw/` for each published post and page. Use `npm run sync:all` or `npm run sync:all:prod` to sync content and update discovery files together.
 
 **Access pattern:** `/raw/{slug}.md`
 
@@ -800,6 +826,7 @@ The import command creates local markdown files only. It does not interact with 
 
 - `npm run sync` to push to development
 - `npm run sync:prod` to push to production
+- Use `npm run sync:all` or `npm run sync:all:prod` to sync content and update discovery files together
 
 There is no `npm run import:prod` because import creates local files and sync handles the target environment.
 
@@ -881,6 +908,7 @@ export default defineSchema({
 - Check `published: true` in frontmatter
 - Run `npm run sync` for development
 - Run `npm run sync:prod` for production
+- Use `npm run sync:all` or `npm run sync:all:prod` to sync content and update discovery files together
 - Verify in Convex dashboard
 
 **RSS/Sitemap errors**

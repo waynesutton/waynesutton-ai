@@ -2,10 +2,56 @@
 
 ---
 Type: page
-Date: 2025-12-24
+Date: 2025-12-25
 ---
 
 All notable changes to this project.
+
+## v1.27.0
+
+Released December 24, 2025
+
+**Homepage post limit and optional read more link**
+
+- Configurable post limit for homepage via `siteConfig.postsDisplay.homePostsLimit`
+  - Default limit set to 10 most recent posts
+  - Set to `undefined` to show all posts (no limit)
+- Optional "read more" link below limited post list
+  - Configurable via `siteConfig.postsDisplay.homePostsReadMore`
+  - Customizable link text and destination URL
+  - Only appears when posts are limited and there are more posts than the limit
+  - Default links to `/blog` page
+  - Can be disabled by setting `enabled: false`
+
+Updated files: `src/config/siteConfig.ts`, `src/pages/Home.tsx`, `src/styles/global.css`
+
+## v1.26.0
+
+Released December 24, 2025
+
+**Tag pages, related posts, and AI service links re-enabled**
+
+- Tag pages at `/tags/[tag]` route
+  - Dynamic tag archive pages showing all posts with a specific tag
+  - View mode toggle (list/cards) with localStorage persistence
+  - Mobile responsive layout matching existing blog page design
+  - Sitemap updated to include all tag pages dynamically
+- Related posts component for blog post footers
+  - Shows up to 3 related posts based on shared tags
+  - Sorted by relevance (number of shared tags) then by date
+  - Only displays on blog posts (not static pages)
+- Improved tag links in post footers
+  - Tags now link to `/tags/[tag]` archive pages
+  - Visual styling consistent with existing theme
+- Open in AI service links re-enabled in CopyPageDropdown
+  - Uses GitHub raw URLs instead of Netlify paths (bypasses edge function issues)
+  - ChatGPT, Claude, and Perplexity links with universal prompt
+  - "Requires git push" hint for users (npm sync alone doesn't update GitHub)
+  - Visual divider separating AI options from other menu items
+
+Updated files: `src/config/siteConfig.ts`, `convex/schema.ts`, `convex/posts.ts`, `convex/http.ts`, `src/pages/TagPage.tsx`, `src/pages/Post.tsx`, `src/components/CopyPageDropdown.tsx`, `src/styles/global.css`, `src/App.tsx`
+
+Documentation updated: `content/pages/docs.md`, `content/blog/setup-guide.md`
 
 ## v1.25.2
 

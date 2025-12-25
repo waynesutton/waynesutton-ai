@@ -4,7 +4,7 @@ Instructions for AI coding agents working on this codebase.
 
 ## Project overview
 
-An open-source publishing framework for AI agents and developers. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.
+Your content is instantly available to browsers, LLMs, and AI agents.. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.
 
 **Key features:**
 - Markdown posts with frontmatter
@@ -13,6 +13,16 @@ An open-source publishing framework for AI agents and developers. Write markdown
 - Real-time analytics at `/stats`
 - RSS feeds and sitemap for SEO
 - API endpoints for AI/LLM access
+
+## Current Status
+
+- **Site Name**: markdown 
+- **Site Title**: markdown sync framework
+- **Site URL**: https://markdown.fast
+- **Total Posts**: 11
+- **Total Pages**: 4
+- **Latest Post**: 2025-12-21
+- **Last Updated**: 2025-12-25T06:55:43.145Z
 
 ## Tech stack
 

@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.28.0] - 2025-12-25
+
+### Added
+
+- Discovery files sync script
+  - New `sync-discovery-files.ts` script that updates AGENTS.md and llms.txt with current app data
+  - Reads from siteConfig.ts and queries Convex for post/page counts and latest post date
+  - Preserves existing AGENTS.md instructional content while updating dynamic sections
+  - Regenerates llms.txt with current site information and GitHub URLs
+- New npm sync commands
+  - `npm run sync:discovery` - Update discovery files (development)
+  - `npm run sync:discovery:prod` - Update discovery files (production)
+  - `npm run sync:all` - Sync content + discovery files together (development)
+  - `npm run sync:all:prod` - Sync content + discovery files together (production)
+- Fork configuration support for gitHubRepo
+  - Added `gitHubRepoConfig` to fork-config.json.example
+  - Updated configure-fork.ts to handle gitHubRepo with backward compatibility
+  - Legacy githubUsername/githubRepo fields still work
+
+### Changed
+
+- `fork-config.json.example`: Added gitHubRepoConfig object with owner, repo, branch, contentPath
+- `scripts/configure-fork.ts`: Added gitHubRepo update logic with legacy field fallback
+- `FORK_CONFIG.md`: Added gitHubRepo documentation and sync:discovery command reference
+- `files.md`: Added sync-discovery-files.ts entry and sync commands documentation
+- Documentation updated across all files with new sync commands
+
+### Technical
+
+- New script: `scripts/sync-discovery-files.ts`
+- Uses ConvexHttpClient to query live data from Convex
+- Regex-based siteConfig.ts parsing for gitHubRepo extraction
+- Selective AGENTS.md updates preserve instructional content
+- Error handling with graceful fallbacks for missing data
+
 ## [1.27.0] - 2025-12-24
 
 ### Added

@@ -78,7 +78,7 @@ Edit each file individually following the guide below.
 
 | File                                | What to Update                               |
 | ----------------------------------- | -------------------------------------------- |
-| `src/config/siteConfig.ts`          | Site name, bio, GitHub username, features    |
+| `src/config/siteConfig.ts`          | Site name, bio, GitHub username, gitHubRepo config, features |
 | `src/pages/Home.tsx`                | Intro paragraph, footer links                |
 | `src/pages/Post.tsx`                | `SITE_URL`, `SITE_NAME` constants            |
 | `convex/http.ts`                    | `SITE_URL`, `SITE_NAME` constants            |
@@ -157,6 +157,15 @@ export const siteConfig: SiteConfig = {
     docs: "/setup-guide",
     convex: "https://convex.dev",
     netlify: "https://netlify.com",
+  },
+
+  // GitHub repository config (for AI service links)
+  // Used by ChatGPT, Claude, Perplexity "Open in AI" buttons
+  gitHubRepo: {
+    owner: "YOURUSERNAME",           // GitHub username or organization
+    repo: "YOUR-REPO-NAME",          // Repository name
+    branch: "main",                  // Default branch
+    contentPath: "public/raw",       // Path to raw markdown files
   },
 };
 ```
@@ -412,8 +421,14 @@ Creator Info:
 - LinkedIn: https://www.linkedin.com/in/[YOURPROFILE]/
 - GitHub: https://github.com/[YOURUSERNAME]
 
+GitHub Repo Config (for AI service links):
+- Owner: [YOURUSERNAME]
+- Repo: [YOUR-REPO]
+- Branch: main
+- Content Path: public/raw
+
 Update these files:
-1. src/config/siteConfig.ts - site name, bio, GitHub username
+1. src/config/siteConfig.ts - site name, bio, GitHub username, gitHubRepo config
 2. src/pages/Home.tsx - intro paragraph and footer section with all creator links
 3. src/pages/Post.tsx - SITE_URL and SITE_NAME constants
 4. convex/http.ts - SITE_URL and SITE_NAME constants
@@ -433,6 +448,36 @@ Update these files:
 2. Run `npm run sync` to sync content to development
 3. Run `npm run dev` to test locally
 4. Deploy to Netlify when ready
+
+---
+
+## Syncing Discovery Files
+
+Discovery files (`AGENTS.md` and `public/llms.txt`) can be automatically updated with your current app data.
+
+### Commands
+
+| Command | Description |
+| ------- | ----------- |
+| `npm run sync:discovery` | Update discovery files with local Convex data |
+| `npm run sync:discovery:prod` | Update discovery files with production Convex data |
+| `npm run sync:all` | Sync content + discovery files together (development) |
+| `npm run sync:all:prod` | Sync content + discovery files together (production) |
+
+### When to run
+
+- **`npm run sync`**: Run when you add, edit, or remove markdown content
+- **`npm run sync:discovery`**: Run when you change site configuration or want to update discovery files with latest post counts
+- **`npm run sync:all`**: Run both syncs together (recommended for complete updates)
+
+### What gets updated
+
+| File | Updated Content |
+| ---- | --------------- |
+| `AGENTS.md` | Project overview, current status (site name, URL, post/page counts) |
+| `public/llms.txt` | Site info, total posts, latest post date, GitHub URL |
+
+The script reads from `siteConfig.ts` and queries Convex for live content statistics.
 
 ---
 

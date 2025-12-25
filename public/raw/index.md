@@ -2,8 +2,10 @@
 
 This is the homepage index of all published content.
 
-## Blog Posts (11)
+## Blog Posts (12)
 
+- **[Happy holidays and thank you](/raw/happy-holidays-2025.md)** - A quick note of thanks for stars, forks, and feedback. More AI-first publishing features coming in 2026.
+  - Date: 2025-12-25 | Reading time: 2 min read | Tags: updates, community, ai
 - **[Netlify edge functions blocking AI crawlers from static files](/raw/netlify-edge-excludedpath-ai-crawlers.md)** - Why excludedPath in netlify.toml isn't preventing edge functions from intercepting /raw/* requests, and how ChatGPT and Perplexity get blocked while Claude works.
   - Date: 2025-12-21 | Reading time: 5 min read | Tags: netlify, edge-functions, ai, troubleshooting, help
 - **[Visitor tracking and stats improvements](/raw/visitor-tracking-and-stats-improvements.md)** - Real-time visitor map, write conflict prevention, GitHub Stars integration, and better AI prompts. Updates from v1.18.1 to v1.20.2.
@@ -37,6 +39,6 @@ This is the homepage index of all published content.
 
 ---
 
-**Total Content:** 11 posts, 5 pages
+**Total Content:** 12 posts, 5 pages
 
 All content is available as raw markdown files at `/raw/{slug}.md`

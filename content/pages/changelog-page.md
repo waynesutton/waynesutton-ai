@@ -8,6 +8,30 @@ layout: "sidebar"
 
 All notable changes to this project.
 
+## v1.28.0
+
+Released December 25, 2025
+
+**Discovery files sync automation**
+
+- New discovery files sync script
+  - Automatically updates AGENTS.md and llms.txt with current app data
+  - Reads from siteConfig.ts and queries Convex for post/page counts
+  - Preserves existing AGENTS.md instructional content
+  - Regenerates llms.txt with current site information
+- New npm sync commands
+  - `npm run sync:discovery` - Update discovery files (development)
+  - `npm run sync:discovery:prod` - Update discovery files (production)
+  - `npm run sync:all` - Sync content + discovery files together (development)
+  - `npm run sync:all:prod` - Sync content + discovery files together (production)
+- Fork configuration support for gitHubRepo
+  - Added gitHubRepoConfig to fork-config.json.example
+  - Updated configure-fork.ts with backward compatibility for legacy fields
+
+Updated files: `scripts/sync-discovery-files.ts`, `package.json`, `fork-config.json.example`, `scripts/configure-fork.ts`, `FORK_CONFIG.md`, `files.md`
+
+Documentation updated: `README.md`, `docs.md`, `setup-guide.md`, `about.md`, `about-this-blog.md`
+
 ## v1.27.0
 
 Released December 24, 2025

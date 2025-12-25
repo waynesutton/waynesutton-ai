@@ -6,6 +6,20 @@ Write markdown locally, run `npm run sync` (dev) or `npm run sync:prod` (product
 
 **How publishing works:** Write posts in markdown, run `npm run sync` for development or `npm run sync:prod` for production, and they appear on your live site immediately. No rebuild or redeploy needed. Convex handles real-time data sync, so all connected browsers update automatically.
 
+**Sync commands:**
+
+**Development:**
+
+- `npm run sync` - Sync markdown content
+- `npm run sync:discovery` - Update discovery files (AGENTS.md, llms.txt)
+- `npm run sync:all` - Sync content + discovery files together
+
+**Production:**
+
+- `npm run sync:prod` - Sync markdown content
+- `npm run sync:discovery:prod` - Update discovery files
+- `npm run sync:all:prod` - Sync content + discovery files together
+
 **How versioning works:** Markdown files live in `content/blog/` and `content/pages/`. These are regular files in your git repo. Commit changes, review diffs, roll back like any codebase. The sync command pushes content to Convex.
 
 ```bash
@@ -212,10 +226,17 @@ Both files are gitignored. Each developer creates their own.
 
 ### Sync Commands
 
-| Command             | Target      | When to use                 |
-| ------------------- | ----------- | --------------------------- |
-| `npm run sync`      | Development | Local testing, new posts    |
-| `npm run sync:prod` | Production  | Deploy content to live site |
+**Development:**
+
+- `npm run sync` - Sync markdown content to development Convex
+- `npm run sync:discovery` - Update discovery files (AGENTS.md, llms.txt) with development data
+- `npm run sync:all` - Sync content + discovery files together
+
+**Production:**
+
+- `npm run sync:prod` - Sync markdown content to production Convex
+- `npm run sync:discovery:prod` - Update discovery files with production data
+- `npm run sync:all:prod` - Sync content + discovery files together
 
 **Development sync:**
 
@@ -295,16 +316,20 @@ markdown-site/
 
 ## Scripts Reference
 
-| Script                | Description                                    |
-| --------------------- | ---------------------------------------------- |
-| `npm run dev`         | Start Vite dev server                          |
-| `npm run dev:convex`  | Start Convex dev backend                       |
-| `npm run sync`        | Sync posts to dev deployment                   |
-| `npm run sync:prod`   | Sync posts to production deployment            |
-| `npm run import`      | Import URL as local markdown draft (then sync) |
-| `npm run build`       | Build for production                           |
-| `npm run deploy`      | Sync + build (for manual deploys)              |
-| `npm run deploy:prod` | Deploy Convex functions + sync to production   |
+| Script                        | Description                                    |
+| ----------------------------- | ---------------------------------------------- |
+| `npm run dev`                 | Start Vite dev server                          |
+| `npm run dev:convex`          | Start Convex dev backend                       |
+| `npm run sync`                | Sync posts to dev deployment                   |
+| `npm run sync:prod`           | Sync posts to production deployment            |
+| `npm run sync:discovery`      | Update discovery files (development)           |
+| `npm run sync:discovery:prod` | Update discovery files (production)            |
+| `npm run sync:all`            | Sync content + discovery (development)         |
+| `npm run sync:all:prod`       | Sync content + discovery (production)          |
+| `npm run import`              | Import URL as local markdown draft (then sync) |
+| `npm run build`               | Build for production                           |
+| `npm run deploy`              | Sync + build (for manual deploys)              |
+| `npm run deploy:prod`         | Deploy Convex functions + sync to production   |
 
 ## Tech Stack
 
@@ -396,6 +421,7 @@ FIRECRAWL_API_KEY=fc-your-api-key
 
 - `npm run sync` for development
 - `npm run sync:prod` for production
+- Use `npm run sync:all` or `npm run sync:all:prod` to sync content and update discovery files together
 
 Imported posts are created as drafts (`published: false`). Review, edit, set `published: true`, then sync.
 

@@ -39,6 +39,13 @@ interface ForkConfig {
     github: string;
   };
   bio: string;
+  // New gitHubRepoConfig for AI service raw URLs
+  gitHubRepoConfig?: {
+    owner: string;
+    repo: string;
+    branch: string;
+    contentPath: string;
+  };
   logoGallery?: {
     enabled: boolean;
     title: string;
@@ -244,6 +251,33 @@ function updateSiteConfig(config: ForkConfig): void {
       `showOnBlogPage: ${config.postsDisplay.showOnBlogPage}, // Show post list on /blog page`,
     );
   }
+
+  // Update gitHubRepo config (for AI service raw URLs)
+  // Support both new gitHubRepoConfig and legacy githubUsername/githubRepo fields
+  const gitHubRepoOwner =
+    config.gitHubRepoConfig?.owner || config.githubUsername;
+  const gitHubRepoName =
+    config.gitHubRepoConfig?.repo || config.githubRepo;
+  const gitHubRepoBranch = config.gitHubRepoConfig?.branch || "main";
+  const gitHubRepoContentPath =
+    config.gitHubRepoConfig?.contentPath || "public/raw";
+
+  content = content.replace(
+    /owner: ['"].*?['"],\s*\/\/ GitHub username or organization/,
+    `owner: "${gitHubRepoOwner}", // GitHub username or organization`,
+  );
+  content = content.replace(
+    /repo: ['"].*?['"],\s*\/\/ Repository name/,
+    `repo: "${gitHubRepoName}", // Repository name`,
+  );
+  content = content.replace(
+    /branch: ['"].*?['"],\s*\/\/ Default branch/,
+    `branch: "${gitHubRepoBranch}", // Default branch`,
+  );
+  content = content.replace(
+    /contentPath: ['"].*?['"],\s*\/\/ Path to raw markdown files/,
+    `contentPath: "${gitHubRepoContentPath}", // Path to raw markdown files`,
+  );
 
   fs.writeFileSync(filePath, content, "utf-8");
   console.log(`  Updated: src/config/siteConfig.ts`);

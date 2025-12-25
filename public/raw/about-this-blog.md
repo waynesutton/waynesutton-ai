@@ -78,6 +78,18 @@ The setup takes about 10 minutes:
 
 **Development vs Production:** Use `npm run sync` when testing locally against your dev Convex deployment. Use `npm run sync:prod` when deploying content to your live production site.
 
+**Sync commands:**
+
+**Development:**
+- `npm run sync` - Sync markdown content
+- `npm run sync:discovery` - Update discovery files (AGENTS.md, llms.txt)
+- `npm run sync:all` - Sync content + discovery files together
+
+**Production:**
+- `npm run sync:prod` - Sync markdown content
+- `npm run sync:discovery:prod` - Update discovery files
+- `npm run sync:all:prod` - Sync content + discovery files together
+
 **Import external content:** Run `npm run import <url>` to scrape and create local markdown drafts. Then sync to dev or prod. There is no separate import command for production because import creates local files only.
 
 Read the [setup guide](/setup-guide) for detailed steps.

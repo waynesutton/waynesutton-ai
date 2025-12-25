@@ -159,11 +159,26 @@ Markdown files for static pages like About, Projects, Contact, Changelog.
 
 ## Scripts (`scripts/`)
 
-| File                 | Description                                                |
-| -------------------- | ---------------------------------------------------------- |
-| `sync-posts.ts`      | Syncs markdown files to Convex at build time               |
-| `import-url.ts`      | Imports external URLs as markdown posts (Firecrawl)        |
-| `configure-fork.ts`  | Automated fork configuration (reads fork-config.json)      |
+| File                       | Description                                                |
+| -------------------------- | ---------------------------------------------------------- |
+| `sync-posts.ts`            | Syncs markdown files to Convex at build time               |
+| `sync-discovery-files.ts`  | Updates AGENTS.md and llms.txt with current app data       |
+| `import-url.ts`            | Imports external URLs as markdown posts (Firecrawl)        |
+| `configure-fork.ts`        | Automated fork configuration (reads fork-config.json)      |
+
+### Sync Commands
+
+**Development:**
+- `npm run sync` - Sync markdown content to development Convex
+- `npm run sync:discovery` - Update discovery files (AGENTS.md, llms.txt) with development data
+
+**Production:**
+- `npm run sync:prod` - Sync markdown content to production Convex
+- `npm run sync:discovery:prod` - Update discovery files with production data
+
+**Sync everything together:**
+- `npm run sync:all` - Run both content sync and discovery sync (development)
+- `npm run sync:all:prod` - Run both content sync and discovery sync (production)
 
 ### Frontmatter Flow
 
@@ -202,7 +217,7 @@ Frontmatter is the YAML metadata at the top of each markdown file. Here is how i
 
 ### Raw Markdown Files (`public/raw/`)
 
-Static markdown files generated during `npm run sync`. Each published post and page gets a corresponding `.md` file for direct access by users, search engines, and AI agents.
+Static markdown files generated during `npm run sync` or `npm run sync:prod`. Each published post and page gets a corresponding `.md` file for direct access by users, search engines, and AI agents.
 
 | File Pattern   | Description                                    |
 | -------------- | ---------------------------------------------- |
