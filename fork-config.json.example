@@ -50,6 +50,11 @@
   "featuredViewMode": "cards",
   "showViewToggle": true,
   "theme": "tan",
-  "fontFamily": "serif"
+  "fontFamily": "serif",
+  "homepage": {
+    "type": "default",
+    "slug": null,
+    "originalHomeRoute": "/home"
+  }
 }
 

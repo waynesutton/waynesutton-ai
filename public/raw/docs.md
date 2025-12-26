@@ -5,6 +5,8 @@ Type: page
 Date: 2025-12-26
 ---
 
+## Getting Started
+
 Reference documentation for setting up, customizing, and deploying this markdown framework.
 
 **How publishing works:** Write posts in markdown, run `npm run sync` for development or `npm run sync:prod` for production, and they appear on your live site immediately. No rebuild or redeploy needed. Convex handles real-time data sync, so connected browsers update automatically.

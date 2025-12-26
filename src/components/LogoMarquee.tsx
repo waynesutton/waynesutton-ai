@@ -37,19 +37,23 @@ export default function LogoMarquee({ config }: LogoMarqueeProps) {
 
   // Normalize images
   const normalizedImages = config.images.map(normalizeImage);
-  
+
   // Check if scrolling mode (default true for backwards compatibility)
-  const isScrolling = config.scrolling !== false;
-  
+  // home logos scrolling settings
+  const isScrolling = config.scrolling !== true;
+
   // For static mode, limit to maxItems (default 4)
   const maxItems = config.maxItems ?? 4;
-  const displayImages = isScrolling 
+  const displayImages = isScrolling
     ? [...normalizedImages, ...normalizedImages] // Duplicate for seamless scroll
     : normalizedImages.slice(0, maxItems); // Limit for static grid
 
   // Render logo item (shared between modes)
   const renderLogo = (logo: LogoItem, index: number) => (
-    <div key={`${logo.src}-${index}`} className={isScrolling ? "logo-marquee-item" : "logo-static-item"}>
+    <div
+      key={`${logo.src}-${index}`}
+      className={isScrolling ? "logo-marquee-item" : "logo-static-item"}
+    >
       {logo.href ? (
         <a
           href={logo.href}
@@ -77,9 +81,7 @@ export default function LogoMarquee({ config }: LogoMarqueeProps) {
 
   return (
     <div className="logo-marquee-container">
-      {config.title && (
-        <p className="logo-marquee-title">{config.title}</p>
-      )}
+      {config.title && <p className="logo-marquee-title">{config.title}</p>}
       {isScrolling ? (
         // Scrolling marquee mode
         <div
@@ -96,9 +98,7 @@ export default function LogoMarquee({ config }: LogoMarqueeProps) {
         </div>
       ) : (
         // Static grid mode
-        <div className="logo-static-grid">
-          {displayImages.map(renderLogo)}
-        </div>
+        <div className="logo-static-grid">{displayImages.map(renderLogo)}</div>
       )}
     </div>
   );

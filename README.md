@@ -82,6 +82,7 @@ Follow the step-by-step guide in `FORK_CONFIG.md` to update each file manually. 
 - Static raw markdown files at `/raw/{slug}.md`
 - Dedicated blog page with configurable navigation order
 - Markdown writing page at `/write` with frontmatter reference
+- AI Agent chat (powered by Anthropic Claude) on Write page and optionally in right sidebar
 
 ### SEO and Discovery
 
@@ -459,6 +460,32 @@ All font sizes use CSS variables defined in `:root`. Customize sizes by editing 
 A public markdown writing page at `/write` (not linked in navigation).
 
 Access directly at `yourdomain.com/write`. Content is stored in localStorage only (not synced to database). Use it to draft posts, then copy the content to a markdown file in `content/blog/` or `content/pages/` and run `npm run sync`.
+
+**AI Agent mode:** When `siteConfig.aiChat.enabledOnWritePage` is enabled, a toggle button appears in the Actions section. Clicking it replaces the textarea with the AI Agent chat interface. The page title changes to "Agent" when in chat mode. Requires `ANTHROPIC_API_KEY` environment variable in Convex.
+
+## AI Agent Chat
+
+The site includes an AI writing assistant (Agent) powered by Anthropic Claude API. Agent can be enabled in two places:
+
+**1. Write page (`/write`):** Enable via `siteConfig.aiChat.enabledOnWritePage`. Toggle replaces textarea with Agent chat interface.
+
+**2. Right sidebar on posts/pages:** Enable via `aiChat: true` frontmatter field (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`).
+
+**Environment variables required:**
+
+- `ANTHROPIC_API_KEY` (required): Your Anthropic API key
+- `CLAUDE_PROMPT_STYLE`, `CLAUDE_PROMPT_COMMUNITY`, `CLAUDE_PROMPT_RULES` (optional): Split system prompts
+- `CLAUDE_SYSTEM_PROMPT` (optional): Single system prompt fallback
+
+Set these in [Convex Dashboard](https://dashboard.convex.dev) > Settings > Environment Variables.
+
+**Features:**
+
+- Per-page chat history stored in Convex
+- Page content can be provided as context for AI responses
+- Markdown rendering for AI responses
+- User-friendly error messages when API key is not configured
+- Anonymous session authentication using localStorage
 
 ## Source
 

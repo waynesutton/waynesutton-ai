@@ -4,6 +4,82 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.33.0] - 2025-12-26
+
+### Added
+
+- AI Chat Write Agent integration with Anthropic Claude
+  - New `AIChatView` component (`src/components/AIChatView.tsx`) for AI-powered chat interface
+  - AI chat can be toggled on Write page via siteConfig.aiChat.enabledOnWritePage
+  - AI chat can appear in RightSidebar on posts/pages via frontmatter `aiChat: true` field
+  - Per-session, per-context chat history stored in Convex (aiChats table)
+  - Supports page content as context for AI responses
+  - Markdown rendering for AI responses with copy functionality
+  - Theme-aware styling that matches the site's design system
+  - Uses Phosphor Icons for all UI elements
+
+- Convex backend for AI chat
+  - New `convex/aiChats.ts` with queries and mutations for chat history
+  - New `convex/aiChatActions.ts` with Claude API integration (requires ANTHROPIC_API_KEY environment variable)
+  - System prompt configurable via Convex environment variables:
+    - `CLAUDE_PROMPT_STYLE`, `CLAUDE_PROMPT_COMMUNITY`, `CLAUDE_PROMPT_RULES` (split prompts, joined with separators)
+    - `CLAUDE_SYSTEM_PROMPT` (single prompt, fallback if split prompts not set)
+  - Chat history limited to last 20 messages for context efficiency
+  - Error handling: displays "API key is not set" message when ANTHROPIC_API_KEY is missing in Convex environment variables
+
+- New configuration options
+  - `siteConfig.aiChat` interface with `enabledOnWritePage` and `enabledOnContent` boolean flags
+  - Both flags default to false (opt-in feature)
+  - New `aiChat` frontmatter field for posts and pages (requires rightSidebar: true)
+
+### Changed
+
+- Write page now supports AI Agent mode toggle (replaces textarea when active)
+  - Title changes from "Blog Post" or "Page" to "Agent" when in AI chat mode
+  - Toggle button text changes between "Agent" and "Text Editor"
+  - Page scroll prevention when switching modes (no page jump)
+- RightSidebar component updated to conditionally render AIChatView
+- Post.tsx passes pageContent and slug to RightSidebar for AI context
+- Schema updated with aiChats table and aiChat fields on posts/pages tables
+- sync-posts.ts updated to handle aiChat frontmatter field
+- AIChatView displays user-friendly error messages when API key is not configured
+
+### Technical
+
+- Added `@anthropic-ai/sdk` dependency for Claude API integration
+- Anonymous session authentication using localStorage session ID
+- AI chat CSS styles in global.css with theme variable support
+- New convex schema: aiChats table with indexes (by_sessionId_contextId, by_contextId)
+
+## [1.32.0] - 2025-12-25
+
+### Added
+
+- Custom homepage configuration
+  - Set any page or blog post to serve as the homepage instead of the default Home component
+  - Configure via `siteConfig.homepage` with `type` ("default", "page", or "post"), `slug` (required for page/post), and `originalHomeRoute` (default: "/home")
+  - Custom homepage retains all Post component features (sidebar, copy dropdown, author info, footer) but without the featured section
+  - Original homepage remains accessible at `/home` route (or configured `originalHomeRoute`) when custom homepage is set
+  - SEO metadata uses the page/post's frontmatter when used as homepage
+  - Back button hidden when Post component is used as homepage
+- Fork configuration support for homepage
+  - Added `homepage` field to `fork-config.json.example`
+  - Updated `configure-fork.ts` to handle homepage configuration
+  - Documentation added to `FORK_CONFIG.md` with usage examples
+
+### Changed
+
+- `src/App.tsx`: Conditionally renders Home or Post component based on `siteConfig.homepage` configuration
+- `src/pages/Post.tsx`: Added optional `slug`, `isHomepage`, and `homepageType` props to support homepage mode
+- `src/config/siteConfig.ts`: Added `HomepageConfig` interface and default homepage configuration
+
+### Technical
+
+- New interface: `HomepageConfig` in `src/config/siteConfig.ts`
+- Conditional routing in `App.tsx` checks `homepage.type` and `homepage.slug` to determine homepage component
+- Post component accepts optional props for homepage mode (hides back button when `isHomepage` is true)
+- Original homepage route dynamically added when custom homepage is active
+
 ## [1.31.1] - 2025-12-25
 
 ### Added

@@ -9,11 +9,14 @@ import {
   File,
   Warning,
   TextAa,
+  ChatCircle,
 } from "@phosphor-icons/react";
 import { Moon, Sun, Cloud } from "lucide-react";
 import { Half2Icon } from "@radix-ui/react-icons";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
+import AIChatView from "../components/AIChatView";
+import siteConfig from "../config/siteConfig";
 
 // Frontmatter field definitions for blog posts
 const POST_FIELDS = [
@@ -37,11 +40,20 @@ const POST_FIELDS = [
   { name: "featured", required: false, example: "true" },
   { name: "featuredOrder", required: false, example: "1" },
   { name: "authorName", required: false, example: '"Jane Doe"' },
-  { name: "authorImage", required: false, example: '"/images/authors/jane.png"' },
+  {
+    name: "authorImage",
+    required: false,
+    example: '"/images/authors/jane.png"',
+  },
   { name: "layout", required: false, example: '"sidebar"' },
   { name: "rightSidebar", required: false, example: "true" },
   { name: "showFooter", required: false, example: "true" },
-  { name: "footer", required: false, example: '"Built with [Convex](https://convex.dev)."' },
+  {
+    name: "footer",
+    required: false,
+    example: '"Built with [Convex](https://convex.dev)."',
+  },
+  { name: "aiChat", required: false, example: "true" },
 ];
 
 // Frontmatter field definitions for pages
@@ -56,11 +68,20 @@ const PAGE_FIELDS = [
   { name: "featured", required: false, example: "true" },
   { name: "featuredOrder", required: false, example: "1" },
   { name: "authorName", required: false, example: '"Jane Doe"' },
-  { name: "authorImage", required: false, example: '"/images/authors/jane.png"' },
+  {
+    name: "authorImage",
+    required: false,
+    example: '"/images/authors/jane.png"',
+  },
   { name: "layout", required: false, example: '"sidebar"' },
   { name: "rightSidebar", required: false, example: "true" },
   { name: "showFooter", required: false, example: "true" },
-  { name: "footer", required: false, example: '"Built with [Convex](https://convex.dev)."' },
+  {
+    name: "footer",
+    required: false,
+    example: '"Built with [Convex](https://convex.dev)."',
+  },
+  { name: "aiChat", required: false, example: "true" },
 ];
 
 // Generate frontmatter template based on content type
@@ -160,7 +181,11 @@ export default function Write() {
   const [copied, setCopied] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [font, setFont] = useState<"serif" | "sans" | "monospace">("serif");
+  const [isAIChatMode, setIsAIChatMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Check if AI chat is enabled for write page
+  const aiChatEnabled = siteConfig.aiChat.enabledOnWritePage;
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -188,7 +213,9 @@ export default function Write() {
     // Use saved font preference, or fall back to global font, or default to serif
     if (
       savedFont &&
-      (savedFont === "serif" || savedFont === "sans" || savedFont === "monospace")
+      (savedFont === "serif" ||
+        savedFont === "sans" ||
+        savedFont === "monospace")
     ) {
       setFont(savedFont);
     } else {
@@ -211,6 +238,12 @@ export default function Write() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_FONT, font);
   }, [font]);
+
+  // Prevent scroll when switching to AI chat mode
+  useEffect(() => {
+    // Lock scroll position to prevent jump when AI chat mounts
+    window.scrollTo(0, 0);
+  }, [isAIChatMode]);
 
   // Toggle font between serif, sans-serif, and monospace
   const toggleFont = useCallback(() => {
@@ -325,6 +358,34 @@ export default function Write() {
 
           <div className="write-nav-section">
             <span className="write-nav-label">Actions</span>
+            {/* AI Chat toggle - only show if enabled in siteConfig */}
+            {aiChatEnabled && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Prevent any scroll behavior during mode switch
+                  const scrollX = window.scrollX;
+                  const scrollY = window.scrollY;
+                  setIsAIChatMode(!isAIChatMode);
+                  // Restore scroll position immediately after state change
+                  requestAnimationFrame(() => {
+                    window.scrollTo(scrollX, scrollY);
+                  });
+                }}
+                className={`write-nav-item ${isAIChatMode ? "active" : ""}`}
+                title={
+                  isAIChatMode ? "Switch to text editor" : "Switch to AI Chat"
+                }
+              >
+                <ChatCircle
+                  size={18}
+                  weight={isAIChatMode ? "fill" : "regular"}
+                />
+                <span>{isAIChatMode ? "Text Editor" : "Agent"}</span>
+              </button>
+            )}
             <button onClick={handleClear} className="write-nav-item">
               <Trash size={18} />
               <span>Clear</span>
@@ -357,54 +418,68 @@ export default function Write() {
       <main className="write-main">
         <div className="write-main-header">
           <h1 className="write-main-title">
-            {contentType === "post" ? "Blog Post" : "Page"}
+            {isAIChatMode
+              ? "Agent"
+              : contentType === "post"
+                ? "Blog Post"
+                : "Page"}
           </h1>
-          <button
-            onClick={handleCopy}
-            className={`write-copy-btn ${copied ? "copied" : ""}`}
-          >
-            {copied ? (
-              <>
-                <Check size={16} weight="bold" />
-                <span>Copied</span>
-              </>
-            ) : (
-              <>
-                <CopySimple size={16} />
-                <span>Copy All</span>
-              </>
-            )}
-          </button>
+          {!isAIChatMode && (
+            <button
+              onClick={handleCopy}
+              className={`write-copy-btn ${copied ? "copied" : ""}`}
+            >
+              {copied ? (
+                <>
+                  <Check size={16} weight="bold" />
+                  <span>Copied</span>
+                </>
+              ) : (
+                <>
+                  <CopySimple size={16} />
+                  <span>Copy All</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
 
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="write-textarea"
-          placeholder="Start writing your markdown..."
-          spellCheck={true}
-          autoComplete="off"
-          autoCapitalize="sentences"
-          autoFocus
-          style={{ fontFamily: FONTS[font] }}
-        />
+        {/* Conditionally render textarea or AI chat */}
+        {isAIChatMode ? (
+          <div className="write-ai-chat-container">
+            <AIChatView contextId="write-page" />
+          </div>
+        ) : (
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="write-textarea"
+            placeholder="Start writing your markdown..."
+            spellCheck={true}
+            autoComplete="off"
+            autoCapitalize="sentences"
+            style={{ fontFamily: FONTS[font] }}
+          />
+        )}
 
-        {/* Footer with stats */}
-        <div className="write-main-footer">
-          <div className="write-stats">
-            <span>{words} words</span>
-            <span className="write-stats-divider" />
-            <span>{lines} lines</span>
-            <span className="write-stats-divider" />
-            <span>{characters} chars</span>
+        {/* Footer with stats - only show in text editor mode */}
+        {!isAIChatMode && (
+          <div className="write-main-footer">
+            <div className="write-stats">
+              <span>{words} words</span>
+              <span className="write-stats-divider" />
+              <span>{lines} lines</span>
+              <span className="write-stats-divider" />
+              <span>{characters} chars</span>
+            </div>
+            <div className="write-save-hint">
+              Save to{" "}
+              <code>content/{contentType === "post" ? "blog" : "pages"}/</code>{" "}
+              then <code>npm run sync</code>
+            </div>
           </div>
-          <div className="write-save-hint">
-            Save to{" "}
-            <code>content/{contentType === "post" ? "blog" : "pages"}/</code>{" "}
-            then <code>npm run sync</code>
-          </div>
-        </div>
+        )}
       </main>
 
       {/* Right Sidebar: Frontmatter fields */}

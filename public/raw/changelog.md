@@ -8,6 +8,64 @@ Date: 2025-12-26
 All notable changes to this project.
 ![](https://img.shields.io/badge/License-MIT-yellow.svg)
 
+## v1.33.0
+
+Released December 26, 2025
+
+**AI Chat Write Agent (Agent) integration**
+
+- AI Agent chat interface powered by Anthropic Claude API
+  - New `AIChatView` component for AI-powered chat interface
+  - Available on Write page (replaces textarea when enabled) and optionally in RightSidebar on posts/pages
+  - Per-session, per-context chat history stored in Convex (aiChats table)
+  - Supports page content as context for AI responses
+  - Markdown rendering for AI responses with copy functionality
+  - Theme-aware styling matching the site's design system
+  - Uses Phosphor Icons for all UI elements
+- Convex backend for AI chat
+  - New `convex/aiChats.ts` with queries and mutations for chat history
+  - New `convex/aiChatActions.ts` with Claude API integration (requires ANTHROPIC_API_KEY environment variable)
+  - System prompt configurable via Convex environment variables:
+    - `CLAUDE_PROMPT_STYLE`, `CLAUDE_PROMPT_COMMUNITY`, `CLAUDE_PROMPT_RULES` (split prompts, joined with separators)
+    - `CLAUDE_SYSTEM_PROMPT` (single prompt, fallback if split prompts not set)
+  - Chat history limited to last 20 messages for context efficiency
+  - Error handling: displays "API key is not set" message when ANTHROPIC_API_KEY is missing in Convex environment variables
+- Configuration options
+  - `siteConfig.aiChat` interface with `enabledOnWritePage` and `enabledOnContent` boolean flags
+  - Both flags default to false (opt-in feature)
+  - New `aiChat` frontmatter field for posts and pages (requires rightSidebar: true)
+- Write page AI Agent mode
+  - Title changes from "Blog Post" or "Page" to "Agent" when in AI chat mode
+  - Toggle button text changes between "Agent" and "Text Editor"
+  - Page scroll prevention when switching modes (no page jump)
+- RightSidebar AI chat support
+  - Conditionally renders AIChatView when enabled via frontmatter `aiChat: true` field
+  - Requires both `siteConfig.aiChat.enabledOnContent` and frontmatter `aiChat: true`
+  - Passes page content as context for AI responses
+
+Updated files: `src/components/AIChatView.tsx`, `src/components/RightSidebar.tsx`, `src/pages/Write.tsx`, `src/pages/Post.tsx`, `src/config/siteConfig.ts`, `convex/schema.ts`, `convex/aiChats.ts`, `convex/aiChatActions.ts`, `convex/posts.ts`, `convex/pages.ts`, `scripts/sync-posts.ts`, `src/styles/global.css`, `package.json`
+
+Documentation updated: `files.md`, `changelog.md`, `README.md`, `content/blog/setup-guide.md`, `public/raw/docs.md`
+
+## v1.32.0
+
+Released December 25, 2025
+
+**Custom homepage configuration**
+
+- Set any page or blog post to serve as the homepage instead of the default Home component
+- Configure via `siteConfig.homepage` with `type` ("default", "page", or "post"), `slug` (required for page/post), and `originalHomeRoute` (default: "/home")
+- Custom homepage retains all Post component features (sidebar, copy dropdown, author info, footer) but without the featured section
+- Original homepage remains accessible at `/home` route (or configured `originalHomeRoute`) when custom homepage is set
+- SEO metadata uses the page/post's frontmatter when used as homepage
+- Back button hidden when Post component is used as homepage
+- Fork configuration support for homepage
+  - Added `homepage` field to `fork-config.json.example`
+  - Updated `configure-fork.ts` to handle homepage configuration
+  - Documentation added to `FORK_CONFIG.md` with usage examples
+
+Updated files: `src/App.tsx`, `src/pages/Post.tsx`, `src/config/siteConfig.ts`, `scripts/configure-fork.ts`, `fork-config.json.example`, `FORK_CONFIG.md`
+
 ## v1.31.1
 
 Released December 25, 2025

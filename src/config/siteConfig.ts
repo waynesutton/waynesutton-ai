@@ -98,6 +98,21 @@ export interface FooterConfig {
   defaultContent?: string; // Default markdown content if no frontmatter footer field provided
 }
 
+// Homepage configuration
+// Allows setting any page or blog post to serve as the homepage
+export interface HomepageConfig {
+  type: "default" | "page" | "post"; // Type of homepage: default (standard Home component), page (static page), or post (blog post)
+  slug?: string; // Required if type is "page" or "post" - the slug of the page/post to use as homepage
+  originalHomeRoute?: string; // Route to access the original homepage when custom homepage is set (default: "/home")
+}
+
+// AI Chat configuration
+// Controls the AI writing assistant feature on Write page and content pages
+export interface AIChatConfig {
+  enabledOnWritePage: boolean; // Show AI chat toggle on /write page
+  enabledOnContent: boolean; // Allow AI chat on posts/pages via frontmatter aiChat: true
+}
+
 // Site configuration interface
 export interface SiteConfig {
   // Basic site info
@@ -150,6 +165,12 @@ export interface SiteConfig {
 
   // Footer configuration
   footer: FooterConfig;
+
+  // Homepage configuration
+  homepage: HomepageConfig;
+
+  // AI Chat configuration
+  aiChat: AIChatConfig;
 }
 
 // Default site configuration
@@ -186,7 +207,7 @@ export const siteConfig: SiteConfig = {
       },
       {
         src: "/images/logos/netlify.svg",
-        href: "https://www.netlify.com/",
+        href: "https://www.netlify.com/utm_source=markdownfast",
       },
       {
         src: "/images/logos/firecrawl.svg",
@@ -201,8 +222,8 @@ export const siteConfig: SiteConfig = {
         href: "https://markdown.fast/setup-guide",
       },
       {
-        src: "/images/logos/sample-logo-5.svg",
-        href: "https://markdown.fast/setup-guide",
+        src: "/images/logos/agentmail.svg",
+        href: "https://agentmail.to/utm_source=markdownfast",
       },
     ],
     position: "above-footer",
@@ -320,6 +341,24 @@ export const siteConfig: SiteConfig = {
     defaultContent: `Built with [Convex](https://convex.dev) for real-time sync and deployed on [Netlify](https://netlify.com). Read the [project on GitHub](https://github.com/waynesutton/markdown-site) to fork and deploy your own. View [real-time site stats](/stats).
 
 Created by [Wayne](https://x.com/waynesutton) with Convex, Cursor, and Claude Opus 4.5. Follow on [Twitter/X](https://x.com/waynesutton), [LinkedIn](https://www.linkedin.com/in/waynesutton/), and [GitHub](https://github.com/waynesutton). This project is licensed under the MIT [License](https://github.com/waynesutton/markdown-site?tab=MIT-1-ov-file).`,
+  },
+
+  // Homepage configuration
+  // Set any page or blog post to serve as the homepage
+  // Custom homepage uses the page/post's full content and features (sidebar, copy dropdown, etc.)
+  // Featured section is NOT shown on custom homepage (only on default Home component)
+  homepage: {
+    type: "default", // Options: "default" (standard Home component), "page" (use a static page), or "post" (use a blog post)
+    slug: "undefined", // Required if type is "page" or "post" - the slug of the page/post to use default is undefined
+    originalHomeRoute: "/home", // Route to access the original homepage when custom homepage is set
+  },
+
+  // AI Chat configuration
+  // Controls the AI writing assistant powered by Claude
+  // Requires ANTHROPIC_API_KEY environment variable in Convex dashboard
+  aiChat: {
+    enabledOnWritePage: true, // Show AI chat toggle on /write page
+    enabledOnContent: true, // Allow AI chat on posts/pages via frontmatter aiChat: true
   },
 };
 

@@ -73,6 +73,11 @@ interface ForkConfig {
   showViewToggle?: boolean;
   theme?: "dark" | "light" | "tan" | "cloud";
   fontFamily?: "serif" | "sans" | "monospace";
+  homepage?: {
+    type: "default" | "page" | "post";
+    slug?: string;
+    originalHomeRoute?: string;
+  };
 }
 
 // Get project root directory
@@ -259,6 +264,26 @@ function updateSiteConfig(config: ForkConfig): void {
       /fontFamily: ['"](?:serif|sans|monospace)['"],\s*\/\/ Options: "serif", "sans", or "monospace"/,
       `fontFamily: "${config.fontFamily}", // Options: "serif", "sans", or "monospace"`,
     );
+  }
+
+  // Update homepage configuration if specified
+  if (config.homepage) {
+    content = content.replace(
+      /type: ['"](?:default|page|post)['"],\s*\/\/ Options: "default" \(standard Home component\), "page" \(use a static page\), or "post" \(use a blog post\)/,
+      `type: "${config.homepage.type}", // Options: "default" (standard Home component), "page" (use a static page), or "post" (use a blog post)`,
+    );
+    if (config.homepage.slug !== undefined) {
+      content = content.replace(
+        /slug: (?:undefined|['"].*?['"]),\s*\/\/ Required if type is "page" or "post" - the slug of the page\/post to use/,
+        `slug: ${config.homepage.slug ? `"${config.homepage.slug}"` : "undefined"}, // Required if type is "page" or "post" - the slug of the page/post to use`,
+      );
+    }
+    if (config.homepage.originalHomeRoute !== undefined) {
+      content = content.replace(
+        /originalHomeRoute: ['"].*?['"],\s*\/\/ Route to access the original homepage when custom homepage is set/,
+        `originalHomeRoute: "${config.homepage.originalHomeRoute}", // Route to access the original homepage when custom homepage is set`,
+      );
+    }
   }
 
   // Update gitHubRepo config (for AI service raw URLs)

@@ -153,6 +153,14 @@ export const siteConfig: SiteConfig = {
     showOnBlogPage: true,
   },
 
+  // Homepage configuration
+  // Set any page or blog post to serve as the homepage
+  homepage: {
+    type: "default", // Options: "default" (standard Home component), "page" (use a static page), or "post" (use a blog post)
+    slug: undefined, // Required if type is "page" or "post" - the slug of the page/post to use
+    originalHomeRoute: "/home", // Route to access the original homepage when custom homepage is set
+  },
+
   links: {
     docs: "/setup-guide",
     convex: "https://convex.dev",
@@ -396,6 +404,79 @@ Change the default theme (line 21):
 
 ```typescript
 const DEFAULT_THEME: Theme = "tan"; // Options: dark, light, tan, cloud
+```
+
+---
+
+## Homepage Configuration
+
+You can set any page or blog post to serve as your homepage instead of the default Home component.
+
+### In fork-config.json
+
+```json
+{
+  "homepage": {
+    "type": "page",
+    "slug": "about",
+    "originalHomeRoute": "/home"
+  }
+}
+```
+
+### Manual Configuration
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+homepage: {
+  type: "page", // Options: "default", "page", or "post"
+  slug: "about", // Required if type is "page" or "post" - the slug of the page/post to use
+  originalHomeRoute: "/home", // Route to access the original homepage when custom homepage is set
+},
+```
+
+### Options
+
+- `type`: `"default"` (standard Home component), `"page"` (use a static page), or `"post"` (use a blog post)
+- `slug`: The slug of the page or post to use (required if type is "page" or "post")
+- `originalHomeRoute`: Route to access the original homepage (default: "/home")
+
+### Behavior
+
+- Custom homepage uses the page/post's full content and features (sidebar, copy dropdown, footer, etc.)
+- Featured section is NOT shown on custom homepage (only on default Home component)
+- SEO metadata comes from the page/post's frontmatter
+- Original homepage remains accessible at `/home` (or configured route) when custom homepage is set
+- Back button is hidden when a page/post is used as the homepage
+
+### Examples
+
+**Use a static page as homepage:**
+```typescript
+homepage: {
+  type: "page",
+  slug: "about",
+  originalHomeRoute: "/home",
+},
+```
+
+**Use a blog post as homepage:**
+```typescript
+homepage: {
+  type: "post",
+  slug: "welcome-post",
+  originalHomeRoute: "/home",
+},
+```
+
+**Switch back to default homepage:**
+```typescript
+homepage: {
+  type: "default",
+  slug: undefined,
+  originalHomeRoute: "/home",
+},
 ```
 
 ---

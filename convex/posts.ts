@@ -130,6 +130,7 @@ export const getPostBySlug = query({
       rightSidebar: v.optional(v.boolean()),
       showFooter: v.optional(v.boolean()),
       footer: v.optional(v.string()),
+      aiChat: v.optional(v.boolean()),
     }),
     v.null(),
   ),
@@ -164,6 +165,7 @@ export const getPostBySlug = query({
       rightSidebar: post.rightSidebar,
       showFooter: post.showFooter,
       footer: post.footer,
+      aiChat: post.aiChat,
     };
   },
 });
@@ -191,6 +193,7 @@ export const syncPosts = internalMutation({
         rightSidebar: v.optional(v.boolean()),
         showFooter: v.optional(v.boolean()),
         footer: v.optional(v.string()),
+        aiChat: v.optional(v.boolean()),
       }),
     ),
   },
@@ -235,6 +238,7 @@ export const syncPosts = internalMutation({
           rightSidebar: post.rightSidebar,
           showFooter: post.showFooter,
           footer: post.footer,
+          aiChat: post.aiChat,
           lastSyncedAt: now,
         });
         updated++;
@@ -283,6 +287,7 @@ export const syncPostsPublic = mutation({
         rightSidebar: v.optional(v.boolean()),
         showFooter: v.optional(v.boolean()),
         footer: v.optional(v.string()),
+        aiChat: v.optional(v.boolean()),
       }),
     ),
   },
@@ -327,6 +332,7 @@ export const syncPostsPublic = mutation({
           rightSidebar: post.rightSidebar,
           showFooter: post.showFooter,
           footer: post.footer,
+          aiChat: post.aiChat,
           lastSyncedAt: now,
         });
         updated++;

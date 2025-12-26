@@ -1046,6 +1046,8 @@ Pages appear automatically in the navigation when published.
 
 **Right sidebar:** When enabled in `siteConfig.rightSidebar.enabled`, posts and pages can display a right sidebar containing the CopyPageDropdown at 1135px+ viewport width. Add `rightSidebar: true` to frontmatter to enable. Without this field, pages render normally with CopyPageDropdown in the nav bar. When enabled, CopyPageDropdown moves from the navigation bar to the right sidebar on wide screens. The right sidebar is hidden below 1135px, and CopyPageDropdown returns to the nav bar automatically.
 
+**AI Agent chat:** The site includes an AI writing assistant (Agent) powered by Anthropic Claude API. Enable Agent on the Write page via `siteConfig.aiChat.enabledOnWritePage` or in the right sidebar on posts/pages using `aiChat: true` frontmatter (requires `rightSidebar: true`). Requires `ANTHROPIC_API_KEY` environment variable in Convex. See the [AI Agent chat section](#ai-agent-chat) below for setup instructions.
+
 ### Update SEO Meta Tags
 
 Edit `index.html` to update:
@@ -1292,6 +1294,72 @@ A markdown writing page is available at `/write` (not linked in navigation). Use
 6. Run `npm run sync` or `npm run sync:prod`
 
 Content is stored in localStorage only and not synced to the database. Refreshing the page preserves your content, but clearing browser data will lose it.
+
+**AI Agent mode:** When `siteConfig.aiChat.enabledOnWritePage` is enabled, a toggle button appears in the Actions section. Clicking it replaces the textarea with the AI Agent chat interface. The page title changes to "Agent" when in chat mode. Requires `ANTHROPIC_API_KEY` environment variable in Convex. See the [AI Agent chat section](#ai-agent-chat) below for setup instructions.
+
+## AI Agent chat
+
+The site includes an AI writing assistant (Agent) powered by Anthropic Claude API. Agent can be enabled in two places:
+
+**1. Write page (`/write`)**
+
+Enable Agent mode on the Write page via `siteConfig.aiChat.enabledOnWritePage`. When enabled, a toggle button appears in the Actions section. Clicking it replaces the textarea with the Agent chat interface. The page title changes to "Agent" when in chat mode.
+
+**Configuration:**
+
+```typescript
+// src/config/siteConfig.ts
+aiChat: {
+  enabledOnWritePage: true, // Enable Agent toggle on /write page
+  enabledOnContent: true,    // Allow Agent on posts/pages via frontmatter
+},
+```
+
+**2. Right sidebar on posts/pages**
+
+Enable Agent in the right sidebar on individual posts or pages using the `aiChat` frontmatter field. Requires both `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`.
+
+**Frontmatter example:**
+
+```markdown
+---
+title: "My Post"
+rightSidebar: true
+aiChat: true  # Enable Agent in right sidebar
+---
+```
+
+**Environment variables:**
+
+Agent requires the following Convex environment variables:
+
+- `ANTHROPIC_API_KEY` (required): Your Anthropic API key for Claude API access
+- `CLAUDE_PROMPT_STYLE` (optional): First part of system prompt
+- `CLAUDE_PROMPT_COMMUNITY` (optional): Second part of system prompt
+- `CLAUDE_PROMPT_RULES` (optional): Third part of system prompt
+- `CLAUDE_SYSTEM_PROMPT` (optional): Single system prompt (fallback if split prompts not set)
+
+**Setting environment variables:**
+
+1. Go to [Convex Dashboard](https://dashboard.convex.dev)
+2. Select your project
+3. Navigate to Settings > Environment Variables
+4. Add `ANTHROPIC_API_KEY` with your API key value
+5. Optionally add system prompt variables (`CLAUDE_PROMPT_STYLE`, etc.)
+6. Deploy changes
+
+**How it works:**
+
+- Agent uses anonymous session IDs stored in localStorage for chat history
+- Each post/page has its own chat context (identified by slug)
+- Chat history is stored per-session, per-context in Convex (aiChats table)
+- Page content can be provided as context for AI responses
+- Chat history limited to last 20 messages for efficiency
+- If API key is not set, Agent displays "API key is not set" error message
+
+**Error handling:**
+
+If `ANTHROPIC_API_KEY` is not configured in Convex environment variables, Agent displays a user-friendly error message: "API key is not set". This helps identify when the API key is missing in production deployments.
 
 ## Next Steps
 

@@ -8,9 +8,51 @@
 
 ## Current Status
 
-v1.31.1 ready. Footer component now supports images with size control via HTML attributes.
+v1.33.0 ready. AI Chat Write Agent (Agent) integration complete with Anthropic Claude API support. Available on Write page and optionally in RightSidebar on posts/pages.
 
 ## Completed
+
+- [x] AI Chat Write Agent (Agent) integration
+  - [x] AIChatView component created with Anthropic Claude API integration
+  - [x] Write page AI Agent mode toggle (replaces textarea when active)
+  - [x] RightSidebar AI chat support via frontmatter aiChat: true field
+  - [x] Per-session, per-context chat history stored in Convex (aiChats table)
+  - [x] Page content context support for AI responses
+  - [x] Markdown rendering for AI responses with copy functionality
+  - [x] Error handling for missing API keys with user-friendly messages
+  - [x] System prompt configurable via Convex environment variables
+  - [x] Anonymous session authentication using localStorage session ID
+  - [x] Chat history limited to last 20 messages for context efficiency
+  - [x] Title changes to "Agent" when in AI chat mode on Write page
+  - [x] Toggle button text changes between "Agent" and "Text Editor"
+  - [x] SiteConfig.aiChat configuration with enabledOnWritePage and enabledOnContent flags
+  - [x] Schema updated with aiChats table and aiChat fields on posts/pages tables
+  - [x] sync-posts.ts updated to handle aiChat frontmatter field
+  - [x] Documentation updated across all files
+
+- [x] Fixed AI chat scroll prevention in Write page
+  - [x] Added viewport height constraints (100vh) to write-layout to prevent page-level scrolling
+  - [x] Updated write-main with max-height: 100vh and overflow: hidden when AI chat is active
+  - [x] Added min-height: 0 to flex children (write-ai-chat-container, ai-chat-view, ai-chat-messages) for proper flex behavior
+  - [x] Input container fixed at bottom with flex-shrink: 0
+  - [x] Sidebars (left and right) scroll internally with overflow-y: auto
+  - [x] Delayed focus in AIChatView (100ms setTimeout) to prevent scroll jump on mount
+  - [x] Added preventScroll: true to all focus() calls in AIChatView
+  - [x] Toggle button preserves scroll position using requestAnimationFrame
+  - [x] useEffect scrolls to top when switching to AI chat mode
+  - [x] Messages area scrolls internally while input stays fixed at bottom (ChatGPT-style behavior)
+
+- [x] Custom homepage configuration feature
+  - [x] Added HomepageConfig interface to siteConfig.ts
+  - [x] Updated App.tsx to conditionally render homepage based on config
+  - [x] Updated Post.tsx to accept optional props for homepage mode (slug, isHomepage, homepageType)
+  - [x] Back button hidden when Post component is used as homepage
+  - [x] Original homepage route accessible at /home when custom homepage is set
+  - [x] SEO metadata uses page/post frontmatter when used as homepage
+  - [x] Updated configure-fork.ts to support homepage configuration
+  - [x] Updated FORK_CONFIG.md with homepage documentation
+  - [x] Updated fork-config.json.example with homepage option
+  - [x] All existing features (sidebar, footer, right sidebar) work correctly with custom homepage
 
 - [x] Image support in footer component with size control
   - [x] Footer sanitize schema updated to allow width, height, style, class attributes on images

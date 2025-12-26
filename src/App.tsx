@@ -20,11 +20,40 @@ function App() {
     return <Write />;
   }
 
+  // Determine if we should use a custom homepage
+  const useCustomHomepage =
+    siteConfig.homepage.type !== "default" && siteConfig.homepage.slug;
+
   return (
     <SidebarProvider>
       <Layout>
         <Routes>
-          <Route path="/" element={<Home />} />
+          {/* Homepage route - either default Home or custom page/post */}
+          <Route
+            path="/"
+            element={
+              useCustomHomepage ? (
+                <Post
+                  slug={siteConfig.homepage.slug!}
+                  isHomepage={true}
+                  homepageType={
+                    siteConfig.homepage.type === "default"
+                      ? undefined
+                      : siteConfig.homepage.type
+                  }
+                />
+              ) : (
+                <Home />
+              )
+            }
+          />
+          {/* Original homepage route (when custom homepage is set) */}
+          {useCustomHomepage && (
+            <Route
+              path={siteConfig.homepage.originalHomeRoute || "/home"}
+              element={<Home />}
+            />
+          )}
           <Route path="/stats" element={<Stats />} />
           {/* Blog page route - only enabled when blogPage.enabled is true */}
           {siteConfig.blogPage.enabled && (

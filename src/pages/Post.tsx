@@ -18,11 +18,25 @@ const SITE_URL = "https://markdown.fast";
 const SITE_NAME = "markdown sync framework";
 const DEFAULT_OG_IMAGE = "/images/og-default.svg";
 
-export default function Post() {
-  const { slug } = useParams<{ slug: string }>();
+interface PostProps {
+  slug?: string; // Optional slug prop when used as homepage
+  isHomepage?: boolean; // Flag to indicate this is the homepage
+  homepageType?: "page" | "post"; // Type of homepage content
+}
+
+export default function Post({
+  slug: propSlug,
+  isHomepage = false,
+  homepageType,
+}: PostProps = {}) {
+  const { slug: routeSlug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { setHeadings, setActiveId } = useSidebar();
+  
+  // Use prop slug if provided (for homepage), otherwise use route slug
+  const slug = propSlug || routeSlug;
+  
   // Check for page first, then post
   const page = useQuery(api.pages.getPageBySlug, slug ? { slug } : "skip");
   const post = useQuery(api.posts.getPostBySlug, slug ? { slug } : "skip");
@@ -196,8 +210,8 @@ export default function Post() {
     return (
       <div className={`post-page ${hasAnySidebar ? "post-page-with-sidebar" : ""}`}>
         <nav className={`post-nav ${hasAnySidebar ? "post-nav-with-sidebar" : ""}`}>
-          {/* Hide back-button when sidebars are enabled */}
-          {!hasAnySidebar && (
+          {/* Hide back-button when sidebars are enabled or when used as homepage */}
+          {!hasAnySidebar && !isHomepage && (
             <button onClick={() => navigate("/")} className="back-button">
               <ArrowLeft size={16} />
               <span>Back</span>
@@ -269,8 +283,14 @@ export default function Post() {
             )}
           </article>
 
-          {/* Right sidebar - empty when sidebars are enabled, CopyPageDropdown moved to main content */}
-          {hasRightSidebar && <RightSidebar />}
+          {/* Right sidebar - with optional AI chat support */}
+          {hasRightSidebar && (
+            <RightSidebar
+              aiChatEnabled={page.aiChat}
+              pageContent={page.content}
+              slug={page.slug}
+            />
+          )}
         </div>
       </div>
     );
@@ -319,8 +339,8 @@ export default function Post() {
   return (
     <div className={`post-page ${hasAnySidebar ? "post-page-with-sidebar" : ""}`}>
       <nav className={`post-nav ${hasAnySidebar ? "post-nav-with-sidebar" : ""}`}>
-        {/* Hide back-button when sidebars are enabled */}
-        {!hasAnySidebar && (
+        {/* Hide back-button when sidebars are enabled or when used as homepage */}
+        {!hasAnySidebar && !isHomepage && (
           <button onClick={() => navigate("/")} className="back-button">
             <ArrowLeft size={16} />
             <span>Back</span>
@@ -475,8 +495,14 @@ export default function Post() {
         )}
       </article>
 
-      {/* Right sidebar - empty when sidebars are enabled, CopyPageDropdown moved to main content */}
-      {hasRightSidebar && <RightSidebar />}
+      {/* Right sidebar - with optional AI chat support */}
+      {hasRightSidebar && (
+        <RightSidebar
+          aiChatEnabled={post.aiChat}
+          pageContent={post.content}
+          slug={post.slug}
+        />
+      )}
       </div>
     </div>
   );

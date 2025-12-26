@@ -5,8 +5,11 @@ published: true
 order: 0
 layout: "sidebar"
 rightSidebar: true
+aiChat: true
 footer: true
 ---
+
+## Getting Started
 
 Reference documentation for setting up, customizing, and deploying this markdown framework.
 

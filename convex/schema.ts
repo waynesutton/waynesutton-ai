@@ -22,6 +22,7 @@ export default defineSchema({
     rightSidebar: v.optional(v.boolean()), // Enable right sidebar with CopyPageDropdown
     showFooter: v.optional(v.boolean()), // Show footer on this post (overrides siteConfig default)
     footer: v.optional(v.string()), // Footer markdown content (overrides siteConfig defaultContent)
+    aiChat: v.optional(v.boolean()), // Enable AI chat in right sidebar
     lastSyncedAt: v.number(),
   })
     .index("by_slug", ["slug"])
@@ -55,6 +56,7 @@ export default defineSchema({
     rightSidebar: v.optional(v.boolean()), // Enable right sidebar with CopyPageDropdown
     showFooter: v.optional(v.boolean()), // Show footer on this page (overrides siteConfig default)
     footer: v.optional(v.string()), // Footer markdown content (overrides siteConfig defaultContent)
+    aiChat: v.optional(v.boolean()), // Enable AI chat in right sidebar
     lastSyncedAt: v.number(),
   })
   .index("by_slug", ["slug"])
@@ -105,4 +107,32 @@ export default defineSchema({
   })
     .index("by_sessionId", ["sessionId"])
     .index("by_lastSeen", ["lastSeen"]),
+
+  // AI chat conversations for writing assistant
+  aiChats: defineTable({
+    sessionId: v.string(), // Anonymous session ID from localStorage
+    contextId: v.string(), // Slug or "write-page" identifier
+    messages: v.array(
+      v.object({
+        role: v.union(v.literal("user"), v.literal("assistant")),
+        content: v.string(),
+        timestamp: v.number(),
+        attachments: v.optional(
+          v.array(
+            v.object({
+              type: v.union(v.literal("image"), v.literal("link")),
+              storageId: v.optional(v.id("_storage")),
+              url: v.optional(v.string()),
+              scrapedContent: v.optional(v.string()),
+              title: v.optional(v.string()),
+            }),
+          ),
+        ),
+      }),
+    ),
+    pageContext: v.optional(v.string()), // Loaded page markdown content
+    lastMessageAt: v.optional(v.number()),
+  })
+    .index("by_session_and_context", ["sessionId", "contextId"])
+    .index("by_session", ["sessionId"]),
 });

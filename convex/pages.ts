@@ -127,6 +127,7 @@ export const getPageBySlug = query({
       rightSidebar: v.optional(v.boolean()),
       showFooter: v.optional(v.boolean()),
       footer: v.optional(v.string()),
+      aiChat: v.optional(v.boolean()),
     }),
     v.null(),
   ),
@@ -158,6 +159,7 @@ export const getPageBySlug = query({
       rightSidebar: page.rightSidebar,
       showFooter: page.showFooter,
       footer: page.footer,
+      aiChat: page.aiChat,
     };
   },
 });
@@ -183,6 +185,7 @@ export const syncPagesPublic = mutation({
         rightSidebar: v.optional(v.boolean()),
         showFooter: v.optional(v.boolean()),
         footer: v.optional(v.string()),
+        aiChat: v.optional(v.boolean()),
       }),
     ),
   },
@@ -225,6 +228,7 @@ export const syncPagesPublic = mutation({
           rightSidebar: page.rightSidebar,
           showFooter: page.showFooter,
           footer: page.footer,
+          aiChat: page.aiChat,
           lastSyncedAt: now,
         });
         updated++;
