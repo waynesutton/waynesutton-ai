@@ -23,6 +23,8 @@ export const getAllPosts = query({
       authorImage: v.optional(v.string()),
       layout: v.optional(v.string()),
       rightSidebar: v.optional(v.boolean()),
+      showFooter: v.optional(v.boolean()),
+      footer: v.optional(v.string()),
     }),
   ),
   handler: async (ctx) => {
@@ -55,6 +57,7 @@ export const getAllPosts = query({
       authorImage: post.authorImage,
       layout: post.layout,
       rightSidebar: post.rightSidebar,
+      showFooter: post.showFooter,
     }));
   },
 });
@@ -125,6 +128,8 @@ export const getPostBySlug = query({
       authorImage: v.optional(v.string()),
       layout: v.optional(v.string()),
       rightSidebar: v.optional(v.boolean()),
+      showFooter: v.optional(v.boolean()),
+      footer: v.optional(v.string()),
     }),
     v.null(),
   ),
@@ -157,6 +162,8 @@ export const getPostBySlug = query({
       authorImage: post.authorImage,
       layout: post.layout,
       rightSidebar: post.rightSidebar,
+      showFooter: post.showFooter,
+      footer: post.footer,
     };
   },
 });
@@ -182,6 +189,8 @@ export const syncPosts = internalMutation({
         authorImage: v.optional(v.string()),
         layout: v.optional(v.string()),
         rightSidebar: v.optional(v.boolean()),
+        showFooter: v.optional(v.boolean()),
+        footer: v.optional(v.string()),
       }),
     ),
   },
@@ -224,6 +233,8 @@ export const syncPosts = internalMutation({
           authorImage: post.authorImage,
           layout: post.layout,
           rightSidebar: post.rightSidebar,
+          showFooter: post.showFooter,
+          footer: post.footer,
           lastSyncedAt: now,
         });
         updated++;
@@ -270,6 +281,8 @@ export const syncPostsPublic = mutation({
         authorImage: v.optional(v.string()),
         layout: v.optional(v.string()),
         rightSidebar: v.optional(v.boolean()),
+        showFooter: v.optional(v.boolean()),
+        footer: v.optional(v.string()),
       }),
     ),
   },
@@ -312,6 +325,8 @@ export const syncPostsPublic = mutation({
           authorImage: post.authorImage,
           layout: post.layout,
           rightSidebar: post.rightSidebar,
+          showFooter: post.showFooter,
+          footer: post.footer,
           lastSyncedAt: now,
         });
         updated++;

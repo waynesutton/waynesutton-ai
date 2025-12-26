@@ -4,6 +4,44 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.31.1] - 2025-12-25
+
+### Added
+
+- Image support in footer component with size control
+  - Footer markdown now supports images using standard markdown syntax or HTML
+  - Images can be sized using `width`, `height`, `style`, or `class` HTML attributes
+  - Image attributes are sanitized by rehypeSanitize for security (removes dangerous CSS)
+  - Footer images support lazy loading and optional captions from alt text
+  - CSS styles added for footer images (`.site-footer-image-wrapper`, `.site-footer-image`, `.site-footer-image-caption`)
+
+### Changed
+
+- Footer sanitize schema updated to allow `width`, `height`, `style`, and `class` attributes on images
+- Footer image component handler updated to pass through size attributes from HTML
+
+## [1.31.0] - 2025-12-25
+
+### Added
+
+- Customizable footer component with markdown support
+  - New `Footer` component (`src/components/Footer.tsx`) that renders markdown content
+  - Footer content can be set in frontmatter `footer` field (markdown) or use `siteConfig.footer.defaultContent`
+  - Footer can be enabled/disabled globally via `siteConfig.footer.enabled`
+  - Footer visibility controlled per-page type via `siteConfig.footer.showOnHomepage`, `showOnPosts`, `showOnPages`
+  - New `showFooter` frontmatter field for posts and pages to override siteConfig defaults
+  - New `footer` frontmatter field for posts and pages to provide custom markdown content
+  - Footer renders inside article at bottom for posts/pages, maintains current position on homepage
+  - Footer supports markdown formatting (links, paragraphs, line breaks)
+  - Sidebars flush to bottom when footer is enabled (using min-height)
+
+### Changed
+
+- Homepage footer section now uses the new `Footer` component instead of hardcoded HTML
+- Post and page views now render footer inside article tag (before closing `</article>`)
+- Footer component simplified to accept markdown content instead of structured link arrays
+- Footer configuration in `siteConfig.ts` now uses `defaultContent` (markdown string) instead of `builtWith`/`createdBy` objects
+
 ## [1.30.2] - 2025-12-25
 
 ### Fixed

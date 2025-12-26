@@ -1,21 +1,10 @@
-import CopyPageDropdown from "./CopyPageDropdown";
-
-interface RightSidebarProps {
-  title: string;
-  content: string;
-  url: string;
-  slug: string;
-  description?: string;
-  date?: string;
-  tags?: string[];
-  readTime?: string;
-}
-
-export default function RightSidebar(props: RightSidebarProps) {
+// Right sidebar component - maintains layout spacing when sidebars are enabled
+// CopyPageDropdown is now rendered in the main content area instead
+export default function RightSidebar() {
   return (
     <aside className="post-sidebar-right">
       <div className="right-sidebar-content">
-        <CopyPageDropdown {...props} />
+        {/* Empty - CopyPageDropdown moved to main content area */}
       </div>
     </aside>
   );

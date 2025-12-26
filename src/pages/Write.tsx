@@ -40,6 +40,8 @@ const POST_FIELDS = [
   { name: "authorImage", required: false, example: '"/images/authors/jane.png"' },
   { name: "layout", required: false, example: '"sidebar"' },
   { name: "rightSidebar", required: false, example: "true" },
+  { name: "showFooter", required: false, example: "true" },
+  { name: "footer", required: false, example: '"Built with [Convex](https://convex.dev)."' },
 ];
 
 // Frontmatter field definitions for pages
@@ -57,6 +59,8 @@ const PAGE_FIELDS = [
   { name: "authorImage", required: false, example: '"/images/authors/jane.png"' },
   { name: "layout", required: false, example: '"sidebar"' },
   { name: "rightSidebar", required: false, example: "true" },
+  { name: "showFooter", required: false, example: "true" },
+  { name: "footer", required: false, example: '"Built with [Convex](https://convex.dev)."' },
 ];
 
 // Generate frontmatter template based on content type

@@ -8,9 +8,34 @@
 
 ## Current Status
 
-v1.30.2 ready. Right sidebar now opt-in only via frontmatter.
+v1.31.1 ready. Footer component now supports images with size control via HTML attributes.
 
 ## Completed
+
+- [x] Image support in footer component with size control
+  - [x] Footer sanitize schema updated to allow width, height, style, class attributes on images
+  - [x] Footer image component handler updated to pass through size attributes
+  - [x] CSS styles added for footer images (.site-footer-image-wrapper, .site-footer-image, .site-footer-image-caption)
+  - [x] Images support lazy loading and optional captions from alt text
+  - [x] Security verified: rehypeSanitize sanitizes style attributes to remove dangerous CSS
+  - [x] Updated files.md, changelog.md with image support documentation
+
+- [x] Customizable footer component with markdown support
+  - [x] Footer component created (src/components/Footer.tsx) with ReactMarkdown rendering
+  - [x] Footer configuration added to siteConfig.ts (FooterConfig interface with defaultContent)
+  - [x] Footer content can be set in frontmatter footer field (markdown) or siteConfig.defaultContent
+  - [x] Footer can be enabled/disabled globally and per-page type
+  - [x] showFooter and footer frontmatter fields added for posts and pages
+  - [x] Footer renders inside article tag at bottom for posts/pages
+  - [x] Footer maintains current position on homepage
+  - [x] Updated Home.tsx to use Footer component with defaultContent
+  - [x] Updated Post.tsx to render Footer inside article based on showFooter
+  - [x] Added CSS styles for site-footer (.site-footer, .site-footer-content, .site-footer-text, .site-footer-link)
+  - [x] Updated schema.ts, posts.ts, pages.ts with showFooter and footer fields
+  - [x] Updated sync-posts.ts to parse showFooter and footer frontmatter
+  - [x] Updated Write.tsx to include showFooter and footer in frontmatter reference
+  - [x] Sidebars flush to bottom when footer is enabled (min-height ensures proper extension)
+  - [x] Updated files.md, changelog.md with footer feature documentation
 
 - [x] Fixed right sidebar default behavior: now requires explicit `rightSidebar: true` in frontmatter
 - [x] Pages/posts without rightSidebar frontmatter render normally with CopyPageDropdown in nav

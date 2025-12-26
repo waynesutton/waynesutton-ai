@@ -20,6 +20,8 @@ export default defineSchema({
     authorImage: v.optional(v.string()), // Author avatar image URL (round)
     layout: v.optional(v.string()), // Layout type: "sidebar" for docs-style layout
     rightSidebar: v.optional(v.boolean()), // Enable right sidebar with CopyPageDropdown
+    showFooter: v.optional(v.boolean()), // Show footer on this post (overrides siteConfig default)
+    footer: v.optional(v.string()), // Footer markdown content (overrides siteConfig defaultContent)
     lastSyncedAt: v.number(),
   })
     .index("by_slug", ["slug"])
@@ -51,6 +53,8 @@ export default defineSchema({
     authorImage: v.optional(v.string()), // Author avatar image URL (round)
     layout: v.optional(v.string()), // Layout type: "sidebar" for docs-style layout
     rightSidebar: v.optional(v.boolean()), // Enable right sidebar with CopyPageDropdown
+    showFooter: v.optional(v.boolean()), // Show footer on this page (overrides siteConfig default)
+    footer: v.optional(v.string()), // Footer markdown content (overrides siteConfig defaultContent)
     lastSyncedAt: v.number(),
   })
   .index("by_slug", ["slug"])

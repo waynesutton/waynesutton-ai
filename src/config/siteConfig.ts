@@ -87,6 +87,17 @@ export interface RightSidebarConfig {
   minWidth?: number; // Minimum viewport width to show sidebar (default: 1135)
 }
 
+// Footer configuration
+// Footer content can be set in frontmatter (footer field) or use defaultContent here
+// Footer can be enabled/disabled globally and per-page via frontmatter showFooter field
+export interface FooterConfig {
+  enabled: boolean; // Global toggle for footer
+  showOnHomepage: boolean; // Show footer on homepage
+  showOnPosts: boolean; // Default: show footer on blog posts
+  showOnPages: boolean; // Default: show footer on static pages
+  defaultContent?: string; // Default markdown content if no frontmatter footer field provided
+}
+
 // Site configuration interface
 export interface SiteConfig {
   // Basic site info
@@ -136,6 +147,9 @@ export interface SiteConfig {
 
   // Right sidebar configuration
   rightSidebar: RightSidebarConfig;
+
+  // Footer configuration
+  footer: FooterConfig;
 }
 
 // Default site configuration
@@ -288,6 +302,20 @@ export const siteConfig: SiteConfig = {
   rightSidebar: {
     enabled: true, // Set to false to disable right sidebar globally
     minWidth: 1135, // Minimum viewport width in pixels to show sidebar
+  },
+
+  // Footer configuration
+  // Footer content can be set in frontmatter (footer field) or use defaultContent here
+  // Use showFooter: false in frontmatter to hide footer on specific posts/pages
+  footer: {
+    enabled: true, // Global toggle for footer
+    showOnHomepage: true, // Show footer on homepage
+    showOnPosts: true, // Default: show footer on blog posts (override with frontmatter)
+    showOnPages: true, // Default: show footer on static pages (override with frontmatter)
+    // Default footer markdown (used when frontmatter footer field is not provided)
+    defaultContent: `Built with [Convex](https://convex.dev) for real-time sync and deployed on [Netlify](https://netlify.com). Read the [project on GitHub](https://github.com/waynesutton/markdown-site) to fork and deploy your own. View [real-time site stats](/stats).
+
+Created by [Wayne](https://x.com/waynesutton) with Convex, Cursor, and Claude Opus 4.5. Follow on [Twitter/X](https://x.com/waynesutton), [LinkedIn](https://www.linkedin.com/in/waynesutton/), and [GitHub](https://github.com/waynesutton). This project is licensed under the MIT [License](https://github.com/waynesutton/markdown-site?tab=MIT-1-ov-file).`,
   },
 };
 

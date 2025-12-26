@@ -285,6 +285,29 @@ function getTextContent(children: React.ReactNode): string {
   return "";
 }
 
+// Anchor link component for headings
+function HeadingAnchor({ id }: { id: string }) {
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Copy URL to clipboard, but allow default scroll behavior
+    const url = `${window.location.origin}${window.location.pathname}#${id}`;
+    navigator.clipboard.writeText(url).catch(() => {
+      // Silently fail if clipboard API is not available
+    });
+  };
+
+  return (
+    <a
+      href={`#${id}`}
+      className="heading-anchor"
+      onClick={handleClick}
+      aria-label="Copy link to heading"
+      title="Copy link to heading"
+    >
+      #
+    </a>
+  );
+}
+
 export default function BlogPost({ content }: BlogPostProps) {
   const { theme } = useTheme();
 
@@ -397,6 +420,7 @@ export default function BlogPost({ content }: BlogPostProps) {
             const id = generateSlug(getTextContent(children));
             return (
               <h1 id={id} className="blog-h1">
+                <HeadingAnchor id={id} />
                 {children}
               </h1>
             );
@@ -405,6 +429,7 @@ export default function BlogPost({ content }: BlogPostProps) {
             const id = generateSlug(getTextContent(children));
             return (
               <h2 id={id} className="blog-h2">
+                <HeadingAnchor id={id} />
                 {children}
               </h2>
             );
@@ -413,6 +438,7 @@ export default function BlogPost({ content }: BlogPostProps) {
             const id = generateSlug(getTextContent(children));
             return (
               <h3 id={id} className="blog-h3">
+                <HeadingAnchor id={id} />
                 {children}
               </h3>
             );
@@ -421,6 +447,7 @@ export default function BlogPost({ content }: BlogPostProps) {
             const id = generateSlug(getTextContent(children));
             return (
               <h4 id={id} className="blog-h4">
+                <HeadingAnchor id={id} />
                 {children}
               </h4>
             );
@@ -429,6 +456,7 @@ export default function BlogPost({ content }: BlogPostProps) {
             const id = generateSlug(getTextContent(children));
             return (
               <h5 id={id} className="blog-h5">
+                <HeadingAnchor id={id} />
                 {children}
               </h5>
             );
@@ -437,6 +465,7 @@ export default function BlogPost({ content }: BlogPostProps) {
             const id = generateSlug(getTextContent(children));
             return (
               <h6 id={id} className="blog-h6">
+                <HeadingAnchor id={id} />
                 {children}
               </h6>
             );

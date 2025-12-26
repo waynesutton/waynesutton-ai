@@ -6,6 +6,7 @@ import PostList from "../components/PostList";
 import FeaturedCards from "../components/FeaturedCards";
 import LogoMarquee from "../components/LogoMarquee";
 import GitHubContributions from "../components/GitHubContributions";
+import Footer from "../components/Footer";
 import siteConfig from "../config/siteConfig";
 
 // Local storage key for view mode preference
@@ -223,82 +224,9 @@ export default function Home() {
       {renderLogoGallery("above-footer")}
 
       {/* Footer section */}
-      <section className="home-footer">
-        <p className="home-footer-text">
-          Built with{" "}
-          <a
-            href={siteConfig.links.convex}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Convex
-          </a>{" "}
-          for real-time sync and deployed on{" "}
-          <a
-            href={siteConfig.links.netlify}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Netlify
-          </a>
-          . Read the{" "}
-          <a
-            href="https://github.com/waynesutton/markdown-site"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            project on GitHub
-          </a>{" "}
-          to fork and deploy your own. View{" "}
-          <Link to="/stats" className="home-text-link">
-            real-time site stats
-          </Link>
-          .
-        </p>
-        <p></p>
-        <br></br>
-        <p className="home-footer-text">
-          Created by{" "}
-          <a
-            href="https://x.com/waynesutton"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Wayne
-          </a>{" "}
-          with Convex, Cursor, and Claude Opus 4.5. Follow on{" "}
-          <a
-            href="https://x.com/waynesutton"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Twitter/X
-          </a>
-          ,{" "}
-          <a
-            href="https://www.linkedin.com/in/waynesutton/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            LinkedIn
-          </a>
-          , and{" "}
-          <a
-            href="https://github.com/waynesutton"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            GitHub
-          </a>
-          . This project is licensed under the MIT{" "}
-          <a
-            href="https://github.com/waynesutton/markdown-site?tab=MIT-1-ov-file"
-            className="home-text-link"
-          >
-            License.
-          </a>{" "}
-        </p>
-      </section>
+      {siteConfig.footer.enabled && siteConfig.footer.showOnHomepage && (
+        <Footer content={siteConfig.footer.defaultContent} />
+      )}
     </div>
   );
 }

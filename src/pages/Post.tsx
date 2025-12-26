@@ -5,6 +5,7 @@ import BlogPost from "../components/BlogPost";
 import CopyPageDropdown from "../components/CopyPageDropdown";
 import PageSidebar from "../components/PageSidebar";
 import RightSidebar from "../components/RightSidebar";
+import Footer from "../components/Footer";
 import { extractHeadings } from "../utils/extractHeadings";
 import { useSidebar } from "../context/SidebarContext";
 import { format, parseISO } from "date-fns";
@@ -195,12 +196,15 @@ export default function Post() {
     return (
       <div className={`post-page ${hasAnySidebar ? "post-page-with-sidebar" : ""}`}>
         <nav className={`post-nav ${hasAnySidebar ? "post-nav-with-sidebar" : ""}`}>
-          <button onClick={() => navigate("/")} className="back-button">
-            <ArrowLeft size={16} />
-            <span>Back</span>
-          </button>
-          {/* Only show CopyPageDropdown in nav if right sidebar is disabled */}
-          {!hasRightSidebar && (
+          {/* Hide back-button when sidebars are enabled */}
+          {!hasAnySidebar && (
+            <button onClick={() => navigate("/")} className="back-button">
+              <ArrowLeft size={16} />
+              <span>Back</span>
+            </button>
+          )}
+          {/* Only show CopyPageDropdown in nav if no sidebars are enabled */}
+          {!hasAnySidebar && (
             <CopyPageDropdown
               title={page.title}
               content={page.content}
@@ -222,7 +226,21 @@ export default function Post() {
           {/* Main content */}
           <article className={`post-article ${hasAnySidebar ? "post-article-with-sidebar" : ""}`}>
             <header className="post-header">
-              <h1 className="post-title">{page.title}</h1>
+              <div className="post-title-row">
+                <h1 className="post-title">{page.title}</h1>
+                {/* Show CopyPageDropdown aligned with title when sidebars are enabled */}
+                {hasAnySidebar && (
+                  <div className="post-header-actions">
+                    <CopyPageDropdown
+                      title={page.title}
+                      content={page.content}
+                      url={window.location.href}
+                      slug={page.slug}
+                      description={page.excerpt}
+                    />
+                  </div>
+                )}
+              </div>
               {/* Author avatar and name for pages (optional) */}
               {(page.authorImage || page.authorName) && (
                 <div className="post-meta-header">
@@ -243,18 +261,16 @@ export default function Post() {
             </header>
 
             <BlogPost content={page.content} />
+
+            {/* Footer - shown inside article at bottom for pages */}
+            {siteConfig.footer.enabled && 
+             (page.showFooter !== undefined ? page.showFooter : siteConfig.footer.showOnPages) && (
+              <Footer content={page.footer} />
+            )}
           </article>
 
-          {/* Right sidebar - CopyPageDropdown */}
-          {hasRightSidebar && (
-            <RightSidebar
-              title={page.title}
-              content={page.content}
-              url={window.location.href}
-              slug={page.slug}
-              description={page.excerpt}
-            />
-          )}
+          {/* Right sidebar - empty when sidebars are enabled, CopyPageDropdown moved to main content */}
+          {hasRightSidebar && <RightSidebar />}
         </div>
       </div>
     );
@@ -303,12 +319,15 @@ export default function Post() {
   return (
     <div className={`post-page ${hasAnySidebar ? "post-page-with-sidebar" : ""}`}>
       <nav className={`post-nav ${hasAnySidebar ? "post-nav-with-sidebar" : ""}`}>
-        <button onClick={() => navigate("/")} className="back-button">
-          <ArrowLeft size={16} />
-          <span>Back</span>
-        </button>
-        {/* Only show CopyPageDropdown in nav if right sidebar is disabled */}
-        {!hasRightSidebar && (
+        {/* Hide back-button when sidebars are enabled */}
+        {!hasAnySidebar && (
+          <button onClick={() => navigate("/")} className="back-button">
+            <ArrowLeft size={16} />
+            <span>Back</span>
+          </button>
+        )}
+        {/* Only show CopyPageDropdown in nav if no sidebars are enabled */}
+        {!hasAnySidebar && (
           <CopyPageDropdown
             title={post.title}
             content={post.content}
@@ -332,7 +351,24 @@ export default function Post() {
 
         <article className={`post-article ${hasAnySidebar ? "post-article-with-sidebar" : ""}`}>
         <header className="post-header">
-          <h1 className="post-title">{post.title}</h1>
+          <div className="post-title-row">
+            <h1 className="post-title">{post.title}</h1>
+            {/* Show CopyPageDropdown aligned with title when sidebars are enabled */}
+            {hasAnySidebar && (
+              <div className="post-header-actions">
+                <CopyPageDropdown
+                  title={post.title}
+                  content={post.content}
+                  url={window.location.href}
+                  slug={post.slug}
+                  description={post.description}
+                  date={post.date}
+                  tags={post.tags}
+                  readTime={post.readTime}
+                />
+              </div>
+            )}
+          </div>
           <div className="post-meta-header">
             {/* Author avatar and name (optional) */}
             {(post.authorImage || post.authorName) && (
@@ -431,21 +467,16 @@ export default function Post() {
             </div>
           )}
         </footer>
+
+        {/* Footer - shown inside article at bottom for posts */}
+        {siteConfig.footer.enabled && 
+         (post.showFooter !== undefined ? post.showFooter : siteConfig.footer.showOnPosts) && (
+          <Footer content={post.footer} />
+        )}
       </article>
 
-      {/* Right sidebar - CopyPageDropdown */}
-      {hasRightSidebar && (
-        <RightSidebar
-          title={post.title}
-          content={post.content}
-          url={window.location.href}
-          slug={post.slug}
-          description={post.description}
-          date={post.date}
-          tags={post.tags}
-          readTime={post.readTime}
-        />
-      )}
+      {/* Right sidebar - empty when sidebars are enabled, CopyPageDropdown moved to main content */}
+      {hasRightSidebar && <RightSidebar />}
       </div>
     </div>
   );

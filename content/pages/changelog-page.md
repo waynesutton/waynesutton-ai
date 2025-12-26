@@ -9,6 +9,40 @@ layout: "sidebar"
 All notable changes to this project.
 ![](https://img.shields.io/badge/License-MIT-yellow.svg)
 
+## v1.31.1
+
+Released December 25, 2025
+
+**Image support in footer component**
+
+- Footer markdown now supports images using standard markdown syntax or HTML
+- Images can be sized using `width`, `height`, `style`, or `class` HTML attributes
+- Image attributes are sanitized by rehypeSanitize for security (removes dangerous CSS)
+- Footer images support lazy loading and optional captions from alt text
+- CSS styles added for footer images
+
+Updated files: `src/components/Footer.tsx`, `src/styles/global.css`
+
+## v1.31.0
+
+Released December 25, 2025
+
+**Customizable footer component with markdown support**
+
+- New `Footer` component that renders markdown content
+- Footer content can be set in frontmatter `footer` field (markdown) or use `siteConfig.footer.defaultContent`
+- Footer can be enabled/disabled globally via `siteConfig.footer.enabled`
+- Footer visibility controlled per-page type via `siteConfig.footer.showOnHomepage`, `showOnPosts`, `showOnPages`
+- New `showFooter` frontmatter field for posts and pages to override siteConfig defaults
+- New `footer` frontmatter field for posts and pages to provide custom markdown content
+- Footer renders inside article at bottom for posts/pages, maintains current position on homepage
+- Footer supports markdown formatting (links, paragraphs, line breaks)
+- Sidebars flush to bottom when footer is enabled
+
+Updated files: `src/components/Footer.tsx`, `src/pages/Home.tsx`, `src/pages/Post.tsx`, `src/config/siteConfig.ts`, `src/styles/global.css`, `convex/schema.ts`, `convex/posts.ts`, `convex/pages.ts`, `scripts/sync-posts.ts`, `src/pages/Write.tsx`
+
+Documentation updated: `files.md`, `changelog.md`
+
 ## v1.30.2
 
 Released December 25, 2025

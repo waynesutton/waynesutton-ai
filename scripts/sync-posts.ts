@@ -57,6 +57,8 @@ interface ParsedPost {
   authorImage?: string; // Author avatar image URL (round)
   layout?: string; // Layout type: "sidebar" for docs-style layout
   rightSidebar?: boolean; // Enable right sidebar with CopyPageDropdown (default: true when siteConfig.rightSidebar.enabled)
+  showFooter?: boolean; // Show footer on this post (overrides siteConfig default)
+  footer?: string; // Footer markdown content (overrides siteConfig defaultContent)
 }
 
 // Page frontmatter (for static pages like About, Projects, Contact)
@@ -74,6 +76,7 @@ interface PageFrontmatter {
   authorImage?: string; // Author avatar image URL (round)
   layout?: string; // Layout type: "sidebar" for docs-style layout
   rightSidebar?: boolean; // Enable right sidebar with CopyPageDropdown (default: true when siteConfig.rightSidebar.enabled)
+  showFooter?: boolean; // Show footer on this page (overrides siteConfig default)
 }
 
 interface ParsedPage {
@@ -91,6 +94,7 @@ interface ParsedPage {
   authorImage?: string; // Author avatar image URL (round)
   layout?: string; // Layout type: "sidebar" for docs-style layout
   rightSidebar?: boolean; // Enable right sidebar with CopyPageDropdown (default: true when siteConfig.rightSidebar.enabled)
+  showFooter?: boolean; // Show footer on this page (overrides siteConfig default)
 }
 
 // Calculate reading time based on word count
@@ -132,6 +136,8 @@ function parseMarkdownFile(filePath: string): ParsedPost | null {
       authorImage: frontmatter.authorImage, // Author avatar image URL
       layout: frontmatter.layout, // Layout type: "sidebar" for docs-style layout
       rightSidebar: frontmatter.rightSidebar, // Enable right sidebar with CopyPageDropdown
+      showFooter: frontmatter.showFooter, // Show footer on this post
+      footer: frontmatter.footer, // Footer markdown content
     };
   } catch (error) {
     console.error(`Error parsing ${filePath}:`, error);
@@ -184,6 +190,7 @@ function parsePageFile(filePath: string): ParsedPage | null {
       authorImage: frontmatter.authorImage, // Author avatar image URL
       layout: frontmatter.layout, // Layout type: "sidebar" for docs-style layout
       rightSidebar: frontmatter.rightSidebar, // Enable right sidebar with CopyPageDropdown
+      showFooter: frontmatter.showFooter, // Show footer on this page
     };
   } catch (error) {
     console.error(`Error parsing page ${filePath}:`, error);

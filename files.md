@@ -33,7 +33,7 @@ A brief description of each file in the codebase.
 
 | File            | Description                                                                                               |
 | --------------- | --------------------------------------------------------------------------------------------------------- |
-| `siteConfig.ts` | Centralized site configuration (name, logo, blog page, posts display with homepage post limit and read more link, GitHub contributions, nav order, inner page logo settings, hardcoded navigation items for React routes, GitHub repository config for AI service raw URLs, font family configuration, right sidebar configuration) |
+| `siteConfig.ts` | Centralized site configuration (name, logo, blog page, posts display with homepage post limit and read more link, GitHub contributions, nav order, inner page logo settings, hardcoded navigation items for React routes, GitHub repository config for AI service raw URLs, font family configuration, right sidebar configuration, footer configuration) |
 
 ### Pages (`src/pages/`)
 
@@ -55,6 +55,7 @@ A brief description of each file in the codebase.
 | `PostList.tsx`            | Year-grouped blog post list or card grid (supports list/cards view modes) |
 | `BlogPost.tsx`            | Markdown renderer with syntax highlighting, collapsible sections (details/summary), and text wrapping for plain text code blocks |
 | `CopyPageDropdown.tsx`    | Share dropdown with Copy page (markdown to clipboard), View as Markdown (opens raw .md file), Download as SKILL.md (Anthropic Agent Skills format), and Open in AI links (ChatGPT, Claude, Perplexity) using GitHub raw URLs with universal prompt |
+| `Footer.tsx`              | Footer component that renders markdown content from frontmatter footer field or siteConfig.defaultContent. Can be enabled/disabled globally and per-page via frontmatter showFooter field. Renders inside article at bottom for posts/pages, and in current position on homepage. Supports images with size control via HTML attributes (width, height, style, class) |
 | `SearchModal.tsx`         | Full text search modal with keyboard navigation            |
 | `FeaturedCards.tsx`       | Card grid for featured posts/pages with excerpts           |
 | `LogoMarquee.tsx`         | Scrolling logo gallery with clickable links                |
@@ -89,7 +90,7 @@ A brief description of each file in the codebase.
 
 | File         | Description                                                                          |
 | ------------ | ------------------------------------------------------------------------------------ |
-| `global.css` | Global CSS with theme variables, centralized font-size CSS variables for all themes, sidebar styling with alternate background colors, hidden scrollbar, and consistent borders using box-shadow for docs-style layout. Left sidebar (`.post-sidebar-wrapper`) and right sidebar (`.post-sidebar-right`) have separate, independent styles |
+| `global.css` | Global CSS with theme variables, centralized font-size CSS variables for all themes, sidebar styling with alternate background colors, hidden scrollbar, and consistent borders using box-shadow for docs-style layout. Left sidebar (`.post-sidebar-wrapper`) and right sidebar (`.post-sidebar-right`) have separate, independent styles. Footer image styles (`.site-footer-image-wrapper`, `.site-footer-image`, `.site-footer-image-caption`) for responsive image display |
 
 ## Convex Backend (`convex/`)
 
@@ -141,6 +142,9 @@ Markdown files with frontmatter for blog posts. Each file becomes a blog post.
 | `featuredOrder` | Order in featured section (optional)        |
 | `authorName`    | Author display name (optional)              |
 | `authorImage`   | Round author avatar image URL (optional)    |
+| `rightSidebar`  | Enable right sidebar with CopyPageDropdown (optional) |
+| `showFooter`    | Show footer on this post (optional, overrides siteConfig default) |
+| `footer`        | Footer markdown content (optional, overrides siteConfig.defaultContent) |
 
 ## Static Pages (`content/pages/`)
 
@@ -159,6 +163,8 @@ Markdown files for static pages like About, Projects, Contact, Changelog.
 | `authorName`    | Author display name (optional)           |
 | `authorImage`   | Round author avatar image URL (optional)  |
 | `rightSidebar`  | Enable right sidebar with CopyPageDropdown (optional) |
+| `showFooter`    | Show footer on this page (optional, overrides siteConfig default) |
+| `footer`        | Footer markdown content (optional, overrides siteConfig.defaultContent) |
 
 ## Scripts (`scripts/`)
 

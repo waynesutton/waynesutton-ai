@@ -5,6 +5,7 @@ published: true
 order: 0
 layout: "sidebar"
 rightSidebar: true
+footer: true
 ---
 
 Reference documentation for setting up, customizing, and deploying this markdown framework.

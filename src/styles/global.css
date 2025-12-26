@@ -314,7 +314,7 @@ body {
   max-width: 800px;
   width: 100%;
   margin: 0 auto;
-  padding: 40px 24px;
+  /*  padding: 40px 24px; */
 }
 
 /* Wide content layout for pages that need more space (stats, etc.) */
@@ -648,7 +648,7 @@ body {
 
 /* Post page styles */
 .post-page {
-  padding-top: 20px;
+  padding-top: 55px;
 }
 
 /* Full-width sidebar layout - breaks out of .main-content constraints */
@@ -656,7 +656,7 @@ body {
   padding-top: 20px;
   /* Break out of the 680px max-width container */
   width: calc(100vw - 48px);
-  max-width: 1400px;
+  max-width: none;
   margin-left: calc(-1 * (min(100vw - 48px, 1400px) - 680px) / 2);
   position: relative;
   /* Add left padding to align content with sidebar edge 
@@ -862,6 +862,22 @@ body {
   margin-bottom: 48px;
 }
 
+/* Title row container - flex layout for title and CopyPageDropdown */
+.post-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* Header actions container for CopyPageDropdown when sidebars are enabled */
+.post-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+}
+
 /* Sidebar layout for pages - two-column grid with docs-style sidebar */
 .post-content-with-sidebar {
   display: grid;
@@ -888,7 +904,7 @@ body {
 .post-sidebar-wrapper {
   position: sticky;
   top: 80px;
-  align-self: flex-start;
+  align-self: start;
   max-height: calc(100vh - 100px);
   overflow-y: auto;
   /* Hide scrollbar while keeping scroll functionality */
@@ -902,7 +918,7 @@ body {
   padding-bottom: 24px;
   margin-top: -24px;
   border-radius: 6px;
-  /* Extend background to fill height */
+  /* Extend background to fill height - ensures sidebars flush to bottom */
   min-height: calc(100vh - 80px);
   /* Top border using CSS variable for theme consistency */
   border-top: 1px solid var(--border-sidebar);
@@ -923,7 +939,7 @@ body {
 .post-sidebar-right {
   position: sticky;
   top: 80px;
-  align-self: flex-start;
+  align-self: start;
   max-height: calc(100vh - 100px);
   overflow-y: auto;
   /* Hide scrollbar while keeping scroll functionality */
@@ -937,7 +953,7 @@ body {
   padding-bottom: 24px;
   margin-top: -24px;
   border-radius: 6px;
-  /* Extend background to fill height */
+  /* Extend background to fill height - ensures sidebars flush to bottom */
   min-height: calc(100vh - 80px);
   /* Top border using CSS variable for theme consistency */
   border-top: 1px solid var(--border-sidebar);
@@ -1177,8 +1193,10 @@ body {
   font-size: var(--font-size-post-title);
   font-weight: 300;
   letter-spacing: -0.02em;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   line-height: 1.2;
+  flex: 1;
+  min-width: 0;
 }
 
 .post-meta-header {
@@ -1238,6 +1256,7 @@ body {
   margin: 48px 0 24px;
   letter-spacing: -0.02em;
   line-height: 1.3;
+  position: relative;
 }
 
 .blog-h2 {
@@ -1246,6 +1265,7 @@ body {
   margin: 40px 0 20px;
   letter-spacing: -0.01em;
   line-height: 1.3;
+  position: relative;
 }
 
 .blog-h3 {
@@ -1253,6 +1273,7 @@ body {
   font-weight: 300;
   margin: 32px 0 16px;
   line-height: 1.4;
+  position: relative;
 }
 
 .blog-h4 {
@@ -1260,6 +1281,7 @@ body {
   font-weight: 300;
   margin: 24px 0 12px;
   line-height: 1.4;
+  position: relative;
 }
 
 .blog-h5 {
@@ -1267,6 +1289,7 @@ body {
   font-weight: 300;
   margin: 20px 0 10px;
   line-height: 1.4;
+  position: relative;
 }
 
 .blog-h6 {
@@ -1274,6 +1297,33 @@ body {
   font-weight: 300;
   margin: 16px 0 8px;
   line-height: 1.4;
+  position: relative;
+}
+
+/* Anchor links for headings */
+.heading-anchor {
+  position: absolute;
+  left: -1.5em;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: normal;
+  font-size: 0.9em;
+  padding-right: 0.5em;
+}
+
+.blog-h1:hover .heading-anchor,
+.blog-h2:hover .heading-anchor,
+.blog-h3:hover .heading-anchor,
+.blog-h4:hover .heading-anchor,
+.blog-h5:hover .heading-anchor,
+.blog-h6:hover .heading-anchor {
+  opacity: 1;
+}
+
+.heading-anchor:hover {
+  color: var(--link-color);
 }
 
 .blog-link {
@@ -1716,6 +1766,72 @@ body {
   text-decoration: underline;
 }
 
+/* Site footer styles (used by Footer component) */
+.site-footer {
+  margin-top: 4rem;
+  margin-bottom: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.site-footer-content {
+  color: var(--text-secondary);
+  font-size: var(--font-size-footer-text);
+  line-height: 1.7;
+}
+
+.site-footer-text {
+  color: var(--text-secondary);
+  font-size: var(--font-size-footer-text);
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+
+.site-footer-text:last-child {
+  margin-bottom: 0;
+}
+
+.site-footer-text a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.site-footer-text a:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+}
+
+.site-footer-link {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.site-footer-link:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+}
+
+/* Site footer image styles */
+.site-footer-image-wrapper {
+  /*  display: block;*/
+  margin: 5px;
+}
+
+.site-footer-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.site-footer-image-caption {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+}
+
 /* ============================================
    Blog Page Styles
    Dedicated /blog page that shows all posts
@@ -2007,6 +2123,12 @@ body {
 
   .blog-h6 {
     font-size: var(--font-size-blog-h6);
+  }
+
+  /* Adjust anchor link position on mobile */
+  .heading-anchor {
+    left: -1.2em;
+    font-size: 0.85em;
   }
 
   /* Table mobile styles */

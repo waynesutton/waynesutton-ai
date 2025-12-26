@@ -8,6 +8,91 @@ Date: 2025-12-26
 All notable changes to this project.
 ![](https://img.shields.io/badge/License-MIT-yellow.svg)
 
+## v1.31.1
+
+Released December 25, 2025
+
+**Image support in footer component**
+
+- Footer markdown now supports images using standard markdown syntax or HTML
+- Images can be sized using `width`, `height`, `style`, or `class` HTML attributes
+- Image attributes are sanitized by rehypeSanitize for security (removes dangerous CSS)
+- Footer images support lazy loading and optional captions from alt text
+- CSS styles added for footer images
+
+Updated files: `src/components/Footer.tsx`, `src/styles/global.css`
+
+## v1.31.0
+
+Released December 25, 2025
+
+**Customizable footer component with markdown support**
+
+- New `Footer` component that renders markdown content
+- Footer content can be set in frontmatter `footer` field (markdown) or use `siteConfig.footer.defaultContent`
+- Footer can be enabled/disabled globally via `siteConfig.footer.enabled`
+- Footer visibility controlled per-page type via `siteConfig.footer.showOnHomepage`, `showOnPosts`, `showOnPages`
+- New `showFooter` frontmatter field for posts and pages to override siteConfig defaults
+- New `footer` frontmatter field for posts and pages to provide custom markdown content
+- Footer renders inside article at bottom for posts/pages, maintains current position on homepage
+- Footer supports markdown formatting (links, paragraphs, line breaks)
+- Sidebars flush to bottom when footer is enabled
+
+Updated files: `src/components/Footer.tsx`, `src/pages/Home.tsx`, `src/pages/Post.tsx`, `src/config/siteConfig.ts`, `src/styles/global.css`, `convex/schema.ts`, `convex/posts.ts`, `convex/pages.ts`, `scripts/sync-posts.ts`, `src/pages/Write.tsx`
+
+Documentation updated: `files.md`, `changelog.md`
+
+## v1.30.2
+
+Released December 25, 2025
+
+**Right sidebar default behavior fix**
+
+- Right sidebar no longer appears on pages/posts without explicit `rightSidebar: true` in frontmatter
+  - Changed default behavior: right sidebar is now opt-in only
+  - Pages like About and Contact now render without the right sidebar as expected
+  - `CopyPageDropdown` correctly appears in nav bar when right sidebar is disabled
+- Logic in `Post.tsx` changed from `(page.rightSidebar ?? true)` to `page.rightSidebar === true`
+
+Updated files: `src/pages/Post.tsx`
+
+## v1.30.1
+
+Released December 25, 2025
+
+**TypeScript error fix**
+
+- TypeScript error in `convex/posts.ts` where `rightSidebar` was used in mutation handlers but missing from args validators
+  - Added `rightSidebar: v.optional(v.boolean())` to `syncPosts` args validator
+  - Added `rightSidebar: v.optional(v.boolean())` to `syncPostsPublic` args validator
+
+Updated files: `convex/posts.ts`
+
+## v1.30.0
+
+Released December 25, 2025
+
+**Right sidebar feature for posts and pages**
+
+- New `RightSidebar` component that displays `CopyPageDropdown` in a right sidebar
+  - Appears at 1135px+ viewport width when enabled
+  - Controlled by `siteConfig.rightSidebar.enabled` (global toggle)
+  - Per-post/page control via `rightSidebar: true` frontmatter field (opt-in only)
+  - Three-column layout support: left sidebar (TOC), main content, right sidebar (CopyPageDropdown)
+  - CopyPageDropdown automatically moves from nav to right sidebar when enabled
+  - Responsive: right sidebar hidden below 1135px, CopyPageDropdown returns to nav
+- Right sidebar configuration in siteConfig
+  - `rightSidebar.enabled`: Global toggle for right sidebar feature
+  - `rightSidebar.minWidth`: Minimum viewport width to show sidebar (default: 1135px)
+- `rightSidebar` frontmatter field
+  - Available for both blog posts and pages
+  - Optional boolean field to enable/disable right sidebar per post/page
+  - Added to Write page frontmatter reference with copy button
+
+Updated files: `src/components/RightSidebar.tsx`, `src/pages/Post.tsx`, `src/config/siteConfig.ts`, `src/styles/global.css`, `convex/schema.ts`, `convex/posts.ts`, `convex/pages.ts`, `scripts/sync-posts.ts`, `src/pages/Write.tsx`
+
+Documentation updated: `content/blog/setup-guide.md`, `content/pages/docs.md`, `files.md`, `changelog.md`
+
 ## v1.29.0
 
 Released December 25, 2025
