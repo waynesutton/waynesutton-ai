@@ -10,8 +10,12 @@
 
 import type * as aiChatActions from "../aiChatActions.js";
 import type * as aiChats from "../aiChats.js";
+import type * as contact from "../contact.js";
+import type * as contactActions from "../contactActions.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
+import type * as newsletter from "../newsletter.js";
+import type * as newsletterActions from "../newsletterActions.js";
 import type * as pages from "../pages.js";
 import type * as posts from "../posts.js";
 import type * as rss from "../rss.js";
@@ -27,8 +31,12 @@ import type {
 declare const fullApi: ApiFromModules<{
   aiChatActions: typeof aiChatActions;
   aiChats: typeof aiChats;
+  contact: typeof contact;
+  contactActions: typeof contactActions;
   crons: typeof crons;
   http: typeof http;
+  newsletter: typeof newsletter;
+  newsletterActions: typeof newsletterActions;
   pages: typeof pages;
   posts: typeof posts;
   rss: typeof rss;

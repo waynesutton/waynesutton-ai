@@ -41,7 +41,7 @@ http.route({
   </url>`,
       // All posts
       ...posts.map(
-        (post) => `  <url>
+        (post: { slug: string; date: string }) => `  <url>
     <loc>${SITE_URL}/${post.slug}</loc>
     <lastmod>${post.date}</lastmod>
     <changefreq>monthly</changefreq>
@@ -50,7 +50,7 @@ http.route({
       ),
       // All pages
       ...pages.map(
-        (page) => `  <url>
+        (page: { slug: string }) => `  <url>
     <loc>${SITE_URL}/${page.slug}</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -58,7 +58,7 @@ http.route({
       ),
       // All tag pages
       ...tags.map(
-        (tagInfo) => `  <url>
+        (tagInfo: { tag: string }) => `  <url>
     <loc>${SITE_URL}/tags/${encodeURIComponent(tagInfo.tag.toLowerCase())}</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
@@ -92,7 +92,7 @@ http.route({
       url: SITE_URL,
       description:
         "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs.. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.",
-      posts: posts.map((post) => ({
+      posts: posts.map((post: { title: string; slug: string; description: string; date: string; readTime?: string; tags: string[] }) => ({
         title: post.title,
         slug: post.slug,
         description: post.description,
@@ -193,7 +193,7 @@ http.route({
 
     // Fetch full content for each post
     const fullPosts = await Promise.all(
-      posts.map(async (post) => {
+      posts.map(async (post: { title: string; slug: string; description: string; date: string; readTime?: string; tags: string[] }) => {
         const fullPost = await ctx.runQuery(api.posts.getPostBySlug, {
           slug: post.slug,
         });

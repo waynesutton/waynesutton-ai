@@ -481,6 +481,169 @@ homepage: {
 
 ---
 
+## Newsletter Configuration
+
+The newsletter feature integrates with AgentMail for email subscriptions and sending. It is disabled by default.
+
+### Environment Variables
+
+Set these in the Convex dashboard:
+
+| Variable | Description |
+| -------- | ----------- |
+| `AGENTMAIL_API_KEY` | Your AgentMail API key |
+| `AGENTMAIL_INBOX` | Your inbox address (e.g., `newsletter@mail.agentmail.to`) |
+
+### In fork-config.json
+
+```json
+{
+  "newsletter": {
+    "enabled": true,
+    "agentmail": {
+      "inbox": "newsletter@mail.agentmail.to"
+    },
+    "signup": {
+      "home": {
+        "enabled": true,
+        "position": "above-footer",
+        "title": "Stay Updated",
+        "description": "Get new posts delivered to your inbox."
+      },
+      "blogPage": {
+        "enabled": true,
+        "position": "above-footer",
+        "title": "Subscribe",
+        "description": "Get notified when new posts are published."
+      },
+      "posts": {
+        "enabled": true,
+        "position": "below-content",
+        "title": "Enjoyed this post?",
+        "description": "Subscribe for more updates."
+      }
+    }
+  }
+}
+```
+
+### Manual Configuration
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+newsletter: {
+  enabled: true, // Master switch for newsletter feature
+  agentmail: {
+    inbox: "newsletter@mail.agentmail.to",
+  },
+  signup: {
+    home: {
+      enabled: true,
+      position: "above-footer", // or "below-intro"
+      title: "Stay Updated",
+      description: "Get new posts delivered to your inbox.",
+    },
+    blogPage: {
+      enabled: true,
+      position: "above-footer", // or "below-posts"
+      title: "Subscribe",
+      description: "Get notified when new posts are published.",
+    },
+    posts: {
+      enabled: true,
+      position: "below-content",
+      title: "Enjoyed this post?",
+      description: "Subscribe for more updates.",
+    },
+  },
+},
+```
+
+### Frontmatter Override
+
+Hide or show newsletter signup on specific posts using frontmatter:
+
+```yaml
+---
+title: My Post
+newsletter: false  # Hide newsletter signup on this post
+---
+```
+
+Or force show it even if posts default is disabled:
+
+```yaml
+---
+title: Special Offer Post
+newsletter: true  # Show newsletter signup on this post
+---
+```
+
+### Sending Newsletters
+
+To send a newsletter for a specific post:
+
+```bash
+npm run newsletter:send setup-guide
+```
+
+Or use the Convex CLI directly:
+
+```bash
+npx convex run newsletter:sendPostNewsletter '{"postSlug":"setup-guide","siteUrl":"https://yoursite.com","siteName":"Your Site"}'
+```
+
+### Subscriber Management
+
+View subscriber count on the `/stats` page. Subscribers are stored in the `newsletterSubscribers` table in Convex.
+
+---
+
+## Contact Form Configuration
+
+Enable contact forms on any page or post via frontmatter. Messages are sent via AgentMail.
+
+### Environment Variables
+
+Set these in the Convex dashboard:
+
+| Variable | Description |
+| -------- | ----------- |
+| `AGENTMAIL_API_KEY` | Your AgentMail API key |
+| `AGENTMAIL_INBOX` | Your inbox address for sending (e.g., `newsletter@mail.agentmail.to`) |
+| `AGENTMAIL_CONTACT_EMAIL` | Optional: recipient for contact form messages (defaults to AGENTMAIL_INBOX) |
+
+### Site Config
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+contactForm: {
+  enabled: true, // Global toggle for contact form feature
+  title: "Get in Touch",
+  description: "Send us a message and we'll get back to you.",
+},
+```
+
+**Note:** Recipient email is configured via Convex environment variables (`AGENTMAIL_CONTACT_EMAIL` or `AGENTMAIL_INBOX`). Never hardcode email addresses in code.
+
+### Frontmatter Usage
+
+Enable contact form on any page or post:
+
+```yaml
+---
+title: Contact Us
+slug: contact
+contactForm: true
+---
+```
+
+The form includes name, email, and message fields. Submissions are stored in Convex and sent via AgentMail to the configured recipient.
+
+---
+
 ## AI Agent Prompt
 
 Copy this prompt to have an AI agent apply all changes:

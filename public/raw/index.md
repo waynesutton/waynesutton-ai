@@ -2,8 +2,10 @@
 
 This is the homepage index of all published content.
 
-## Blog Posts (12)
+## Blog Posts (14)
 
+- **[How to use AgentMail with Markdown Sync](/raw/how-to-use-agentmail.md)** - Complete guide to setting up AgentMail for newsletters and contact forms in your markdown blog
+  - Date: 2025-12-27 | Reading time: 5 min read | Tags: agentmail, newsletter, email, setup
 - **[Happy holidays and thank you](/raw/happy-holidays-2025.md)** - A quick note of thanks for stars, forks, and feedback. More AI-first publishing features coming in 2026.
   - Date: 2025-12-25 | Reading time: 2 min read | Tags: updates, community, ai
 - **[Netlify edge functions blocking AI crawlers from static files](/raw/netlify-edge-excludedpath-ai-crawlers.md)** - Why excludedPath in netlify.toml isn't preventing edge functions from intercepting /raw/* requests, and how ChatGPT and Perplexity get blocked while Claude works.
@@ -26,19 +28,22 @@ This is the homepage index of all published content.
   - Date: 2025-12-14 | Reading time: 8 min read | Tags: convex, netlify, tutorial, deployment
 - **[Using Images in Blog Posts](/raw/using-images-in-posts.md)** - Learn how to add header images, inline images, and Open Graph images to your markdown posts.
   - Date: 2025-12-14 | Reading time: 4 min read | Tags: images, tutorial, markdown, open-graph
+- **[How to use Firecrawl](/raw/how-to-use-firecrawl.md)** - Import external articles as markdown posts using Firecrawl. Get your API key and configure environment variables for local imports and AI chat.
+  - Date: 2025-01-20 | Reading time: 2 min read | Tags: tutorial, firecrawl, import
 - **[Git commit message best practices](/raw/git-commit-message-best-practices.md)** - A guide to writing clear, consistent commit messages that help your team understand changes and generate better changelogs.
   - Date: 2025-01-17 | Reading time: 5 min read | Tags: git, development, best-practices, workflow
 
-## Pages (5)
+## Pages (6)
 
 - **[Docs](/raw/docs.md)**
 - **[About](/raw/about.md)** - An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs..
 - **[Projects](/raw/projects.md)**
 - **[Contact](/raw/contact.md)**
 - **[Changelog](/raw/changelog.md)**
+- **[Newsletter](/raw/newsletter.md)**
 
 ---
 
-**Total Content:** 12 posts, 5 pages
+**Total Content:** 14 posts, 6 pages
 
 All content is available as raw markdown files at `/raw/{slug}.md`

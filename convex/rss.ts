@@ -106,7 +106,7 @@ export const rssFeed = httpAction(async (ctx) => {
   const posts = await ctx.runQuery(api.posts.getAllPosts);
 
   const xml = generateRssXml(
-    posts.map((post) => ({
+    posts.map((post: { title: string; description: string; slug: string; date: string }) => ({
       title: post.title,
       description: post.description,
       slug: post.slug,
@@ -128,7 +128,7 @@ export const rssFullFeed = httpAction(async (ctx) => {
 
   // Fetch full content for each post
   const fullPosts = await Promise.all(
-    posts.map(async (post) => {
+    posts.map(async (post: { title: string; description: string; slug: string; date: string; readTime?: string; tags: string[] }) => {
       const fullPost = await ctx.runQuery(api.posts.getPostBySlug, {
         slug: post.slug,
       });

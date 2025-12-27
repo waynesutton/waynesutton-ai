@@ -33,7 +33,7 @@ A brief description of each file in the codebase.
 
 | File            | Description                                                                                                                                                                                                                                                                                                                                                                                              |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `siteConfig.ts` | Centralized site configuration (name, logo, blog page, posts display with homepage post limit and read more link, GitHub contributions, nav order, inner page logo settings, hardcoded navigation items for React routes, GitHub repository config for AI service raw URLs, font family configuration, right sidebar configuration, footer configuration, homepage configuration, AI chat configuration) |
+| `siteConfig.ts` | Centralized site configuration (name, logo, blog page, posts display with homepage post limit and read more link, GitHub contributions, nav order, inner page logo settings, hardcoded navigation items for React routes, GitHub repository config for AI service raw URLs, font family configuration, right sidebar configuration, footer configuration, social footer configuration, homepage configuration, AI chat configuration, newsletter configuration, contact form configuration) |
 
 ### Pages (`src/pages/`)
 
@@ -45,6 +45,7 @@ A brief description of each file in the codebase.
 | `Stats.tsx`   | Real-time analytics dashboard with visitor stats and GitHub stars                                                                                                                                                                                                                                                                                                 |
 | `TagPage.tsx` | Tag archive page displaying posts filtered by a specific tag. Includes view mode toggle (list/cards) with localStorage persistence                                                                                                                                                                                                                                |
 | `Write.tsx`   | Three-column markdown writing page with Cursor docs-style UI, frontmatter reference with copy buttons, theme toggle, font switcher (serif/sans/monospace), localStorage persistence, and optional AI Agent mode (toggleable via siteConfig.aiChat.enabledOnWritePage). When enabled, Agent replaces the textarea with AIChatView component. Includes scroll prevention when switching to Agent mode to prevent page jump. Title changes to "Agent" when in AI chat mode. |
+| `NewsletterAdmin.tsx` | Three-column newsletter admin page for managing subscribers and sending newsletters. Left sidebar with navigation and stats, main area with searchable subscriber list, right sidebar with send newsletter panel and recent sends. Access at /newsletter-admin, configurable via siteConfig.newsletterAdmin. |
 
 ### Components (`src/components/`)
 
@@ -67,6 +68,9 @@ A brief description of each file in the codebase.
 | `PageSidebar.tsx`         | Collapsible table of contents sidebar for pages/posts with sidebar layout, extracts headings (H1-H6), active heading highlighting, smooth scroll navigation, localStorage persistence for expanded/collapsed state                                                                                                                                                    |
 | `RightSidebar.tsx`        | Right sidebar component that displays CopyPageDropdown or AI chat on posts/pages at 1135px+ viewport width, controlled by siteConfig.rightSidebar.enabled and frontmatter rightSidebar/aiChat fields                                                                                                                                                                  |
 | `AIChatView.tsx`          | AI chat interface component (Agent) using Anthropic Claude API. Supports per-page chat history, page content context, markdown rendering, and copy functionality. Used in Write page (replaces textarea when enabled) and optionally in RightSidebar. Requires ANTHROPIC_API_KEY environment variable in Convex. System prompt configurable via CLAUDE_PROMPT_STYLE, CLAUDE_PROMPT_COMMUNITY, CLAUDE_PROMPT_RULES, or CLAUDE_SYSTEM_PROMPT environment variables. Includes error handling for missing API keys. |
+| `NewsletterSignup.tsx`    | Newsletter signup form component for email-only subscriptions. Displays configurable title/description, validates email, and submits to Convex. Shows on home, blog page, and posts based on siteConfig.newsletter settings. Supports frontmatter override via newsletter: true/false. |
+| `ContactForm.tsx`         | Contact form component with name, email, and message fields. Displays when contactForm: true in frontmatter. Submits to Convex which sends email via AgentMail to configured recipient. |
+| `SocialFooter.tsx`        | Social footer component with social icons on left (GitHub, Twitter/X, LinkedIn, etc.) and copyright on right. Configurable via siteConfig.socialFooter. Shows below main footer on homepage, blog posts, and pages. Supports frontmatter override via showSocialFooter: true/false. |
 
 ### Context (`src/context/`)
 
@@ -98,16 +102,19 @@ A brief description of each file in the codebase.
 
 | File               | Description                                                                                                        |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `schema.ts`        | Database schema (posts, pages, viewCounts, pageViews, activeSessions, aiChats) with indexes for tag and AI queries |
+| `schema.ts`        | Database schema (posts, pages, viewCounts, pageViews, activeSessions, aiChats, newsletterSubscribers, newsletterSentPosts, contactMessages) with indexes for tag and AI queries. Posts and pages include showSocialFooter field for frontmatter control. |
 | `posts.ts`         | Queries and mutations for blog posts, view counts, getAllTags, getPostsByTag, and getRelatedPosts                  |
 | `pages.ts`         | Queries and mutations for static pages                                                                             |
 | `search.ts`        | Full text search queries across posts and pages                                                                    |
 | `stats.ts`         | Real-time stats with aggregate component for O(log n) counts, page view recording, session heartbeat               |
-| `crons.ts`         | Cron job for stale session cleanup                                                                                 |
+| `crons.ts`         | Cron jobs for stale session cleanup, weekly newsletter digest (Sundays 9am UTC), and weekly stats summary (Mondays 9am UTC) |
 | `http.ts`          | HTTP endpoints: sitemap, API (update SITE_URL/SITE_NAME when forking, uses www.markdown.fast)                      |
 | `rss.ts`           | RSS feed generation (update SITE_URL/SITE_TITLE when forking, uses www.markdown.fast)                              |
 | `aiChats.ts`       | Queries and mutations for AI chat history (per-session, per-context storage). Handles anonymous session IDs, per-page chat contexts, and message history management. Supports page content as context for AI responses.                                                                                                                                           |
 | `aiChatActions.ts` | Anthropic Claude API integration action for AI chat responses. Requires ANTHROPIC_API_KEY environment variable in Convex. Uses claude-sonnet-3-5-20240620 model. System prompt configurable via environment variables (CLAUDE_PROMPT_STYLE, CLAUDE_PROMPT_COMMUNITY, CLAUDE_PROMPT_RULES, or CLAUDE_SYSTEM_PROMPT). Includes error handling for missing API keys with user-friendly error messages. Supports page content context and chat history (last 20 messages). |
+| `newsletter.ts`    | Newsletter mutations and queries: subscribe, unsubscribe, getSubscriberCount, getActiveSubscribers, getAllSubscribers (admin), deleteSubscriber (admin), getNewsletterStats, getPostsForNewsletter, wasPostSent, recordPostSent. |
+| `newsletterActions.ts` | Newsletter actions (Node.js runtime): sendPostNewsletter, sendWeeklyDigest, notifyNewSubscriber, sendWeeklyStatsSummary. Uses AgentMail SDK for email delivery. |
+| `contact.ts`       | Contact form mutations and actions: submitContact, sendContactEmail (AgentMail API), markEmailSent. |
 | `convex.config.ts` | Convex app configuration with aggregate component registrations (pageViewsByPath, totalPageViews, uniqueVisitors)  |
 | `tsconfig.json`    | Convex TypeScript configuration                                                                                    |
 
@@ -151,7 +158,11 @@ Markdown files with frontmatter for blog posts. Each file becomes a blog post.
 | `rightSidebar`  | Enable right sidebar with CopyPageDropdown (optional)                   |
 | `showFooter`    | Show footer on this post (optional, overrides siteConfig default)       |
 | `footer`        | Footer markdown content (optional, overrides siteConfig.defaultContent) |
-| `aiChat`        | Enable AI Agent chat in right sidebar (optional, requires rightSidebar: true and siteConfig.aiChat.enabledOnContent: true) |
+| `showSocialFooter` | Show social footer on this post (optional, overrides siteConfig default) |
+| `aiChat`        | Enable AI Agent chat in right sidebar (optional). Set `true` to enable (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`). Set `false` to explicitly hide even if global config is enabled. |
+| `blogFeatured`  | Show as featured on blog page (optional, first becomes hero, rest in 2-column row) |
+| `newsletter`    | Override newsletter signup display (optional, true/false) |
+| `contactForm`   | Enable contact form on this post (optional) |
 
 ## Static Pages (`content/pages/`)
 
@@ -174,7 +185,10 @@ Markdown files for static pages like About, Projects, Contact, Changelog.
 | `rightSidebar`  | Enable right sidebar with CopyPageDropdown (optional)                   |
 | `showFooter`    | Show footer on this page (optional, overrides siteConfig default)       |
 | `footer`        | Footer markdown content (optional, overrides siteConfig.defaultContent) |
-| `aiChat`        | Enable AI Agent chat in right sidebar (optional, requires rightSidebar: true and siteConfig.aiChat.enabledOnContent: true) |
+| `showSocialFooter` | Show social footer on this page (optional, overrides siteConfig default) |
+| `aiChat`        | Enable AI Agent chat in right sidebar (optional). Set `true` to enable (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`). Set `false` to explicitly hide even if global config is enabled. |
+| `newsletter`    | Override newsletter signup display (optional, true/false) |
+| `contactForm`   | Enable contact form on this page (optional) |
 
 ## Scripts (`scripts/`)
 
@@ -184,6 +198,8 @@ Markdown files for static pages like About, Projects, Contact, Changelog.
 | `sync-discovery-files.ts` | Updates AGENTS.md and llms.txt with current app data  |
 | `import-url.ts`           | Imports external URLs as markdown posts (Firecrawl)   |
 | `configure-fork.ts`       | Automated fork configuration (reads fork-config.json) |
+| `send-newsletter.ts`      | CLI tool for sending newsletter posts (npm run newsletter:send <slug>) |
+| `send-newsletter-stats.ts` | CLI tool for sending weekly stats summary (npm run newsletter:send:stats) |
 
 ### Sync Commands
 

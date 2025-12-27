@@ -7,9 +7,18 @@
 
 ## Current Status
 
-v1.35.0 ready. Added `showImageAtTop` frontmatter field to display images at the top of posts and pages above the header. Image appears full-width when enabled, otherwise only used for Open Graph and featured cards.
+v1.38.0 ready. Improved newsletter CLI commands - `newsletter:send` now calls mutation directly and added `newsletter:send:stats` for sending weekly stats summary. Created blog post "How to use AgentMail with Markdown Sync" with complete setup guide.
 
 ## Completed
+
+- [x] Newsletter CLI improvements
+  - [x] Updated newsletter:send to call scheduleSendPostNewsletter mutation directly
+  - [x] Added newsletter:send:stats command for weekly stats summary
+  - [x] Created scheduleSendStatsSummary mutation in convex/newsletter.ts
+  - [x] Created send-newsletter-stats.ts script
+  - [x] Verified all AgentMail features use environment variables (no hardcoded emails)
+  - [x] Updated documentation (docs.md, files.md, changelog.md, changelog-page.md, TASK.md)
+  - [x] Created blog post "How to use AgentMail with Markdown Sync"
 
 - [x] showImageAtTop frontmatter field for posts and pages
   - [x] Added showImageAtTop optional boolean field to convex/schema.ts for posts and pages

@@ -39,8 +39,13 @@ interface PostFrontmatter {
   authorImage?: string; // Author avatar image URL (round)
   layout?: string; // Layout type: "sidebar" for docs-style layout
   rightSidebar?: boolean; // Enable right sidebar with CopyPageDropdown (default: true when siteConfig.rightSidebar.enabled)
+  showFooter?: boolean; // Show footer on this post (overrides siteConfig default)
+  footer?: string; // Footer markdown content (overrides siteConfig defaultContent)
+  showSocialFooter?: boolean; // Show social footer on this post (overrides siteConfig default)
   aiChat?: boolean; // Enable AI chat in right sidebar (requires rightSidebar: true)
   blogFeatured?: boolean; // Show as hero featured post on /blog page
+  newsletter?: boolean; // Override newsletter signup display (true/false)
+  contactForm?: boolean; // Enable contact form on this post
 }
 
 interface ParsedPost {
@@ -63,8 +68,11 @@ interface ParsedPost {
   rightSidebar?: boolean; // Enable right sidebar with CopyPageDropdown (default: true when siteConfig.rightSidebar.enabled)
   showFooter?: boolean; // Show footer on this post (overrides siteConfig default)
   footer?: string; // Footer markdown content (overrides siteConfig defaultContent)
+  showSocialFooter?: boolean; // Show social footer on this post (overrides siteConfig default)
   aiChat?: boolean; // Enable AI chat in right sidebar (requires rightSidebar: true)
   blogFeatured?: boolean; // Show as hero featured post on /blog page
+  newsletter?: boolean; // Override newsletter signup display (true/false)
+  contactForm?: boolean; // Enable contact form on this post
 }
 
 // Page frontmatter (for static pages like About, Projects, Contact)
@@ -84,7 +92,11 @@ interface PageFrontmatter {
   layout?: string; // Layout type: "sidebar" for docs-style layout
   rightSidebar?: boolean; // Enable right sidebar with CopyPageDropdown (default: true when siteConfig.rightSidebar.enabled)
   showFooter?: boolean; // Show footer on this page (overrides siteConfig default)
+  footer?: string; // Footer markdown content (overrides siteConfig defaultContent)
+  showSocialFooter?: boolean; // Show social footer on this page (overrides siteConfig default)
   aiChat?: boolean; // Enable AI chat in right sidebar (requires rightSidebar: true)
+  contactForm?: boolean; // Enable contact form on this page
+  newsletter?: boolean; // Override newsletter signup display (true/false)
 }
 
 interface ParsedPage {
@@ -104,7 +116,11 @@ interface ParsedPage {
   layout?: string; // Layout type: "sidebar" for docs-style layout
   rightSidebar?: boolean; // Enable right sidebar with CopyPageDropdown (default: true when siteConfig.rightSidebar.enabled)
   showFooter?: boolean; // Show footer on this page (overrides siteConfig default)
+  footer?: string; // Footer markdown content (overrides siteConfig defaultContent)
+  showSocialFooter?: boolean; // Show social footer on this page (overrides siteConfig default)
   aiChat?: boolean; // Enable AI chat in right sidebar (requires rightSidebar: true)
+  contactForm?: boolean; // Enable contact form on this page
+  newsletter?: boolean; // Override newsletter signup display (true/false)
 }
 
 // Calculate reading time based on word count
@@ -149,8 +165,11 @@ function parseMarkdownFile(filePath: string): ParsedPost | null {
       rightSidebar: frontmatter.rightSidebar, // Enable right sidebar with CopyPageDropdown
       showFooter: frontmatter.showFooter, // Show footer on this post
       footer: frontmatter.footer, // Footer markdown content
+      showSocialFooter: frontmatter.showSocialFooter, // Show social footer on this post
       aiChat: frontmatter.aiChat, // Enable AI chat in right sidebar
       blogFeatured: frontmatter.blogFeatured, // Show as hero featured post on /blog page
+      newsletter: frontmatter.newsletter, // Override newsletter signup display
+      contactForm: frontmatter.contactForm, // Enable contact form on this post
     };
   } catch (error) {
     console.error(`Error parsing ${filePath}:`, error);
@@ -205,7 +224,11 @@ function parsePageFile(filePath: string): ParsedPage | null {
       layout: frontmatter.layout, // Layout type: "sidebar" for docs-style layout
       rightSidebar: frontmatter.rightSidebar, // Enable right sidebar with CopyPageDropdown
       showFooter: frontmatter.showFooter, // Show footer on this page
+      footer: frontmatter.footer, // Footer markdown content
+      showSocialFooter: frontmatter.showSocialFooter, // Show social footer on this page
       aiChat: frontmatter.aiChat, // Enable AI chat in right sidebar
+      contactForm: frontmatter.contactForm, // Enable contact form on this page
+      newsletter: frontmatter.newsletter, // Override newsletter signup display
     };
   } catch (error) {
     console.error(`Error parsing page ${filePath}:`, error);

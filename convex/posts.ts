@@ -1,4 +1,4 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 // Get all published posts, sorted by date descending
@@ -179,7 +179,10 @@ export const getPostBySlug = query({
       rightSidebar: v.optional(v.boolean()),
       showFooter: v.optional(v.boolean()),
       footer: v.optional(v.string()),
+      showSocialFooter: v.optional(v.boolean()),
       aiChat: v.optional(v.boolean()),
+      newsletter: v.optional(v.boolean()),
+      contactForm: v.optional(v.boolean()),
     }),
     v.null(),
   ),
@@ -215,8 +218,84 @@ export const getPostBySlug = query({
       rightSidebar: post.rightSidebar,
       showFooter: post.showFooter,
       footer: post.footer,
+      showSocialFooter: post.showSocialFooter,
       aiChat: post.aiChat,
+      newsletter: post.newsletter,
+      contactForm: post.contactForm,
     };
+  },
+});
+
+// Internal query to get post by slug (for newsletter sending)
+// Returns post details needed for newsletter content
+export const getPostBySlugInternal = internalQuery({
+  args: {
+    slug: v.string(),
+  },
+  returns: v.union(
+    v.object({
+      slug: v.string(),
+      title: v.string(),
+      description: v.string(),
+      content: v.string(),
+      excerpt: v.optional(v.string()),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const post = await ctx.db
+      .query("posts")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+
+    if (!post || !post.published) {
+      return null;
+    }
+
+    return {
+      slug: post.slug,
+      title: post.title,
+      description: post.description,
+      content: post.content,
+      excerpt: post.excerpt,
+    };
+  },
+});
+
+// Internal query to get recent posts (for weekly digest)
+// Returns published posts with date >= since parameter
+export const getRecentPostsInternal = internalQuery({
+  args: {
+    since: v.string(), // Date string in YYYY-MM-DD format
+  },
+  returns: v.array(
+    v.object({
+      slug: v.string(),
+      title: v.string(),
+      description: v.string(),
+      date: v.string(),
+      excerpt: v.optional(v.string()),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .collect();
+
+    // Filter posts by date and sort descending
+    const recentPosts = posts
+      .filter((post) => post.date >= args.since)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((post) => ({
+        slug: post.slug,
+        title: post.title,
+        description: post.description,
+        date: post.date,
+        excerpt: post.excerpt,
+      }));
+
+    return recentPosts;
   },
 });
 
@@ -244,8 +323,11 @@ export const syncPosts = internalMutation({
         rightSidebar: v.optional(v.boolean()),
         showFooter: v.optional(v.boolean()),
         footer: v.optional(v.string()),
+        showSocialFooter: v.optional(v.boolean()),
         aiChat: v.optional(v.boolean()),
         blogFeatured: v.optional(v.boolean()),
+        newsletter: v.optional(v.boolean()),
+        contactForm: v.optional(v.boolean()),
       }),
     ),
   },
@@ -291,8 +373,11 @@ export const syncPosts = internalMutation({
           rightSidebar: post.rightSidebar,
           showFooter: post.showFooter,
           footer: post.footer,
+          showSocialFooter: post.showSocialFooter,
           aiChat: post.aiChat,
           blogFeatured: post.blogFeatured,
+          newsletter: post.newsletter,
+          contactForm: post.contactForm,
           lastSyncedAt: now,
         });
         updated++;
@@ -342,8 +427,11 @@ export const syncPostsPublic = mutation({
         rightSidebar: v.optional(v.boolean()),
         showFooter: v.optional(v.boolean()),
         footer: v.optional(v.string()),
+        showSocialFooter: v.optional(v.boolean()),
         aiChat: v.optional(v.boolean()),
         blogFeatured: v.optional(v.boolean()),
+        newsletter: v.optional(v.boolean()),
+        contactForm: v.optional(v.boolean()),
       }),
     ),
   },
@@ -389,8 +477,11 @@ export const syncPostsPublic = mutation({
           rightSidebar: post.rightSidebar,
           showFooter: post.showFooter,
           footer: post.footer,
+          showSocialFooter: post.showSocialFooter,
           aiChat: post.aiChat,
           blogFeatured: post.blogFeatured,
+          newsletter: post.newsletter,
+          contactForm: post.contactForm,
           lastSyncedAt: now,
         });
         updated++;

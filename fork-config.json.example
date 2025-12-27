@@ -55,6 +55,32 @@
     "type": "default",
     "slug": null,
     "originalHomeRoute": "/home"
+  },
+  "newsletter": {
+    "enabled": false,
+    "agentmail": {
+      "inbox": "newsletter@mail.agentmail.to"
+    },
+    "signup": {
+      "home": {
+        "enabled": false,
+        "position": "above-footer",
+        "title": "Stay Updated",
+        "description": "Get new posts delivered to your inbox."
+      },
+      "blogPage": {
+        "enabled": false,
+        "position": "above-footer",
+        "title": "Subscribe",
+        "description": "Get notified when new posts are published."
+      },
+      "posts": {
+        "enabled": false,
+        "position": "below-content",
+        "title": "Enjoyed this post?",
+        "description": "Subscribe for more updates."
+      }
+    }
   }
 }
 

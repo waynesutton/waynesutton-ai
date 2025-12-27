@@ -5,6 +5,8 @@ import Stats from "./pages/Stats";
 import Blog from "./pages/Blog";
 import Write from "./pages/Write";
 import TagPage from "./pages/TagPage";
+import Unsubscribe from "./pages/Unsubscribe";
+import NewsletterAdmin from "./pages/NewsletterAdmin";
 import Layout from "./components/Layout";
 import { usePageTracking } from "./hooks/usePageTracking";
 import { SidebarProvider } from "./context/SidebarContext";
@@ -18,6 +20,11 @@ function App() {
   // Write page renders without Layout (no header, full-screen writing)
   if (location.pathname === "/write") {
     return <Write />;
+  }
+
+  // Newsletter admin page renders without Layout (full-screen admin)
+  if (location.pathname === "/newsletter-admin") {
+    return <NewsletterAdmin />;
   }
 
   // Determine if we should use a custom homepage
@@ -55,6 +62,8 @@ function App() {
             />
           )}
           <Route path="/stats" element={<Stats />} />
+          {/* Unsubscribe route for newsletter */}
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
           {/* Blog page route - only enabled when blogPage.enabled is true */}
           {siteConfig.blogPage.enabled && (
             <Route path="/blog" element={<Blog />} />

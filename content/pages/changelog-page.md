@@ -9,6 +9,161 @@ layout: "sidebar"
 All notable changes to this project.
 ![](https://img.shields.io/badge/License-MIT-yellow.svg)
 
+## v1.38.0
+
+Released December 27, 2025
+
+**Newsletter CLI improvements**
+
+- `newsletter:send` now calls `scheduleSendPostNewsletter` mutation directly
+  - Sends emails in the background instead of printing instructions
+  - Provides clear success/error feedback
+  - Shows helpful messages about checking Newsletter Admin for results
+- New `newsletter:send:stats` command
+  - Sends weekly stats summary to your inbox on demand
+  - Uses `scheduleSendStatsSummary` mutation
+  - Email sent to AGENTMAIL_INBOX or AGENTMAIL_CONTACT_EMAIL
+- New mutation `scheduleSendStatsSummary` in `convex/newsletter.ts`
+  - Allows CLI to trigger stats summary sending
+  - Schedules `sendWeeklyStatsSummary` internal action
+
+**Documentation**
+
+- Blog post: "How to use AgentMail with Markdown Sync"
+  - Complete setup guide for AgentMail integration
+  - Environment variables configuration
+  - Newsletter and contact form features
+  - CLI commands documentation
+  - Troubleshooting section
+- Updated docs.md with new CLI commands
+- Updated files.md with new script reference
+- Verified all AgentMail features use environment variables (no hardcoded emails)
+
+Updated files: `scripts/send-newsletter.ts`, `scripts/send-newsletter-stats.ts`, `convex/newsletter.ts`, `package.json`, `content/blog/how-to-use-agentmail.md`, `content/pages/docs.md`, `files.md`, `changelog.md`, `content/pages/changelog-page.md`, `TASK.md`
+
+## v1.37.0
+
+Released December 27, 2025
+
+**Newsletter Admin UI**
+
+- Newsletter Admin UI at `/newsletter-admin`
+  - Three-column layout similar to Write page
+  - View all subscribers with search and filter (all/active/unsubscribed)
+  - Stats showing active, total, and sent newsletter counts
+  - Delete subscribers directly from admin
+  - Send newsletter panel with two modes:
+    - Send Post: Select a blog post to send as newsletter
+    - Write Email: Compose custom email with markdown support
+  - Markdown-to-HTML conversion for custom emails (headers, bold, italic, links, lists)
+  - Copy icon on success messages to copy CLI commands
+  - Theme-aware success/error styling (no hardcoded green)
+  - Recent newsletters list showing sent history
+  - Configurable via `siteConfig.newsletterAdmin`
+
+**Weekly Digest automation**
+
+- Cron job runs every Sunday at 9:00 AM UTC
+- Automatically sends all posts published in the last 7 days
+- Uses AgentMail SDK for email delivery
+- Configurable via `siteConfig.weeklyDigest`
+
+**Developer Notifications**
+
+- New subscriber alerts sent via email when someone subscribes
+- Weekly stats summary sent every Monday at 9:00 AM UTC
+- Uses `AGENTMAIL_CONTACT_EMAIL` or `AGENTMAIL_INBOX` as recipient
+- Configurable via `siteConfig.newsletterNotifications`
+
+**Admin queries and mutations**
+
+- `getAllSubscribers`: Paginated subscriber list with search/filter
+- `deleteSubscriber`: Remove subscriber from database
+- `getNewsletterStats`: Stats for admin dashboard
+- `getPostsForNewsletter`: List of posts with sent status
+
+Updated files: `convex/newsletter.ts`, `convex/newsletterActions.ts`, `convex/posts.ts`, `convex/crons.ts`, `src/config/siteConfig.ts`, `src/App.tsx`, `src/styles/global.css`, `src/pages/NewsletterAdmin.tsx`
+
+## v1.36.0
+
+Released December 27, 2025
+
+**Social footer component**
+
+- Social footer component with customizable social links and copyright
+  - Displays social icons on the left (GitHub, Twitter/X, LinkedIn, and more)
+  - Shows copyright symbol, site name, and auto-updating year on the right
+  - Configurable via `siteConfig.socialFooter` in `src/config/siteConfig.ts`
+  - Supports 8 platform types: github, twitter, linkedin, instagram, youtube, tiktok, discord, website
+  - Uses Phosphor icons for consistent styling
+  - Appears below the main footer on homepage, blog posts, and pages
+  - Can work independently of the main footer when set via frontmatter
+
+**Frontmatter control for social footer**
+
+- `showSocialFooter` field for posts and pages to override siteConfig defaults
+- Set `showSocialFooter: false` to hide on specific posts/pages
+- Works like existing `showFooter` field pattern
+
+**Social footer configuration options**
+
+- `enabled`: Global toggle for social footer
+- `showOnHomepage`, `showOnPosts`, `showOnPages`, `showOnBlogPage`: Per-location visibility
+- `socialLinks`: Array of social link objects with platform and URL
+- `copyright.siteName`: Site/company name for copyright display
+- `copyright.showYear`: Toggle for auto-updating year
+
+Updated files: `src/config/siteConfig.ts`, `convex/schema.ts`, `convex/posts.ts`, `convex/pages.ts`, `scripts/sync-posts.ts`, `src/pages/Home.tsx`, `src/pages/Post.tsx`, `src/pages/Blog.tsx`, `src/styles/global.css`, `src/components/SocialFooter.tsx`
+
+## v1.35.0
+
+Released December 26, 2025
+
+**Image support at top of posts and pages**
+
+- `showImageAtTop` frontmatter field for posts and pages
+  - Set `showImageAtTop: true` to display the `image` field at the top of the post/page above the header
+  - Image displays full-width with rounded corners above the post header
+  - Default behavior: if `showImageAtTop` is not set or `false`, image only used for Open Graph previews and featured card thumbnails
+  - Works for both blog posts and static pages
+  - Image appears above the post header when enabled
+
+Updated files: `convex/schema.ts`, `scripts/sync-posts.ts`, `convex/posts.ts`, `convex/pages.ts`, `src/pages/Post.tsx`, `src/pages/Write.tsx`, `src/styles/global.css`
+
+Documentation updated: `content/pages/docs.md`, `content/blog/how-to-publish.md`, `content/blog/using-images-in-posts.md`, `files.md`
+
+## v1.34.0
+
+Released December 26, 2025
+
+**Blog page featured layout with hero post**
+
+- `blogFeatured` frontmatter field for posts to mark as featured on blog page
+  - First `blogFeatured` post displays as hero card with landscape image, tags, date, title, excerpt, author info, and read more link
+  - Remaining `blogFeatured` posts display in 2-column featured row with excerpts
+  - Regular (non-featured) posts display in 3-column grid without excerpts
+  - New `BlogHeroCard` component (`src/components/BlogHeroCard.tsx`) for hero display
+  - New `getBlogFeaturedPosts` query returns all published posts with `blogFeatured: true` sorted by date
+  - `PostList` component updated with `columns` prop (2 or 3) and `showExcerpts` prop
+  - Card images use 16:10 landscape aspect ratio
+  - Footer support on blog page via `siteConfig.footer.showOnBlogPage`
+
+Updated files: `convex/schema.ts`, `convex/posts.ts`, `scripts/sync-posts.ts`, `src/pages/Blog.tsx`, `src/components/PostList.tsx`, `src/styles/global.css`
+
+## v1.33.1
+
+Released December 26, 2025
+
+**Article centering in sidebar layouts**
+
+- Article content now centers in the middle column when sidebars are present
+  - Left sidebar stays flush left, right sidebar stays flush right
+  - Article uses `margin-left: auto; margin-right: auto` within its `1fr` grid column
+  - Works with both two-column (left sidebar only) and three-column (both sidebars) layouts
+  - Consistent `max-width: 800px` for article content across all sidebar configurations
+
+Updated files: `src/styles/global.css`
+
 ## v1.33.0
 
 Released December 26, 2025

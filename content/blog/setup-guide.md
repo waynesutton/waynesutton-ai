@@ -8,6 +8,7 @@ tags: ["convex", "netlify", "tutorial", "deployment"]
 readTime: "8 min read"
 featured: true
 featuredOrder: 6
+newsletter: true
 layout: "sidebar"
 image: "/images/setupguide.png"
 authorName: "Markdown"
@@ -62,6 +63,7 @@ This guide walks you through forking [this markdown framework](https://github.co
     - [Visitor Map](#visitor-map)
     - [Logo Gallery](#logo-gallery)
     - [Blog page](#blog-page)
+    - [Hardcoded Navigation Items](#hardcoded-navigation-items)
     - [Scroll-to-top button](#scroll-to-top-button)
     - [Change the Default Theme](#change-the-default-theme)
     - [Change the Font](#change-the-font)
@@ -83,6 +85,7 @@ This guide walks you through forking [this markdown framework](https://github.co
     - [Build failures on Netlify](#build-failures-on-netlify)
   - [Project Structure](#project-structure)
   - [Write Page](#write-page)
+  - [AI Agent chat](#ai-agent-chat)
   - [Next Steps](#next-steps)
 
 ## Prerequisites
@@ -187,6 +190,7 @@ export default defineSchema({
 Blog posts live in `content/blog/` as markdown files. Sync them to Convex:
 
 **Development:**
+
 ```bash
 npm run sync              # Sync markdown content
 npm run sync:discovery    # Update discovery files (AGENTS.md, llms.txt)
@@ -194,6 +198,7 @@ npm run sync:all          # Sync content + discovery files together
 ```
 
 **Production:**
+
 ```bash
 npm run sync:prod              # Sync markdown content
 npm run sync:discovery:prod   # Update discovery files
@@ -330,21 +335,21 @@ Your markdown content here...
 
 ### Frontmatter Fields
 
-| Field           | Required | Description                               |
-| --------------- | -------- | ----------------------------------------- |
-| `title`         | Yes      | Post title                                |
-| `description`   | Yes      | Short description for SEO                 |
-| `date`          | Yes      | Publication date (YYYY-MM-DD)             |
-| `slug`          | Yes      | URL path (must be unique)                 |
-| `published`     | Yes      | Set to `true` to publish                  |
-| `tags`          | Yes      | Array of topic tags                       |
-| `readTime`      | No       | Estimated reading time                    |
-| `image`         | No       | Header/Open Graph image URL               |
-| `excerpt`       | No       | Short excerpt for card view               |
-| `featured`      | No       | Set `true` to show in featured section    |
-| `featuredOrder` | No       | Order in featured section (lower = first) |
-| `authorName`    | No       | Author display name shown next to date    |
-| `authorImage`   | No       | Round author avatar image URL             |
+| Field           | Required | Description                                                                   |
+| --------------- | -------- | ----------------------------------------------------------------------------- |
+| `title`         | Yes      | Post title                                                                    |
+| `description`   | Yes      | Short description for SEO                                                     |
+| `date`          | Yes      | Publication date (YYYY-MM-DD)                                                 |
+| `slug`          | Yes      | URL path (must be unique)                                                     |
+| `published`     | Yes      | Set to `true` to publish                                                      |
+| `tags`          | Yes      | Array of topic tags                                                           |
+| `readTime`      | No       | Estimated reading time                                                        |
+| `image`         | No       | Header/Open Graph image URL                                                   |
+| `excerpt`       | No       | Short excerpt for card view                                                   |
+| `featured`      | No       | Set `true` to show in featured section                                        |
+| `featuredOrder` | No       | Order in featured section (lower = first)                                     |
+| `authorName`    | No       | Author display name shown next to date                                        |
+| `authorImage`   | No       | Round author avatar image URL                                                 |
 | `rightSidebar`  | No       | Enable right sidebar with CopyPageDropdown (opt-in, requires explicit `true`) |
 
 ### How Frontmatter Works
@@ -409,6 +414,7 @@ The `npm run sync` command only syncs markdown text content. Images are deployed
 After adding or editing posts, sync to Convex.
 
 **Development sync:**
+
 ```bash
 npm run sync              # Sync markdown content
 npm run sync:discovery    # Update discovery files
@@ -426,6 +432,7 @@ VITE_CONVEX_URL=https://your-prod-deployment.convex.cloud
 Get your production URL from the [Convex Dashboard](https://dashboard.convex.dev) by selecting your project and switching to the Production deployment.
 
 Then sync:
+
 ```bash
 npm run sync:prod              # Sync markdown content
 npm run sync:discovery:prod   # Update discovery files
@@ -443,17 +450,17 @@ Both files are gitignored. Each developer creates their own local environment fi
 
 ### When to Sync vs Deploy
 
-| What you're changing             | Command                    | Timing               |
-| -------------------------------- | -------------------------- | -------------------- |
-| Blog posts in `content/blog/`    | `npm run sync`             | Instant (no rebuild) |
-| Pages in `content/pages/`        | `npm run sync`             | Instant (no rebuild) |
-| Featured items (via frontmatter) | `npm run sync`             | Instant (no rebuild) |
+| What you're changing             | Command                    | Timing                  |
+| -------------------------------- | -------------------------- | ----------------------- |
+| Blog posts in `content/blog/`    | `npm run sync`             | Instant (no rebuild)    |
+| Pages in `content/pages/`        | `npm run sync`             | Instant (no rebuild)    |
+| Featured items (via frontmatter) | `npm run sync`             | Instant (no rebuild)    |
 | Site config changes              | `npm run sync:discovery`   | Updates discovery files |
-| Import external URL              | `npm run import` then sync | Instant (no rebuild) |
-| Images in `public/images/`       | Git commit + push          | Requires rebuild     |
-| `siteConfig` in `Home.tsx`       | Redeploy                   | Requires rebuild     |
-| Logo gallery config              | Redeploy                   | Requires rebuild     |
-| React components/styles          | Redeploy                   | Requires rebuild     |
+| Import external URL              | `npm run import` then sync | Instant (no rebuild)    |
+| Images in `public/images/`       | Git commit + push          | Requires rebuild        |
+| `siteConfig` in `Home.tsx`       | Redeploy                   | Requires rebuild        |
+| Logo gallery config              | Redeploy                   | Requires rebuild        |
+| React components/styles          | Redeploy                   | Requires rebuild        |
 
 **Markdown content** syncs instantly via Convex. **Images and source code** require pushing to GitHub for Netlify to rebuild.
 
@@ -971,15 +978,12 @@ body {
     serif;
 
   /* Monospace */
-  font-family:
-    "IBM Plex Mono",
-    "Liberation Mono",
-    ui-monospace,
-    monospace;
+  font-family: "IBM Plex Mono", "Liberation Mono", ui-monospace, monospace;
 }
 ```
 
 Available font options:
+
 - `serif`: New York serif font (default)
 - `sans`: System sans-serif fonts
 - `monospace`: IBM Plex Mono monospace font
@@ -1103,6 +1107,49 @@ How it works:
 - A cron job cleans up stale sessions every 5 minutes
 - No personal data is stored (only anonymous UUIDs)
 
+## Newsletter Admin
+
+A newsletter management interface is available at `/newsletter-admin`. Use it to view subscribers, send newsletters, and compose custom emails.
+
+**Features:**
+
+- View and search all subscribers with filtering options (search bar in header)
+- Delete subscribers from the admin UI
+- Send published blog posts as newsletters
+- Write custom emails using markdown formatting
+- View recent newsletter sends (last 10, tracks both posts and custom emails)
+- Email statistics dashboard with comprehensive metrics
+
+**Setup:**
+
+1. Enable in `src/config/siteConfig.ts`:
+
+```typescript
+newsletterAdmin: {
+  enabled: true,
+  showInNav: false, // Keep hidden, access via direct URL
+},
+```
+
+2. Set environment variables in Convex Dashboard:
+
+| Variable                  | Description                          |
+| ------------------------- | ------------------------------------ |
+| `AGENTMAIL_API_KEY`       | Your AgentMail API key               |
+| `AGENTMAIL_INBOX`         | Your AgentMail inbox address         |
+| `AGENTMAIL_CONTACT_EMAIL` | Optional recipient for contact forms |
+
+**Important:** If environment variables are not configured, users will see an error message when attempting to use newsletter or contact form features: "AgentMail Environment Variables are not configured in production. Please set AGENTMAIL_API_KEY and AGENTMAIL_INBOX."
+
+**Sending newsletters:**
+
+Two modes are available:
+
+1. **Send Post**: Select a blog post to send to all active subscribers
+2. **Write Email**: Compose custom content with markdown support
+
+The admin UI shows send results and provides CLI commands as alternatives.
+
 ## Mobile Navigation
 
 On mobile and tablet screens (under 768px), a hamburger menu provides navigation. The menu slides out from the left with keyboard navigation (Escape to close) and a focus trap for accessibility. It auto-closes when you navigate to a new route.
@@ -1111,23 +1158,23 @@ On mobile and tablet screens (under 768px), a hamburger menu provides navigation
 
 Each post and page includes a share dropdown with options for AI tools:
 
-| Option               | Description                                       |
-| -------------------- | ------------------------------------------------- |
-| Copy page            | Copies formatted markdown to clipboard            |
-| Open in ChatGPT      | Opens ChatGPT with raw markdown URL               |
-| Open in Claude       | Opens Claude with raw markdown URL                |
-| Open in Perplexity   | Opens Perplexity with raw markdown URL            |
-| View as Markdown     | Opens raw `.md` file in new tab                   |
-| Download as SKILL.md | Downloads skill file for AI agent training        |
+| Option               | Description                                |
+| -------------------- | ------------------------------------------ |
+| Copy page            | Copies formatted markdown to clipboard     |
+| Open in ChatGPT      | Opens ChatGPT with raw markdown URL        |
+| Open in Claude       | Opens Claude with raw markdown URL         |
+| Open in Perplexity   | Opens Perplexity with raw markdown URL     |
+| View as Markdown     | Opens raw `.md` file in new tab            |
+| Download as SKILL.md | Downloads skill file for AI agent training |
 
 **Git push required for AI links:** The "Open in ChatGPT," "Open in Claude," and "Open in Perplexity" options use GitHub raw URLs to fetch content. For these to work, your content must be pushed to GitHub with `git push`. The `npm run sync` command syncs content to Convex for your live site, but AI services fetch directly from GitHub.
 
-| What you want                        | Command needed                 |
-| ------------------------------------ | ------------------------------ |
-| Content visible on your site         | `npm run sync` or `sync:prod`  |
+| What you want                        | Command needed                                    |
+| ------------------------------------ | ------------------------------------------------- |
+| Content visible on your site         | `npm run sync` or `sync:prod`                     |
 | Discovery files updated              | `npm run sync:discovery` or `sync:discovery:prod` |
-| AI links (ChatGPT/Claude/Perplexity) | `git push` to GitHub           |
-| Both content and discovery           | `npm run sync:all` or `sync:all:prod` |
+| AI links (ChatGPT/Claude/Perplexity) | `git push` to GitHub                              |
+| Both content and discovery           | `npm run sync:all` or `sync:all:prod`             |
 
 **Download as SKILL.md** formats the content as an Anthropic Agent Skills file with metadata, triggers, and instructions sections.
 
@@ -1325,7 +1372,7 @@ Enable Agent in the right sidebar on individual posts or pages using the `aiChat
 ---
 title: "My Post"
 rightSidebar: true
-aiChat: true  # Enable Agent in right sidebar
+aiChat: true # Enable Agent in right sidebar
 ---
 ```
 

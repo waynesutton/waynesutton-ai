@@ -23,8 +23,11 @@ export default defineSchema({
     rightSidebar: v.optional(v.boolean()), // Enable right sidebar with CopyPageDropdown
     showFooter: v.optional(v.boolean()), // Show footer on this post (overrides siteConfig default)
     footer: v.optional(v.string()), // Footer markdown content (overrides siteConfig defaultContent)
+    showSocialFooter: v.optional(v.boolean()), // Show social footer on this post (overrides siteConfig default)
     aiChat: v.optional(v.boolean()), // Enable AI chat in right sidebar
     blogFeatured: v.optional(v.boolean()), // Show as hero featured post on /blog page
+    newsletter: v.optional(v.boolean()), // Override newsletter signup display (true/false)
+    contactForm: v.optional(v.boolean()), // Enable contact form on this post
     lastSyncedAt: v.number(),
   })
     .index("by_slug", ["slug"])
@@ -60,7 +63,10 @@ export default defineSchema({
     rightSidebar: v.optional(v.boolean()), // Enable right sidebar with CopyPageDropdown
     showFooter: v.optional(v.boolean()), // Show footer on this page (overrides siteConfig default)
     footer: v.optional(v.string()), // Footer markdown content (overrides siteConfig defaultContent)
+    showSocialFooter: v.optional(v.boolean()), // Show social footer on this page (overrides siteConfig default)
     aiChat: v.optional(v.boolean()), // Enable AI chat in right sidebar
+    contactForm: v.optional(v.boolean()), // Enable contact form on this page
+    newsletter: v.optional(v.boolean()), // Override newsletter signup display (true/false)
     lastSyncedAt: v.number(),
   })
   .index("by_slug", ["slug"])
@@ -139,4 +145,40 @@ export default defineSchema({
   })
     .index("by_session_and_context", ["sessionId", "contextId"])
     .index("by_session", ["sessionId"]),
+
+  // Newsletter subscribers table
+  // Stores email subscriptions with unsubscribe tokens
+  newsletterSubscribers: defineTable({
+    email: v.string(), // Subscriber email address (lowercase, trimmed)
+    subscribed: v.boolean(), // Current subscription status
+    subscribedAt: v.number(), // Timestamp when subscribed
+    unsubscribedAt: v.optional(v.number()), // Timestamp when unsubscribed (if applicable)
+    source: v.string(), // Where they signed up: "home", "blog-page", "post", or "post:slug-name"
+    unsubscribeToken: v.string(), // Secure token for unsubscribe links
+  })
+    .index("by_email", ["email"])
+    .index("by_subscribed", ["subscribed"]),
+
+  // Newsletter sent tracking (posts and custom emails)
+  // Tracks what has been sent to prevent duplicate newsletters
+  newsletterSentPosts: defineTable({
+    postSlug: v.string(), // Slug of the post or custom email identifier
+    sentAt: v.number(), // Timestamp when the newsletter was sent
+    sentCount: v.number(), // Number of subscribers it was sent to
+    type: v.optional(v.string()), // "post" or "custom" (default "post" for backwards compat)
+    subject: v.optional(v.string()), // Subject line for custom emails
+  })
+    .index("by_postSlug", ["postSlug"])
+    .index("by_sentAt", ["sentAt"]),
+
+  // Contact form messages
+  // Stores messages submitted via contact forms on posts/pages
+  contactMessages: defineTable({
+    name: v.string(), // Sender's name
+    email: v.string(), // Sender's email address
+    message: v.string(), // Message content
+    source: v.string(), // Where submitted from: "page:slug" or "post:slug"
+    createdAt: v.number(), // Timestamp when submitted
+    emailSentAt: v.optional(v.number()), // Timestamp when email was sent (if applicable)
+  }).index("by_createdAt", ["createdAt"]),
 });

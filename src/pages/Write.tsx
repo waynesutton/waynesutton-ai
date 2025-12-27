@@ -54,7 +54,11 @@ const POST_FIELDS = [
     required: false,
     example: '"Built with [Convex](https://convex.dev)."',
   },
+  { name: "showSocialFooter", required: false, example: "true" },
   { name: "aiChat", required: false, example: "true" },
+  { name: "blogFeatured", required: false, example: "true" },
+  { name: "newsletter", required: false, example: "true" },
+  { name: "contactForm", required: false, example: "true" },
 ];
 
 // Frontmatter field definitions for pages
@@ -83,7 +87,10 @@ const PAGE_FIELDS = [
     required: false,
     example: '"Built with [Convex](https://convex.dev)."',
   },
+  { name: "showSocialFooter", required: false, example: "true" },
   { name: "aiChat", required: false, example: "true" },
+  { name: "newsletter", required: false, example: "true" },
+  { name: "contactForm", required: false, example: "true" },
 ];
 
 // Generate frontmatter template based on content type

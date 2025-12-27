@@ -4,6 +4,119 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.38.0] - 2025-12-27
+
+### Added
+
+- Newsletter CLI improvements
+  - `newsletter:send` now calls `scheduleSendPostNewsletter` mutation directly
+  - New `newsletter:send:stats` command to send weekly stats summary
+  - Both commands provide clear success/error feedback
+- New mutation `scheduleSendStatsSummary` for CLI stats sending
+- Blog post: "How to use AgentMail with Markdown Sync" with complete setup guide
+
+### Changed
+
+- `scripts/send-newsletter.ts`: Now calls mutation directly instead of printing instructions
+- `convex/newsletter.ts`: Added `scheduleSendStatsSummary` mutation
+
+### Technical
+
+- New script: `scripts/send-newsletter-stats.ts`
+- All AgentMail features verified to use environment variables (no hardcoded emails)
+
+## [1.37.0] - 2025-12-27
+
+### Added
+
+- Newsletter Admin UI at `/newsletter-admin`
+  - Three-column layout similar to Write page
+  - View all subscribers with search and filter (all/active/unsubscribed)
+  - Stats showing active, total, and sent newsletter counts
+  - Delete subscribers directly from admin
+  - Send newsletter panel with two modes:
+    - Send Post: Select a blog post to send as newsletter
+    - Write Email: Compose custom email with markdown support
+  - Markdown-to-HTML conversion for custom emails (headers, bold, italic, links, lists)
+  - Copy icon on success messages to copy CLI commands
+  - Theme-aware success/error styling (no hardcoded green)
+  - Recent newsletters list showing sent history
+  - Configurable via `siteConfig.newsletterAdmin`
+- Weekly Digest automation
+  - Cron job runs every Sunday at 9:00 AM UTC
+  - Automatically sends all posts published in the last 7 days
+  - Uses AgentMail SDK for email delivery
+  - Configurable via `siteConfig.weeklyDigest`
+- Developer Notifications
+  - New subscriber alerts sent via email when someone subscribes
+  - Weekly stats summary sent every Monday at 9:00 AM UTC
+  - Uses `AGENTMAIL_CONTACT_EMAIL` or `AGENTMAIL_INBOX` as recipient
+  - Configurable via `siteConfig.newsletterNotifications`
+- Admin queries and mutations for newsletter management
+  - `getAllSubscribers`: Paginated subscriber list with search/filter
+  - `deleteSubscriber`: Remove subscriber from database
+  - `getNewsletterStats`: Stats for admin dashboard
+  - `getPostsForNewsletter`: List of posts with sent status
+
+### Changed
+
+- `convex/newsletter.ts`: Added admin queries (getAllSubscribers, deleteSubscriber, getNewsletterStats, getPostsForNewsletter, getStatsForSummary) and scheduleSendCustomNewsletter mutation
+- `convex/newsletterActions.ts`: Added sendWeeklyDigest, notifyNewSubscriber, sendWeeklyStatsSummary, sendCustomNewsletter actions with markdown-to-HTML conversion
+- `convex/posts.ts`: Added getRecentPostsInternal query for weekly digest
+- `convex/crons.ts`: Added weekly digest (Sunday 9am) and stats summary (Monday 9am) cron jobs
+- `src/config/siteConfig.ts`: Added NewsletterAdminConfig, NewsletterNotificationsConfig, WeeklyDigestConfig interfaces
+- `src/App.tsx`: Added /newsletter-admin route
+- `src/styles/global.css`: Added newsletter admin styles with responsive design
+
+### Technical
+
+- New page: `src/pages/NewsletterAdmin.tsx`
+- Newsletter admin hidden from navigation by default (security through obscurity)
+- All admin features togglable via siteConfig
+- Uses Convex internal actions for email sending (Node.js runtime with AgentMail SDK)
+- Cron jobs use environment variables: SITE_URL, SITE_NAME
+
+## [1.36.0] - 2025-12-27
+
+### Added
+
+- Social footer component with customizable social links and copyright
+  - Displays social icons on the left (GitHub, Twitter/X, LinkedIn, and more)
+  - Shows copyright symbol, site name, and auto-updating year on the right
+  - Configurable via `siteConfig.socialFooter` in `src/config/siteConfig.ts`
+  - Supports 8 platform types: github, twitter, linkedin, instagram, youtube, tiktok, discord, website
+  - Uses Phosphor icons for consistent styling
+  - Appears below the main footer on homepage, blog posts, and pages
+  - Can work independently of the main footer when set via frontmatter
+- Frontmatter control for social footer visibility
+  - `showSocialFooter` field for posts and pages to override siteConfig defaults
+  - Set `showSocialFooter: false` to hide on specific posts/pages
+  - Works like existing `showFooter` field pattern
+- Social footer configuration options
+  - `enabled`: Global toggle for social footer
+  - `showOnHomepage`, `showOnPosts`, `showOnPages`, `showOnBlogPage`: Per-location visibility
+  - `socialLinks`: Array of social link objects with platform and URL
+  - `copyright.siteName`: Site/company name for copyright display
+  - `copyright.showYear`: Toggle for auto-updating year
+
+### Changed
+
+- `src/config/siteConfig.ts`: Added `SocialLink`, `SocialFooterConfig` interfaces and `socialFooter` configuration
+- `convex/schema.ts`: Added `showSocialFooter` optional boolean field to posts and pages tables
+- `convex/posts.ts` and `convex/pages.ts`: Updated queries and mutations to include `showSocialFooter` field
+- `scripts/sync-posts.ts`: Updated to parse `showSocialFooter` from frontmatter for both posts and pages
+- `src/pages/Home.tsx`: Added SocialFooter component below Footer
+- `src/pages/Post.tsx`: Added SocialFooter component below Footer for both posts and pages
+- `src/pages/Blog.tsx`: Added SocialFooter component below Footer
+- `src/styles/global.css`: Added social footer styles with flexbox layout and mobile responsive design
+
+### Technical
+
+- New component: `src/components/SocialFooter.tsx`
+- Uses Phosphor icons: GithubLogo, TwitterLogo, LinkedinLogo, InstagramLogo, YoutubeLogo, TiktokLogo, DiscordLogo, Globe
+- Responsive design: stacks vertically on mobile (max-width: 480px)
+- Year automatically updates using `new Date().getFullYear()`
+
 ## [1.35.0] - 2025-12-26
 
 ### Added

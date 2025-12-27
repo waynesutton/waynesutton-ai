@@ -114,6 +114,93 @@ export interface AIChatConfig {
   enabledOnContent: boolean; // Allow AI chat on posts/pages via frontmatter aiChat: true
 }
 
+// Newsletter signup placement configuration
+// Controls where signup forms appear on the site
+export interface NewsletterSignupPlacement {
+  enabled: boolean; // Show signup form at this location
+  position: "above-footer" | "below-intro" | "below-content" | "below-posts";
+  title: string; // Form heading
+  description: string; // Form description text
+}
+
+// Newsletter configuration (email-only signup)
+// Integrates with AgentMail for email collection and sending
+// Inbox configured via AGENTMAIL_INBOX environment variable in Convex dashboard
+export interface NewsletterConfig {
+  enabled: boolean; // Master switch for newsletter feature
+
+  // Signup form placements
+  signup: {
+    home: NewsletterSignupPlacement; // Homepage signup
+    blogPage: NewsletterSignupPlacement; // Blog page (/blog) signup
+    posts: NewsletterSignupPlacement; // Individual blog posts (can override via frontmatter)
+  };
+}
+
+// Contact form configuration
+// Enables contact forms on pages/posts via frontmatter contactForm: true
+// Recipient email configured via AGENTMAIL_CONTACT_EMAIL env var (falls back to AGENTMAIL_INBOX)
+export interface ContactFormConfig {
+  enabled: boolean; // Global toggle for contact form feature
+  title: string; // Default form title
+  description: string; // Default form description
+}
+
+// Newsletter admin configuration
+// Provides admin UI for managing subscribers and sending newsletters
+// Access at /newsletter-admin route
+export interface NewsletterAdminConfig {
+  enabled: boolean; // Global toggle for admin UI
+  showInNav: boolean; // Show link in navigation (hidden by default for security)
+}
+
+// Newsletter notifications configuration
+// Sends developer notifications for subscriber events
+// Uses AGENTMAIL_CONTACT_EMAIL or AGENTMAIL_INBOX as recipient
+export interface NewsletterNotificationsConfig {
+  enabled: boolean; // Global toggle for notifications
+  newSubscriberAlert: boolean; // Send email when new subscriber signs up
+  weeklyStatsSummary: boolean; // Send weekly stats summary email
+}
+
+// Weekly digest configuration
+// Automated weekly email with posts from the past 7 days
+export interface WeeklyDigestConfig {
+  enabled: boolean; // Global toggle for weekly digest
+  dayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 6 = Saturday
+  subject: string; // Email subject template
+}
+
+// Social link configuration for social footer
+export interface SocialLink {
+  platform:
+    | "github"
+    | "twitter"
+    | "linkedin"
+    | "instagram"
+    | "youtube"
+    | "tiktok"
+    | "discord"
+    | "website";
+  url: string; // Full URL (e.g., "https://github.com/username")
+}
+
+// Social footer configuration
+// Displays social icons on left and copyright on right
+// Appears below the main footer on homepage, blog posts, and pages
+export interface SocialFooterConfig {
+  enabled: boolean; // Global toggle for social footer
+  showOnHomepage: boolean; // Show social footer on homepage
+  showOnPosts: boolean; // Default: show social footer on blog posts
+  showOnPages: boolean; // Default: show social footer on static pages
+  showOnBlogPage: boolean; // Show social footer on /blog page
+  socialLinks: SocialLink[]; // Array of social links to display
+  copyright: {
+    siteName: string; // Site name or company name displayed in copyright
+    showYear: boolean; // Show auto-updating year (default: true)
+  };
+}
+
 // Site configuration interface
 export interface SiteConfig {
   // Basic site info
@@ -172,6 +259,24 @@ export interface SiteConfig {
 
   // AI Chat configuration
   aiChat: AIChatConfig;
+
+  // Newsletter configuration (optional)
+  newsletter?: NewsletterConfig;
+
+  // Contact form configuration (optional)
+  contactForm?: ContactFormConfig;
+
+  // Social footer configuration (optional)
+  socialFooter?: SocialFooterConfig;
+
+  // Newsletter admin configuration (optional)
+  newsletterAdmin?: NewsletterAdminConfig;
+
+  // Newsletter notifications configuration (optional)
+  newsletterNotifications?: NewsletterNotificationsConfig;
+
+  // Weekly digest configuration (optional)
+  weeklyDigest?: WeeklyDigestConfig;
 }
 
 // Default site configuration
@@ -225,6 +330,10 @@ export const siteConfig: SiteConfig = {
       {
         src: "/images/logos/agentmail.svg",
         href: "https://agentmail.to/utm_source=markdownfast",
+      },
+      {
+        src: "/images/logos/mcp.svg",
+        href: "https://modelcontextprotocol.io/",
       },
     ],
     position: "above-footer",
@@ -361,6 +470,91 @@ Created by [Wayne](https://x.com/waynesutton) with Convex, Cursor, and Claude Op
   aiChat: {
     enabledOnWritePage: true, // Show AI chat toggle on /write page
     enabledOnContent: true, // Allow AI chat on posts/pages via frontmatter aiChat: true
+  },
+
+  // Newsletter configuration (email-only signup)
+  // Set enabled: true and configure AgentMail to activate
+  // Requires AGENTMAIL_API_KEY and AGENTMAIL_INBOX environment variables in Convex dashboard
+  newsletter: {
+    enabled: true, // Set to true to enable newsletter signup forms
+    signup: {
+      home: {
+        enabled: true,
+        position: "above-footer",
+        title: "Stay Updated",
+        description: "Get new posts delivered to your inbox.",
+      },
+      blogPage: {
+        enabled: true,
+        position: "above-footer",
+        title: "Subscribe",
+        description: "Get notified when new posts are published.",
+      },
+      posts: {
+        enabled: true,
+        position: "below-content",
+        title: "Enjoyed this post?",
+        description: "Subscribe for more updates.",
+      },
+    },
+  },
+
+  // Contact form configuration
+  // Enable via frontmatter contactForm: true on any page or post
+  // Requires AGENTMAIL_API_KEY and AGENTMAIL_INBOX in Convex dashboard
+  // Optionally set AGENTMAIL_CONTACT_EMAIL to override recipient (defaults to AGENTMAIL_INBOX)
+  contactForm: {
+    enabled: true, // Global toggle for contact form feature
+    title: "Get in Touch",
+    description: "Send us a message and we'll get back to you.",
+  },
+
+  // Social footer configuration
+  // Displays social icons on left and copyright on right
+  // Can work with or without the main footer
+  // Use showSocialFooter: false in frontmatter to hide on specific posts/pages
+  socialFooter: {
+    enabled: true, // Global toggle for social footer
+    showOnHomepage: true, // Show social footer on homepage
+    showOnPosts: true, // Default: show social footer on blog posts
+    showOnPages: true, // Default: show social footer on static pages
+    showOnBlogPage: true, // Show social footer on /blog page
+    socialLinks: [
+      {
+        platform: "github",
+        url: "https://github.com/waynesutton/markdown-site",
+      },
+      { platform: "twitter", url: "https://x.com/waynesutton" },
+      { platform: "linkedin", url: "https://www.linkedin.com/in/waynesutton/" },
+    ],
+    copyright: {
+      siteName: "MarkDown Sync is open-source", // Update with your site/company name
+      showYear: true, // Auto-updates to current year
+    },
+  },
+
+  // Newsletter admin configuration
+  // Admin UI for managing subscribers and sending newsletters at /newsletter-admin
+  // Hidden from nav by default (no auth - security through obscurity)
+  newsletterAdmin: {
+    enabled: true, // Global toggle for admin UI
+    showInNav: false, // Hide from navigation for security
+  },
+
+  // Newsletter notifications configuration
+  // Sends developer notifications for subscriber events via AgentMail
+  newsletterNotifications: {
+    enabled: true, // Global toggle for notifications
+    newSubscriberAlert: true, // Send email when new subscriber signs up
+    weeklyStatsSummary: true, // Send weekly stats summary email
+  },
+
+  // Weekly digest configuration
+  // Automated weekly email with posts from the past 7 days
+  weeklyDigest: {
+    enabled: true, // Global toggle for weekly digest
+    dayOfWeek: 0, // Sunday
+    subject: "Weekly Digest", // Email subject prefix
   },
 };
 

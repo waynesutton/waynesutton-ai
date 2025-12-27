@@ -97,24 +97,24 @@ export default function Stats() {
     },
     {
       number: "04",
+      icon: GithubLogo,
+      title: "GitHub Stars",
+      value: githubStars ?? "...",
+      description: "waynesutton/markdown-site",
+    },
+    {
+      number: "05",
       icon: BookOpen,
       title: "Blog Posts",
       value: stats.publishedPosts,
       description: "Published posts",
     },
     {
-      number: "05",
+      number: "06",
       icon: FileText,
       title: "Pages",
       value: stats.publishedPages,
       description: "Static pages",
-    },
-    {
-      number: "06",
-      icon: GithubLogo,
-      title: "GitHub Stars",
-      value: githubStars ?? "...",
-      description: "waynesutton/markdown-site",
     },
   ];
 

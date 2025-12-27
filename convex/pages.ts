@@ -128,7 +128,10 @@ export const getPageBySlug = query({
       rightSidebar: v.optional(v.boolean()),
       showFooter: v.optional(v.boolean()),
       footer: v.optional(v.string()),
+      showSocialFooter: v.optional(v.boolean()),
       aiChat: v.optional(v.boolean()),
+      contactForm: v.optional(v.boolean()),
+      newsletter: v.optional(v.boolean()),
     }),
     v.null(),
   ),
@@ -161,7 +164,10 @@ export const getPageBySlug = query({
       rightSidebar: page.rightSidebar,
       showFooter: page.showFooter,
       footer: page.footer,
+      showSocialFooter: page.showSocialFooter,
       aiChat: page.aiChat,
+      contactForm: page.contactForm,
+      newsletter: page.newsletter,
     };
   },
 });
@@ -188,7 +194,10 @@ export const syncPagesPublic = mutation({
         rightSidebar: v.optional(v.boolean()),
         showFooter: v.optional(v.boolean()),
         footer: v.optional(v.string()),
+        showSocialFooter: v.optional(v.boolean()),
         aiChat: v.optional(v.boolean()),
+        contactForm: v.optional(v.boolean()),
+        newsletter: v.optional(v.boolean()),
       }),
     ),
   },
@@ -232,7 +241,10 @@ export const syncPagesPublic = mutation({
           rightSidebar: page.rightSidebar,
           showFooter: page.showFooter,
           footer: page.footer,
+          showSocialFooter: page.showSocialFooter,
           aiChat: page.aiChat,
+          contactForm: page.contactForm,
+          newsletter: page.newsletter,
           lastSyncedAt: now,
         });
         updated++;

@@ -7,6 +7,8 @@ import FeaturedCards from "../components/FeaturedCards";
 import LogoMarquee from "../components/LogoMarquee";
 import GitHubContributions from "../components/GitHubContributions";
 import Footer from "../components/Footer";
+import SocialFooter from "../components/SocialFooter";
+import NewsletterSignup from "../components/NewsletterSignup";
 import siteConfig from "../config/siteConfig";
 
 // Local storage key for view mode preference
@@ -111,6 +113,13 @@ export default function Home() {
         </p>
 
         <p className="home-bio">{siteConfig.bio}</p>
+
+        {/* Newsletter signup (below-intro position) */}
+        {siteConfig.newsletter?.enabled &&
+          siteConfig.newsletter.signup.home.enabled &&
+          siteConfig.newsletter.signup.home.position === "below-intro" && (
+            <NewsletterSignup source="home" />
+          )}
 
         {/* Featured section with optional view toggle */}
         {hasFeaturedContent && (
@@ -223,9 +232,21 @@ export default function Home() {
       {/* Logo gallery (above-footer position) */}
       {renderLogoGallery("above-footer")}
 
+      {/* Newsletter signup (above-footer position) */}
+      {siteConfig.newsletter?.enabled &&
+        siteConfig.newsletter.signup.home.enabled &&
+        siteConfig.newsletter.signup.home.position === "above-footer" && (
+          <NewsletterSignup source="home" />
+        )}
+
       {/* Footer section */}
       {siteConfig.footer.enabled && siteConfig.footer.showOnHomepage && (
         <Footer content={siteConfig.footer.defaultContent} />
+      )}
+
+      {/* Social footer section */}
+      {siteConfig.socialFooter?.enabled && siteConfig.socialFooter.showOnHomepage && (
+        <SocialFooter />
       )}
     </div>
   );

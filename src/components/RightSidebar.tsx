@@ -4,7 +4,7 @@ import AIChatView from "./AIChatView";
 import siteConfig from "../config/siteConfig";
 
 interface RightSidebarProps {
-  aiChatEnabled?: boolean; // From frontmatter aiChat: true
+  aiChatEnabled?: boolean; // From frontmatter aiChat: true/false (undefined = not set)
   pageContent?: string; // Page markdown content for AI context
   slug?: string; // Page/post slug for chat context ID
 }
@@ -15,9 +15,15 @@ export default function RightSidebar({
   slug,
 }: RightSidebarProps) {
   // Check if AI chat should be shown
-  // Requires both siteConfig.aiChat.enabledOnContent AND frontmatter aiChat: true
+  // Requires:
+  // 1. Global config enabled (siteConfig.aiChat.enabledOnContent)
+  // 2. Frontmatter explicitly enabled (aiChat: true)
+  // 3. Slug exists for context ID
+  // If aiChat: false is set in frontmatter, chat will be hidden even if global config is enabled
   const showAIChat =
-    siteConfig.aiChat.enabledOnContent && aiChatEnabled && slug;
+    siteConfig.aiChat.enabledOnContent &&
+    aiChatEnabled === true &&
+    slug;
 
   if (showAIChat) {
     return (

@@ -6,7 +6,7 @@ order: 0
 layout: "sidebar"
 rightSidebar: true
 aiChat: true
-footer: true
+showFooter: true
 ---
 
 ## Getting Started
@@ -102,23 +102,31 @@ image: "/images/og-image.png"
 Content here...
 ```
 
-| Field           | Required | Description                                                                                                                 |
-| --------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `title`         | Yes      | Post title                                                                                                                  |
-| `description`   | Yes      | SEO description                                                                                                             |
-| `date`          | Yes      | YYYY-MM-DD format                                                                                                           |
-| `slug`          | Yes      | URL path (unique)                                                                                                           |
-| `published`     | Yes      | `true` to show                                                                                                              |
-| `tags`          | Yes      | Array of strings                                                                                                            |
-| `readTime`      | No       | Display time estimate                                                                                                       |
-| `image`         | No       | OG image and featured card thumbnail. See [Using Images in Blog Posts](/using-images-in-posts) for markdown and HTML syntax |
-| `showImageAtTop` | No       | Set `true` to display the image at the top of the post above the header (default: `false`)                                |
-| `excerpt`       | No       | Short text for card view                                                                                                    |
-| `featured`      | No       | `true` to show in featured section                                                                                          |
-| `featuredOrder` | No       | Order in featured (lower = first)                                                                                           |
-| `authorName`    | No       | Author display name shown next to date                                                                                      |
-| `authorImage`   | No       | Round author avatar image URL                                                                                               |
-| `layout`        | No       | Set to `"sidebar"` for docs-style layout with TOC                                                                           |
+| Field              | Required | Description                                                                                                                                                                                            |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `title`            | Yes      | Post title                                                                                                                                                                                             |
+| `description`      | Yes      | SEO description                                                                                                                                                                                        |
+| `date`             | Yes      | YYYY-MM-DD format                                                                                                                                                                                      |
+| `slug`             | Yes      | URL path (unique)                                                                                                                                                                                      |
+| `published`        | Yes      | `true` to show                                                                                                                                                                                         |
+| `tags`             | Yes      | Array of strings                                                                                                                                                                                       |
+| `readTime`         | No       | Display time estimate                                                                                                                                                                                  |
+| `image`            | No       | OG image and featured card thumbnail. See [Using Images in Blog Posts](/using-images-in-posts) for markdown and HTML syntax                                                                            |
+| `showImageAtTop`   | No       | Set `true` to display the image at the top of the post above the header (default: `false`)                                                                                                             |
+| `excerpt`          | No       | Short text for card view                                                                                                                                                                               |
+| `featured`         | No       | `true` to show in featured section                                                                                                                                                                     |
+| `featuredOrder`    | No       | Order in featured (lower = first)                                                                                                                                                                      |
+| `authorName`       | No       | Author display name shown next to date                                                                                                                                                                 |
+| `authorImage`      | No       | Round author avatar image URL                                                                                                                                                                          |
+| `layout`           | No       | Set to `"sidebar"` for docs-style layout with TOC                                                                                                                                                      |
+| `rightSidebar`     | No       | Enable right sidebar with CopyPageDropdown (opt-in, requires explicit `true`)                                                                                                                          |
+| `showFooter`       | No       | Show footer on this post (overrides siteConfig default)                                                                                                                                                |
+| `footer`           | No       | Footer markdown content (overrides siteConfig.defaultContent)                                                                                                                                          |
+| `showSocialFooter` | No       | Show social footer on this post (overrides siteConfig default)                                                                                                                                         |
+| `aiChat`           | No       | Enable AI chat in right sidebar. Set `true` to enable (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`). Set `false` to explicitly hide even if global config is enabled. |
+| `blogFeatured`     | No       | Show as featured on blog page (first becomes hero, rest in 2-column row)                                                                                                                               |
+| `newsletter`       | No       | Override newsletter signup display (`true` to show, `false` to hide)                                                                                                                                   |
+| `contactForm`      | No       | Enable contact form on this post                                                                                                                                                                       |
 
 ### Static pages
 
@@ -135,22 +143,28 @@ order: 1
 Content here...
 ```
 
-| Field           | Required | Description                                                                   |
-| --------------- | -------- | ----------------------------------------------------------------------------- |
-| `title`         | Yes      | Nav link text                                                                 |
-| `slug`          | Yes      | URL path                                                                      |
-| `published`     | Yes      | `true` to show                                                                |
-| `order`         | No       | Nav order (lower = first)                                                     |
-| `showInNav`     | No       | Show in navigation menu (default: `true`)                                     |
-| `excerpt`       | No       | Short text for card view                                                      |
-| `image`         | No       | Thumbnail for featured card view                                              |
-| `showImageAtTop` | No       | Set `true` to display the image at the top of the page above the header (default: `false`) |
-| `featured`      | No       | `true` to show in featured section                                            |
-| `featuredOrder` | No       | Order in featured (lower = first)                                             |
-| `authorName`    | No       | Author display name shown next to date                                        |
-| `authorImage`   | No       | Round author avatar image URL                                                 |
-| `layout`        | No       | Set to `"sidebar"` for docs-style layout with TOC                             |
-| `rightSidebar`  | No       | Enable right sidebar with CopyPageDropdown (opt-in, requires explicit `true`) |
+| Field              | Required | Description                                                                                                                                                                                            |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `title`            | Yes      | Nav link text                                                                                                                                                                                          |
+| `slug`             | Yes      | URL path                                                                                                                                                                                               |
+| `published`        | Yes      | `true` to show                                                                                                                                                                                         |
+| `order`            | No       | Nav order (lower = first)                                                                                                                                                                              |
+| `showInNav`        | No       | Show in navigation menu (default: `true`)                                                                                                                                                              |
+| `excerpt`          | No       | Short text for card view                                                                                                                                                                               |
+| `image`            | No       | Thumbnail for featured card view                                                                                                                                                                       |
+| `showImageAtTop`   | No       | Set `true` to display the image at the top of the page above the header (default: `false`)                                                                                                             |
+| `featured`         | No       | `true` to show in featured section                                                                                                                                                                     |
+| `featuredOrder`    | No       | Order in featured (lower = first)                                                                                                                                                                      |
+| `authorName`       | No       | Author display name shown next to date                                                                                                                                                                 |
+| `authorImage`      | No       | Round author avatar image URL                                                                                                                                                                          |
+| `layout`           | No       | Set to `"sidebar"` for docs-style layout with TOC                                                                                                                                                      |
+| `rightSidebar`     | No       | Enable right sidebar with CopyPageDropdown (opt-in, requires explicit `true`)                                                                                                                          |
+| `showFooter`       | No       | Show footer on this page (overrides siteConfig default)                                                                                                                                                |
+| `footer`           | No       | Footer markdown content (overrides siteConfig.defaultContent)                                                                                                                                          |
+| `showSocialFooter` | No       | Show social footer on this page (overrides siteConfig default)                                                                                                                                         |
+| `aiChat`           | No       | Enable AI chat in right sidebar. Set `true` to enable (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`). Set `false` to explicitly hide even if global config is enabled. |
+| `newsletter`       | No       | Override newsletter signup display (`true` to show, `false` to hide)                                                                                                                                   |
+| `contactForm`      | No       | Enable contact form on this page                                                                                                                                                                       |
 
 **Hide pages from navigation:** Set `showInNav: false` to keep a page published and accessible via direct URL, but hidden from the navigation menu. Pages with `showInNav: false` remain searchable and available via API endpoints. Useful for pages you want to link directly but not show in the main nav.
 
@@ -803,11 +817,86 @@ The `/stats` page displays real-time analytics:
 
 All stats update automatically via Convex subscriptions.
 
+## Newsletter Admin
+
+The Newsletter Admin page at `/newsletter-admin` provides a UI for managing subscribers and sending newsletters.
+
+**Features:**
+
+- View and search all subscribers (search bar in header)
+- Filter by status (all, active, unsubscribed)
+- Delete subscribers
+- Send blog posts as newsletters
+- Write and send custom emails with markdown support
+- View recent newsletter sends (last 10, includes both posts and custom emails)
+- Email statistics dashboard with:
+  - Total emails sent
+  - Newsletters sent count
+  - Active subscribers
+  - Retention rate
+  - Detailed summary table
+
+**Configuration:**
+
+Enable in `src/config/siteConfig.ts`:
+
+```typescript
+newsletterAdmin: {
+  enabled: true,      // Enable /newsletter-admin route
+  showInNav: false,   // Hide from navigation (access via direct URL)
+},
+```
+
+**Environment Variables (Convex):**
+
+| Variable                  | Description                                         |
+| ------------------------- | --------------------------------------------------- |
+| `AGENTMAIL_API_KEY`       | Your AgentMail API key                              |
+| `AGENTMAIL_INBOX`         | Your AgentMail inbox (e.g., `inbox@agentmail.to`)   |
+| `AGENTMAIL_CONTACT_EMAIL` | Optional contact form recipient (defaults to inbox) |
+
+**Note:** If environment variables are not configured, users will see the error message: "AgentMail Environment Variables are not configured in production. Please set AGENTMAIL_API_KEY and AGENTMAIL_INBOX." when attempting to send newsletters or use contact forms.
+
+**Sending Newsletters:**
+
+The admin UI supports two sending modes:
+
+1. **Send Post**: Select a published blog post to send as a newsletter
+2. **Write Email**: Compose a custom email with markdown formatting
+
+Custom emails support markdown syntax:
+
+- `# Heading` for headers
+- `**bold**` and `*italic*` for emphasis
+- `[link text](url)` for links
+- `- item` for bullet lists
+
+**CLI Commands:**
+
+You can send newsletters via command line:
+
+```bash
+# Send a blog post to all subscribers
+npm run newsletter:send <post-slug>
+
+# Send weekly stats summary to your inbox
+npm run newsletter:send:stats
+```
+
+Example:
+
+```bash
+npm run newsletter:send setup-guide
+```
+
+The `newsletter:send` command calls the `scheduleSendPostNewsletter` mutation directly and sends emails in the background. Check the Newsletter Admin page or recent sends to see results.
+
 ## API endpoints
 
 | Endpoint                       | Description                 |
 | ------------------------------ | --------------------------- |
 | `/stats`                       | Real-time analytics         |
+| `/newsletter-admin`            | Newsletter management UI    |
 | `/rss.xml`                     | RSS feed (descriptions)     |
 | `/rss-full.xml`                | RSS feed (full content)     |
 | `/sitemap.xml`                 | XML sitemap                 |
