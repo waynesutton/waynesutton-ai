@@ -8,7 +8,7 @@ tags: ["configuration", "setup", "fork", "tutorial"]
 readTime: "4 min read"
 featured: true
 layout: "sidebar"
-featuredOrder: 3
+featuredOrder: 2
 authorName: "Markdown"
 authorImage: "/images/authors/markdown.png"
 image: "/images/forkconfig.png"
@@ -97,19 +97,19 @@ If you prefer to update files manually, follow the guide in `FORK_CONFIG.md`. It
 
 The configuration script updates these files:
 
-| File                                | What changes                              |
-| ----------------------------------- | ----------------------------------------- |
-| `src/config/siteConfig.ts`          | Site name, bio, GitHub username, features |
-| `src/pages/Home.tsx`                | Intro paragraph, footer links             |
-| `src/pages/Post.tsx`                | SITE_URL, SITE_NAME constants             |
-| `convex/http.ts`                    | SITE_URL, SITE_NAME constants             |
-| `convex/rss.ts`                     | SITE_URL, SITE_TITLE, SITE_DESCRIPTION    |
-| `index.html`                        | Meta tags, JSON-LD, page title            |
-| `public/llms.txt`                   | Site info, GitHub link                    |
-| `public/robots.txt`                 | Sitemap URL                               |
-| `public/openapi.yaml`               | Server URL, site name                     |
-| `public/.well-known/ai-plugin.json` | Plugin metadata                           |
-| `src/context/ThemeContext.tsx`      | Default theme                             |
+| File                                | What changes                                                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `src/config/siteConfig.ts`          | Site name, bio, GitHub username, features, footer, social footer, newsletter, contact form, AI chat, right sidebar |
+| `src/pages/Home.tsx`                | Intro paragraph, footer links                                                                                      |
+| `src/pages/Post.tsx`                | SITE_URL, SITE_NAME constants                                                                                      |
+| `convex/http.ts`                    | SITE_URL, SITE_NAME constants                                                                                      |
+| `convex/rss.ts`                     | SITE_URL, SITE_TITLE, SITE_DESCRIPTION                                                                             |
+| `index.html`                        | Meta tags, JSON-LD, page title                                                                                     |
+| `public/llms.txt`                   | Site info, GitHub link                                                                                             |
+| `public/robots.txt`                 | Sitemap URL                                                                                                        |
+| `public/openapi.yaml`               | Server URL, site name                                                                                              |
+| `public/.well-known/ai-plugin.json` | Plugin metadata                                                                                                    |
+| `src/context/ThemeContext.tsx`      | Default theme                                                                                                      |
 
 ## Optional settings
 
@@ -142,15 +142,65 @@ The JSON config file supports additional options:
   },
   "postsDisplay": {
     "showOnHome": true,
-    "showOnBlogPage": true
+    "showOnBlogPage": true,
+    "homePostsLimit": 5,
+    "homePostsReadMore": {
+      "enabled": true,
+      "text": "Read more blog posts",
+      "link": "/blog"
+    }
   },
   "featuredViewMode": "cards",
   "showViewToggle": true,
-  "theme": "tan"
+  "theme": "tan",
+  "fontFamily": "serif",
+  "rightSidebar": {
+    "enabled": true,
+    "minWidth": 1135
+  },
+  "footer": {
+    "enabled": true,
+    "showOnHomepage": true,
+    "showOnPosts": true,
+    "showOnPages": true,
+    "showOnBlogPage": true
+  },
+  "socialFooter": {
+    "enabled": true,
+    "showOnHomepage": true,
+    "showOnPosts": true,
+    "showOnPages": true,
+    "showOnBlogPage": true,
+    "socialLinks": [
+      {
+        "platform": "github",
+        "url": "https://github.com/yourusername/your-repo-name"
+      }
+    ],
+    "copyright": {
+      "siteName": "Your Site Name",
+      "showYear": true
+    }
+  },
+  "aiChat": {
+    "enabledOnWritePage": false,
+    "enabledOnContent": false
+  },
+  "newsletter": {
+    "enabled": false,
+    "signup": {
+      "home": { "enabled": false },
+      "blogPage": { "enabled": false },
+      "posts": { "enabled": false }
+    }
+  },
+  "contactForm": {
+    "enabled": false
+  }
 }
 ```
 
-These are optional. If you omit them, the script uses sensible defaults.
+These are optional. If you omit them, the script uses sensible defaults. See `fork-config.json.example` for the complete schema with all available options.
 
 ## After configuring
 

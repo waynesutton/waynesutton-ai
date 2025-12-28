@@ -74,15 +74,25 @@ Follow the step-by-step guide in `FORK_CONFIG.md` to update each file manually. 
 - Four theme options: Dark, Light, Tan (default), Cloud
 - Real-time data with Convex
 - Fully responsive design
-- Real-time analytics at `/stats`
+- Real-time analytics at `/stats` with visitor map
 - Full text search with Command+K shortcut
 - Featured section with list/card view toggle
-- Logo gallery with continuous marquee scroll
+- Logo gallery with continuous marquee scroll or static grid
 - GitHub contributions graph with year navigation
 - Static raw markdown files at `/raw/{slug}.md`
-- Dedicated blog page with configurable navigation order
+- Dedicated blog page with configurable navigation order and featured layout
 - Markdown writing page at `/write` with frontmatter reference
 - AI Agent chat (powered by Anthropic Claude) on Write page and optionally in right sidebar
+- Tag pages at `/tags/[tag]` with view mode toggle
+- Related posts based on shared tags
+- Footer component with markdown support and images
+- Social footer with customizable social links and copyright
+- Right sidebar for CopyPageDropdown and AI chat
+- Contact forms on any page or post
+- Newsletter subscriptions and admin UI
+- Homepage post limit with optional "read more" link
+- Blog page featured layout with hero post
+- Show image at top of posts/pages
 
 ### SEO and Discovery
 
@@ -116,10 +126,12 @@ The framework includes AgentMail integration for newsletter subscriptions and co
 
 - Newsletter subscriptions and sending
 - Contact forms on any post or page
-- Automated weekly digests
-- Developer notifications
-- Admin UI for subscriber management
+- Automated weekly digests (Sundays 9am UTC)
+- Developer notifications (new subscriber alerts, weekly stats summaries)
+- Admin UI for subscriber management at `/newsletter-admin`
 - CLI tools for sending newsletters and stats
+- Custom email composition with markdown support
+- Email statistics dashboard
 
 See the [AgentMail setup guide](https://www.markdown.fast/blog/how-to-use-agentmail) for configuration instructions.
 
@@ -474,6 +486,15 @@ A public markdown writing page at `/write` (not linked in navigation).
 
 Access directly at `yourdomain.com/write`. Content is stored in localStorage only (not synced to database). Use it to draft posts, then copy the content to a markdown file in `content/blog/` or `content/pages/` and run `npm run sync`.
 
+**Features:**
+- Three-column Cursor docs-style layout
+- Content type selector (Blog Post or Page) with dynamic frontmatter templates
+- Frontmatter field reference with individual copy buttons
+- Font switcher (Serif/Sans-serif/Monospace)
+- Theme toggle matching site themes
+- Word, line, and character counts
+- localStorage persistence for content, type, and font preference
+
 **AI Agent mode:** When `siteConfig.aiChat.enabledOnWritePage` is enabled, a toggle button appears in the Actions section. Clicking it replaces the textarea with the AI Agent chat interface. The page title changes to "Agent" when in chat mode. Requires `ANTHROPIC_API_KEY` environment variable in Convex.
 
 ## AI Agent Chat
@@ -494,11 +515,13 @@ Set these in [Convex Dashboard](https://dashboard.convex.dev) > Settings > Envir
 
 **Features:**
 
-- Per-page chat history stored in Convex
+- Per-page chat history stored in Convex (per-session, per-context)
 - Page content can be provided as context for AI responses
-- Markdown rendering for AI responses
+- Markdown rendering for AI responses with copy functionality
 - User-friendly error messages when API key is not configured
 - Anonymous session authentication using localStorage
+- Chat history limited to last 20 messages for efficiency
+- System prompt configurable via environment variables (split or single prompt)
 
 ## Source
 

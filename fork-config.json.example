@@ -45,7 +45,13 @@
   },
   "postsDisplay": {
     "showOnHome": true,
-    "showOnBlogPage": true
+    "showOnBlogPage": true,
+    "homePostsLimit": 5,
+    "homePostsReadMore": {
+      "enabled": true,
+      "text": "Read more blog posts",
+      "link": "/blog"
+    }
   },
   "featuredViewMode": "cards",
   "showViewToggle": true,
@@ -55,6 +61,47 @@
     "type": "default",
     "slug": null,
     "originalHomeRoute": "/home"
+  },
+  "rightSidebar": {
+    "enabled": true,
+    "minWidth": 1135
+  },
+  "footer": {
+    "enabled": true,
+    "showOnHomepage": true,
+    "showOnPosts": true,
+    "showOnPages": true,
+    "showOnBlogPage": true,
+    "defaultContent": "Built with [Convex](https://convex.dev) for real-time sync and deployed on [Netlify](https://netlify.com)."
+  },
+  "socialFooter": {
+    "enabled": true,
+    "showOnHomepage": true,
+    "showOnPosts": true,
+    "showOnPages": true,
+    "showOnBlogPage": true,
+    "socialLinks": [
+      {
+        "platform": "github",
+        "url": "https://github.com/yourusername/your-repo-name"
+      },
+      {
+        "platform": "twitter",
+        "url": "https://x.com/yourhandle"
+      },
+      {
+        "platform": "linkedin",
+        "url": "https://www.linkedin.com/in/yourprofile/"
+      }
+    ],
+    "copyright": {
+      "siteName": "Your Site Name",
+      "showYear": true
+    }
+  },
+  "aiChat": {
+    "enabledOnWritePage": false,
+    "enabledOnContent": false
   },
   "newsletter": {
     "enabled": false,
@@ -81,6 +128,25 @@
         "description": "Subscribe for more updates."
       }
     }
+  },
+  "contactForm": {
+    "enabled": false,
+    "title": "Get in Touch",
+    "description": "Send us a message and we'll get back to you."
+  },
+  "newsletterAdmin": {
+    "enabled": false,
+    "showInNav": false
+  },
+  "newsletterNotifications": {
+    "enabled": false,
+    "newSubscriberAlert": false,
+    "weeklyStatsSummary": false
+  },
+  "weeklyDigest": {
+    "enabled": false,
+    "dayOfWeek": 0,
+    "subject": "Weekly Digest"
   }
 }
 

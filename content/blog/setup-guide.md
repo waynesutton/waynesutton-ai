@@ -7,7 +7,7 @@ published: true
 tags: ["convex", "netlify", "tutorial", "deployment"]
 readTime: "8 min read"
 featured: true
-featuredOrder: 6
+featuredOrder: 1
 newsletter: true
 layout: "sidebar"
 image: "/images/setupguide.png"
@@ -75,6 +75,7 @@ This guide walks you through forking [this markdown framework](https://github.co
     - [Using Search](#using-search)
     - [How It Works](#how-it-works)
   - [Real-time Stats](#real-time-stats)
+  - [Newsletter Admin](#newsletter-admin)
   - [Mobile Navigation](#mobile-navigation)
   - [Copy Page Dropdown](#copy-page-dropdown)
   - [API Endpoints](#api-endpoints)
@@ -883,6 +884,37 @@ Cards display post thumbnails (from `image` frontmatter field), titles, excerpts
 
 **View preference:** User's view mode choice is saved to localStorage and persists across page visits.
 
+**Blog page featured layout:**
+
+Posts can be marked as featured on the blog page using the `blogFeatured` frontmatter field:
+
+```yaml
+---
+title: "My Featured Post"
+blogFeatured: true
+---
+```
+
+The first `blogFeatured` post displays as a hero card with landscape image, tags, date, title, excerpt, author info, and read more link. Remaining `blogFeatured` posts display in a 2-column featured row with excerpts. Regular (non-featured) posts display in a 3-column grid without excerpts.
+
+### Homepage Post Limit
+
+Limit the number of posts shown on the homepage:
+
+```typescript
+postsDisplay: {
+  showOnHome: true,
+  homePostsLimit: 5, // Limit to 5 most recent posts (undefined = show all)
+  homePostsReadMore: {
+    enabled: true,
+    text: "Read more blog posts",
+    link: "/blog",
+  },
+},
+```
+
+When posts are limited, an optional "read more" link appears below the list. Only shows when there are more posts than the limit.
+
 ### Hardcoded Navigation Items
 
 Add React route pages (like `/stats`, `/write`) to the navigation menu via `siteConfig.ts`. These pages are React components, not markdown files.
@@ -1050,6 +1082,14 @@ Pages appear automatically in the navigation when published.
 
 **Right sidebar:** When enabled in `siteConfig.rightSidebar.enabled`, posts and pages can display a right sidebar containing the CopyPageDropdown at 1135px+ viewport width. Add `rightSidebar: true` to frontmatter to enable. Without this field, pages render normally with CopyPageDropdown in the nav bar. When enabled, CopyPageDropdown moves from the navigation bar to the right sidebar on wide screens. The right sidebar is hidden below 1135px, and CopyPageDropdown returns to the nav bar automatically.
 
+**Show image at top:** Add `showImageAtTop: true` to display the `image` field at the top of the post/page above the header. Default behavior: if `showImageAtTop` is not set or `false`, image only used for Open Graph previews and featured card thumbnails.
+
+**Footer:** Footer content can be set in frontmatter (`footer` field) or use `siteConfig.footer.defaultContent`. Control visibility globally via `siteConfig.footer.enabled` and per-page via `showFooter: true/false` frontmatter.
+
+**Social footer:** Display social icons and copyright below the main footer. Configure via `siteConfig.socialFooter`. Control visibility per-page via `showSocialFooter: true/false` frontmatter.
+
+**Contact form:** Enable contact forms on any page or post via `contactForm: true` frontmatter. Requires `AGENTMAIL_API_KEY` and `AGENTMAIL_INBOX` environment variables in Convex. See the [Contact Form section](#contact-form-configuration) below.
+
 **AI Agent chat:** The site includes an AI writing assistant (Agent) powered by Anthropic Claude API. Enable Agent on the Write page via `siteConfig.aiChat.enabledOnWritePage` or in the right sidebar on posts/pages using `aiChat: true` frontmatter (requires `rightSidebar: true`). Requires `ANTHROPIC_API_KEY` environment variable in Convex. See the [AI Agent chat section](#ai-agent-chat) below for setup instructions.
 
 ### Update SEO Meta Tags
@@ -1064,6 +1104,14 @@ Edit `index.html` to update:
 ### Update llms.txt and robots.txt
 
 Edit `public/llms.txt` and `public/robots.txt` with your site information.
+
+## Tag Pages and Related Posts
+
+Tag pages are available at `/tags/[tag]` for each tag used in your posts. They display all posts with that tag in a list or card view.
+
+**Related posts:** Individual blog posts show up to 3 related posts in the footer based on shared tags. Posts are sorted by relevance (number of shared tags) then by date. Only appears on blog posts (not static pages).
+
+**Tag links:** Tags in post footers link to their respective tag archive pages.
 
 ## Search
 
@@ -1106,6 +1154,137 @@ How it works:
 - Sessions expire after 2 minutes of inactivity
 - A cron job cleans up stale sessions every 5 minutes
 - No personal data is stored (only anonymous UUIDs)
+
+## Footer Configuration
+
+The footer component displays markdown content and can be configured globally or per-page.
+
+**Global configuration:**
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+footer: {
+  enabled: true,              // Global toggle for footer
+  showOnHomepage: true,       // Show footer on homepage
+  showOnPosts: true,          // Default: show footer on blog posts
+  showOnPages: true,          // Default: show footer on static pages
+  showOnBlogPage: true,       // Show footer on /blog page
+  defaultContent: "...",      // Default markdown content
+},
+```
+
+**Frontmatter override:**
+
+Set `showFooter: false` in post/page frontmatter to hide footer on specific pages. Set `footer: "..."` to provide custom markdown content.
+
+**Footer images:** Footer markdown supports images with size control via HTML attributes (`width`, `height`, `style`, `class`).
+
+## Social Footer Configuration
+
+Display social icons and copyright information below the main footer.
+
+**Configuration:**
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+socialFooter: {
+  enabled: true,
+  showOnHomepage: true,
+  showOnPosts: true,
+  showOnPages: true,
+  showOnBlogPage: true,
+  socialLinks: [
+    { platform: "github", url: "https://github.com/username" },
+    { platform: "twitter", url: "https://x.com/handle" },
+    { platform: "linkedin", url: "https://linkedin.com/in/profile" },
+  ],
+  copyright: {
+    siteName: "Your Site Name",
+    showYear: true, // Auto-updates to current year
+  },
+},
+```
+
+**Supported platforms:** github, twitter, linkedin, instagram, youtube, tiktok, discord, website
+
+**Frontmatter override:**
+
+Set `showSocialFooter: false` in post/page frontmatter to hide social footer on specific pages.
+
+## Right Sidebar Configuration
+
+Enable a right sidebar on posts and pages that displays CopyPageDropdown at wide viewport widths.
+
+**Configuration:**
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+rightSidebar: {
+  enabled: true,      // Set to false to disable globally
+  minWidth: 1135,     // Minimum viewport width to show sidebar
+},
+```
+
+**Frontmatter usage:**
+
+Enable right sidebar on specific posts/pages:
+
+```yaml
+---
+title: My Post
+rightSidebar: true
+---
+```
+
+**Features:**
+
+- Right sidebar appears at 1135px+ viewport width
+- Contains CopyPageDropdown with sharing options
+- Three-column layout: left sidebar (TOC), main content, right sidebar
+- Hidden below 1135px, CopyPageDropdown returns to nav
+
+## Contact Form Configuration
+
+Enable contact forms on any page or post via frontmatter. Messages are sent via AgentMail.
+
+**Environment Variables:**
+
+Set these in the Convex dashboard:
+
+| Variable                  | Description                                                                 |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `AGENTMAIL_API_KEY`       | Your AgentMail API key                                                      |
+| `AGENTMAIL_INBOX`         | Your inbox address for sending                                              |
+| `AGENTMAIL_CONTACT_EMAIL` | Optional: recipient for contact form messages (defaults to AGENTMAIL_INBOX) |
+
+**Site Config:**
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+contactForm: {
+  enabled: true, // Global toggle for contact form feature
+  title: "Get in Touch",
+  description: "Send us a message and we'll get back to you.",
+},
+```
+
+**Frontmatter Usage:**
+
+Enable contact form on any page or post:
+
+```yaml
+---
+title: Contact Us
+slug: contact
+contactForm: true
+---
+```
+
+The form includes name, email, and message fields. Submissions are stored in Convex and sent via AgentMail to the configured recipient.
 
 ## Newsletter Admin
 

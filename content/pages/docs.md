@@ -127,6 +127,7 @@ Content here...
 | `blogFeatured`     | No       | Show as featured on blog page (first becomes hero, rest in 2-column row)                                                                                                                               |
 | `newsletter`       | No       | Override newsletter signup display (`true` to show, `false` to hide)                                                                                                                                   |
 | `contactForm`      | No       | Enable contact form on this post                                                                                                                                                                       |
+| `showImageAtTop`   | No       | Set `true` to display the `image` field at the top of the post above the header (default: `false`)                                                                                                     |
 
 ### Static pages
 
@@ -165,8 +166,11 @@ Content here...
 | `aiChat`           | No       | Enable AI chat in right sidebar. Set `true` to enable (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`). Set `false` to explicitly hide even if global config is enabled. |
 | `newsletter`       | No       | Override newsletter signup display (`true` to show, `false` to hide)                                                                                                                                   |
 | `contactForm`      | No       | Enable contact form on this page                                                                                                                                                                       |
+| `showImageAtTop`   | No       | Set `true` to display the `image` field at the top of the page above the header (default: `false`)                                                                                                     |
 
 **Hide pages from navigation:** Set `showInNav: false` to keep a page published and accessible via direct URL, but hidden from the navigation menu. Pages with `showInNav: false` remain searchable and available via API endpoints. Useful for pages you want to link directly but not show in the main nav.
+
+**Show image at top:** Add `showImageAtTop: true` to display the `image` field at the top of the post/page above the header. Default behavior: if `showImageAtTop` is not set or `false`, image only used for Open Graph previews and featured card thumbnails.
 
 ### Sidebar layout
 
@@ -756,6 +760,14 @@ The `npm run sync` command only syncs markdown text content. Images are deployed
 - **Homepage logo:** Configured via `logo` in `siteConfig.ts`. Set to `null` to hide.
 - **Inner page logo:** Configured via `innerPageLogo` in `siteConfig.ts`. Shows on blog page, posts, and static pages. Desktop: top left corner. Mobile: top right corner (smaller). Set `enabled: false` to hide on inner pages while keeping homepage logo.
 
+## Tag Pages and Related Posts
+
+Tag pages are available at `/tags/[tag]` for each tag used in your posts. They display all posts with that tag in a list or card view with localStorage persistence for view mode preference.
+
+**Related posts:** Individual blog posts show up to 3 related posts in the footer based on shared tags. Posts are sorted by relevance (number of shared tags) then by date. Only appears on blog posts (not static pages).
+
+**Tag links:** Tags in post footers link to their respective tag archive pages.
+
 ## Search
 
 Press `Command+K` (Mac) or `Ctrl+K` (Windows/Linux) to open the search modal. Click the search icon in the nav or use the keyboard shortcut.
@@ -805,6 +817,68 @@ Each post and page includes a share dropdown with options:
 | Both content and discovery           | `npm run sync:all` or `sync:all:prod`             |
 
 **Download as SKILL.md:** Downloads the content formatted as an Anthropic Agent Skills file with metadata, triggers, and instructions sections.
+
+## Homepage Post Limit
+
+Limit the number of posts shown on the homepage:
+
+```typescript
+postsDisplay: {
+  showOnHome: true,
+  homePostsLimit: 5, // Limit to 5 most recent posts (undefined = show all)
+  homePostsReadMore: {
+    enabled: true,
+    text: "Read more blog posts",
+    link: "/blog",
+  },
+},
+```
+
+When posts are limited, an optional "read more" link appears below the list. Only shows when there are more posts than the limit.
+
+## Blog Page Featured Layout
+
+Posts can be marked as featured on the blog page using the `blogFeatured` frontmatter field:
+
+```yaml
+---
+title: "My Featured Post"
+blogFeatured: true
+---
+```
+
+The first `blogFeatured` post displays as a hero card with landscape image, tags, date, title, excerpt, author info, and read more link. Remaining `blogFeatured` posts display in a 2-column featured row with excerpts. Regular (non-featured) posts display in a 3-column grid without excerpts.
+
+## Homepage Post Limit
+
+Limit the number of posts shown on the homepage:
+
+```typescript
+postsDisplay: {
+  showOnHome: true,
+  homePostsLimit: 5, // Limit to 5 most recent posts (undefined = show all)
+  homePostsReadMore: {
+    enabled: true,
+    text: "Read more blog posts",
+    link: "/blog",
+  },
+},
+```
+
+When posts are limited, an optional "read more" link appears below the list. Only shows when there are more posts than the limit.
+
+## Blog Page Featured Layout
+
+Posts can be marked as featured on the blog page using the `blogFeatured` frontmatter field:
+
+```yaml
+---
+title: "My Featured Post"
+blogFeatured: true
+---
+```
+
+The first `blogFeatured` post displays as a hero card with landscape image, tags, date, title, excerpt, author info, and read more link. Remaining `blogFeatured` posts display in a 2-column featured row with excerpts. Regular (non-featured) posts display in a 3-column grid without excerpts.
 
 ## Real-time stats
 

@@ -6,10 +6,10 @@ slug: "happy-holidays-2025"
 published: true
 tags: ["updates", "community", "ai"]
 readTime: "2 min read"
-featured: true
+featured: false
 featuredOrder: 0
-blogFeatured: true
-aiChat: true
+blogFeatured: false
+aiChat: false
 image: /images/1225-changelog.png
 excerpt: "Thank you for the stars, forks, and feedback. More AI-first publishing features are coming."
 authorName: "Wayne Sutton"

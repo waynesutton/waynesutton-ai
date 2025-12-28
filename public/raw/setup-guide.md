@@ -68,6 +68,7 @@ This guide walks you through forking [this markdown framework](https://github.co
     - [Using Search](#using-search)
     - [How It Works](#how-it-works)
   - [Real-time Stats](#real-time-stats)
+  - [Newsletter Admin](#newsletter-admin)
   - [Mobile Navigation](#mobile-navigation)
   - [Copy Page Dropdown](#copy-page-dropdown)
   - [API Endpoints](#api-endpoints)

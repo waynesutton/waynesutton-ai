@@ -76,19 +76,19 @@ Edit each file individually following the guide below.
 
 ### Files to Update
 
-| File                                | What to Update                               |
-| ----------------------------------- | -------------------------------------------- |
+| File                                | What to Update                                               |
+| ----------------------------------- | ------------------------------------------------------------ |
 | `src/config/siteConfig.ts`          | Site name, bio, GitHub username, gitHubRepo config, features |
-| `src/pages/Home.tsx`                | Intro paragraph, footer links                |
-| `src/pages/Post.tsx`                | `SITE_URL`, `SITE_NAME` constants            |
-| `convex/http.ts`                    | `SITE_URL`, `SITE_NAME` constants            |
-| `convex/rss.ts`                     | `SITE_URL`, `SITE_TITLE`, `SITE_DESCRIPTION` |
-| `index.html`                        | Meta tags, JSON-LD, page title               |
-| `public/llms.txt`                   | Site info, GitHub link                       |
-| `public/robots.txt`                 | Sitemap URL                                  |
-| `public/openapi.yaml`               | Server URL, site name                        |
-| `public/.well-known/ai-plugin.json` | Plugin metadata                              |
-| `src/context/ThemeContext.tsx`      | Default theme                                |
+| `src/pages/Home.tsx`                | Intro paragraph, footer links                                |
+| `src/pages/Post.tsx`                | `SITE_URL`, `SITE_NAME` constants                            |
+| `convex/http.ts`                    | `SITE_URL`, `SITE_NAME` constants                            |
+| `convex/rss.ts`                     | `SITE_URL`, `SITE_TITLE`, `SITE_DESCRIPTION`                 |
+| `index.html`                        | Meta tags, JSON-LD, page title                               |
+| `public/llms.txt`                   | Site info, GitHub link                                       |
+| `public/robots.txt`                 | Sitemap URL                                                  |
+| `public/openapi.yaml`               | Server URL, site name                                        |
+| `public/.well-known/ai-plugin.json` | Plugin metadata                                              |
+| `src/context/ThemeContext.tsx`      | Default theme                                                |
 
 ---
 
@@ -170,10 +170,10 @@ export const siteConfig: SiteConfig = {
   // GitHub repository config (for AI service links)
   // Used by ChatGPT, Claude, Perplexity "Open in AI" buttons
   gitHubRepo: {
-    owner: "YOURUSERNAME",           // GitHub username or organization
-    repo: "YOUR-REPO-NAME",          // Repository name
-    branch: "main",                  // Default branch
-    contentPath: "public/raw",       // Path to raw markdown files
+    owner: "YOURUSERNAME", // GitHub username or organization
+    repo: "YOUR-REPO-NAME", // Repository name
+    branch: "main", // Default branch
+    contentPath: "public/raw", // Path to raw markdown files
   },
 };
 ```
@@ -453,6 +453,7 @@ homepage: {
 ### Examples
 
 **Use a static page as homepage:**
+
 ```typescript
 homepage: {
   type: "page",
@@ -462,6 +463,7 @@ homepage: {
 ```
 
 **Use a blog post as homepage:**
+
 ```typescript
 homepage: {
   type: "post",
@@ -471,6 +473,7 @@ homepage: {
 ```
 
 **Switch back to default homepage:**
+
 ```typescript
 homepage: {
   type: "default",
@@ -489,10 +492,10 @@ The newsletter feature integrates with AgentMail for email subscriptions and sen
 
 Set these in the Convex dashboard:
 
-| Variable | Description |
-| -------- | ----------- |
-| `AGENTMAIL_API_KEY` | Your AgentMail API key |
-| `AGENTMAIL_INBOX` | Your inbox address (e.g., `newsletter@mail.agentmail.to`) |
+| Variable            | Description                                               |
+| ------------------- | --------------------------------------------------------- |
+| `AGENTMAIL_API_KEY` | Your AgentMail API key                                    |
+| `AGENTMAIL_INBOX`   | Your inbox address (e.g., `newsletter@mail.agentmail.to`) |
 
 ### In fork-config.json
 
@@ -567,7 +570,7 @@ Hide or show newsletter signup on specific posts using frontmatter:
 ```yaml
 ---
 title: My Post
-newsletter: false  # Hide newsletter signup on this post
+newsletter: false # Hide newsletter signup on this post
 ---
 ```
 
@@ -576,7 +579,7 @@ Or force show it even if posts default is disabled:
 ```yaml
 ---
 title: Special Offer Post
-newsletter: true  # Show newsletter signup on this post
+newsletter: true # Show newsletter signup on this post
 ---
 ```
 
@@ -598,6 +601,73 @@ npx convex run newsletter:sendPostNewsletter '{"postSlug":"setup-guide","siteUrl
 
 View subscriber count on the `/stats` page. Subscribers are stored in the `newsletterSubscribers` table in Convex.
 
+### Newsletter Admin
+
+The Newsletter Admin UI at `/newsletter-admin` provides a management interface for subscribers and sending newsletters.
+
+**Configuration:**
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+newsletterAdmin: {
+  enabled: true,      // Enable /newsletter-admin route
+  showInNav: false,   // Hide from navigation (access via direct URL)
+},
+```
+
+**Features:**
+
+- View and search all subscribers
+- Filter by status (all, active, unsubscribed)
+- Delete subscribers
+- Send blog posts as newsletters
+- Write and send custom emails with markdown support
+- View recent newsletter sends
+- Email statistics dashboard
+
+**CLI Commands:**
+
+```bash
+# Send a blog post to all subscribers
+npm run newsletter:send <post-slug>
+
+# Send weekly stats summary
+npm run newsletter:send:stats
+```
+
+### Newsletter Notifications
+
+Configure developer notifications for subscriber events:
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+newsletterNotifications: {
+  enabled: true,              // Global toggle for notifications
+  newSubscriberAlert: true,   // Send email when new subscriber signs up
+  weeklyStatsSummary: true,   // Send weekly stats summary email
+},
+```
+
+Uses `AGENTMAIL_CONTACT_EMAIL` or `AGENTMAIL_INBOX` as recipient.
+
+### Weekly Digest
+
+Automated weekly email with posts from the past 7 days:
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+weeklyDigest: {
+  enabled: true,      // Global toggle for weekly digest
+  dayOfWeek: 0,       // 0 = Sunday, 6 = Saturday
+  subject: "Weekly Digest", // Email subject prefix
+},
+```
+
+Runs automatically via cron job every Sunday at 9:00 AM UTC.
+
 ---
 
 ## Contact Form Configuration
@@ -608,10 +678,10 @@ Enable contact forms on any page or post via frontmatter. Messages are sent via 
 
 Set these in the Convex dashboard:
 
-| Variable | Description |
-| -------- | ----------- |
-| `AGENTMAIL_API_KEY` | Your AgentMail API key |
-| `AGENTMAIL_INBOX` | Your inbox address for sending (e.g., `newsletter@mail.agentmail.to`) |
+| Variable                  | Description                                                                 |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `AGENTMAIL_API_KEY`       | Your AgentMail API key                                                      |
+| `AGENTMAIL_INBOX`         | Your inbox address for sending (e.g., `newsletter@mail.agentmail.to`)       |
 | `AGENTMAIL_CONTACT_EMAIL` | Optional: recipient for contact form messages (defaults to AGENTMAIL_INBOX) |
 
 ### Site Config
@@ -641,6 +711,243 @@ contactForm: true
 ```
 
 The form includes name, email, and message fields. Submissions are stored in Convex and sent via AgentMail to the configured recipient.
+
+---
+
+## Footer Configuration
+
+The footer component displays markdown content and can be configured globally or per-page.
+
+### In fork-config.json
+
+```json
+{
+  "footer": {
+    "enabled": true,
+    "showOnHomepage": true,
+    "showOnPosts": true,
+    "showOnPages": true,
+    "showOnBlogPage": true,
+    "defaultContent": "Built with [Convex](https://convex.dev) for real-time sync."
+  }
+}
+```
+
+### Manual Configuration
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+footer: {
+  enabled: true,              // Global toggle for footer
+  showOnHomepage: true,       // Show footer on homepage
+  showOnPosts: true,          // Default: show footer on blog posts
+  showOnPages: true,          // Default: show footer on static pages
+  showOnBlogPage: true,       // Show footer on /blog page
+  defaultContent: "...",      // Default markdown content
+},
+```
+
+**Frontmatter Override:**
+
+Set `showFooter: false` in post/page frontmatter to hide footer on specific pages. Set `footer: "..."` to provide custom markdown content.
+
+---
+
+## Social Footer Configuration
+
+Display social icons and copyright information below the main footer.
+
+### In fork-config.json
+
+```json
+{
+  "socialFooter": {
+    "enabled": true,
+    "showOnHomepage": true,
+    "showOnPosts": true,
+    "showOnPages": true,
+    "showOnBlogPage": true,
+    "socialLinks": [
+      {
+        "platform": "github",
+        "url": "https://github.com/yourusername/your-repo-name"
+      },
+      {
+        "platform": "twitter",
+        "url": "https://x.com/yourhandle"
+      }
+    ],
+    "copyright": {
+      "siteName": "Your Site Name",
+      "showYear": true
+    }
+  }
+}
+```
+
+### Manual Configuration
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+socialFooter: {
+  enabled: true,
+  showOnHomepage: true,
+  showOnPosts: true,
+  showOnPages: true,
+  showOnBlogPage: true,
+  socialLinks: [
+    { platform: "github", url: "https://github.com/username" },
+    { platform: "twitter", url: "https://x.com/handle" },
+    { platform: "linkedin", url: "https://linkedin.com/in/profile" },
+  ],
+  copyright: {
+    siteName: "Your Site Name",
+    showYear: true, // Auto-updates to current year
+  },
+},
+```
+
+**Supported Platforms:** github, twitter, linkedin, instagram, youtube, tiktok, discord, website
+
+**Frontmatter Override:**
+
+Set `showSocialFooter: false` in post/page frontmatter to hide social footer on specific pages.
+
+---
+
+## Right Sidebar Configuration
+
+Enable a right sidebar on posts and pages that displays CopyPageDropdown at wide viewport widths.
+
+### In fork-config.json
+
+```json
+{
+  "rightSidebar": {
+    "enabled": true,
+    "minWidth": 1135
+  }
+}
+```
+
+### Manual Configuration
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+rightSidebar: {
+  enabled: true,      // Set to false to disable globally
+  minWidth: 1135,    // Minimum viewport width to show sidebar
+},
+```
+
+**Frontmatter Usage:**
+
+Enable right sidebar on specific posts/pages:
+
+```yaml
+---
+title: My Post
+rightSidebar: true
+---
+```
+
+**Features:**
+
+- Right sidebar appears at 1135px+ viewport width
+- Contains CopyPageDropdown with sharing options
+- Three-column layout: left sidebar (TOC), main content, right sidebar
+- Hidden below 1135px, CopyPageDropdown returns to nav
+
+---
+
+## AI Chat Configuration
+
+Configure the AI writing assistant powered by Anthropic Claude.
+
+### In fork-config.json
+
+```json
+{
+  "aiChat": {
+    "enabledOnWritePage": false,
+    "enabledOnContent": false
+  }
+}
+```
+
+### Manual Configuration
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+aiChat: {
+  enabledOnWritePage: true,  // Show AI chat toggle on /write page
+  enabledOnContent: true,    // Allow AI chat on posts/pages via frontmatter
+},
+```
+
+**Environment Variables (Convex):**
+
+- `ANTHROPIC_API_KEY` (required): Your Anthropic API key
+- `CLAUDE_PROMPT_STYLE`, `CLAUDE_PROMPT_COMMUNITY`, `CLAUDE_PROMPT_RULES` (optional): Split system prompts
+- `CLAUDE_SYSTEM_PROMPT` (optional): Single system prompt fallback
+
+**Frontmatter Usage:**
+
+Enable AI chat on posts/pages:
+
+```yaml
+---
+title: My Post
+rightSidebar: true
+aiChat: true
+---
+```
+
+Requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`.
+
+---
+
+## Posts Display Configuration
+
+Control where posts appear and limit homepage display.
+
+### In fork-config.json
+
+```json
+{
+  "postsDisplay": {
+    "showOnHome": true,
+    "showOnBlogPage": true,
+    "homePostsLimit": 5,
+    "homePostsReadMore": {
+      "enabled": true,
+      "text": "Read more blog posts",
+      "link": "/blog"
+    }
+  }
+}
+```
+
+### Manual Configuration
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+postsDisplay: {
+  showOnHome: true,           // Show post list on homepage
+  showOnBlogPage: true,       // Show post list on /blog page
+  homePostsLimit: 5,          // Limit posts on homepage (undefined = show all)
+  homePostsReadMore: {
+    enabled: true,            // Show "read more" link when limited
+    text: "Read more blog posts",
+    link: "/blog",
+  },
+},
+```
 
 ---
 
@@ -701,12 +1008,12 @@ Discovery files (`AGENTS.md` and `public/llms.txt`) can be automatically updated
 
 ### Commands
 
-| Command | Description |
-| ------- | ----------- |
-| `npm run sync:discovery` | Update discovery files with local Convex data |
-| `npm run sync:discovery:prod` | Update discovery files with production Convex data |
-| `npm run sync:all` | Sync content + discovery files together (development) |
-| `npm run sync:all:prod` | Sync content + discovery files together (production) |
+| Command                       | Description                                           |
+| ----------------------------- | ----------------------------------------------------- |
+| `npm run sync:discovery`      | Update discovery files with local Convex data         |
+| `npm run sync:discovery:prod` | Update discovery files with production Convex data    |
+| `npm run sync:all`            | Sync content + discovery files together (development) |
+| `npm run sync:all:prod`       | Sync content + discovery files together (production)  |
 
 ### When to run
 
@@ -716,10 +1023,10 @@ Discovery files (`AGENTS.md` and `public/llms.txt`) can be automatically updated
 
 ### What gets updated
 
-| File | Updated Content |
-| ---- | --------------- |
-| `AGENTS.md` | Project overview, current status (site name, URL, post/page counts) |
-| `public/llms.txt` | Site info, total posts, latest post date, GitHub URL |
+| File              | Updated Content                                                     |
+| ----------------- | ------------------------------------------------------------------- |
+| `AGENTS.md`       | Project overview, current status (site name, URL, post/page counts) |
+| `public/llms.txt` | Site info, total posts, latest post date, GitHub URL                |
 
 The script reads from `siteConfig.ts` and queries Convex for live content statistics.
 

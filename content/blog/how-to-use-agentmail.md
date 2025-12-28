@@ -4,6 +4,8 @@ description: "Complete guide to setting up AgentMail for newsletters and contact
 date: "2025-12-27"
 slug: "how-to-use-agentmail"
 published: true
+featured: true
+featuredOrder: 3
 image: /images/agentmail-blog.png
 tags: ["agentmail", "newsletter", "email", "setup"]
 ---
