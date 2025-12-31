@@ -328,7 +328,7 @@ export interface SiteConfig {
 // Customize this for your site
 export const siteConfig: SiteConfig = {
   // Basic site info
-  name: 'Wayne Sutton'sync" framework',
+  name: "Wayne Sutton",
   title: "Helping developers and startups build faster with A",
   // Optional logo/header image (place in public/images/, set to null to hide)
   logo: "/images/logo.svg",
