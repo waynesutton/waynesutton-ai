@@ -3,7 +3,7 @@ title: "Using Images in Blog Posts"
 description: "Learn how to add header images, inline images, and Open Graph images to your markdown posts."
 date: "2025-12-14"
 slug: "using-images-in-posts"
-published: true
+published: false
 featured: false
 layout: "sidebar"
 featuredOrder: 4

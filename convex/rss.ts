@@ -3,9 +3,9 @@ import { api } from "./_generated/api";
 
 // Site configuration for RSS feed
 const SITE_URL = process.env.SITE_URL || "https://www.markdown.fast";
-const SITE_TITLE = "markdown sync framework";
+const SITE_TITLE = "Wayne Sutton";
 const SITE_DESCRIPTION =
-  "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs.. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.";
+  "Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider.";
 
 // Escape XML special characters
 function escapeXml(text: string): string {
@@ -106,12 +106,19 @@ export const rssFeed = httpAction(async (ctx) => {
   const posts = await ctx.runQuery(api.posts.getAllPosts);
 
   const xml = generateRssXml(
-    posts.map((post: { title: string; description: string; slug: string; date: string }) => ({
-      title: post.title,
-      description: post.description,
-      slug: post.slug,
-      date: post.date,
-    })),
+    posts.map(
+      (post: {
+        title: string;
+        description: string;
+        slug: string;
+        date: string;
+      }) => ({
+        title: post.title,
+        description: post.description,
+        slug: post.slug,
+        date: post.date,
+      }),
+    ),
   );
 
   return new Response(xml, {
@@ -128,20 +135,29 @@ export const rssFullFeed = httpAction(async (ctx) => {
 
   // Fetch full content for each post
   const fullPosts = await Promise.all(
-    posts.map(async (post: { title: string; description: string; slug: string; date: string; readTime?: string; tags: string[] }) => {
-      const fullPost = await ctx.runQuery(api.posts.getPostBySlug, {
-        slug: post.slug,
-      });
-      return {
-        title: post.title,
-        description: post.description,
-        slug: post.slug,
-        date: post.date,
-        content: fullPost?.content || "",
-        readTime: post.readTime,
-        tags: post.tags,
-      };
-    }),
+    posts.map(
+      async (post: {
+        title: string;
+        description: string;
+        slug: string;
+        date: string;
+        readTime?: string;
+        tags: string[];
+      }) => {
+        const fullPost = await ctx.runQuery(api.posts.getPostBySlug, {
+          slug: post.slug,
+        });
+        return {
+          title: post.title,
+          description: post.description,
+          slug: post.slug,
+          date: post.date,
+          content: fullPost?.content || "",
+          readTime: post.readTime,
+          tags: post.tags,
+        };
+      },
+    ),
   );
 
   const xml = generateFullRssXml(fullPosts);

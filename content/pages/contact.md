@@ -1,7 +1,7 @@
 ---
 title: "Contact"
 slug: "contact"
-published: true
+published: false
 contactForm: false
 newsletter: false
 order: 4

@@ -1,7 +1,7 @@
 ---
 title: "Changelog"
 slug: "changelog"
-published: true
+published: false
 order: 5
 rightSidebar: true
 layout: "sidebar"

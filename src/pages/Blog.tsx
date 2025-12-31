@@ -224,9 +224,8 @@ export default function Blog() {
       {showFooter && <Footer content={footerPage?.content} />}
 
       {/* Social footer section */}
-      {siteConfig.socialFooter?.enabled && siteConfig.socialFooter.showOnBlogPage && (
-        <SocialFooter />
-      )}
+      {siteConfig.socialFooter?.enabled &&
+        siteConfig.socialFooter.showOnBlogPage && <SocialFooter />}
     </div>
   );
 }

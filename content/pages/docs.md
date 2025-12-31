@@ -1,7 +1,7 @@
 ---
 title: "Docs"
 slug: "docs"
-published: true
+published: false
 order: 0
 layout: "sidebar"
 aiChat: true

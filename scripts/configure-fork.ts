@@ -21,6 +21,8 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 // Configuration interface matching fork-config.json
 interface ForkConfig {
@@ -81,6 +83,7 @@ interface ForkConfig {
 }
 
 // Get project root directory
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 
 // Read fork config

@@ -1,8 +1,8 @@
 {
   "schema_version": "v1",
-  "name_for_human": "markdown sync site",
-  "name_for_model": "markdown_sync_site",
-  "description_for_human": "An open-source markdown sync site you publish from the terminal with npm run sync",
+  "name_for_human": "Wayne Sutton",
+  "name_for_model": "wayne_sutton",
+  "description_for_human": "Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider.",
   "description_for_model": "Access blog posts and pages in markdown format. Use /api/posts for a list of all posts with metadata. Use /api/post?slug={slug}&format=md to get full markdown content of any post. Use /api/export for batch content with full markdown.",
   "auth": {
     "type": "none"
@@ -12,7 +12,6 @@
     "url": "/openapi.yaml"
   },
   "logo_url": "/images/logo.svg",
-  "contact_email": "",
+  "contact_email": "wayne@convex.dev",
   "legal_info_url": ""
 }
-

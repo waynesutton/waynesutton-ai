@@ -328,12 +328,12 @@ export interface SiteConfig {
 // Customize this for your site
 export const siteConfig: SiteConfig = {
   // Basic site info
-  name: 'markdown "sync" framework',
-  title: "markdown sync framework",
+  name: 'Wayne Sutton'sync" framework',
+  title: "Helping developers and startups build faster with A",
   // Optional logo/header image (place in public/images/, set to null to hide)
   logo: "/images/logo.svg",
   intro: null, // Set in Home.tsx to allow JSX with links
-  bio: `Your content is instantly available to browsers, LLMs, and AI agents.`,
+  bio: `Developer Community Lead at Convex, tech event organizer, startup ecosystem builder, and adventure motorcycle rider—helping developers and startups build faster with Convex and AI.`,
 
   // Font family configuration
   // Options: "serif" (New York), "sans" (system fonts), "monospace" (IBM Plex Mono)
@@ -349,10 +349,10 @@ export const siteConfig: SiteConfig = {
 
   // Logo gallery configuration
   // Set enabled to false to hide, or remove/replace sample images with your own
-  // scrolling: true = infinite scroll marquee, false = static centered grid
+  // scrolling: false = infinite scroll marquee, false = static centered grid
   // maxItems: only used when scrolling is false (default: 4)
   logoGallery: {
-    enabled: true,
+    enabled: false,
     images: [
       {
         src: "/images/logos/convex-wordmark-black.svg",
@@ -397,7 +397,7 @@ export const siteConfig: SiteConfig = {
   // GitHub contributions graph configuration
   // Set enabled to false to hide, or change username to your GitHub username
   gitHubContributions: {
-    enabled: true, // Set to false to hide the contributions graph
+    enabled: false, // Set to false to hide the contributions graph
     username: "waynesutton", // Your GitHub username
     showYearNavigation: true, // Show arrows to navigate between years
     linkToProfile: true, // Click graph to open GitHub profile
@@ -425,7 +425,7 @@ export const siteConfig: SiteConfig = {
     enabled: true, // Enable the /blog route
     showInNav: true, // Show "Blog" link in navigation
     title: "Blog", // Page title
-    description: "All posts from the blog, sorted by date.", // Optional description
+    description: "Writings from Wayne and Agents.", // Optional description
     order: 2, // Nav order (lower = first, e.g., 0 = first, 5 = after pages with order 0-4)
     viewMode: "cards", // Default view mode: "list" or "cards"
     showViewToggle: true, // Show toggle button to switch between list and card views
@@ -477,7 +477,7 @@ export const siteConfig: SiteConfig = {
   // Note: Content must be pushed to GitHub for AI links to work
   gitHubRepo: {
     owner: "waynesutton", // GitHub username or organization
-    repo: "markdown-site", // Repository name
+    repo: "waynesutton-ai", // Repository name
     branch: "main", // Default branch
     contentPath: "public/raw", // Path to raw markdown files
   },
@@ -509,7 +509,7 @@ export const siteConfig: SiteConfig = {
   // Featured section is NOT shown on custom homepage (only on default Home component)
   homepage: {
     type: "default", // Options: "default" (standard Home component), "page" (use a static page), or "post" (use a blog post)
-    slug: "undefined", // Required if type is "page" or "post" - the slug of the page/post to use default is undefined
+    slug: undefined, // Required if type is "page" or "post" - the slug of the page/post to use default is undefined
     originalHomeRoute: "/home", // Route to access the original homepage when custom homepage is set
   },
 

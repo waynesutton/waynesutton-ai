@@ -7,7 +7,7 @@ const http = httpRouter();
 
 // Site configuration
 const SITE_URL = process.env.SITE_URL || "https://www.markdown.fast";
-const SITE_NAME = "markdown sync framework";
+const SITE_NAME = "Wayne Sutton";
 
 // RSS feed endpoint (descriptions only)
 http.route({
@@ -251,7 +251,7 @@ function generateMetaHtml(content: {
   type?: "post" | "page";
 }): string {
   const siteUrl = process.env.SITE_URL || "https://markdown.fast";
-  const siteName = "markdown sync framework";
+  const siteName = "Wayne Sutton";
   const defaultImage = `${siteUrl}/images/og-default.svg`;
   const canonicalUrl = `${siteUrl}/${content.slug}`;
 

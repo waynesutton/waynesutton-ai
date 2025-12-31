@@ -3,7 +3,7 @@ title: "How to Publish a Blog Post"
 description: "A quick guide to writing and publishing markdown posts using Cursor after your framework is set up."
 date: "2025-12-14"
 slug: "how-to-publish"
-published: true
+published: false
 tags: ["tutorial", "markdown", "cursor", "IDE", "publishing"]
 readTime: "3 min read"
 featured: false

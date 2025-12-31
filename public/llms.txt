@@ -1,17 +1,13 @@
 # llms.txt - Information for AI assistants and LLMs
 # Learn more: https://llmstxt.org/
-# Last updated: 2025-12-31T01:30:04.563Z
 
-> Your content is instantly available to browsers, LLMs, and AI agents.
+> Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider.
 
 # Site Information
-- Name: markdown 
-- URL: https://markdown.fast
-- Description: Your content is instantly available to browsers, LLMs, and AI agents. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.
+- Name: Wayne Sutton
+- URL: https://www.waynesutton.ai
+- Description: Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider.
 - Topics: Markdown, Convex, React, TypeScript, Netlify, Open Source, AI, LLM, AEO, GEO
-- Total Posts: 17
-- Latest Post: 2025-12-29
-- GitHub: https://github.com/waynesutton/markdown-site
 
 # API Endpoints
 
@@ -78,6 +74,6 @@ Each post contains:
 - Content: Markdown with frontmatter
 
 # Links
-- GitHub: https://github.com/waynesutton/markdown-site
+- GitHub: https://github.com/waynesutton/waynesutton-ai
 - Convex: https://convex.dev
 - Netlify: https://netlify.com
