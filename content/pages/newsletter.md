@@ -1,7 +1,7 @@
 ---
 title: Newsletter
 slug: newsletter
-published: true
+published: false
 order: 15
 showInNav: true
 newsletter: false

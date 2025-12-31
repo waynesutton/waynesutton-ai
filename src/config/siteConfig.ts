@@ -439,13 +439,13 @@ export const siteConfig: SiteConfig = {
       slug: "stats",
       title: "Stats",
       order: 10,
-      showInNav: true,
+      showInNav: false,
     },
     {
       slug: "write",
       title: "Write",
       order: 20,
-      showInNav: true,
+      showInNav: false,
     },
   ],
 
@@ -528,7 +528,7 @@ export const siteConfig: SiteConfig = {
     enabled: true, // Set to true to enable newsletter signup forms
     signup: {
       home: {
-        enabled: true,
+        enabled: false,
         position: "above-footer",
         title: "Stay Updated",
         description: "Get new posts delivered to your inbox.",
@@ -575,10 +575,9 @@ export const siteConfig: SiteConfig = {
       },
       { platform: "twitter", url: "https://x.com/waynesutton" },
       { platform: "linkedin", url: "https://www.linkedin.com/in/waynesutton/" },
-      { platform: "discord", url: "https://www.convex.dev/community/" },
     ],
     copyright: {
-      siteName: "MarkDown Sync is open-source", // Update with your site/company name
+      siteName: "Wayne Sutton", // Update with your site/company name
       showYear: true, // Auto-updates to current year
     },
   },

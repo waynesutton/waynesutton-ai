@@ -3,7 +3,7 @@ title: "Blog Post Demo"
 description: "Test"
 date: "2025-12-14"
 slug: "blog-demo1"
-published: false
+published: true
 featured: false
 layout: "sidebar"
 featuredOrder: 4
