@@ -6,7 +6,7 @@ import { rssFeed, rssFullFeed } from "./rss";
 const http = httpRouter();
 
 // Site configuration
-const SITE_URL = process.env.SITE_URL || "https://www.markdown.fast";
+const SITE_URL = process.env.SITE_URL || "https://www.waynesutton.ai";
 const SITE_NAME = "Wayne Sutton";
 
 // RSS feed endpoint (descriptions only)
@@ -250,7 +250,7 @@ function generateMetaHtml(content: {
   image?: string;
   type?: "post" | "page";
 }): string {
-  const siteUrl = process.env.SITE_URL || "https://markdown.fast";
+  const siteUrl = process.env.SITE_URL || "https://www.waynesutton.ai";
   const siteName = "Wayne Sutton";
   const defaultImage = `${siteUrl}/images/og-default.svg`;
   const canonicalUrl = `${siteUrl}/${content.slug}`;

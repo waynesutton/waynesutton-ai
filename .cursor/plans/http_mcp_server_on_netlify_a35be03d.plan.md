@@ -66,7 +66,7 @@ todos:
 
 ## Overview
 
-Deploy an HTTP-based MCP server as a Netlify Edge Function that's accessible 24/7 at `https://www.markdown.fast/mcp`. The server uses optional authentication (public access by default with rate limiting, API key authentication for higher limits) and exposes read-only tools for AI tools like Cursor to access blog content.
+Deploy an HTTP-based MCP server as a Netlify Edge Function that's accessible 24/7 at `https://www.waynesutton.ai/mcp`. The server uses optional authentication (public access by default with rate limiting, API key authentication for higher limits) and exposes read-only tools for AI tools like Cursor to access blog content.
 
 ## Architecture
 
@@ -236,7 +236,7 @@ tags: ["mcp", "cursor", "ai", "tutorial", "netlify"]
 Add new section "MCP Server" after "API Endpoints" section:
 
 - Overview of HTTP-based MCP server
-- Endpoint URL: `https://www.markdown.fast/mcp`
+- Endpoint URL: `https://www.waynesutton.ai/mcp`
 - Public access (no authentication required)
 - Optional API key setup
 - Rate limiting information
@@ -287,7 +287,7 @@ Add entry at top:
 ### Added
 
 - HTTP-based MCP (Model Context Protocol) server deployed on Netlify
-- Accessible 24/7 at https://www.markdown.fast/mcp
+- Accessible 24/7 at https://www.waynesutton.ai/mcp
 - Public access with Netlify built-in rate limiting (50 req/min per IP)
 - Optional API key authentication for higher limits (1000 req/min)
 - Read-only access to blog posts, pages, homepage, and search
@@ -307,7 +307,7 @@ Add same entry at top (before v1.38.0)
 Add section "MCP Server" after "Fork Configuration":
 
 - Brief description of HTTP-based MCP server
-- Endpoint URL: `https://www.markdown.fast/mcp`
+- Endpoint URL: `https://www.waynesutton.ai/mcp`
 - Public access (no authentication required)
 - Optional API key for higher limits
 - Link to detailed documentation
@@ -434,7 +434,7 @@ Return proper MCP JSON-RPC error format:
 {
   "mcpServers": {
     "markdown-fast": {
-      "url": "https://www.markdown.fast/mcp"
+      "url": "https://www.waynesutton.ai/mcp"
     }
   }
 }
@@ -446,7 +446,7 @@ Return proper MCP JSON-RPC error format:
 {
   "mcpServers": {
     "markdown-fast": {
-      "url": "https://www.markdown.fast/mcp",
+      "url": "https://www.waynesutton.ai/mcp",
       "headers": {
         "Authorization": "Bearer your-api-key-here"
       }

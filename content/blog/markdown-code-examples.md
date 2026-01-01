@@ -273,7 +273,7 @@ Read the [Convex docs][convex] or check the [API reference][convex].
 URLs and email addresses in angle brackets become clickable:
 
 ```markdown
-<https://markdown.fast>
+<https://www.waynesutton.ai>
 <hello@example.com>
 ```
 

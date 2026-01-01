@@ -121,7 +121,7 @@ function loadSiteConfig(): SiteConfigData {
 // Get site URL from environment or config
 function getSiteUrl(): string {
   return (
-    process.env.SITE_URL || process.env.VITE_SITE_URL || "https://markdown.fast"
+    process.env.SITE_URL || process.env.VITE_SITE_URL || "https://www.waynesutton.ai"
   );
 }
 

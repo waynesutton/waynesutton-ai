@@ -9,7 +9,7 @@ info:
     url: https://github.com/waynesutton/waynesutton-ai
 
 servers:
-  - url: https://www.markdown.fast
+  - url: https://www.waynesutton.ai
     description: Production server
 
 paths:
@@ -31,7 +31,7 @@ paths:
                     example: Wayne Sutton
                   url:
                     type: string
-                    example: https://markdown.fast
+                    example: https://www.waynesutton.ai
                   posts:
                     type: array
                     items:
@@ -164,10 +164,10 @@ components:
           example: [tutorial, markdown]
         url:
           type: string
-          example: https://markdown.fast/how-to-build-blog
+          example: https://www.waynesutton.ai/how-to-build-blog
         markdownUrl:
           type: string
-          example: https://markdown.fast/api/post?slug=how-to-build-blog
+          example: https://www.waynesutton.ai/api/post?slug=how-to-build-blog
 
     Post:
       type: object

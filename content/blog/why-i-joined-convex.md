@@ -12,12 +12,12 @@ authorName: "Wayne Sutton"
 blogFeatured: true
 authorImage: "/images/authors/wayne.jpeg"
 image: "/images/bikes.jpeg"
+showImageAtTop: true
 excerpt: "A developer asked me this at a meetup last night. The answer is simple: the team, the product, the mission, and the adventure."
 ---
 
 # Why I joined Convex
 
-![nature](/images/bikes.jpeg)
 
 Photo note: Here's a shot of Convex co-founder and CTO James Cowling, Liz Cardoza from marketing, and my motorcycles in the office garage. When you pull up and see another bike from your coworkers, you know you're in the right place.
 

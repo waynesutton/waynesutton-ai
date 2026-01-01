@@ -1,7 +1,7 @@
 import type { Config, Context } from "@netlify/edge-functions";
 
 // MCP Server configuration
-const SITE_URL = "https://www.markdown.fast";
+const SITE_URL = "https://www.waynesutton.ai";
 const SITE_NAME = "markdown sync framework";
 const MCP_SERVER_NAME = "markdown-fast-mcp";
 const MCP_SERVER_VERSION = "1.0.0";

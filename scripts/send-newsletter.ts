@@ -11,7 +11,7 @@
  *
  * Environment variables (from .env.local):
  *   - VITE_CONVEX_URL: Convex deployment URL
- *   - SITE_URL: Your site URL (default: https://markdown.fast)
+ *   - SITE_URL: Your site URL (default: https://www.waynesutton.ai)
  *   - SITE_NAME: Your site name (default: "Newsletter")
  *
  * Note: AGENTMAIL_API_KEY and AGENTMAIL_INBOX must be set in Convex dashboard
@@ -42,7 +42,7 @@ async function main() {
     process.exit(1);
   }
 
-  const siteUrl = process.env.SITE_URL || "https://markdown.fast";
+  const siteUrl = process.env.SITE_URL || "https://www.waynesutton.ai/";
   const siteName = process.env.SITE_NAME || "Newsletter";
 
   console.log(`Sending newsletter for post: ${postSlug}`);

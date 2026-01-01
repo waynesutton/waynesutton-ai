@@ -719,7 +719,7 @@ To enable WorkOS authentication:
 5. Configure redirect URI in WorkOS dashboard
 6. Set `requireAuth: true` in `siteConfig.ts`
 
-See [How to setup WorkOS](https://www.markdown.fast/how-to-setup-workos) for complete setup instructions.
+See [How to setup WorkOS](https://www.waynesutton.ai/how-to-setup-workos) for complete setup instructions.
 
 **Features:**
 
@@ -730,7 +730,7 @@ See [How to setup WorkOS](https://www.markdown.fast/how-to-setup-workos) for com
 - AI Agent: Writing assistance powered by Claude
 - Analytics: Real-time stats dashboard
 
-See [How to use the Markdown sync dashboard](https://www.markdown.fast/how-to-use-the-markdown-sync-dashboard) for complete usage guide.
+See [How to use the Markdown sync dashboard](https://www.waynesutton.ai/how-to-use-the-markdown-sync-dashboard) for complete usage guide.
 
 ### Dashboard Sync Server
 
@@ -865,7 +865,7 @@ Set `MCP_API_KEY` in Netlify environment variables for authenticated access.
 - 7 tools: `list_posts`, `get_post`, `list_pages`, `get_page`, `get_homepage`, `search_content`, `export_all`
 - JSON-RPC 2.0 protocol over HTTP POST
 
-See [How to Use the MCP Server](https://www.markdown.fast/how-to-use-mcp-server) for client configuration examples.
+See [How to Use the MCP Server](https://www.waynesutton.ai/how-to-use-mcp-server) for client configuration examples.
 
 ---
 

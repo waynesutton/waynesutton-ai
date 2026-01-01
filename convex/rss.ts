@@ -2,7 +2,7 @@ import { httpAction } from "./_generated/server";
 import { api } from "./_generated/api";
 
 // Site configuration for RSS feed
-const SITE_URL = process.env.SITE_URL || "https://www.markdown.fast";
+const SITE_URL = process.env.SITE_URL || "https://www.waynesutton.ai";
 const SITE_TITLE = "Wayne Sutton";
 const SITE_DESCRIPTION =
   "Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider.";

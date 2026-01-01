@@ -933,7 +933,7 @@ dotenv.config({ path: ".env.local" });
 const client = new ConvexHttpClient(process.env.VITE_CONVEX_URL!);
 
 const postSlug = process.argv[2];
-const siteUrl = process.env.SITE_URL || "https://markdown.fast";
+const siteUrl = process.env.SITE_URL || "https://www.waynesutton.ai";
 
 if (!postSlug) {
   console.error("Usage: npm run newsletter:send <post-slug>");

@@ -36,13 +36,13 @@ npm run sync        # dev
 npm run sync:prod   # production
 ```
 
-**MCP Server:** The site includes an HTTP-based Model Context Protocol (MCP) server at `/mcp` for AI tool integration. Connect Cursor, Claude Desktop, and other MCP clients to access blog content programmatically. See [How to Use the MCP Server](https://www.markdown.fast/how-to-use-mcp-server) for setup instructions.
+**MCP Server:** The site includes an HTTP-based Model Context Protocol (MCP) server at `/mcp` for AI tool integration. Connect Cursor, Claude Desktop, and other MCP clients to access blog content programmatically. See [How to Use the MCP Server](https://www.waynesutton.ai/how-to-use-mcp-server) for setup instructions.
 
 ## Documentation
 
-- **[Setup Guide](https://www.markdown.fast/setup-guide)** - Complete fork and deployment guide
-- **[Configuration Guide](https://www.markdown.fast/fork-configuration-guide)** - Automated or manual fork setup
-- **[Full Documentation](https://www.markdown.fast/docs)** - Docs for all features and configuration
+- **[Setup Guide](https://www.waynesutton.ai/setup-guide)** - Complete fork and deployment guide
+- **[Configuration Guide](https://www.waynesutton.ai/fork-configuration-guide)** - Automated or manual fork setup
+- **[Full Documentation](https://www.waynesutton.ai/docs)** - Docs for all features and configuration
 
 ### AI Development Tools
 
@@ -133,7 +133,7 @@ Follow the step-by-step guide in `FORK_CONFIG.md` to update each file manually. 
 
 The site includes an HTTP-based Model Context Protocol (MCP) server for AI tool integration. It allows AI assistants like Cursor and Claude Desktop to access blog content programmatically.
 
-**Endpoint:** `https://www.markdown.fast/mcp`
+**Endpoint:** `https://www.waynesutton.ai/mcp`
 
 **Features:**
 
@@ -150,7 +150,7 @@ Add to your Cursor config (`~/.cursor/mcp.json`):
 {
   "mcpServers": {
     "markdown-fast": {
-      "url": "https://www.markdown.fast/mcp"
+      "url": "https://www.waynesutton.ai/mcp"
     }
   }
 }
@@ -158,7 +158,7 @@ Add to your Cursor config (`~/.cursor/mcp.json`):
 
 **For forks:** Set `VITE_CONVEX_URL` in Netlify environment variables. Optionally set `MCP_API_KEY` for authenticated access.
 
-See [How to Use the MCP Server](https://www.markdown.fast/how-to-use-mcp-server) for full documentation.
+See [How to Use the MCP Server](https://www.waynesutton.ai/how-to-use-mcp-server) for full documentation.
 
 ### Content Import
 
@@ -177,7 +177,7 @@ The framework includes a centralized dashboard at `/dashboard` for managing cont
 - AI Agent: Writing assistance powered by Claude
 - Analytics: Real-time stats dashboard
 
-WorkOS authentication is recommended so no one has access to your dashboard if it's enabled. Configure it in `siteConfig.ts` to protect the dashboard in production. See [How to use the Markdown sync dashboard](https://www.markdown.fast/how-to-use-the-markdown-sync-dashboard) and [How to setup WorkOS](https://www.markdown.fast/how-to-setup-workos) for details.
+WorkOS authentication is recommended so no one has access to your dashboard if it's enabled. Configure it in `siteConfig.ts` to protect the dashboard in production. See [How to use the Markdown sync dashboard](https://www.waynesutton.ai/how-to-use-the-markdown-sync-dashboard) and [How to setup WorkOS](https://www.waynesutton.ai/how-to-setup-workos) for details.
 
 ### Newsletter and Email
 
@@ -192,7 +192,7 @@ The framework includes AgentMail integration for newsletter subscriptions and co
 - Custom email composition with markdown support
 - Email statistics dashboard
 
-See the [AgentMail setup guide](https://www.markdown.fast/blog/how-to-use-agentmail) for configuration instructions.
+See the [AgentMail setup guide](https://www.waynesutton.ai/blog/how-to-use-agentmail) for configuration instructions.
 
 ## Getting Started
 

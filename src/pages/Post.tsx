@@ -17,7 +17,7 @@ import { useState, useEffect } from "react";
 import siteConfig from "../config/siteConfig";
 
 // Site configuration
-const SITE_URL = "https://markdown.fast";
+const SITE_URL = "https://www.waynesutton.ai";
 const SITE_NAME = "Wayne Sutton";
 const DEFAULT_OG_IMAGE = "/images/og-default.svg";
 

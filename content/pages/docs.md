@@ -1058,7 +1058,7 @@ dashboard: {
 },
 ```
 
-When `requireAuth` is `false`, the dashboard is open access. When `requireAuth` is `true` and WorkOS is configured, users must log in to access the dashboard. See [How to setup WorkOS](https://www.markdown.fast/how-to-setup-workos) for authentication setup.
+When `requireAuth` is `false`, the dashboard is open access. When `requireAuth` is `true` and WorkOS is configured, users must log in to access the dashboard. See [How to setup WorkOS](https://www.waynesutton.ai/how-to-setup-workos) for authentication setup.
 
 ### Content Management
 
@@ -1283,7 +1283,7 @@ All newsletter sections are full-width in the dashboard content area.
 
 The site includes an HTTP-based Model Context Protocol (MCP) server for AI tool integration. It allows AI assistants like Cursor and Claude Desktop to access blog content programmatically.
 
-**Endpoint:** `https://www.markdown.fast/mcp`
+**Endpoint:** `https://www.waynesutton.ai/mcp`
 
 **Features:**
 
@@ -1312,7 +1312,7 @@ Add to `~/.cursor/mcp.json`:
 {
   "mcpServers": {
     "markdown-fast": {
-      "url": "https://www.markdown.fast/mcp"
+      "url": "https://www.waynesutton.ai/mcp"
     }
   }
 }

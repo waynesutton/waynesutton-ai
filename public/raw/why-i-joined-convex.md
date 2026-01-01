@@ -11,7 +11,6 @@ Tags: convex, motorcycles, culture, startups, job
 
 # Why I joined Convex
 
-![nature](/images/bikes.jpeg)
 
 Photo note: Here's a shot of Convex co-founder and CTO James Cowling, Liz Cardoza from marketing, and my motorcycles in the office garage. When you pull up and see another bike from your coworkers, you know you're in the right place.
 

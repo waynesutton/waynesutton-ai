@@ -18,7 +18,7 @@ Your content is instantly available to browsers, LLMs, and AI agents.. Write mar
 
 - **Site Name**: markdown 
 - **Site Title**: markdown sync framework
-- **Site URL**: https://markdown.fast
+- **Site URL**: https://www.waynesutton.ai
 - **Total Posts**: 17
 - **Total Pages**: 5
 - **Latest Post**: 2025-12-29

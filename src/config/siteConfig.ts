@@ -341,7 +341,7 @@ export const siteConfig: SiteConfig = {
 
   // Featured section configuration
   // viewMode: 'list' shows bullet list, 'cards' shows card grid with excerpts
-  featuredViewMode: "cards",
+  featuredViewMode: "list",
   // Featured section title (e.g., "Get started:", "Featured", "Popular")
   featuredTitle: "Writings",
   // Allow users to toggle between list and card views
@@ -364,27 +364,27 @@ export const siteConfig: SiteConfig = {
       },
       {
         src: "/images/logos/firecrawl.svg",
-        href: "https://www.markdown.fast/how-to-use-firecrawl",
+        href: "https://www.waynesutton.ai/how-to-use-firecrawl",
       },
       {
         src: "/images/logos/markdown.svg",
-        href: "https://markdown.fast/docs",
+        href: "https://www.waynesutton.ai/docs",
       },
       {
         src: "/images/logos/react.svg",
-        href: "https://markdown.fast/setup-guide",
+        href: "https://www.waynesutton.ai/setup-guide",
       },
       {
         src: "/images/logos/agentmail.svg",
-        href: "https://www.markdown.fast/how-to-use-agentmail/",
+        href: "https://www.waynesutton.ai/how-to-use-agentmail/",
       },
       {
         src: "/images/logos/mcp.svg",
-        href: "https://www.markdown.fast/how-to-use-mcp-server/",
+        href: "https://www.waynesutton.ai/how-to-use-mcp-server/",
       },
       {
         src: "/images/logos/workos.svg",
-        href: "https://www.markdown.fast/how-to-setup-workos",
+        href: "https://www.waynesutton.ai/how-to-setup-workos",
       },
     ],
     position: "above-footer",
@@ -528,7 +528,7 @@ export const siteConfig: SiteConfig = {
     enabled: true, // Set to true to enable newsletter signup forms
     signup: {
       home: {
-        enabled: true,
+        enabled: false,
         position: "above-footer",
         title: "Stay Updated",
         description: "Get new posts delivered to your inbox.",
