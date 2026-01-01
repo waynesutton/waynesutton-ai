@@ -34,6 +34,10 @@ fork-config.json
 # Cursor rules
 .cursor/rules/write.mdc
 
+# Claude skills 
+.claude/skills/write.md
+
+
 # PRD files
 prds/metadataforsubs.md
 prds/addchattoapp.md

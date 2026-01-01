@@ -329,11 +329,11 @@ export interface SiteConfig {
 export const siteConfig: SiteConfig = {
   // Basic site info
   name: "Wayne Sutton",
-  title: "Helping developers and startups build faster with A",
+  title: "Helping developers and startups build faster with AI",
   // Optional logo/header image (place in public/images/, set to null to hide)
-  logo: "/images/logo.svg",
+  logo: "",
   intro: null, // Set in Home.tsx to allow JSX with links
-  bio: `Developer Community Lead at Convex, tech event organizer, startup ecosystem builder, and adventure motorcycle rider—helping developers and startups build faster with Convex and AI.`,
+  bio: `fix .`,
 
   // Font family configuration
   // Options: "serif" (New York), "sans" (system fonts), "monospace" (IBM Plex Mono)
@@ -343,7 +343,7 @@ export const siteConfig: SiteConfig = {
   // viewMode: 'list' shows bullet list, 'cards' shows card grid with excerpts
   featuredViewMode: "cards",
   // Featured section title (e.g., "Get started:", "Featured", "Popular")
-  featuredTitle: "Get started:",
+  featuredTitle: "Writings",
   // Allow users to toggle between list and card views
   showViewToggle: true,
 
@@ -397,7 +397,7 @@ export const siteConfig: SiteConfig = {
   // GitHub contributions graph configuration
   // Set enabled to false to hide, or change username to your GitHub username
   gitHubContributions: {
-    enabled: false, // Set to false to hide the contributions graph
+    enabled: true, // Set to false to hide the contributions graph
     username: "waynesutton", // Your GitHub username
     showYearNavigation: true, // Show arrows to navigate between years
     linkToProfile: true, // Click graph to open GitHub profile
@@ -407,7 +407,7 @@ export const siteConfig: SiteConfig = {
   // Visitor map configuration
   // Displays real-time visitor locations on the stats page
   visitorMap: {
-    enabled: true, // Set to false to hide the visitor map
+    enabled: false, // Set to false to hide the visitor map
     title: "Live Visitors", // Optional title above the map
   },
 
@@ -459,7 +459,7 @@ export const siteConfig: SiteConfig = {
     homePostsLimit: 5, // Limit number of posts on homepage (undefined = show all)
     homePostsReadMore: {
       enabled: true, // Show "read more" link when posts are limited
-      text: "Read more blog posts", // Customizable link text
+      text: "Articles", // Customizable link text
       link: "/blog", // URL to link to (usually "/blog")
     },
   },
@@ -517,8 +517,8 @@ export const siteConfig: SiteConfig = {
   // Controls the AI writing assistant powered by Claude
   // Requires ANTHROPIC_API_KEY environment variable in Convex dashboard
   aiChat: {
-    enabledOnWritePage: true, // Show AI chat toggle on /write page
-    enabledOnContent: true, // Allow AI chat on posts/pages via frontmatter aiChat: true
+    enabledOnWritePage: false, // Show AI chat toggle on /write page
+    enabledOnContent: false, // Allow AI chat on posts/pages via frontmatter aiChat: true
   },
 
   // Newsletter configuration (email-only signup)
@@ -528,7 +528,7 @@ export const siteConfig: SiteConfig = {
     enabled: true, // Set to true to enable newsletter signup forms
     signup: {
       home: {
-        enabled: false,
+        enabled: true,
         position: "above-footer",
         title: "Stay Updated",
         description: "Get new posts delivered to your inbox.",
@@ -595,7 +595,7 @@ export const siteConfig: SiteConfig = {
   // Set enabled: false to make stats page private (route still accessible but shows disabled message)
   statsPage: {
     enabled: true, // Global toggle for stats page
-    showInNav: true, // Show link in navigation (also controlled via hardcodedNavItems)
+    showInNav: false, // Show link in navigation (also controlled via hardcodedNavItems)
   },
 
   // Newsletter notifications configuration
