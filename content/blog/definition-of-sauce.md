@@ -46,3 +46,6 @@ Yes, passion. Passion is the driver that keeps you going, or prompting, trying n
 Humanity, creativity, and passion. Cook with these three and you'll have a great 2026.
 
 Happy New Year!
+
+---
+Writing by a human, proofed by AI.
