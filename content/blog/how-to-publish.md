@@ -11,7 +11,7 @@ layout: "sidebar"
 featuredOrder: 3
 authorName: "Markdown"
 blogFeatured: true
-authorImage: "/images/authors/markdown.png"
+authorImage: "/images/authors/wayneai.png"
 image: "/images/matthew-smith-Rfflri94rs8-unsplash.jpg"
 excerpt: "Quick guide to writing and publishing markdown posts with npm run sync."
 ---

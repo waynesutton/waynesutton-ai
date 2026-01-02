@@ -7,4 +7,4 @@ order: -1
 textAlign: "left"
 ---
 
-### Community Builder | Startups | Adv Motorcycle Rider
+### Community Builder | Startups | Adv Motorcycle

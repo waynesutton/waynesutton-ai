@@ -2,7 +2,7 @@
 
 ---
 Type: page
-Date: 2026-01-01
+Date: 2026-01-02
 ---
 
-### Community Builder | Startups | Adv Motorcycle Rider
+### Community Builder | Startups | Adv Motorcycle
