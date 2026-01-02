@@ -331,9 +331,9 @@ export const siteConfig: SiteConfig = {
   name: "Wayne Sutton",
   title: "Helping developers and startups build faster with AI",
   // Optional logo/header image (place in public/images/, set to null to hide)
-  logo: "",
+   logo: "/images/logo.svg",
   intro: null, // Set in Home.tsx to allow JSX with links
-  bio: `fix .`,
+  bio: `  `,
 
   // Font family configuration
   // Options: "serif" (New York), "sans" (system fonts), "monospace" (IBM Plex Mono)
@@ -341,7 +341,7 @@ export const siteConfig: SiteConfig = {
 
   // Featured section configuration
   // viewMode: 'list' shows bullet list, 'cards' shows card grid with excerpts
-  featuredViewMode: "list",
+  featuredViewMode: "card",
   // Featured section title (e.g., "Get started:", "Featured", "Popular")
   featuredTitle: "Writings",
   // Allow users to toggle between list and card views

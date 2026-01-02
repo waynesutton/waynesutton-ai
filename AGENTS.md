@@ -4,7 +4,7 @@ Instructions for AI coding agents working on this codebase.
 
 ## Project overview
 
-fix .. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.
+  . Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.
 
 **Key features:**
 - Markdown posts with frontmatter
@@ -19,10 +19,10 @@ fix .. Write markdown, sync from the terminal. Your content is instantly availab
 - **Site Name**: Wayne Sutton
 - **Site Title**: Helping developers and startups build faster with AI
 - **Site URL**: https://www.waynesutton.ai
-- **Total Posts**: 2
+- **Total Posts**: 3
 - **Total Pages**: 1
-- **Latest Post**: 2025-12-14
-- **Last Updated**: 2026-01-01T22:33:50.255Z
+- **Latest Post**: 2026-01-01
+- **Last Updated**: 2026-01-02T06:53:25.796Z
 
 ## Tech stack
 

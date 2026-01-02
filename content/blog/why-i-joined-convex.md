@@ -1,7 +1,7 @@
 ---
 title: "Why I joined Convex"
 description: "A developer asked why I'm at Convex instead of another startup. Four reasons: the team, the product, the mission, and the adventure.."
-date: "2025-12-14"
+date: "2025-10-14"
 slug: "why-i-joined-convex"
 published: true
 tags: ["convex", "motorcycles", "culture", "startups", "job"]

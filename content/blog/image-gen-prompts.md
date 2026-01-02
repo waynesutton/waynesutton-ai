@@ -1,12 +1,16 @@
-# Blog Post Demo
-
-> Test
-
 ---
-Type: post
-Date: 2026-01-01
-Reading time: 4 min read
-Tags: images
+title: "Blog Post Demo"
+description: "Test"
+date: "2026-01-01"
+slug: "blog-demo1"
+published: true
+featured: false
+featuredOrder: 4
+tags: ["images"]
+readTime: "4 min read"
+blogFeatured: false
+authorName: "Wayne Sutton"
+
 ---
 
 ![nature](/images/codesauce.png)
@@ -95,3 +99,5 @@ Tags: images
   }
 }
 ```
+
+

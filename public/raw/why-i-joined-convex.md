@@ -4,7 +4,7 @@
 
 ---
 Type: post
-Date: 2025-12-14
+Date: 2025-10-14
 Reading time: 3 min read
 Tags: convex, motorcycles, culture, startups, job
 ---

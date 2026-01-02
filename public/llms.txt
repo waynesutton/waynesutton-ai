@@ -1,16 +1,16 @@
 # llms.txt - Information for AI assistants and LLMs
 # Learn more: https://llmstxt.org/
-# Last updated: 2026-01-01T22:33:50.257Z
+# Last updated: 2026-01-02T06:53:25.799Z
 
-> fix .
+>   
 
 # Site Information
 - Name: Wayne Sutton
 - URL: https://www.waynesutton.ai
-- Description: fix . Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.
+- Description:    Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.
 - Topics: Markdown, Convex, React, TypeScript, Netlify, Open Source, AI, LLM, AEO, GEO
-- Total Posts: 2
-- Latest Post: 2025-12-14
+- Total Posts: 3
+- Latest Post: 2026-01-01
 - GitHub: https://github.com/waynesutton/waynesutton-ai
 
 # API Endpoints
