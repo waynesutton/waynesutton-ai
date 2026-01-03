@@ -1,4 +1,4 @@
-# Blog Post Demo
+# Image Gen prompt
 
 > Test
 

@@ -1,4 +1,9 @@
-# Writing Style Skill
+---
+name: write
+description: Expert writing for technical content, social media, and developer documentation. Use when asked to write tweets, LinkedIn posts, blog posts, READMEs, commit messages, feature announcements, or any written content. Optimized to avoid AI detection patterns.
+---
+
+# Writing style skill
 
 Expert writing for technical content, social media, and developer documentation. Optimized to avoid AI detection patterns.
 

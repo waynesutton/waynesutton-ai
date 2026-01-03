@@ -1,11 +1,12 @@
 ---
-title: "Blog Post Demo"
+title: "Image Gen prompt"
 description: "Test"
 date: "2026-01-01"
-slug: "blog-demo1"
+slug: "imagegen"
 published: true
 featured: false
 featuredOrder: 4
+unlisted: true
 tags: ["images"]
 readTime: "4 min read"
 blogFeatured: false

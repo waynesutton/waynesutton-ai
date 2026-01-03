@@ -2,7 +2,7 @@
 title: "Blog Post Demo"
 description: "Test"
 date: "2026-01-01"
-slug: "blog-demo1"
+slug: "blog-demo12"
 published: false
 featured: true
 featuredOrder: 4
