@@ -21,8 +21,8 @@ Instructions for AI coding agents working on this codebase.
 - **Site URL**: https://www.waynesutton.ai
 - **Total Posts**: 3
 - **Total Pages**: 1
-- **Latest Post**: 2026-01-01
-- **Last Updated**: 2026-01-02T06:53:25.796Z
+- **Latest Post**: 2026-01-02
+- **Last Updated**: 2026-01-03T06:49:27.628Z
 
 ## Tech stack
 

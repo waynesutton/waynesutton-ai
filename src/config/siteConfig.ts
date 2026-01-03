@@ -571,7 +571,7 @@ export const siteConfig: SiteConfig = {
     socialLinks: [
       {
         platform: "github",
-        url: "https://github.com/waynesutton/markdown-site",
+        url: "https://github.com/waynesutton/",
       },
       { platform: "twitter", url: "https://x.com/waynesutton" },
       { platform: "linkedin", url: "https://www.linkedin.com/in/waynesutton/" },
