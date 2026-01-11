@@ -1,4 +1,9 @@
 import { ReactNode } from "react";
+
+// IMPORTANT: Keep this file in sync with Dashboard Config (src/pages/Dashboard.tsx ConfigSection)
+// When adding/modifying options here, update the Dashboard Config UI to match.
+// See CLAUDE.md "Configuration alignment" section for details.
+
 // Re-export types from LogoMarquee for convenience
 export type { LogoItem, LogoGalleryConfig } from "../components/LogoMarquee";
 import type { LogoGalleryConfig } from "../components/LogoMarquee";
@@ -80,6 +85,11 @@ export interface GitHubRepoConfig {
 // default font family options: "serif" (New York), "sans" (system fonts), "monospace" (IBM Plex Mono)
 export type FontFamily = "serif" | "sans" | "monospace";
 
+// Theme configuration
+// Controls the default color theme for the site
+// Options: "dark", "light", "tan", "cloud"
+export type Theme = "dark" | "light" | "tan" | "cloud";
+
 // Right sidebar configuration
 // Shows CopyPageDropdown in a right sidebar on posts/pages at 1135px+ viewport width
 export interface RightSidebarConfig {
@@ -112,6 +122,22 @@ export interface HomepageConfig {
 export interface AIChatConfig {
   enabledOnWritePage: boolean; // Show AI chat toggle on /write page
   enabledOnContent: boolean; // Allow AI chat on posts/pages via frontmatter aiChat: true
+}
+
+// AI Model configuration for Dashboard multi-model support
+export interface AIModelOption {
+  id: string; // Model identifier (e.g., "claude-sonnet-4-20250514", "gpt-4o")
+  name: string; // Display name (e.g., "Claude Sonnet 4", "GPT-4o")
+  provider: "anthropic" | "openai" | "google"; // Provider for the model
+}
+
+// AI Dashboard configuration
+// Controls multi-model AI chat and image generation in the Dashboard
+export interface AIDashboardConfig {
+  enableImageGeneration: boolean; // Enable image generation tab
+  defaultTextModel: string; // Default model ID for text chat
+  textModels: AIModelOption[]; // Available text models
+  imageModels: AIModelOption[]; // Available image generation models
 }
 
 // Newsletter signup placement configuration
@@ -161,6 +187,18 @@ export interface StatsPageConfig {
   showInNav: boolean; // Show link in navigation (controlled via hardcodedNavItems)
 }
 
+// Docs section configuration
+// Creates a Starlight-style documentation layout with left sidebar and right TOC
+// Pages/posts with docsSection: true in frontmatter appear in docs navigation
+export interface DocsSectionConfig {
+  enabled: boolean; // Global toggle for docs section
+  slug: string; // Base URL path (e.g., "docs" for /docs)
+  title: string; // Page title for docs landing
+  showInNav: boolean; // Show "Docs" link in navigation
+  order?: number; // Nav order (lower = first)
+  defaultExpanded: boolean; // Expand all sidebar groups by default
+}
+
 // Newsletter notifications configuration
 // Sends developer notifications for subscriber events
 // Uses AGENTMAIL_CONTACT_EMAIL or AGENTMAIL_INBOX as recipient
@@ -197,10 +235,48 @@ export interface DashboardConfig {
   requireAuth: boolean; // Require WorkOS authentication (only works if WorkOS is configured)
 }
 
+// Media library configuration
+// Controls image upload and CDN storage via ConvexFS and Bunny.net
+export interface MediaConfig {
+  enabled: boolean; // Global toggle for media library feature
+  maxFileSize: number; // Max file size in MB (default: 10)
+  allowedTypes: string[]; // Allowed MIME types
+}
+
 // Image lightbox configuration
 // Enables click-to-magnify functionality for images in blog posts and pages
 export interface ImageLightboxConfig {
   enabled: boolean; // Global toggle for image lightbox feature
+}
+
+// Semantic search configuration
+// Enables AI-powered search using vector embeddings
+// Requires OPENAI_API_KEY environment variable in Convex dashboard
+export interface SemanticSearchConfig {
+  enabled: boolean; // Global toggle for semantic search feature
+}
+
+// Twitter/X configuration for Twitter Cards
+// Used for twitter:site and twitter:creator meta tags
+export interface TwitterConfig {
+  site?: string; // @username for the website (e.g., "@yoursite")
+  creator?: string; // @username for default content creator
+}
+
+// Ask AI configuration (header chat for RAG-based Q&A)
+// Enables a header button that opens a chat modal for asking questions about site content
+// Uses RAG (Retrieval Augmented Generation) with streaming responses
+export interface AskAIConfig {
+  enabled: boolean; // Global toggle for Ask AI feature
+  defaultModel: string; // Default model ID (e.g., "claude-sonnet-4-20250514")
+  models: AIModelOption[]; // Available models for Ask AI
+}
+
+// Related posts configuration
+// Controls the display of related posts at the bottom of blog posts
+export interface RelatedPostsConfig {
+  defaultViewMode: "list" | "thumbnails"; // Default view mode for related posts
+  showViewToggle: boolean; // Show toggle button to switch between views
 }
 
 // Social link configuration for social footer
@@ -226,6 +302,7 @@ export interface SocialFooterConfig {
   showOnPosts: boolean; // Default: show social footer on blog posts
   showOnPages: boolean; // Default: show social footer on static pages
   showOnBlogPage: boolean; // Show social footer on /blog page
+  showInHeader: boolean; // Show social icons in header (left of search icon)
   socialLinks: SocialLink[]; // Array of social links to display
   copyright: {
     siteName: string; // Site name or company name displayed in copyright
@@ -244,6 +321,9 @@ export interface SiteConfig {
 
   // Font family configuration
   fontFamily: FontFamily;
+
+  // Default theme configuration
+  defaultTheme?: Theme;
 
   // Featured section configuration
   featuredViewMode: "cards" | "list";
@@ -308,6 +388,9 @@ export interface SiteConfig {
   // Stats page configuration (optional)
   statsPage?: StatsPageConfig;
 
+  // Docs section configuration (optional)
+  docsSection?: DocsSectionConfig;
+
   // Newsletter notifications configuration (optional)
   newsletterNotifications?: NewsletterNotificationsConfig;
 
@@ -320,16 +403,34 @@ export interface SiteConfig {
   // Dashboard configuration (optional)
   dashboard?: DashboardConfig;
 
+  // Media library configuration (optional)
+  media?: MediaConfig;
+
   // Image lightbox configuration (optional)
   imageLightbox?: ImageLightboxConfig;
+
+  // AI Dashboard configuration (optional)
+  aiDashboard?: AIDashboardConfig;
+
+  // Semantic search configuration (optional)
+  semanticSearch?: SemanticSearchConfig;
+
+  // Twitter/X configuration (optional)
+  twitter?: TwitterConfig;
+
+  // Ask AI configuration (optional)
+  askAI?: AskAIConfig;
+
+  // Related posts configuration (optional)
+  relatedPosts?: RelatedPostsConfig;
 }
 
 // Default site configuration
 // Customize this for your site
 export const siteConfig: SiteConfig = {
   // Basic site info
-  name: "Wayne Sutton",
-  title: "Helping developers and startups build faster with AI",
+  name: "markdown sync",
+  title: "markdown sync framework",
   // Optional logo/header image (place in public/images/, set to null to hide)
    logo: "/images/logo.svg",
   intro: null, // Set in Home.tsx to allow JSX with links
@@ -338,6 +439,10 @@ export const siteConfig: SiteConfig = {
   // Font family configuration
   // Options: "serif" (New York), "sans" (system fonts), "monospace" (IBM Plex Mono)
   fontFamily: "sans",
+
+  // Default theme configuration
+  // Options: "dark", "light", "tan", "cloud"
+  defaultTheme: "tan",
 
   // Featured section configuration
   // viewMode: 'list' shows bullet list, 'cards' shows card grid with excerpts
@@ -364,27 +469,27 @@ export const siteConfig: SiteConfig = {
       },
       {
         src: "/images/logos/firecrawl.svg",
-        href: "https://www.waynesutton.ai/how-to-use-firecrawl",
+        href: "/how-to-use-firecrawl",
       },
       {
         src: "/images/logos/markdown.svg",
-        href: "https://www.waynesutton.ai/docs",
+        href: "/docs",
       },
       {
         src: "/images/logos/react.svg",
-        href: "https://www.waynesutton.ai/setup-guide",
+        href: "/setup-guide",
       },
       {
         src: "/images/logos/agentmail.svg",
-        href: "https://www.waynesutton.ai/how-to-use-agentmail/",
+        href: "/how-to-use-agentmail",
       },
       {
         src: "/images/logos/mcp.svg",
-        href: "https://www.waynesutton.ai/how-to-use-mcp-server/",
+        href: "/how-to-use-mcp-server",
       },
       {
         src: "/images/logos/workos.svg",
-        href: "https://www.waynesutton.ai/how-to-setup-workos",
+        href: "/how-to-setup-workos",
       },
     ],
     position: "above-footer",
@@ -568,6 +673,7 @@ export const siteConfig: SiteConfig = {
     showOnPosts: true, // Default: show social footer on blog posts
     showOnPages: true, // Default: show social footer on static pages
     showOnBlogPage: true, // Show social footer on /blog page
+    showInHeader: true, // Show social icons in header (left of search icon)
     socialLinks: [
       {
         platform: "github",
@@ -596,6 +702,19 @@ export const siteConfig: SiteConfig = {
   statsPage: {
     enabled: true, // Global toggle for stats page
     showInNav: false, // Show link in navigation (also controlled via hardcodedNavItems)
+  },
+
+  // Docs section configuration
+  // Creates a Starlight-style documentation layout with left sidebar navigation and right TOC
+  // Add docsSection: true to page/post frontmatter to include in docs navigation
+  // Set docsLanding: true on one page to make it the /docs landing page
+  docsSection: {
+    enabled: true, // Global toggle for docs section
+    slug: "docs", // Base URL: /docs
+    title: "Docs", // Page title
+    showInNav: true, // Show "Docs" link in navigation
+    order: 1, // Nav order (lower = first)
+    defaultExpanded: true, // Expand all sidebar groups by default
   },
 
   // Newsletter notifications configuration
@@ -636,11 +755,102 @@ export const siteConfig: SiteConfig = {
     requireAuth: true,
   },
 
+  // Media library configuration
+  // Upload and manage images via ConvexFS and Bunny.net CDN
+  // Requires BUNNY_API_KEY, BUNNY_STORAGE_ZONE, BUNNY_CDN_HOSTNAME in Convex dashboard
+  media: {
+    enabled: true,
+    maxFileSize: 10, // Max file size in MB
+    allowedTypes: ["image/png", "image/jpeg", "image/gif", "image/webp"],
+  },
+
   // Image lightbox configuration
   // Enables click-to-magnify functionality for images in blog posts and pages
   // Images open in a full-screen lightbox overlay when clicked
   imageLightbox: {
     enabled: true, // Set to false to disable image lightbox
+  },
+
+  // AI Dashboard configuration
+  // Multi-model AI chat and image generation in the Dashboard
+  // Requires API keys in Convex environment variables:
+  // - ANTHROPIC_API_KEY for Claude models
+  // - OPENAI_API_KEY for OpenAI models
+  // - GOOGLE_AI_API_KEY for Gemini models (chat and image generation)
+  aiDashboard: {
+    enableImageGeneration: true, // Enable image generation tab
+    defaultTextModel: "claude-sonnet-4-20250514", // Default model for text chat
+    textModels: [
+      {
+        id: "claude-sonnet-4-20250514",
+        name: "Claude Sonnet 4",
+        provider: "anthropic",
+      },
+      {
+        id: "gpt-4o",
+        name: "GPT-4o",
+        provider: "openai",
+      },
+      {
+        id: "gemini-2.0-flash",
+        name: "Gemini 2.0 Flash",
+        provider: "google",
+      },
+    ],
+    imageModels: [
+      {
+        id: "gemini-2.0-flash-exp-image-generation",
+        name: "Nano Banana",
+        provider: "google",
+      },
+      {
+        id: "imagen-3.0-generate-002",
+        name: "Nano Banana Pro",
+        provider: "google",
+      },
+    ],
+  },
+
+  // Twitter/X configuration for Twitter Cards
+  // Set your Twitter handle for twitter:site meta tag
+  // Leave empty if you don't want to include twitter:site
+  twitter: {
+    site: "@waynesutton", // Your Twitter handle (e.g., "@yoursite")
+    creator: "@waynesutton", // Default creator handle
+  },
+
+  // Semantic search configuration
+  // Set enabled: true to enable semantic search (requires OPENAI_API_KEY in Convex)
+  // When disabled, only keyword search is available (no API key needed)
+  semanticSearch: {
+    enabled: true, // Set to true to enable semantic search (requires OPENAI_API_KEY)
+  },
+
+  // Ask AI configuration (header chat for RAG-based Q&A)
+  // Requires semanticSearch.enabled: true for content retrieval
+  // Requires OPENAI_API_KEY (for embeddings) and ANTHROPIC_API_KEY or OPENAI_API_KEY (for LLM)
+  askAI: {
+    enabled: true, // Set to true to enable Ask AI header button
+    defaultModel: "claude-sonnet-4-20250514",
+    models: [
+      {
+        id: "claude-sonnet-4-20250514",
+        name: "Claude Sonnet 4",
+        provider: "anthropic",
+      },
+      {
+        id: "gpt-4o",
+        name: "GPT-4o",
+        provider: "openai",
+      },
+    ],
+  },
+
+  // Related posts configuration
+  // Controls the display of related posts at the bottom of blog posts
+  relatedPosts: {
+    defaultViewMode: "thumbnails", // Default view: "list" or "thumbnails"
+    showViewToggle: true, // Show toggle button to switch between views
   },
 };
 

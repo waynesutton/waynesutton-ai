@@ -9,20 +9,38 @@
  * - src/config/siteConfig.ts (site name, bio, GitHub username, features)
  * - src/pages/Home.tsx (intro paragraph, footer section)
  * - src/pages/Post.tsx (SITE_URL, SITE_NAME constants)
+ * - src/pages/DocsPage.tsx (SITE_URL constant)
  * - convex/http.ts (SITE_URL, SITE_NAME constants)
  * - convex/rss.ts (SITE_URL, SITE_TITLE, SITE_DESCRIPTION)
  * - index.html (meta tags, JSON-LD, title)
  * - public/llms.txt (site info, API endpoints)
  * - public/robots.txt (sitemap URL)
- * - public/openapi.yaml (server URL, site name)
+ * - public/openapi.yaml (server URL, site name, example URLs)
  * - public/.well-known/ai-plugin.json (plugin metadata)
- * - src/context/ThemeContext.tsx (default theme)
+ * - netlify/edge-functions/mcp.ts (SITE_URL, SITE_NAME constants)
+ * - scripts/send-newsletter.ts (SITE_URL fallback)
  */
 
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { dirname } from "path";
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Silent mode flag (for CLI usage)
+const silent = process.argv.includes("--silent");
+
+// Log helper that respects silent mode
+function log(message: string): void {
+  if (!silent) log(message);
+}
+
+// Warn helper that always shows warnings
+function warn(message: string): void {
+  warn(message);
+}
 
 // Configuration interface matching fork-config.json
 interface ForkConfig {
@@ -80,6 +98,22 @@ interface ForkConfig {
     slug?: string;
     originalHomeRoute?: string;
   };
+  socialFooter?: {
+    enabled?: boolean;
+    showOnHomepage?: boolean;
+    showOnPosts?: boolean;
+    showOnPages?: boolean;
+    showOnBlogPage?: boolean;
+    showInHeader?: boolean;
+    socialLinks?: Array<{
+      platform: string;
+      url: string;
+    }>;
+    copyright?: {
+      siteName?: string;
+      showYear?: boolean;
+    };
+  };
 }
 
 // Get project root directory
@@ -92,10 +126,10 @@ function readConfig(): ForkConfig {
 
   if (!fs.existsSync(configPath)) {
     console.error("Error: fork-config.json not found.");
-    console.log("\nTo get started:");
-    console.log("1. Copy fork-config.json.example to fork-config.json");
-    console.log("2. Edit fork-config.json with your site information");
-    console.log("3. Run npm run configure again");
+    log("\nTo get started:");
+    log("1. Copy fork-config.json.example to fork-config.json");
+    log("2. Edit fork-config.json with your site information");
+    log("3. Run npm run configure again");
     process.exit(1);
   }
 
@@ -111,7 +145,7 @@ function updateFile(
   const filePath = path.join(PROJECT_ROOT, relativePath);
 
   if (!fs.existsSync(filePath)) {
-    console.warn(`Warning: ${relativePath} not found, skipping.`);
+    warn(`Warning: ${relativePath} not found, skipping.`);
     return;
   }
 
@@ -128,29 +162,37 @@ function updateFile(
 
   if (modified) {
     fs.writeFileSync(filePath, content, "utf-8");
-    console.log(`  Updated: ${relativePath}`);
+    log(`  Updated: ${relativePath}`);
   } else {
-    console.log(`  No changes: ${relativePath}`);
+    log(`  No changes: ${relativePath}`);
   }
 }
 
 // Update siteConfig.ts
 function updateSiteConfig(config: ForkConfig): void {
-  console.log("\nUpdating src/config/siteConfig.ts...");
+  log("\nUpdating src/config/siteConfig.ts...");
 
   const filePath = path.join(PROJECT_ROOT, "src/config/siteConfig.ts");
   let content = fs.readFileSync(filePath, "utf-8");
 
-  // Update site name
+  // Update site name (match single-quoted or double-quoted strings properly)
   content = content.replace(
-    /name: ['"].*?['"]/,
-    `name: '${config.siteName}'`,
+    /name: '(?:[^'\\]|\\.)*'/,
+    `name: '${config.siteName.replace(/'/g, "\\'")}'`,
+  );
+  content = content.replace(
+    /name: "(?:[^"\\]|\\.)*"/,
+    `name: "${config.siteName.replace(/"/g, '\\"')}"`,
   );
 
-  // Update site title
+  // Update site title (match single-quoted or double-quoted strings properly)
   content = content.replace(
-    /title: ['"].*?['"]/,
-    `title: "${config.siteTitle}"`,
+    /title: '(?:[^'\\]|\\.)*'/,
+    `title: "${config.siteTitle.replace(/"/g, '\\"')}"`,
+  );
+  content = content.replace(
+    /title: "(?:[^"\\]|\\.)*"/,
+    `title: "${config.siteTitle.replace(/"/g, '\\"')}"`,
   );
 
   // Update bio
@@ -316,13 +358,65 @@ function updateSiteConfig(config: ForkConfig): void {
     `contentPath: "${gitHubRepoContentPath}", // Path to raw markdown files`,
   );
 
+  // Update socialFooter if specified
+  if (config.socialFooter) {
+    if (config.socialFooter.enabled !== undefined) {
+      content = content.replace(
+        /socialFooter: \{[\s\S]*?enabled: (?:true|false),\s*\/\/ Global toggle for social footer/,
+        `socialFooter: {\n    enabled: ${config.socialFooter.enabled}, // Global toggle for social footer`,
+      );
+    }
+    if (config.socialFooter.showOnHomepage !== undefined) {
+      content = content.replace(
+        /showOnHomepage: (?:true|false),\s*\/\/ Show social footer on homepage/,
+        `showOnHomepage: ${config.socialFooter.showOnHomepage}, // Show social footer on homepage`,
+      );
+    }
+    if (config.socialFooter.showOnPosts !== undefined) {
+      content = content.replace(
+        /showOnPosts: (?:true|false),\s*\/\/ Default: show social footer on blog posts/,
+        `showOnPosts: ${config.socialFooter.showOnPosts}, // Default: show social footer on blog posts`,
+      );
+    }
+    if (config.socialFooter.showOnPages !== undefined) {
+      content = content.replace(
+        /showOnPages: (?:true|false),\s*\/\/ Default: show social footer on static pages/,
+        `showOnPages: ${config.socialFooter.showOnPages}, // Default: show social footer on static pages`,
+      );
+    }
+    if (config.socialFooter.showOnBlogPage !== undefined) {
+      content = content.replace(
+        /showOnBlogPage: (?:true|false),\s*\/\/ Show social footer on \/blog page/,
+        `showOnBlogPage: ${config.socialFooter.showOnBlogPage}, // Show social footer on /blog page`,
+      );
+    }
+    if (config.socialFooter.showInHeader !== undefined) {
+      content = content.replace(
+        /showInHeader: (?:true|false),\s*\/\/ Show social icons in header/,
+        `showInHeader: ${config.socialFooter.showInHeader}, // Show social icons in header`,
+      );
+    }
+    if (config.socialFooter.copyright?.siteName) {
+      content = content.replace(
+        /siteName: ['"].*?['"],\s*\/\/ Update with your site\/company name/,
+        `siteName: "${config.socialFooter.copyright.siteName}", // Update with your site/company name`,
+      );
+    }
+    if (config.socialFooter.copyright?.showYear !== undefined) {
+      content = content.replace(
+        /showYear: (?:true|false),\s*\/\/ Auto-updates to current year/,
+        `showYear: ${config.socialFooter.copyright.showYear}, // Auto-updates to current year`,
+      );
+    }
+  }
+
   fs.writeFileSync(filePath, content, "utf-8");
-  console.log(`  Updated: src/config/siteConfig.ts`);
+  log(`  Updated: src/config/siteConfig.ts`);
 }
 
 // Update Home.tsx
 function updateHomeTsx(config: ForkConfig): void {
-  console.log("\nUpdating src/pages/Home.tsx...");
+  log("\nUpdating src/pages/Home.tsx...");
 
   const githubRepoUrl = `https://github.com/${config.githubUsername}/${config.githubRepo}`;
 
@@ -367,57 +461,84 @@ function updateHomeTsx(config: ForkConfig): void {
 
 // Update Post.tsx
 function updatePostTsx(config: ForkConfig): void {
-  console.log("\nUpdating src/pages/Post.tsx...");
+  log("\nUpdating src/pages/Post.tsx...");
 
   updateFile("src/pages/Post.tsx", [
+    // Match any existing SITE_URL value (https://...)
     {
-      search: /const SITE_URL = "https:\/\/markdowncms\.netlify\.app";/,
+      search: /const SITE_URL = "https:\/\/[^"]+";/,
       replace: `const SITE_URL = "${config.siteUrl}";`,
     },
+    // Match any existing SITE_NAME value
     {
-      search: /const SITE_NAME = "markdown sync framework";/,
+      search: /const SITE_NAME = "[^"]+";/,
       replace: `const SITE_NAME = "${config.siteName}";`,
+    },
+  ]);
+}
+
+// Update DocsPage.tsx
+function updateDocsPageTsx(config: ForkConfig): void {
+  log("\nUpdating src/pages/DocsPage.tsx...");
+
+  updateFile("src/pages/DocsPage.tsx", [
+    // Match any existing SITE_URL value (https://...)
+    {
+      search: /const SITE_URL = "https:\/\/[^"]+";/,
+      replace: `const SITE_URL = "${config.siteUrl}";`,
     },
   ]);
 }
 
 // Update convex/http.ts
 function updateConvexHttp(config: ForkConfig): void {
-  console.log("\nUpdating convex/http.ts...");
+  log("\nUpdating convex/http.ts...");
 
   updateFile("convex/http.ts", [
+    // Match any existing SITE_URL value with process.env fallback
     {
-      search: /const SITE_URL = process\.env\.SITE_URL \|\| "https:\/\/markdowncms\.netlify\.app";/,
+      search: /const SITE_URL = process\.env\.SITE_URL \|\| "https:\/\/[^"]+";/,
       replace: `const SITE_URL = process.env.SITE_URL || "${config.siteUrl}";`,
     },
+    // Match any existing SITE_NAME value (line 10)
     {
-      search: /const SITE_NAME = "markdown sync framework";/,
+      search: /const SITE_NAME = "[^"]+";/,
       replace: `const SITE_NAME = "${config.siteName}";`,
     },
+    // Match any existing siteUrl in generateMetaHtml function
     {
-      search: /const siteUrl = process\.env\.SITE_URL \|\| "https:\/\/markdowncms\.netlify\.app";/,
+      search: /const siteUrl = process\.env\.SITE_URL \|\| "https:\/\/[^"]+";/,
       replace: `const siteUrl = process.env.SITE_URL || "${config.siteUrl}";`,
     },
+    // Match any existing siteName in generateMetaHtml function
     {
-      search: /const siteName = "markdown sync framework";/,
+      search: /const siteName = "[^"]+";/,
       replace: `const siteName = "${config.siteName}";`,
+    },
+    // Update the description in API responses
+    {
+      search: /"An open-source publishing framework[^"]*"/g,
+      replace: `"${config.siteDescription}"`,
     },
   ]);
 }
 
 // Update convex/rss.ts
 function updateConvexRss(config: ForkConfig): void {
-  console.log("\nUpdating convex/rss.ts...");
+  log("\nUpdating convex/rss.ts...");
 
   updateFile("convex/rss.ts", [
+    // Match any existing SITE_URL value with process.env fallback
     {
-      search: /const SITE_URL = process\.env\.SITE_URL \|\| "https:\/\/markdowncms\.netlify\.app";/,
+      search: /const SITE_URL = process\.env\.SITE_URL \|\| "https:\/\/[^"]+";/,
       replace: `const SITE_URL = process.env.SITE_URL || "${config.siteUrl}";`,
     },
+    // Match any existing SITE_TITLE value
     {
-      search: /const SITE_TITLE = "markdown sync framework";/,
+      search: /const SITE_TITLE = "[^"]+";/,
       replace: `const SITE_TITLE = "${config.siteName}";`,
     },
+    // Match any existing SITE_DESCRIPTION value (multiline)
     {
       search: /const SITE_DESCRIPTION =\s*"[^"]+";/,
       replace: `const SITE_DESCRIPTION =\n  "${config.siteDescription}";`,
@@ -427,92 +548,97 @@ function updateConvexRss(config: ForkConfig): void {
 
 // Update index.html
 function updateIndexHtml(config: ForkConfig): void {
-  console.log("\nUpdating index.html...");
+  log("\nUpdating index.html...");
 
   const replacements: Array<{ search: string | RegExp; replace: string }> = [
-    // Meta description
+    // Meta description (match any content)
     {
       search: /<meta\s*name="description"\s*content="[^"]*"\s*\/>/,
       replace: `<meta\n      name="description"\n      content="${config.siteDescription}"\n    />`,
     },
-    // Meta author
+    // Meta author (match any content)
     {
       search: /<meta name="author" content="[^"]*" \/>/,
       replace: `<meta name="author" content="${config.siteName}" />`,
     },
-    // Open Graph title
+    // Open Graph title (match any content)
     {
       search: /<meta property="og:title" content="[^"]*" \/>/,
       replace: `<meta property="og:title" content="${config.siteName}" />`,
     },
-    // Open Graph description
+    // Open Graph description (match any content)
     {
       search: /<meta\s*property="og:description"\s*content="[^"]*"\s*\/>/,
       replace: `<meta\n      property="og:description"\n      content="${config.siteDescription}"\n    />`,
     },
-    // Open Graph URL
+    // Open Graph URL (match any https URL)
     {
-      search: /<meta property="og:url" content="https:\/\/markdowncms\.netlify\.app\/" \/>/,
+      search: /<meta property="og:url" content="https:\/\/[^"]*" \/>/,
       replace: `<meta property="og:url" content="${config.siteUrl}/" />`,
     },
-    // Open Graph site name
+    // Open Graph site name (match any content)
     {
-      search: /<meta property="og:site_name" content="[^"]*" \/>/,
+      search: /<meta property="og:site_name" content="[^"]*"\s*\/>/,
       replace: `<meta property="og:site_name" content="${config.siteName}" />`,
     },
-    // Open Graph image
+    // Open Graph site name with newline formatting
     {
-      search: /<meta\s*property="og:image"\s*content="https:\/\/markdowncms\.netlify\.app[^"]*"\s*\/>/,
-      replace: `<meta\n      property="og:image"\n      content="${config.siteUrl}/images/og-default.svg"\n    />`,
+      search: /<meta\s*property="og:site_name"\s*content="[^"]*"\s*>/,
+      replace: `<meta\n      property="og:site_name"\n      content="${config.siteName}"\n    >`,
     },
-    // Twitter domain
+    // Open Graph image (match any https URL)
+    {
+      search: /<meta\s*property="og:image"\s*content="https:\/\/[^"]*"\s*\/>/,
+      replace: `<meta\n      property="og:image"\n      content="${config.siteUrl}/images/og-default.png"\n    />`,
+    },
+    // Twitter domain (match any domain)
     {
       search: /<meta property="twitter:domain" content="[^"]*" \/>/,
       replace: `<meta property="twitter:domain" content="${config.siteDomain}" />`,
     },
-    // Twitter URL
+    // Twitter URL (match any https URL)
     {
-      search: /<meta property="twitter:url" content="https:\/\/markdowncms\.netlify\.app\/" \/>/,
+      search: /<meta property="twitter:url" content="https:\/\/[^"]*" \/>/,
       replace: `<meta property="twitter:url" content="${config.siteUrl}/" />`,
     },
-    // Twitter title
+    // Twitter title (match any content)
     {
       search: /<meta name="twitter:title" content="[^"]*" \/>/,
       replace: `<meta name="twitter:title" content="${config.siteName}" />`,
     },
-    // Twitter description
+    // Twitter description (match any content)
     {
       search: /<meta\s*name="twitter:description"\s*content="[^"]*"\s*\/>/,
       replace: `<meta\n      name="twitter:description"\n      content="${config.siteDescription}"\n    />`,
     },
-    // Twitter image
+    // Twitter image (match any https URL)
     {
-      search: /<meta\s*name="twitter:image"\s*content="https:\/\/markdowncms\.netlify\.app[^"]*"\s*\/>/,
-      replace: `<meta\n      name="twitter:image"\n      content="${config.siteUrl}/images/og-default.svg"\n    />`,
+      search: /<meta\s*name="twitter:image"\s*content="https:\/\/[^"]*"\s*\/>/,
+      replace: `<meta\n      name="twitter:image"\n      content="${config.siteUrl}/images/og-default.png"\n    />`,
     },
-    // JSON-LD name
+    // JSON-LD name (match any value)
     {
-      search: /"name": "markdown sync framework"/g,
-      replace: `"name": "${config.siteName}"`,
+      search: /"name": "[^"]+",\s*\n\s*"url":/g,
+      replace: `"name": "${config.siteName}",\n        "url":`,
     },
-    // JSON-LD URL
+    // JSON-LD URL (match any https URL)
     {
-      search: /"url": "https:\/\/markdowncms\.netlify\.app"/g,
+      search: /"url": "https:\/\/[^"]+"/g,
       replace: `"url": "${config.siteUrl}"`,
     },
-    // JSON-LD description
+    // JSON-LD description (match any content)
     {
-      search: /"description": "An open-source publishing framework[^"]*"/,
+      search: /"description": "[^"]+"/,
       replace: `"description": "${config.siteDescription}"`,
     },
-    // JSON-LD search target
+    // JSON-LD search target (match any URL)
     {
-      search: /"target": "https:\/\/markdowncms\.netlify\.app\/\?q=\{search_term_string\}"/,
+      search: /"target": "https:\/\/[^"]+\/\?q=\{search_term_string\}"/,
       replace: `"target": "${config.siteUrl}/?q={search_term_string}"`,
     },
-    // Page title
+    // Page title (match any title content)
     {
-      search: /<title>markdown "sync" framework<\/title>/,
+      search: /<title>[^<]+<\/title>/,
       replace: `<title>${config.siteTitle}</title>`,
     },
   ];
@@ -522,7 +648,7 @@ function updateIndexHtml(config: ForkConfig): void {
 
 // Update public/llms.txt
 function updateLlmsTxt(config: ForkConfig): void {
-  console.log("\nUpdating public/llms.txt...");
+  log("\nUpdating public/llms.txt...");
 
   const githubUrl = `https://github.com/${config.githubUsername}/${config.githubRepo}`;
 
@@ -609,12 +735,12 @@ Each post contains:
 
   const filePath = path.join(PROJECT_ROOT, "public/llms.txt");
   fs.writeFileSync(filePath, content, "utf-8");
-  console.log(`  Updated: public/llms.txt`);
+  log(`  Updated: public/llms.txt`);
 }
 
 // Update public/robots.txt
 function updateRobotsTxt(config: ForkConfig): void {
-  console.log("\nUpdating public/robots.txt...");
+  log("\nUpdating public/robots.txt...");
 
   const content = `# robots.txt for ${config.siteName}
 # https://www.robotstxt.org/
@@ -653,42 +779,64 @@ Crawl-delay: 1
 
   const filePath = path.join(PROJECT_ROOT, "public/robots.txt");
   fs.writeFileSync(filePath, content, "utf-8");
-  console.log(`  Updated: public/robots.txt`);
+  log(`  Updated: public/robots.txt`);
 }
 
 // Update public/openapi.yaml
 function updateOpenApiYaml(config: ForkConfig): void {
-  console.log("\nUpdating public/openapi.yaml...");
+  log("\nUpdating public/openapi.yaml...");
 
   const githubUrl = `https://github.com/${config.githubUsername}/${config.githubRepo}`;
+  // Extract domain from siteUrl for example URLs (without www. if present)
+  const siteUrlForExamples = config.siteUrl.replace(/^https?:\/\/(www\.)?/, "https://");
 
   updateFile("public/openapi.yaml", [
+    // Match any title ending with API
     {
-      search: /title: markdown sync framework API/,
+      search: /title: .+ API/,
       replace: `title: ${config.siteName} API`,
     },
+    // Match any GitHub contact URL
     {
-      search: /url: https:\/\/github\.com\/waynesutton\/markdown-site/,
+      search: /url: https:\/\/github\.com\/[^\/]+\/[^\s]+/,
       replace: `url: ${githubUrl}`,
     },
+    // Match any server URL (production server line)
     {
-      search: /- url: https:\/\/markdowncms\.netlify\.app/,
-      replace: `- url: ${config.siteUrl}`,
+      search: /- url: https:\/\/[^\s]+\n\s+description: Production server/,
+      replace: `- url: ${config.siteUrl}\n    description: Production server`,
     },
+    // Match site name example in schema (line 31)
     {
-      search: /example: markdown sync framework/g,
+      search: /example: markdown sync framework/,
       replace: `example: ${config.siteName}`,
     },
+    // Match site URL example in schema (line 34)
     {
-      search: /example: https:\/\/markdowncms\.netlify\.app/g,
-      replace: `example: ${config.siteUrl}`,
+      search: /example: https:\/\/markdown\.fast\n(\s+)posts:/,
+      replace: `example: ${siteUrlForExamples}\n$1posts:`,
+    },
+    // Match post URL example (line 167)
+    {
+      search: /example: https:\/\/markdown\.fast\/how-to-build-blog/,
+      replace: `example: ${siteUrlForExamples}/how-to-build-blog`,
+    },
+    // Match markdown URL example (line 170)
+    {
+      search: /example: https:\/\/markdown\.fast\/api\/post\?slug=how-to-build-blog/,
+      replace: `example: ${siteUrlForExamples}/api/post?slug=how-to-build-blog`,
+    },
+    // Match any remaining markdown.fast URLs
+    {
+      search: /https:\/\/(www\.)?markdown\.fast/g,
+      replace: siteUrlForExamples,
     },
   ]);
 }
 
 // Update public/.well-known/ai-plugin.json
 function updateAiPluginJson(config: ForkConfig): void {
-  console.log("\nUpdating public/.well-known/ai-plugin.json...");
+  log("\nUpdating public/.well-known/ai-plugin.json...");
 
   const pluginName = config.siteName.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
 
@@ -712,37 +860,79 @@ function updateAiPluginJson(config: ForkConfig): void {
 
   const filePath = path.join(PROJECT_ROOT, "public/.well-known/ai-plugin.json");
   fs.writeFileSync(filePath, JSON.stringify(content, null, 2) + "\n", "utf-8");
-  console.log(`  Updated: public/.well-known/ai-plugin.json`);
+  log(`  Updated: public/.well-known/ai-plugin.json`);
 }
 
-// Update src/context/ThemeContext.tsx
-function updateThemeContext(config: ForkConfig): void {
+// Update default theme in siteConfig.ts
+function updateThemeConfig(config: ForkConfig): void {
   if (!config.theme) return;
 
-  console.log("\nUpdating src/context/ThemeContext.tsx...");
+  log("\nUpdating default theme in src/config/siteConfig.ts...");
 
-  updateFile("src/context/ThemeContext.tsx", [
+  updateFile("src/config/siteConfig.ts", [
     {
-      search: /const DEFAULT_THEME: Theme = "(?:dark|light|tan|cloud)";/,
-      replace: `const DEFAULT_THEME: Theme = "${config.theme}";`,
+      search: /defaultTheme: "(?:dark|light|tan|cloud)"/,
+      replace: `defaultTheme: "${config.theme}"`,
+    },
+  ]);
+}
+
+// Update netlify/edge-functions/mcp.ts
+function updateMcpEdgeFunction(config: ForkConfig): void {
+  log("\nUpdating netlify/edge-functions/mcp.ts...");
+
+  updateFile("netlify/edge-functions/mcp.ts", [
+    // Match any existing SITE_URL constant
+    {
+      search: /const SITE_URL = "https:\/\/[^"]+";/,
+      replace: `const SITE_URL = "${config.siteUrl}";`,
+    },
+    // Match any existing SITE_NAME constant
+    {
+      search: /const SITE_NAME = "[^"]+";/,
+      replace: `const SITE_NAME = "${config.siteName}";`,
+    },
+    // Match any existing MCP_SERVER_NAME constant (create from site name)
+    {
+      search: /const MCP_SERVER_NAME = "[^"]+";/,
+      replace: `const MCP_SERVER_NAME = "${config.siteName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}-mcp";`,
+    },
+  ]);
+}
+
+// Update scripts/send-newsletter.ts
+function updateSendNewsletter(config: ForkConfig): void {
+  log("\nUpdating scripts/send-newsletter.ts...");
+
+  updateFile("scripts/send-newsletter.ts", [
+    // Match any existing SITE_URL fallback in comment
+    {
+      search: /\*   - SITE_URL: Your site URL \(default: https:\/\/[^)]+\)/,
+      replace: `*   - SITE_URL: Your site URL (default: ${config.siteUrl})`,
+    },
+    // Match any existing SITE_URL fallback in code
+    {
+      search: /const siteUrl = process\.env\.SITE_URL \|\| "https:\/\/[^"]+";/,
+      replace: `const siteUrl = process.env.SITE_URL || "${config.siteUrl}";`,
     },
   ]);
 }
 
 // Main function
 function main(): void {
-  console.log("Fork Configuration Script");
-  console.log("=========================\n");
+  log("Fork Configuration Script");
+  log("=========================\n");
 
   // Read configuration
   const config = readConfig();
-  console.log(`Configuring site: ${config.siteName}`);
-  console.log(`URL: ${config.siteUrl}`);
+  log(`Configuring site: ${config.siteName}`);
+  log(`URL: ${config.siteUrl}`);
 
   // Apply updates to all files
   updateSiteConfig(config);
   updateHomeTsx(config);
   updatePostTsx(config);
+  updateDocsPageTsx(config);
   updateConvexHttp(config);
   updateConvexRss(config);
   updateIndexHtml(config);
@@ -750,16 +940,18 @@ function main(): void {
   updateRobotsTxt(config);
   updateOpenApiYaml(config);
   updateAiPluginJson(config);
-  updateThemeContext(config);
+  updateThemeConfig(config);
+  updateMcpEdgeFunction(config);
+  updateSendNewsletter(config);
 
-  console.log("\n=========================");
-  console.log("Configuration complete!");
-  console.log("\nNext steps:");
-  console.log("1. Review the changes with: git diff");
-  console.log("2. Run: npx convex dev (if not already running)");
-  console.log("3. Run: npm run sync (to sync content to development)");
-  console.log("4. Run: npm run dev (to start the dev server)");
-  console.log("5. Deploy to Netlify when ready");
+  log("\n=========================");
+  log("Configuration complete!");
+  log("\nNext steps:");
+  log("1. Review the changes with: git diff");
+  log("2. Run: npx convex dev (if not already running)");
+  log("3. Run: npm run sync (to sync content to development)");
+  log("4. Run: npm run dev (to start the dev server)");
+  log("5. Deploy to Netlify when ready");
 }
 
 main();

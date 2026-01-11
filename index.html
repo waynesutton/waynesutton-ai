@@ -7,12 +7,17 @@
     <!-- Preconnect for faster API calls -->
     <link rel="preconnect" href="https://convex.cloud" crossorigin />
     <link rel="dns-prefetch" href="https://convex.cloud" />
+    <!-- Preconnect for Convex site endpoints -->
+    <link rel="preconnect" href="https://convex.site" crossorigin />
+    <link rel="dns-prefetch" href="https://convex.site" />
+    <!-- Preload critical LCP image -->
+    <link rel="preload" href="/images/logo.svg" as="image" type="image/svg+xml" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- SEO Meta Tags -->
     <meta
       name="description"
-      content="Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider."
+      content="An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify."
     />
     <meta name="author" content="Wayne Sutton" />
     <meta
@@ -21,14 +26,57 @@
     />
     <meta name="robots" content="index, follow" />
 
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://www.markdown.fast/" />
+
+    <!-- Hreflang for language/region targeting -->
+    <link rel="alternate" hreflang="en" href="https://www.markdown.fast/" />
+    <link rel="alternate" hreflang="x-default" href="https://www.markdown.fast/" />
+
     <!-- Theme -->
     <meta name="theme-color" content="#faf8f5" />
+
+    <!-- Critical CSS - inlined for fast first paint -->
+    <style>
+      /* Theme variables */
+      :root[data-theme="dark"]{--bg-primary:#111;--bg-secondary:#1a1a1a;--bg-hover:#252525;--text-primary:#fafafa;--text-secondary:#a1a1a1;--text-muted:#6b6b6b;--border-color:#2a2a2a;--accent:#fafafa}
+      :root[data-theme="light"]{--bg-primary:#fff;--bg-secondary:#fafafa;--bg-hover:#f5f5f5;--text-primary:#111;--text-secondary:#6b6b6b;--text-muted:#a1a1a1;--border-color:#e5e5e5;--accent:#111}
+      :root[data-theme="tan"]{--bg-primary:#faf8f5;--bg-secondary:#f5f3f0;--bg-hover:#ebe9e6;--text-primary:#1a1a1a;--text-secondary:#6b6b6b;--text-muted:#999;--border-color:#e6e4e1;--accent:#8b7355}
+      :root[data-theme="cloud"]{--bg-primary:#f5f5f5;--bg-secondary:#ebebeb;--bg-hover:#e0e0e0;--text-primary:#171717;--text-secondary:#525252;--text-muted:#737373;--border-color:#d4d4d4;--accent:#171717}
+      /* Reset and base */
+      *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+      html{font-size:16px;-webkit-font-smoothing:antialiased}
+      body{font-family:"New York",-apple-system-ui-serif,ui-serif,Georgia,serif;background-color:var(--bg-primary);color:var(--text-primary);line-height:1.6}
+      /* Layout skeleton */
+      .layout{min-height:100vh;display:flex;flex-direction:column;padding-top:60px}
+      .main-content{flex:1;max-width:800px;width:100%;margin:0 auto}
+      /* Fixed nav */
+      .top-nav{position:fixed;top:0;left:13px;right:13px;z-index:100;display:flex;align-items:center;gap:16px;background-color:var(--bg-primary);padding:8px 12px;border-radius:8px}
+      @media(max-width:1024px){.layout{padding:60px 15px 15px}}
+    </style>
+
+    <!-- Theme initialization - runs before any rendering to prevent FOUC -->
+    <script>
+      (function() {
+        var theme = 'tan';
+        try {
+          var saved = localStorage.getItem('blog-theme');
+          if (saved && ['dark', 'light', 'tan', 'cloud'].includes(saved)) {
+            theme = saved;
+          }
+        } catch(e) {}
+        document.documentElement.setAttribute('data-theme', theme);
+        var colors = { dark: '#111111', light: '#ffffff', tan: '#faf8f5', cloud: '#f5f5f5' };
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', colors[theme] || colors.tan);
+      })();
+    </script>
 
     <!-- Open Graph -->
     <meta property="og:title" content="Wayne Sutton" />
     <meta
       property="og:description"
-      content="Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider."
+      content="An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.waynesutton.ai/" />
@@ -48,12 +96,15 @@
     <meta name="twitter:title" content="Wayne Sutton" />
     <meta
       name="twitter:description"
-      content="Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider."
+      content="An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify."
     />
     <meta
       name="twitter:image"
       content="https://www.waynesutton.ai/images/og-default.png"
     />
+    <!-- twitter:site - configure in siteConfig.ts for your Twitter handle -->
+    <meta name="twitter:site" content="" />
+    <meta name="twitter:creator" content="" />
 
     <!-- RSS Feeds -->
     <link
@@ -77,9 +128,9 @@
       {
         "@context": "https://schema.org",
         "@type": "WebSite",
-        "name": "Wayne Sutton",
-        "url": "https://www.waynesutton.ai",
-        "description": "Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider.",
+        "name": "markdown sync framework",
+        "url": "https://www.markdown.fast",
+        "description": "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.",
         "author": {
           "@type": "Organization",
           "name": "Wayne Sutton",

@@ -35,5 +35,14 @@ crons.cron(
   }
 );
 
+// Clean up old content versions daily at 3:00 AM UTC
+// Deletes versions older than 3 days to maintain storage efficiency
+crons.cron(
+  "cleanup old content versions",
+  "0 3 * * *", // 3:00 AM UTC daily
+  internal.versions.cleanupOldVersions,
+  {}
+);
+
 export default crons;
 

@@ -18,21 +18,9 @@ const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL);
 const AppWithWorkOS = lazy(() => import("./AppWithWorkOS"));
 const App = lazy(() => import("./App"));
 
-// Loading fallback
+// Minimal loading fallback - no visible text to prevent flash
 function LoadingFallback() {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        fontFamily: "system-ui, sans-serif",
-      }}
-    >
-      Loading...
-    </div>
-  );
+  return <div style={{ minHeight: "100vh" }} />;
 }
 
 createRoot(document.getElementById("root")!).render(

@@ -2,19 +2,21 @@ import siteConfig from "../config/siteConfig";
 import type { SocialLink } from "../config/siteConfig";
 import {
   GithubLogo,
-  TwitterLogo,
+  XLogo,
   LinkedinLogo,
   InstagramLogo,
   YoutubeLogo,
   TiktokLogo,
   DiscordLogo,
   Globe,
+  type Icon,
 } from "@phosphor-icons/react";
 
 // Map platform names to Phosphor icons
-const platformIcons: Record<SocialLink["platform"], React.ComponentType<{ size?: number; weight?: "regular" | "bold" | "fill" }>> = {
+// Exported for reuse in header social icons
+export const platformIcons: Record<SocialLink["platform"], Icon> = {
   github: GithubLogo,
-  twitter: TwitterLogo,
+  twitter: XLogo,
   linkedin: LinkedinLogo,
   instagram: InstagramLogo,
   youtube: YoutubeLogo,

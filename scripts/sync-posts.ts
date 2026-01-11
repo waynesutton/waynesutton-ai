@@ -4,6 +4,7 @@ import matter from "gray-matter";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api";
 import dotenv from "dotenv";
+import { siteConfig } from "../src/config/siteConfig";
 
 // Load environment variables based on SYNC_ENV
 const isProduction = process.env.SYNC_ENV === "production";
@@ -46,6 +47,12 @@ interface PostFrontmatter {
   blogFeatured?: boolean; // Show as hero featured post on /blog page
   newsletter?: boolean; // Override newsletter signup display (true/false)
   contactForm?: boolean; // Enable contact form on this post
+  docsSection?: boolean; // Include in docs navigation
+  docsSectionGroup?: string; // Sidebar group name in docs
+  docsSectionOrder?: number; // Order within group (lower = first)
+  docsSectionGroupOrder?: number; // Order of group itself (lower = first)
+  docsSectionGroupIcon?: string; // Phosphor icon name for sidebar group
+  docsLanding?: boolean; // Use as /docs landing page
 }
 
 interface ParsedPost {
@@ -74,6 +81,12 @@ interface ParsedPost {
   newsletter?: boolean; // Override newsletter signup display (true/false)
   contactForm?: boolean; // Enable contact form on this post
   unlisted?: boolean; // Hide from listings but allow direct access via slug
+  docsSection?: boolean; // Include in docs navigation
+  docsSectionGroup?: string; // Sidebar group name in docs
+  docsSectionOrder?: number; // Order within group (lower = first)
+  docsSectionGroupOrder?: number; // Order of group itself (lower = first)
+  docsSectionGroupIcon?: string; // Phosphor icon name for sidebar group
+  docsLanding?: boolean; // Use as /docs landing page
 }
 
 // Page frontmatter (for static pages like About, Projects, Contact)
@@ -99,6 +112,12 @@ interface PageFrontmatter {
   contactForm?: boolean; // Enable contact form on this page
   newsletter?: boolean; // Override newsletter signup display (true/false)
   textAlign?: string; // Text alignment: "left", "center", "right" (default: "left")
+  docsSection?: boolean; // Include in docs navigation
+  docsSectionGroup?: string; // Sidebar group name in docs
+  docsSectionOrder?: number; // Order within group (lower = first)
+  docsSectionGroupOrder?: number; // Order of group itself (lower = first)
+  docsSectionGroupIcon?: string; // Phosphor icon name for sidebar group
+  docsLanding?: boolean; // Use as /docs landing page
 }
 
 interface ParsedPage {
@@ -124,6 +143,12 @@ interface ParsedPage {
   contactForm?: boolean; // Enable contact form on this page
   newsletter?: boolean; // Override newsletter signup display (true/false)
   textAlign?: string; // Text alignment: "left", "center", "right" (default: "left")
+  docsSection?: boolean; // Include in docs navigation
+  docsSectionGroup?: string; // Sidebar group name in docs
+  docsSectionOrder?: number; // Order within group (lower = first)
+  docsSectionGroupOrder?: number; // Order of group itself (lower = first)
+  docsSectionGroupIcon?: string; // Phosphor icon name for sidebar group
+  docsLanding?: boolean; // Use as /docs landing page
 }
 
 // Calculate reading time based on word count
@@ -174,6 +199,12 @@ function parseMarkdownFile(filePath: string): ParsedPost | null {
       newsletter: frontmatter.newsletter, // Override newsletter signup display
       contactForm: frontmatter.contactForm, // Enable contact form on this post
       unlisted: frontmatter.unlisted, // Hide from listings but allow direct access
+      docsSection: frontmatter.docsSection, // Include in docs navigation
+      docsSectionGroup: frontmatter.docsSectionGroup, // Sidebar group name
+      docsSectionOrder: frontmatter.docsSectionOrder, // Order within group
+      docsSectionGroupOrder: frontmatter.docsSectionGroupOrder, // Order of group itself
+      docsSectionGroupIcon: frontmatter.docsSectionGroupIcon, // Phosphor icon name for sidebar group
+      docsLanding: frontmatter.docsLanding, // Use as docs landing page
     };
   } catch (error) {
     console.error(`Error parsing ${filePath}:`, error);
@@ -234,6 +265,12 @@ function parsePageFile(filePath: string): ParsedPage | null {
       contactForm: frontmatter.contactForm, // Enable contact form on this page
       newsletter: frontmatter.newsletter, // Override newsletter signup display
       textAlign: frontmatter.textAlign, // Text alignment: "left", "center", "right"
+      docsSection: frontmatter.docsSection, // Include in docs navigation
+      docsSectionGroup: frontmatter.docsSectionGroup, // Sidebar group name
+      docsSectionOrder: frontmatter.docsSectionOrder, // Order within group
+      docsSectionGroupOrder: frontmatter.docsSectionGroupOrder, // Order of group itself
+      docsSectionGroupIcon: frontmatter.docsSectionGroupIcon, // Phosphor icon name for sidebar group
+      docsLanding: frontmatter.docsLanding, // Use as docs landing page
     };
   } catch (error) {
     console.error(`Error parsing page ${filePath}:`, error);
@@ -339,6 +376,28 @@ async function syncPosts() {
     }
   }
 
+  // Generate embeddings for semantic search (if enabled in siteConfig and OPENAI_API_KEY is configured)
+  if (siteConfig.semanticSearch?.enabled === false) {
+    console.log("\nSkipping embedding generation (semantic search disabled in siteConfig)");
+  } else {
+    console.log("\nGenerating embeddings for semantic search...");
+    try {
+      const embeddingResult = await client.action(
+        api.embeddings.generateMissingEmbeddings,
+        {}
+      );
+      if (embeddingResult.skipped) {
+        console.log("  Skipped: OPENAI_API_KEY not configured");
+      } else {
+        console.log(`  Posts: ${embeddingResult.postsProcessed} embeddings generated`);
+        console.log(`  Pages: ${embeddingResult.pagesProcessed} embeddings generated`);
+      }
+    } catch (error) {
+      // Non-fatal - continue even if embedding generation fails
+      console.log("  Warning: Could not generate embeddings:", error);
+    }
+  }
+
   // Generate static raw markdown files in public/raw/
   generateRawMarkdownFiles(posts, pages);
 }
@@ -440,9 +499,21 @@ function generateHomepageIndex(posts: ParsedPost[], pages: ParsedPage[]): void {
     return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
 
+  // Find the home-intro page for homepage content
+  const homeIntroPage = publishedPages.find((p) => p.slug === "home-intro");
+  // Find the footer page for footer content
+  const footerPage = publishedPages.find((p) => p.slug === "footer");
+
   // Build markdown content
   let markdown = `# Homepage\n\n`;
-  markdown += `This is the homepage index of all published content.\n\n`;
+
+  // Include home intro content if available
+  if (homeIntroPage && homeIntroPage.content) {
+    markdown += `${homeIntroPage.content}\n\n`;
+    markdown += `---\n\n`;
+  } else {
+    markdown += `This is the homepage index of all published content.\n\n`;
+  }
 
   // Add posts section
   if (sortedPosts.length > 0) {
@@ -491,6 +562,12 @@ function generateHomepageIndex(posts: ParsedPost[], pages: ParsedPage[]): void {
   markdown += `---\n\n`;
   markdown += `**Total Content:** ${sortedPosts.length} posts, ${publishedPages.length} pages\n`;
   markdown += `\nAll content is available as raw markdown files at \`/raw/{slug}.md\`\n`;
+
+  // Add footer content if available
+  if (footerPage && footerPage.content) {
+    markdown += `\n---\n\n`;
+    markdown += `${footerPage.content}\n`;
+  }
 
   // Write index.md file
   const indexPath = path.join(RAW_OUTPUT_DIR, "index.md");

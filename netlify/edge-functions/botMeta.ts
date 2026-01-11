@@ -1,5 +1,21 @@
 import type { Context } from "@netlify/edge-functions";
 
+// =============================================================================
+// BOT DETECTION CONFIGURATION
+// =============================================================================
+// Customize these arrays to control which bots receive pre-rendered HTML
+// with correct SEO meta tags (canonical URLs, Open Graph, etc.)
+//
+// - SOCIAL_PREVIEW_BOTS: Bots that generate link previews (Twitter, Slack, etc.)
+// - SEARCH_ENGINE_BOTS: Search engine crawlers for SEO (Google, Bing, etc.)
+// - AI_CRAWLERS: AI agents that should get the raw SPA (can render JavaScript)
+//
+// How it works:
+// - Social + Search bots -> Pre-rendered HTML with correct canonical/meta tags
+// - AI crawlers -> Normal SPA (they can render JavaScript and want raw content)
+// - Regular browsers -> Normal SPA (React updates meta tags client-side)
+// =============================================================================
+
 // Social preview bots that need OG metadata HTML
 // These bots cannot render JavaScript and need pre-rendered OG tags
 const SOCIAL_PREVIEW_BOTS = [
@@ -19,6 +35,19 @@ const SOCIAL_PREVIEW_BOTS = [
   "redditbot",
   "rogerbot",
   "showyoubot",
+];
+
+// Search engine crawlers that need correct canonical URLs in raw HTML
+// These bots may not render JavaScript or check raw HTML first
+const SEARCH_ENGINE_BOTS = [
+  "googlebot",
+  "bingbot",
+  "yandexbot",
+  "duckduckbot",
+  "baiduspider",
+  "sogou",
+  "yahoo! slurp",
+  "applebot",
 ];
 
 // AI crawlers that should get raw content, not OG previews
@@ -52,6 +81,13 @@ function isAICrawler(userAgent: string | null): boolean {
   if (!userAgent) return false;
   const ua = userAgent.toLowerCase();
   return AI_CRAWLERS.some((bot) => ua.includes(bot));
+}
+
+// Check if user agent is a search engine bot
+function isSearchEngineBot(userAgent: string | null): boolean {
+  if (!userAgent) return false;
+  const ua = userAgent.toLowerCase();
+  return SEARCH_ENGINE_BOTS.some((bot) => ua.includes(bot));
 }
 
 export default async function handler(
@@ -100,8 +136,8 @@ export default async function handler(
     return context.next();
   }
 
-  // Only serve OG metadata to social preview bots, not search engines or AI
-  if (!isSocialPreviewBot(userAgent)) {
+  // Serve pre-rendered HTML with correct canonical URLs to social preview and search engine bots
+  if (!isSocialPreviewBot(userAgent) && !isSearchEngineBot(userAgent)) {
     return context.next();
   }
 

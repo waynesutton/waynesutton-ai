@@ -2,13 +2,16 @@ import { ReactNode, useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { MagnifyingGlass } from "@phosphor-icons/react";
+import { MagnifyingGlass, Sparkle } from "@phosphor-icons/react";
 import ThemeToggle from "./ThemeToggle";
+import FontToggle from "./FontToggle";
 import SearchModal from "./SearchModal";
+import AskAIModal from "./AskAIModal";
 import MobileMenu, { HamburgerButton } from "./MobileMenu";
 import ScrollToTop, { ScrollToTopConfig } from "./ScrollToTop";
 import { useSidebarOptional } from "../context/SidebarContext";
 import siteConfig from "../config/siteConfig";
+import { platformIcons } from "./SocialFooter";
 
 // Scroll-to-top configuration - enabled by default
 // Customize threshold (pixels) to control when button appears
@@ -26,8 +29,26 @@ export default function Layout({ children }: LayoutProps) {
   // Fetch published pages for navigation
   const pages = useQuery(api.pages.getAllPages);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isAskAIOpen, setIsAskAIOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+
+  // Fetch docs pages and posts for detecting if current page is in docs section
+  const docsPages = useQuery(
+    siteConfig.docsSection?.enabled ? api.pages.getDocsPages : "skip"
+  );
+  const docsPosts = useQuery(
+    siteConfig.docsSection?.enabled ? api.posts.getDocsPosts : "skip"
+  );
+
+  // Check if current page is a docs page
+  const currentSlug = location.pathname.replace(/^\//, "");
+  const docsSlug = siteConfig.docsSection?.slug || "docs";
+  const isDocsLanding = currentSlug === docsSlug;
+  const isDocsPage =
+    isDocsLanding ||
+    (docsPages?.some((p) => p.slug === currentSlug) ?? false) ||
+    (docsPosts?.some((p) => p.slug === currentSlug) ?? false);
 
   // Get sidebar headings from context (if available)
   const sidebarContext = useSidebarOptional();
@@ -44,6 +65,16 @@ export default function Layout({ children }: LayoutProps) {
     setIsSearchOpen(false);
   }, []);
 
+  // Open Ask AI modal
+  const openAskAI = useCallback(() => {
+    setIsAskAIOpen(true);
+  }, []);
+
+  // Close Ask AI modal
+  const closeAskAI = useCallback(() => {
+    setIsAskAIOpen(false);
+  }, []);
+
   // Mobile menu handlers
   const openMobileMenu = useCallback(() => {
     setIsMobileMenuOpen(true);
@@ -58,23 +89,33 @@ export default function Layout({ children }: LayoutProps) {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Handle Command+K / Ctrl+K keyboard shortcut
+  // Handle Command+K / Ctrl+K keyboard shortcut for search
+  // Handle Command+J / Ctrl+J / Command+/ keyboard shortcut for Ask AI
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Command+K on Mac, Ctrl+K on Windows/Linux
+      // Command+K on Mac, Ctrl+K on Windows/Linux (Search)
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setIsSearchOpen((prev) => !prev);
       }
+      // Command+J or Command+/ on Mac, Ctrl+J or Ctrl+/ on Windows/Linux (Ask AI)
+      if ((e.metaKey || e.ctrlKey) && (e.key === "j" || e.key === "/")) {
+        e.preventDefault();
+        // Only toggle if Ask AI is enabled
+        if (siteConfig.askAI?.enabled && siteConfig.semanticSearch?.enabled) {
+          setIsAskAIOpen((prev) => !prev);
+        }
+      }
       // Also close on Escape
-      if (e.key === "Escape" && isSearchOpen) {
-        setIsSearchOpen(false);
+      if (e.key === "Escape") {
+        if (isSearchOpen) setIsSearchOpen(false);
+        if (isAskAIOpen) setIsAskAIOpen(false);
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isSearchOpen]);
+  }, [isSearchOpen, isAskAIOpen]);
 
   // Check if Blog link should be shown in nav
   const showBlogInNav =
@@ -98,6 +139,15 @@ export default function Layout({ children }: LayoutProps) {
       title: siteConfig.blogPage.title,
       order: siteConfig.blogPage.order ?? 0,
       isBlog: true,
+    });
+  }
+
+  // Add Docs link if enabled
+  if (siteConfig.docsSection?.enabled && siteConfig.docsSection?.showInNav) {
+    navItems.push({
+      slug: siteConfig.docsSection.slug,
+      title: siteConfig.docsSection.title,
+      order: siteConfig.docsSection.order ?? 1,
     });
   }
 
@@ -147,15 +197,30 @@ export default function Layout({ children }: LayoutProps) {
               src={siteConfig.logo}
               alt={siteConfig.name}
               className="top-nav-logo"
-              style={{ height: siteConfig.innerPageLogo.size }}
+              width={siteConfig.innerPageLogo.size}
+              height={siteConfig.innerPageLogo.size}
+              style={{ height: siteConfig.innerPageLogo.size, width: "auto" }}
+              fetchPriority="high"
             />
           </Link>
         )}
 
         {/* Mobile left controls: hamburger, search, theme (visible on mobile/tablet only) */}
+        {/* Note: Social icons are in the hamburger menu (MobileMenu.tsx), not in the mobile header */}
         <div className="mobile-nav-controls">
           {/* Hamburger button for mobile menu */}
           <HamburgerButton onClick={openMobileMenu} isOpen={isMobileMenuOpen} />
+          {/* Ask AI button (only if enabled) */}
+          {siteConfig.askAI?.enabled && siteConfig.semanticSearch?.enabled && (
+            <button
+              onClick={openAskAI}
+              className="ask-ai-button"
+              aria-label="Ask AI (⌘J)"
+              title="Ask AI (⌘J)"
+            >
+              <Sparkle size={18} weight="bold" />
+            </button>
+          )}
           {/* Search button with icon */}
           <button
             onClick={openSearch}
@@ -165,6 +230,8 @@ export default function Layout({ children }: LayoutProps) {
           >
             <MagnifyingGlass size={18} weight="bold" />
           </button>
+          {/* Font toggle */}
+          <FontToggle />
           {/* Theme toggle */}
           <div className="theme-toggle-container">
             <ThemeToggle />
@@ -187,6 +254,38 @@ export default function Layout({ children }: LayoutProps) {
 
         {/* Desktop search and theme (visible on desktop only) */}
         <div className="desktop-controls desktop-only">
+          {/* Social icons in header (if enabled) */}
+          {siteConfig.socialFooter?.enabled &&
+            siteConfig.socialFooter?.showInHeader && (
+              <div className="header-social-links">
+                {siteConfig.socialFooter.socialLinks.map((link) => {
+                  const IconComponent = platformIcons[link.platform];
+                  return (
+                    <a
+                      key={link.platform}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="header-social-link"
+                      aria-label={`Follow on ${link.platform}`}
+                    >
+                      <IconComponent size={18} weight="regular" />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          {/* Ask AI button (before search, only if enabled) */}
+          {siteConfig.askAI?.enabled && siteConfig.semanticSearch?.enabled && (
+            <button
+              onClick={openAskAI}
+              className="ask-ai-button"
+              aria-label="Ask AI (⌘J)"
+              title="Ask AI (⌘J)"
+            >
+              <Sparkle size={18} weight="bold" />
+            </button>
+          )}
           {/* Search button with icon */}
           <button
             onClick={openSearch}
@@ -196,6 +295,8 @@ export default function Layout({ children }: LayoutProps) {
           >
             <MagnifyingGlass size={18} weight="bold" />
           </button>
+          {/* Font toggle */}
+          <FontToggle />
           {/* Theme toggle */}
           <div className="theme-toggle-container">
             <ThemeToggle />
@@ -209,6 +310,8 @@ export default function Layout({ children }: LayoutProps) {
         onClose={closeMobileMenu}
         sidebarHeadings={sidebarHeadings}
         sidebarActiveId={sidebarActiveId}
+        showDocsNav={isDocsPage}
+        currentDocsSlug={currentSlug}
       >
         {/* Page navigation links in mobile menu (same order as desktop) */}
         <nav className="mobile-nav-links">
@@ -225,10 +328,12 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
       </MobileMenu>
 
-      {/* Use wider layout for stats and blog pages, normal layout for other pages */}
+      {/* Use wider layout for stats, blog, and docs pages, normal layout for other pages */}
       <main
         className={
-          location.pathname === "/stats" || location.pathname === "/blog"
+          location.pathname === "/stats" ||
+          location.pathname === "/blog" ||
+          isDocsPage
             ? "main-content-wide"
             : "main-content"
         }
@@ -238,6 +343,11 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Search modal */}
       <SearchModal isOpen={isSearchOpen} onClose={closeSearch} />
+
+      {/* Ask AI modal */}
+      {siteConfig.askAI?.enabled && siteConfig.semanticSearch?.enabled && (
+        <AskAIModal isOpen={isAskAIOpen} onClose={closeAskAI} />
+      )}
 
       {/* Scroll to top button */}
       <ScrollToTop config={scrollToTopConfig} />

@@ -1,10 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { siteConfig, Theme } from "../config/siteConfig";
 
-// Available theme options
-type Theme = "dark" | "light" | "tan" | "cloud";
-
-// Default theme for new users (tan matches warm aesthetic)
-const DEFAULT_THEME: Theme = "tan";
+// Default theme for new users (reads from siteConfig, falls back to "tan")
+const DEFAULT_THEME: Theme = siteConfig.defaultTheme || "tan";
 
 interface ThemeContextType {
   theme: Theme;
@@ -20,7 +18,16 @@ interface ThemeProviderProps {
 }
 
 // Get initial theme from localStorage or use default
+// First checks if theme was already set by inline script in index.html (prevents FOUC)
 const getInitialTheme = (defaultTheme: Theme): Theme => {
+  // First check if theme was already set by inline script
+  if (typeof document !== "undefined") {
+    const htmlTheme = document.documentElement.getAttribute("data-theme") as Theme;
+    if (htmlTheme && ["dark", "light", "tan", "cloud"].includes(htmlTheme)) {
+      return htmlTheme;
+    }
+  }
+
   try {
     const saved = localStorage.getItem("blog-theme") as Theme;
     if (saved && ["dark", "light", "tan", "cloud"].includes(saved)) {

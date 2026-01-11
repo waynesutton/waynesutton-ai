@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { useTheme } from "../context/ThemeContext";
@@ -10,6 +10,10 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
+import TurndownService from "turndown";
+import Showdown from "showdown";
 import {
   ArrowLeft,
   Article,
@@ -34,7 +38,6 @@ import {
   Clock,
   Link as LinkIcon,
   Copy,
-  ArrowClockwise,
   Terminal,
   CheckCircle,
   Warning,
@@ -52,9 +55,19 @@ import {
   ClockCounterClockwise,
   TrendUp,
   SidebarSimple,
+  Image,
+  ChatText,
+  SpinnerGap,
+  CaretDown,
+  ArrowsOut,
+  ArrowsIn,
+  FloppyDisk,
 } from "@phosphor-icons/react";
 import siteConfig from "../config/siteConfig";
 import AIChatView from "../components/AIChatView";
+import VersionHistoryModal from "../components/VersionHistoryModal";
+import { MediaLibrary } from "../components/MediaLibrary";
+import { ImageUploadModal } from "../components/ImageUploadModal";
 import { isWorkOSConfigured } from "../utils/workos";
 // Always import auth components - they're only used when WorkOS is configured
 import {
@@ -258,6 +271,151 @@ function CommandModal({
   );
 }
 
+// Confirm Delete modal component
+interface ConfirmDeleteModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  onCopy: () => void;
+  title: string;
+  itemName: string;
+  itemType: "post" | "page";
+  isDeleting: boolean;
+}
+
+function ConfirmDeleteModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  onCopy,
+  title,
+  itemName,
+  itemType,
+  isDeleting,
+}: ConfirmDeleteModalProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await onCopy();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget && !isDeleting) {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isDeleting) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("keydown", handleEsc);
+    }
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [isOpen, onClose, isDeleting]);
+
+  // Reset copied state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setCopied(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="dashboard-modal-backdrop" onClick={handleBackdropClick}>
+      <div className="dashboard-modal dashboard-modal-delete">
+        <div className="dashboard-modal-header">
+          <div className="dashboard-modal-icon dashboard-modal-icon-warning">
+            <Warning size={24} weight="fill" />
+          </div>
+          <h3 className="dashboard-modal-title">{title}</h3>
+          <button
+            className="dashboard-modal-close"
+            onClick={onClose}
+            disabled={isDeleting}
+          >
+            <X size={18} weight="bold" />
+          </button>
+        </div>
+
+        <div className="dashboard-modal-content">
+          <p className="dashboard-modal-message">
+            Are you sure you want to delete this {itemType}?
+          </p>
+          <div className="dashboard-modal-item-name">
+            <FileText size={18} />
+            <span>{itemName}</span>
+          </div>
+          <p className="dashboard-modal-warning-text">
+            This action cannot be undone. The {itemType} will be permanently
+            removed from the database.
+          </p>
+          <div className="dashboard-modal-copy-prompt">
+            <div className="dashboard-modal-copy-prompt-text">
+              <Info size={16} />
+              <span>Would you like to copy the markdown before deleting?</span>
+            </div>
+            <button
+              className={`dashboard-modal-copy-btn ${copied ? "copied" : ""}`}
+              onClick={handleCopy}
+              disabled={isDeleting}
+              title="Copy markdown to clipboard"
+            >
+              {copied ? (
+                <>
+                  <Check size={16} weight="bold" />
+                  <span>Copied</span>
+                </>
+              ) : (
+                <>
+                  <CopySimple size={16} />
+                  <span>Copy Markdown</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="dashboard-modal-footer">
+          <div className="dashboard-modal-actions">
+            <button
+              className="dashboard-modal-btn secondary"
+              onClick={onClose}
+              disabled={isDeleting}
+            >
+              Cancel
+            </button>
+            <button
+              className="dashboard-modal-btn danger"
+              onClick={onConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <SpinnerGap size={16} className="animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Trash size={16} />
+                  <span>Delete {itemType}</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Dashboard sections
 type DashboardSection =
   | "posts"
@@ -276,7 +434,8 @@ type DashboardSection =
   | "config"
   | "index-html"
   | "stats"
-  | "sync";
+  | "sync"
+  | "media";
 
 // Post/Page type for editing
 interface ContentItem {
@@ -295,6 +454,7 @@ interface ContentItem {
   authorName?: string;
   authorImage?: string;
   order?: number;
+  source?: "dashboard" | "sync";
 }
 
 // Frontmatter fields for posts
@@ -521,6 +681,19 @@ function DashboardContent() {
     });
   }, []);
 
+  // Keyboard shortcut: Cmd+. to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === ".") {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [toggleSidebar]);
+
   // Toast notifications state
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -531,6 +704,16 @@ function DashboardContent() {
     command: string;
     description?: string;
   }>({ isOpen: false, title: "", command: "" });
+
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    id: string;
+    title: string;
+    type: "post" | "page";
+    item: ContentItem | null;
+  }>({ isOpen: false, id: "", title: "", type: "post", item: null });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Sync server state
   const [syncOutput, setSyncOutput] = useState<string>("");
@@ -543,6 +726,12 @@ function DashboardContent() {
   // Convex queries
   const posts = useQuery(api.posts.listAll);
   const pages = useQuery(api.pages.listAll);
+
+  // CMS mutations for CRUD operations
+  const deletePostMutation = useMutation(api.cms.deletePost);
+  const deletePageMutation = useMutation(api.cms.deletePage);
+  const updatePostMutation = useMutation(api.cms.updatePost);
+  const updatePageMutation = useMutation(api.cms.updatePage);
 
   // Add toast notification
   const addToast = useCallback((message: string, type: ToastType = "info") => {
@@ -713,6 +902,125 @@ function DashboardContent() {
     setActiveSection("page-editor");
   }, []);
 
+  // Show delete confirmation modal for a post
+  const handleDeletePost = useCallback(
+    (item: ContentItem) => {
+      setDeleteModal({
+        isOpen: true,
+        id: item._id,
+        title: item.title,
+        type: "post",
+        item,
+      });
+    },
+    [],
+  );
+
+  // Show delete confirmation modal for a page
+  const handleDeletePage = useCallback(
+    (item: ContentItem) => {
+      setDeleteModal({
+        isOpen: true,
+        id: item._id,
+        title: item.title,
+        type: "page",
+        item,
+      });
+    },
+    [],
+  );
+
+  // Close delete modal
+  const closeDeleteModal = useCallback(() => {
+    if (!isDeleting) {
+      setDeleteModal({ isOpen: false, id: "", title: "", type: "post", item: null });
+    }
+  }, [isDeleting]);
+
+  // Confirm and execute deletion
+  const confirmDelete = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      if (deleteModal.type === "post") {
+        await deletePostMutation({ id: deleteModal.id as Id<"posts"> });
+        addToast("Post deleted successfully", "success");
+      } else {
+        await deletePageMutation({ id: deleteModal.id as Id<"pages"> });
+        addToast("Page deleted successfully", "success");
+      }
+      setDeleteModal({ isOpen: false, id: "", title: "", type: "post", item: null });
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : `Failed to delete ${deleteModal.type}`,
+        "error",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [deleteModal, deletePostMutation, deletePageMutation, addToast]);
+
+  // Handle saving post changes
+  const handleSavePost = useCallback(
+    async (item: ContentItem) => {
+      try {
+        await updatePostMutation({
+          id: item._id as Id<"posts">,
+          post: {
+            title: item.title,
+            description: item.description,
+            content: item.content,
+            date: item.date,
+            published: item.published,
+            tags: item.tags,
+            excerpt: item.excerpt,
+            image: item.image,
+            featured: item.featured,
+            featuredOrder: item.featuredOrder,
+            authorName: item.authorName,
+            authorImage: item.authorImage,
+          },
+        });
+        addToast("Post saved successfully", "success");
+      } catch (error) {
+        addToast(
+          error instanceof Error ? error.message : "Failed to save post",
+          "error",
+        );
+      }
+    },
+    [updatePostMutation, addToast],
+  );
+
+  // Handle saving page changes
+  const handleSavePage = useCallback(
+    async (item: ContentItem) => {
+      try {
+        await updatePageMutation({
+          id: item._id as Id<"pages">,
+          page: {
+            title: item.title,
+            content: item.content,
+            published: item.published,
+            order: item.order,
+            excerpt: item.excerpt,
+            image: item.image,
+            featured: item.featured,
+            featuredOrder: item.featuredOrder,
+            authorName: item.authorName,
+            authorImage: item.authorImage,
+          },
+        });
+        addToast("Page saved successfully", "success");
+      } catch (error) {
+        addToast(
+          error instanceof Error ? error.message : "Failed to save page",
+          "error",
+        );
+      }
+    },
+    [updatePageMutation, addToast],
+  );
+
   // Generate markdown content from item
   const generateMarkdown = useCallback(
     (item: ContentItem, type: "post" | "page"): string => {
@@ -741,6 +1049,14 @@ function DashboardContent() {
     [],
   );
 
+  // Copy markdown content before deletion
+  const handleCopyBeforeDelete = useCallback(async () => {
+    if (!deleteModal.item) return;
+    const markdown = generateMarkdown(deleteModal.item, deleteModal.type);
+    await navigator.clipboard.writeText(markdown);
+    addToast("Markdown copied to clipboard", "success");
+  }, [deleteModal, generateMarkdown, addToast]);
+
   // Download markdown file
   const handleDownloadMarkdown = useCallback(() => {
     if (!editingItem) return;
@@ -768,6 +1084,10 @@ function DashboardContent() {
   }, [editingItem, editingType, generateMarkdown, addToast]);
 
   // Navigation items for left sidebar
+  // Filter items based on feature configuration
+  const mediaEnabled = siteConfig.media?.enabled ?? false;
+  const newsletterEnabled = siteConfig.newsletter?.enabled ?? false;
+
   const navSections = [
     {
       label: "Content",
@@ -783,34 +1103,47 @@ function DashboardContent() {
         { id: "write-page" as const, label: "Write Page", icon: File },
         { id: "ai-agent" as const, label: "AI Agent", icon: Robot },
         { id: "import" as const, label: "Import URL", icon: CloudArrowDown },
+        // Only show Media if media feature is enabled
+        ...(mediaEnabled
+          ? [{ id: "media" as const, label: "Media", icon: Image }]
+          : []),
       ],
     },
-    {
-      label: "Newsletter",
-      items: [
-        { id: "newsletter" as const, label: "Subscribers", icon: Envelope },
-        {
-          id: "newsletter-send" as const,
-          label: "Send Newsletter",
-          icon: Envelope,
-        },
-        {
-          id: "newsletter-write-email" as const,
-          label: "Write Email",
-          icon: PencilSimple,
-        },
-        {
-          id: "newsletter-recent-sends" as const,
-          label: "Recent Sends",
-          icon: ClockCounterClockwise,
-        },
-        {
-          id: "newsletter-stats" as const,
-          label: "Email Stats",
-          icon: ChartLine,
-        },
-      ],
-    },
+    // Only show Newsletter section if newsletter is enabled
+    ...(newsletterEnabled
+      ? [
+          {
+            label: "Newsletter",
+            items: [
+              {
+                id: "newsletter" as const,
+                label: "Subscribers",
+                icon: Envelope,
+              },
+              {
+                id: "newsletter-send" as const,
+                label: "Send Newsletter",
+                icon: Envelope,
+              },
+              {
+                id: "newsletter-write-email" as const,
+                label: "Write Email",
+                icon: PencilSimple,
+              },
+              {
+                id: "newsletter-recent-sends" as const,
+                label: "Recent Sends",
+                icon: ClockCounterClockwise,
+              },
+              {
+                id: "newsletter-stats" as const,
+                label: "Email Stats",
+                icon: ChartLine,
+              },
+            ],
+          },
+        ]
+      : []),
     {
       label: "Settings",
       items: [
@@ -878,6 +1211,18 @@ function DashboardContent() {
         title={commandModal.title}
         command={commandModal.command}
         description={commandModal.description}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDelete}
+        onCopy={handleCopyBeforeDelete}
+        title="Delete Confirmation"
+        itemName={deleteModal.title}
+        itemType={deleteModal.type}
+        isDeleting={isDeleting}
       />
 
       {/* Left Sidebar */}
@@ -974,6 +1319,7 @@ function DashboardContent() {
               {activeSection === "index-html" && "Index HTML"}
               {activeSection === "stats" && "Analytics"}
               {activeSection === "sync" && "Sync Content"}
+              {activeSection === "media" && "Media"}
             </h1>
           </div>
 
@@ -982,7 +1328,7 @@ function DashboardContent() {
               <MagnifyingGlass size={16} />
               <input
                 type="text"
-                placeholder="Search dashboard..."
+                placeholder="Search posts and pages..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="dashboard-search-input"
@@ -1079,6 +1425,7 @@ function DashboardContent() {
               posts={filteredPosts}
               onEdit={handleEditPost}
               searchQuery={searchQuery}
+              onDelete={handleDeletePost}
             />
           )}
 
@@ -1088,6 +1435,7 @@ function DashboardContent() {
               pages={filteredPages}
               onEdit={handleEditPage}
               searchQuery={searchQuery}
+              onDelete={handleDeletePage}
             />
           )}
 
@@ -1106,17 +1454,32 @@ function DashboardContent() {
                 onBack={() =>
                   setActiveSection(editingType === "post" ? "posts" : "pages")
                 }
+                onSave={
+                  editingType === "post" ? handleSavePost : handleSavePage
+                }
               />
             )}
 
           {/* Write Post Section */}
           {activeSection === "write-post" && (
-            <WriteSection contentType="post" />
+            <WriteSection
+              contentType="post"
+              sidebarCollapsed={sidebarCollapsed}
+              setSidebarCollapsed={setSidebarCollapsed}
+              addToast={addToast}
+              setActiveSection={setActiveSection}
+            />
           )}
 
           {/* Write Page Section */}
           {activeSection === "write-page" && (
-            <WriteSection contentType="page" />
+            <WriteSection
+              contentType="page"
+              sidebarCollapsed={sidebarCollapsed}
+              setSidebarCollapsed={setSidebarCollapsed}
+              addToast={addToast}
+              setActiveSection={setActiveSection}
+            />
           )}
 
           {/* AI Agent Section */}
@@ -1145,7 +1508,7 @@ function DashboardContent() {
 
           {/* Import URL */}
           {activeSection === "import" && (
-            <ImportURLSection showCommandModal={showCommandModal} />
+            <ImportURLSection addToast={addToast} />
           )}
 
           {/* Site Config */}
@@ -1176,6 +1539,9 @@ function DashboardContent() {
               setSyncOutput={setSyncOutput}
             />
           )}
+
+          {/* Media */}
+          {activeSection === "media" && <MediaLibrary />}
         </div>
       </main>
     </div>
@@ -1187,10 +1553,12 @@ function PostsListView({
   posts,
   onEdit,
   searchQuery,
+  onDelete,
 }: {
   posts: ContentItem[];
   onEdit: (post: ContentItem) => void;
   searchQuery: string;
+  onDelete: (item: ContentItem) => void;
 }) {
   const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
   const [itemsPerPage, setItemsPerPage] = useState(15);
@@ -1312,6 +1680,12 @@ function PostsListView({
                 >
                   {post.published ? "Published" : "Draft"}
                 </span>
+                {post.source === "dashboard" && (
+                  <span className="source-badge dashboard">Dashboard</span>
+                )}
+                {(!post.source || post.source === "sync") && (
+                  <span className="source-badge sync">Synced</span>
+                )}
               </div>
               <div className="col-actions">
                 <button
@@ -1329,6 +1703,15 @@ function PostsListView({
                 >
                   <Eye size={16} />
                 </Link>
+                {post.source === "dashboard" && (
+                  <button
+                    className="action-btn delete"
+                    onClick={() => onDelete(post as ContentItem)}
+                    title="Delete"
+                  >
+                    <Trash size={16} />
+                  </button>
+                )}
               </div>
             </div>
           ))
@@ -1365,10 +1748,12 @@ function PagesListView({
   pages,
   onEdit,
   searchQuery,
+  onDelete,
 }: {
   pages: ContentItem[];
   onEdit: (page: ContentItem) => void;
   searchQuery: string;
+  onDelete: (item: ContentItem) => void;
 }) {
   const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
   const [itemsPerPage, setItemsPerPage] = useState(15);
@@ -1488,6 +1873,12 @@ function PagesListView({
                 >
                   {page.published ? "Published" : "Draft"}
                 </span>
+                {page.source === "dashboard" && (
+                  <span className="source-badge dashboard">Dashboard</span>
+                )}
+                {(!page.source || page.source === "sync") && (
+                  <span className="source-badge sync">Synced</span>
+                )}
               </div>
               <div className="col-actions">
                 <button
@@ -1505,6 +1896,15 @@ function PagesListView({
                 >
                   <Eye size={16} />
                 </Link>
+                {page.source === "dashboard" && (
+                  <button
+                    className="action-btn delete"
+                    onClick={() => onDelete(page as ContentItem)}
+                    title="Delete"
+                  >
+                    <Trash size={16} />
+                  </button>
+                )}
               </div>
             </div>
           ))
@@ -1546,6 +1946,7 @@ function EditorView({
   onDownload,
   onCopy,
   onBack,
+  onSave,
 }: {
   item: ContentItem;
   type: "post" | "page";
@@ -1555,8 +1956,12 @@ function EditorView({
   onDownload: () => void;
   onCopy: () => void;
   onBack: () => void;
+  onSave: (item: ContentItem) => Promise<void>;
 }) {
   const [copied, setCopied] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const versionControlEnabled = useQuery(api.versions.isEnabled);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem("dashboard-sidebar-width");
     return saved ? Number(saved) : 280;
@@ -1568,6 +1973,15 @@ function EditorView({
     await onCopy();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave(item);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const startXRef = useRef(0);
@@ -1644,6 +2058,16 @@ function EditorView({
             {copied ? <Check size={16} /> : <Copy size={16} />}
             <span>{copied ? "Copied" : "Copy"}</span>
           </button>
+          {versionControlEnabled && (
+            <button
+              className="dashboard-action-btn"
+              onClick={() => setShowVersionHistory(true)}
+              title="View Version History"
+            >
+              <ClockCounterClockwise size={16} />
+              <span>History</span>
+            </button>
+          )}
           <button
             className="dashboard-action-btn primary"
             onClick={onDownload}
@@ -1651,6 +2075,19 @@ function EditorView({
           >
             <Download size={16} />
             <span>Download .md</span>
+          </button>
+          <button
+            className="dashboard-action-btn success"
+            onClick={handleSave}
+            disabled={isSaving}
+            title="Save to Database"
+          >
+            {isSaving ? (
+              <SpinnerGap size={16} className="animate-spin" />
+            ) : (
+              <FloppyDisk size={16} />
+            )}
+            <span>{isSaving ? "Saving..." : "Save"}</span>
           </button>
         </div>
       </div>
@@ -1695,6 +2132,17 @@ function EditorView({
           <FrontmatterSidebar item={item} type={type} setItem={setItem} />
         </div>
       </div>
+
+      {showVersionHistory && (
+        <VersionHistoryModal
+          isOpen={showVersionHistory}
+          onClose={() => setShowVersionHistory(false)}
+          contentType={type}
+          contentId={item._id}
+          currentContent={item.content}
+          currentTitle={item.title}
+        />
+      )}
     </div>
   );
 }
@@ -2029,6 +2477,13 @@ const POST_FIELDS = [
   { name: "blogFeatured", required: false, example: "true" },
   { name: "newsletter", required: false, example: "true" },
   { name: "contactForm", required: false, example: "true" },
+  { name: "unlisted", required: false, example: "true" },
+  { name: "docsSection", required: false, example: "true" },
+  { name: "docsSectionOrder", required: false, example: "1" },
+  { name: "docsSectionGroup", required: false, example: '"Setup"' },
+  { name: "docsSectionGroupOrder", required: false, example: "1" },
+  { name: "docsSectionGroupIcon", required: false, example: '"Rocket"' },
+  { name: "docsLanding", required: false, example: "true" },
 ];
 
 // Frontmatter field definitions for pages (matches Write.tsx)
@@ -2061,6 +2516,13 @@ const PAGE_FIELDS = [
   { name: "aiChat", required: false, example: "true" },
   { name: "newsletter", required: false, example: "true" },
   { name: "contactForm", required: false, example: "true" },
+  { name: "unlisted", required: false, example: "true" },
+  { name: "docsSection", required: false, example: "true" },
+  { name: "docsSectionOrder", required: false, example: "1" },
+  { name: "docsSectionGroup", required: false, example: '"Setup"' },
+  { name: "docsSectionGroupOrder", required: false, example: "1" },
+  { name: "docsSectionGroupIcon", required: false, example: '"Rocket"' },
+  { name: "docsLanding", required: false, example: "true" },
 ];
 
 // Generate frontmatter template based on content type
@@ -2125,11 +2587,155 @@ With sidebar layout enabled, headings automatically appear in the table of conte
 // localStorage keys for dashboard write
 const DASHBOARD_WRITE_POST_CONTENT = "dashboard_write_post_content";
 const DASHBOARD_WRITE_PAGE_CONTENT = "dashboard_write_page_content";
+const DASHBOARD_WRITE_FOCUS_MODE = "dashboard_write_focus_mode";
+const DASHBOARD_WRITE_FRONTMATTER_COLLAPSED = "dashboard_write_frontmatter_collapsed";
 
-function WriteSection({ contentType }: { contentType: "post" | "page" }) {
+function WriteSection({
+  contentType,
+  sidebarCollapsed,
+  setSidebarCollapsed,
+  addToast,
+  setActiveSection,
+}: {
+  contentType: "post" | "page";
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  addToast: (message: string, type?: ToastType) => void;
+  setActiveSection: (section: DashboardSection) => void;
+}) {
   const [content, setContent] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [editorMode, setEditorMode] = useState<"markdown" | "richtext" | "preview">("markdown");
+  const createPostMutation = useMutation(api.cms.createPost);
+  const createPageMutation = useMutation(api.cms.createPage);
   const [copied, setCopied] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [focusMode, setFocusMode] = useState(() => {
+    const saved = localStorage.getItem(DASHBOARD_WRITE_FOCUS_MODE);
+    return saved === "true";
+  });
+  const [frontmatterCollapsed, setFrontmatterCollapsed] = useState(() => {
+    const saved = localStorage.getItem(DASHBOARD_WRITE_FRONTMATTER_COLLAPSED);
+    // Default to collapsed in focus mode
+    return saved === "true";
+  });
+  // Store previous sidebar state before entering focus mode
+  const [prevSidebarState, setPrevSidebarState] = useState<boolean | null>(null);
+  // Image upload modal state
+  const [showImageUpload, setShowImageUpload] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Toggle focus mode
+  const toggleFocusMode = useCallback(() => {
+    setFocusMode((prev) => {
+      const newValue = !prev;
+      localStorage.setItem(DASHBOARD_WRITE_FOCUS_MODE, String(newValue));
+      // When entering focus mode, save sidebar state and collapse it
+      if (newValue) {
+        setPrevSidebarState(sidebarCollapsed);
+        setSidebarCollapsed(true);
+        setFrontmatterCollapsed(true);
+        localStorage.setItem(DASHBOARD_WRITE_FRONTMATTER_COLLAPSED, "true");
+      } else {
+        // When exiting focus mode, restore previous sidebar state
+        if (prevSidebarState !== null) {
+          setSidebarCollapsed(prevSidebarState);
+        }
+      }
+      return newValue;
+    });
+  }, [sidebarCollapsed, setSidebarCollapsed, prevSidebarState]);
+
+  // Toggle frontmatter sidebar
+  const toggleFrontmatter = useCallback(() => {
+    setFrontmatterCollapsed((prev) => {
+      const newValue = !prev;
+      localStorage.setItem(DASHBOARD_WRITE_FRONTMATTER_COLLAPSED, String(newValue));
+      return newValue;
+    });
+  }, []);
+
+  // HTML <-> Markdown converters
+  const turndownService = useMemo(() => {
+    const service = new TurndownService({
+      headingStyle: "atx",
+      codeBlockStyle: "fenced",
+    });
+    return service;
+  }, []);
+
+  const showdownConverter = useMemo(() => {
+    const converter = new Showdown.Converter({
+      tables: true,
+      strikethrough: true,
+      tasklists: true,
+    });
+    return converter;
+  }, []);
+
+  // Convert between modes - extract body content for rich text editing
+  const getBodyContent = useCallback((fullContent: string): string => {
+    const frontmatterMatch = fullContent.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
+    return frontmatterMatch ? frontmatterMatch[1].trim() : fullContent;
+  }, []);
+
+  const getFrontmatter = useCallback((fullContent: string): string => {
+    const frontmatterMatch = fullContent.match(/^(---\n[\s\S]*?\n---\n?)/);
+    return frontmatterMatch ? frontmatterMatch[1] : "";
+  }, []);
+
+  // State for rich text HTML content
+  const [richTextHtml, setRichTextHtml] = useState("");
+
+  // Handle mode changes with content conversion
+  const handleModeChange = useCallback(
+    (newMode: "markdown" | "richtext" | "preview") => {
+      if (newMode === editorMode) return;
+
+      if (newMode === "richtext" && editorMode === "markdown") {
+        // Converting from markdown to rich text
+        const bodyContent = getBodyContent(content);
+        const html = showdownConverter.makeHtml(bodyContent);
+        setRichTextHtml(html);
+      } else if (newMode === "markdown" && editorMode === "richtext") {
+        // Converting from rich text back to markdown
+        const markdown = turndownService.turndown(richTextHtml);
+        const frontmatter = getFrontmatter(content);
+        setContent(frontmatter + markdown);
+      }
+
+      setEditorMode(newMode);
+    },
+    [editorMode, content, richTextHtml, getBodyContent, getFrontmatter, showdownConverter, turndownService]
+  );
+
+  // Quill modules configuration
+  const quillModules = useMemo(
+    () => ({
+      toolbar: [
+        [{ header: [1, 2, 3, false] }],
+        ["bold", "italic", "strike"],
+        ["blockquote", "code-block"],
+        [{ list: "ordered" }, { list: "bullet" }],
+        ["link"],
+        ["clean"],
+      ],
+    }),
+    []
+  );
+
+  // Keyboard shortcut: Escape to exit focus mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && focusMode) {
+        e.preventDefault();
+        toggleFocusMode();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [focusMode, toggleFocusMode]);
 
   // localStorage key based on content type
   const storageKey =
@@ -2170,6 +2776,33 @@ function WriteSection({ contentType }: { contentType: "post" | "page" }) {
       setTimeout(() => setCopied(false), 2000);
     }
   }, [content]);
+
+  // Insert image markdown at cursor position
+  const handleInsertImage = useCallback((markdown: string) => {
+    if (editorMode === "markdown" && textareaRef.current) {
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newContent = content.substring(0, start) + markdown + "\n" + content.substring(end);
+      setContent(newContent);
+      // Set cursor position after inserted text
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + markdown.length + 1, start + markdown.length + 1);
+      }, 0);
+    } else if (editorMode === "richtext") {
+      // For rich text mode, convert markdown to HTML and append
+      const imgMatch = markdown.match(/!\[(.*?)\]\((.*?)\)/);
+      if (imgMatch) {
+        const alt = imgMatch[1];
+        const src = imgMatch[2];
+        setRichTextHtml(prev => prev + `<p><img src="${src}" alt="${alt}" /></p>`);
+      }
+    } else {
+      // Preview mode - append to content
+      setContent(prev => prev + "\n" + markdown);
+    }
+  }, [content, editorMode]);
 
   // Copy a single frontmatter field
   const handleCopyField = useCallback(
@@ -2257,6 +2890,154 @@ published: false
     URL.revokeObjectURL(url);
   }, [content, contentType]);
 
+  // Default slug values that should trigger a warning
+  const DEFAULT_SLUGS = ["your-post-url", "page-url"];
+
+  // Parse frontmatter and save to database
+  const handleSaveToDb = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      // Parse frontmatter
+      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+      if (!frontmatterMatch) {
+        addToast("Content must have valid frontmatter (---)", "error");
+        setIsSaving(false);
+        return;
+      }
+
+      const frontmatterText = frontmatterMatch[1];
+      const bodyContent = frontmatterMatch[2].trim();
+
+      // Parse frontmatter fields
+      const parseValue = (key: string): string | undefined => {
+        const match = frontmatterText.match(new RegExp(`^${key}:\\s*["']?([^"'\\n]+)["']?`, "m"));
+        return match ? match[1].trim() : undefined;
+      };
+
+      const parseBool = (key: string): boolean | undefined => {
+        const match = frontmatterText.match(new RegExp(`^${key}:\\s*(true|false)`, "m"));
+        return match ? match[1] === "true" : undefined;
+      };
+
+      const parseNumber = (key: string): number | undefined => {
+        const match = frontmatterText.match(new RegExp(`^${key}:\\s*(\\d+)`, "m"));
+        return match ? parseInt(match[1], 10) : undefined;
+      };
+
+      const parseTags = (): string[] => {
+        const match = frontmatterText.match(/^tags:\s*\[(.*?)\]/m);
+        if (match) {
+          return match[1].split(",").map((t) => t.trim().replace(/["']/g, "")).filter(Boolean);
+        }
+        return [];
+      };
+
+      const title = parseValue("title");
+      const slug = parseValue("slug");
+
+      if (!title || !slug) {
+        addToast("Frontmatter must include title and slug", "error");
+        setIsSaving(false);
+        return;
+      }
+
+      // Check if slug is still default and warn user
+      if (DEFAULT_SLUGS.includes(slug)) {
+        addToast(
+          `Warning: Your slug is still "${slug}". Please change the slug to a unique URL-friendly value before saving.`,
+          "warning"
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      // Check if title is still default
+      if (title === "Your Post Title" || title === "Page Title") {
+        addToast(
+          `Warning: Please change the title from "${title}" to something unique before saving.`,
+          "warning"
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      if (contentType === "post") {
+        const description = parseValue("description") || "";
+        const date = parseValue("date") || new Date().toISOString().split("T")[0];
+        const published = parseBool("published") ?? false;
+        const tags = parseTags();
+        const readTime = parseValue("readTime");
+        const image = parseValue("image");
+        const excerpt = parseValue("excerpt");
+        const featured = parseBool("featured");
+        const featuredOrder = parseNumber("featuredOrder");
+        const authorName = parseValue("authorName");
+        const authorImage = parseValue("authorImage");
+
+        await createPostMutation({
+          post: {
+            slug,
+            title,
+            description,
+            content: bodyContent,
+            date,
+            published,
+            tags,
+            readTime,
+            image,
+            excerpt,
+            featured,
+            featuredOrder,
+            authorName,
+            authorImage,
+          },
+        });
+        addToast(`Post "${title}" saved to database. Redirecting to Posts...`, "success");
+        // Navigate to posts section after successful save
+        setTimeout(() => {
+          setActiveSection("posts");
+        }, 500);
+      } else {
+        const published = parseBool("published") ?? false;
+        const order = parseNumber("order");
+        const showInNav = parseBool("showInNav");
+        const excerpt = parseValue("excerpt");
+        const image = parseValue("image");
+        const featured = parseBool("featured");
+        const featuredOrder = parseNumber("featuredOrder");
+        const authorName = parseValue("authorName");
+        const authorImage = parseValue("authorImage");
+
+        await createPageMutation({
+          page: {
+            slug,
+            title,
+            content: bodyContent,
+            published,
+            order,
+            showInNav,
+            excerpt,
+            image,
+            featured,
+            featuredOrder,
+            authorName,
+            authorImage,
+          },
+        });
+        addToast(`Page "${title}" saved to database. Redirecting to Pages...`, "success");
+        // Navigate to pages section after successful save
+        setTimeout(() => {
+          setActiveSection("pages");
+        }, 500);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save";
+      addToast(message, "error");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [content, contentType, createPostMutation, createPageMutation, addToast, setActiveSection]);
+
   // Calculate stats
   const lines = content.split("\n").length;
   const characters = content.length;
@@ -2265,11 +3046,33 @@ published: false
   const fields = contentType === "post" ? POST_FIELDS : PAGE_FIELDS;
 
   return (
-    <div className="dashboard-write-section">
+    <div
+      className={`dashboard-write-section ${focusMode ? "focus-mode" : ""} ${frontmatterCollapsed ? "frontmatter-collapsed" : ""}`}
+    >
       {/* Write Actions Header */}
       <div className="dashboard-write-header">
         <div className="dashboard-write-title">
           <span>{contentType === "post" ? "Blog Post" : "Page"}</span>
+          <div className="dashboard-editor-mode-toggles">
+            <button
+              className={`dashboard-view-toggle ${editorMode === "markdown" ? "active" : ""}`}
+              onClick={() => handleModeChange("markdown")}
+            >
+              Markdown
+            </button>
+            <button
+              className={`dashboard-view-toggle ${editorMode === "richtext" ? "active" : ""}`}
+              onClick={() => handleModeChange("richtext")}
+            >
+              Rich Text
+            </button>
+            <button
+              className={`dashboard-view-toggle ${editorMode === "preview" ? "active" : ""}`}
+              onClick={() => handleModeChange("preview")}
+            >
+              Preview
+            </button>
+          </div>
         </div>
         <div className="dashboard-write-actions">
           <button
@@ -2291,6 +3094,17 @@ published: false
             )}
             <span>{copied ? "Copied" : "Copy All"}</span>
           </button>
+          {siteConfig.media?.enabled && (
+            <button
+              onClick={() => setShowImageUpload(true)}
+              className="dashboard-action-btn"
+              title={editorMode === "richtext" ? "Image insertion not available in Rich Text mode" : "Insert Image"}
+              disabled={editorMode === "richtext"}
+            >
+              <Image size={16} />
+              <span>Image</span>
+            </button>
+          )}
           <button
             onClick={handleDownloadMarkdown}
             className="dashboard-action-btn primary"
@@ -2299,19 +3113,74 @@ published: false
             <Download size={16} />
             <span>Download .md</span>
           </button>
+          <button
+            onClick={handleSaveToDb}
+            disabled={isSaving}
+            className="dashboard-action-btn success"
+            title="Save to Database"
+          >
+            {isSaving ? (
+              <SpinnerGap size={16} className="animate-spin" />
+            ) : (
+              <FloppyDisk size={16} />
+            )}
+            <span>{isSaving ? "Saving..." : "Save to DB"}</span>
+          </button>
+          <button
+            onClick={toggleFocusMode}
+            className={`dashboard-action-btn focus-toggle ${focusMode ? "active" : ""}`}
+            title={focusMode ? "Exit focus mode (Esc)" : "Enter focus mode"}
+          >
+            {focusMode ? (
+              <ArrowsIn size={16} weight="regular" />
+            ) : (
+              <ArrowsOut size={16} weight="regular" />
+            )}
+          </button>
         </div>
       </div>
 
       <div className="dashboard-write-container">
         {/* Main Writing Area */}
         <div className="dashboard-write-main">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="dashboard-write-textarea"
-            placeholder="Start writing your markdown..."
-            spellCheck={true}
-          />
+          {editorMode === "markdown" && (
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="dashboard-write-textarea"
+              placeholder="Start writing your markdown..."
+              spellCheck={true}
+            />
+          )}
+
+          {editorMode === "richtext" && (
+            <div className="dashboard-quill-container">
+              <ReactQuill
+                theme="snow"
+                value={richTextHtml}
+                onChange={setRichTextHtml}
+                modules={quillModules}
+                placeholder="Start writing..."
+              />
+            </div>
+          )}
+
+          {editorMode === "preview" && (
+            <div className="dashboard-preview">
+              <div className="dashboard-preview-content">
+                <div className="blog-post-content">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}
+                  >
+                    {getBodyContent(content)}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="dashboard-write-footer">
             <div className="dashboard-write-stats">
               <span>{words} words</span>
@@ -2321,17 +3190,27 @@ published: false
               <span>{characters} chars</span>
             </div>
             <div className="dashboard-write-hint">
-              Save to{" "}
-              <code>content/{contentType === "post" ? "blog" : "pages"}/</code>{" "}
-              then <code>npm run sync</code>
+              {editorMode === "richtext"
+                ? "Editing body content only (frontmatter preserved)"
+                : <>Save to{" "}<code>content/{contentType === "post" ? "blog" : "pages"}/</code>{" "}then <code>npm run sync</code></>
+              }
             </div>
           </div>
         </div>
 
         {/* Frontmatter Sidebar */}
-        <aside className="dashboard-write-sidebar">
+        <aside
+          className={`dashboard-write-sidebar ${frontmatterCollapsed ? "collapsed" : ""}`}
+        >
           <div className="dashboard-write-sidebar-header">
             <span>Frontmatter</span>
+            <button
+              onClick={toggleFrontmatter}
+              className="dashboard-write-sidebar-toggle"
+              title={frontmatterCollapsed ? "Expand" : "Collapse"}
+            >
+              <SidebarSimple size={16} weight="regular" />
+            </button>
           </div>
           <div className="dashboard-write-fields">
             <div className="write-fields-section">
@@ -2378,14 +3257,323 @@ published: false
           avoid losing work.
         </span>
       </div>
+
+      {/* Image Upload Modal - only when media is enabled */}
+      {siteConfig.media?.enabled && (
+        <ImageUploadModal
+          isOpen={showImageUpload}
+          onClose={() => setShowImageUpload(false)}
+          onInsert={handleInsertImage}
+        />
+      )}
     </div>
   );
 }
 
 function AIAgentSection() {
+  const [activeTab, setActiveTab] = useState<"chat" | "image">("chat");
+  const [selectedTextModel, setSelectedTextModel] = useState(
+    siteConfig.aiDashboard?.defaultTextModel || "claude-sonnet-4-20250514"
+  );
+  const [selectedImageModel, setSelectedImageModel] = useState(
+    siteConfig.aiDashboard?.imageModels?.[0]?.id || "gemini-2.0-flash-exp-image-generation"
+  );
+  const [aspectRatio, setAspectRatio] = useState<"1:1" | "16:9" | "9:16" | "4:3" | "3:4">("1:1");
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState<{ url: string; prompt: string } | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [showImageModelDropdown, setShowImageModelDropdown] = useState(false);
+  const [showTextModelDropdown, setShowTextModelDropdown] = useState(false);
+  const [copiedFormat, setCopiedFormat] = useState<"md" | "html" | null>(null);
+
+  const generateImage = useAction(api.aiImageGeneration.generateImage);
+
+  const textModels = siteConfig.aiDashboard?.textModels || [
+    { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", provider: "anthropic" as const },
+  ];
+  const imageModels = siteConfig.aiDashboard?.imageModels || [
+    { id: "gemini-2.0-flash-exp-image-generation", name: "Nano Banana", provider: "google" as const },
+  ];
+
+  const enableImageGeneration = siteConfig.aiDashboard?.enableImageGeneration ?? true;
+
+  const handleGenerateImage = async () => {
+    if (!imagePrompt.trim() || isGeneratingImage) return;
+
+    setIsGeneratingImage(true);
+    setImageError(null);
+    setGeneratedImage(null);
+
+    try {
+      const result = await generateImage({
+        sessionId: localStorage.getItem("ai_chat_session_id") || crypto.randomUUID(),
+        prompt: imagePrompt,
+        model: selectedImageModel as "gemini-2.0-flash-exp-image-generation" | "imagen-3.0-generate-002",
+        aspectRatio,
+      });
+
+      if (result.success && result.url) {
+        setGeneratedImage({ url: result.url, prompt: imagePrompt });
+        setImagePrompt("");
+      } else if (result.error) {
+        setImageError(result.error);
+      }
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : "Failed to generate image");
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  };
+
+  const selectedTextModelName = textModels.find(m => m.id === selectedTextModel)?.name || "Claude Sonnet 4";
+  const selectedImageModelName = imageModels.find(m => m.id === selectedImageModel)?.name || "Nano Banana";
+
+  // Generate markdown code for the image
+  const getMarkdownCode = (url: string, prompt: string) => `![${prompt}](${url})`;
+
+  // Generate HTML code for the image
+  const getHtmlCode = (url: string, prompt: string) => `<img src="${url}" alt="${prompt}" />`;
+
+  // Copy code to clipboard
+  const handleCopyCode = async (format: "md" | "html") => {
+    if (!generatedImage) return;
+    const code = format === "md"
+      ? getMarkdownCode(generatedImage.url, generatedImage.prompt)
+      : getHtmlCode(generatedImage.url, generatedImage.prompt);
+    await navigator.clipboard.writeText(code);
+    setCopiedFormat(format);
+    setTimeout(() => setCopiedFormat(null), 2000);
+  };
+
+  // Download image to computer
+  const handleDownloadImage = async () => {
+    if (!generatedImage) return;
+    try {
+      const response = await fetch(generatedImage.url);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      // Generate filename from prompt (sanitize and truncate)
+      const filename = generatedImage.prompt
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .slice(0, 50)
+        .replace(/-+$/, "");
+      a.download = `${filename || "generated-image"}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to download image:", error);
+    }
+  };
+
   return (
     <div className="dashboard-ai-section">
-      <AIChatView contextId="dashboard-agent" />
+      {/* Tabs */}
+      <div className="ai-agent-tabs">
+        <button
+          className={`ai-agent-tab ${activeTab === "chat" ? "active" : ""}`}
+          onClick={() => setActiveTab("chat")}
+        >
+          <ChatText size={18} weight="bold" />
+          <span>Chat</span>
+        </button>
+        {enableImageGeneration && (
+          <button
+            className={`ai-agent-tab ${activeTab === "image" ? "active" : ""}`}
+            onClick={() => setActiveTab("image")}
+          >
+            <Image size={18} weight="bold" />
+            <span>Image</span>
+          </button>
+        )}
+      </div>
+
+      {/* Chat Tab */}
+      {activeTab === "chat" && (
+        <div className="ai-agent-chat-container">
+          {/* Model Selector */}
+          <div className="ai-model-selector">
+            <span className="ai-model-label">Model:</span>
+            <div className="ai-model-dropdown-container">
+              <button
+                className="ai-model-dropdown-trigger"
+                onClick={() => setShowTextModelDropdown(!showTextModelDropdown)}
+              >
+                <span>{selectedTextModelName}</span>
+                <CaretDown size={14} weight="bold" />
+              </button>
+              {showTextModelDropdown && (
+                <div className="ai-model-dropdown">
+                  {textModels.map((model) => (
+                    <button
+                      key={model.id}
+                      className={`ai-model-option ${selectedTextModel === model.id ? "selected" : ""}`}
+                      onClick={() => {
+                        setSelectedTextModel(model.id);
+                        setShowTextModelDropdown(false);
+                      }}
+                    >
+                      <span className="ai-model-name">{model.name}</span>
+                      <span className="ai-model-provider">{model.provider}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <AIChatView contextId="dashboard-agent" selectedModel={selectedTextModel} />
+        </div>
+      )}
+
+      {/* Image Generation Tab */}
+      {activeTab === "image" && enableImageGeneration && (
+        <div className="ai-agent-image-container">
+          {/* Image Model Selector */}
+          <div className="ai-model-selector">
+            <span className="ai-model-label">Model:</span>
+            <div className="ai-model-dropdown-container">
+              <button
+                className="ai-model-dropdown-trigger"
+                onClick={() => setShowImageModelDropdown(!showImageModelDropdown)}
+              >
+                <span>{selectedImageModelName}</span>
+                <CaretDown size={14} weight="bold" />
+              </button>
+              {showImageModelDropdown && (
+                <div className="ai-model-dropdown">
+                  {imageModels.map((model) => (
+                    <button
+                      key={model.id}
+                      className={`ai-model-option ${selectedImageModel === model.id ? "selected" : ""}`}
+                      onClick={() => {
+                        setSelectedImageModel(model.id);
+                        setShowImageModelDropdown(false);
+                      }}
+                    >
+                      <span className="ai-model-name">{model.name}</span>
+                      <span className="ai-model-provider">{model.provider}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Aspect Ratio Selector */}
+          <div className="ai-aspect-ratio-selector">
+            <span className="ai-model-label">Aspect:</span>
+            <div className="ai-aspect-ratio-options">
+              {(["1:1", "16:9", "9:16", "4:3", "3:4"] as const).map((ratio) => (
+                <button
+                  key={ratio}
+                  className={`ai-aspect-ratio-option ${aspectRatio === ratio ? "selected" : ""}`}
+                  onClick={() => setAspectRatio(ratio)}
+                >
+                  {ratio}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Generated Image Display */}
+          {generatedImage && (
+            <div className="ai-generated-image">
+              <img src={generatedImage.url} alt={generatedImage.prompt} />
+              <p className="ai-generated-image-prompt">{generatedImage.prompt}</p>
+
+              {/* Image Actions */}
+              <div className="ai-image-actions">
+                <button
+                  className="ai-image-action-btn download"
+                  onClick={handleDownloadImage}
+                  title="Download image"
+                >
+                  <Download size={16} />
+                  <span>Download</span>
+                </button>
+                <button
+                  className={`ai-image-action-btn ${copiedFormat === "md" ? "copied" : ""}`}
+                  onClick={() => handleCopyCode("md")}
+                  title="Copy as Markdown"
+                >
+                  {copiedFormat === "md" ? <Check size={16} /> : <CopySimple size={16} />}
+                  <span>{copiedFormat === "md" ? "Copied" : "MD"}</span>
+                </button>
+                <button
+                  className={`ai-image-action-btn ${copiedFormat === "html" ? "copied" : ""}`}
+                  onClick={() => handleCopyCode("html")}
+                  title="Copy as HTML"
+                >
+                  {copiedFormat === "html" ? <Check size={16} /> : <CopySimple size={16} />}
+                  <span>{copiedFormat === "html" ? "Copied" : "HTML"}</span>
+                </button>
+              </div>
+
+              {/* Code Preview */}
+              <div className="ai-image-code-preview">
+                <div className="ai-image-code-block">
+                  <span className="ai-image-code-label">Markdown:</span>
+                  <code>{getMarkdownCode(generatedImage.url, generatedImage.prompt)}</code>
+                </div>
+                <div className="ai-image-code-block">
+                  <span className="ai-image-code-label">HTML:</span>
+                  <code>{getHtmlCode(generatedImage.url, generatedImage.prompt)}</code>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error Display */}
+          {imageError && (
+            <div className="ai-image-error">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{imageError}</ReactMarkdown>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {isGeneratingImage && (
+            <div className="ai-image-loading">
+              <SpinnerGap size={32} weight="bold" className="ai-image-spinner" />
+              <span>Generating image...</span>
+            </div>
+          )}
+
+          {/* Prompt Input */}
+          <div className="ai-image-input-container">
+            <textarea
+              className="ai-image-input"
+              value={imagePrompt}
+              onChange={(e) => setImagePrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleGenerateImage();
+                }
+              }}
+              placeholder="Describe the image you want to generate..."
+              rows={3}
+              disabled={isGeneratingImage}
+            />
+            <button
+              className="ai-image-generate-button"
+              onClick={handleGenerateImage}
+              disabled={!imagePrompt.trim() || isGeneratingImage}
+            >
+              {isGeneratingImage ? (
+                <SpinnerGap size={18} weight="bold" className="ai-image-spinner" />
+              ) : (
+                <Image size={18} weight="bold" />
+              )}
+              <span>Generate</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3080,30 +4268,45 @@ function NewsletterStatsSection() {
 }
 
 function ImportURLSection({
-  showCommandModal,
+  addToast,
 }: {
-  showCommandModal: (
-    title: string,
-    command: string,
-    description?: string,
-  ) => void;
+  addToast: (message: string, type?: ToastType) => void;
 }) {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [publishImmediately, setPublishImmediately] = useState(false);
+  const [lastImported, setLastImported] = useState<{
+    title: string;
+    slug: string;
+  } | null>(null);
+  const importAction = useAction(api.importAction.importFromUrl);
 
   const handleImport = async () => {
     if (!url.trim()) return;
 
     setIsLoading(true);
+    setLastImported(null);
 
-    // Show the command modal with the import command
-    showCommandModal(
-      "Import URL",
-      `npm run import "${url.trim()}"`,
-      "Copy this command and run it in your terminal to import the article",
-    );
+    try {
+      const result = await importAction({
+        url: url.trim(),
+        published: publishImmediately,
+      });
 
-    setIsLoading(false);
+      if (result.success && result.slug && result.title) {
+        setLastImported({ title: result.title, slug: result.slug });
+        addToast(`Imported "${result.title}" successfully`, "success");
+        setUrl("");
+      } else {
+        addToast(result.error || "Failed to import URL", "error");
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to import URL";
+      addToast(message, "error");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -3111,7 +4314,7 @@ function ImportURLSection({
       <div className="dashboard-import-header">
         <CloudArrowDown size={32} weight="light" />
         <h2>Import from URL</h2>
-        <p>Import articles from external URLs using Firecrawl</p>
+        <p>Import articles directly to the database using Firecrawl</p>
       </div>
 
       <div className="dashboard-import-form">
@@ -3123,8 +4326,21 @@ function ImportURLSection({
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://example.com/article"
             className="dashboard-import-input"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && url.trim() && !isLoading) {
+                handleImport();
+              }
+            }}
           />
         </div>
+        <label className="dashboard-import-checkbox">
+          <input
+            type="checkbox"
+            checked={publishImmediately}
+            onChange={(e) => setPublishImmediately(e.target.checked)}
+          />
+          <span>Publish immediately</span>
+        </label>
         <button
           className="dashboard-import-btn"
           onClick={handleImport}
@@ -3132,27 +4348,42 @@ function ImportURLSection({
         >
           {isLoading ? (
             <>
-              <ArrowClockwise size={16} className="spin" />
+              <SpinnerGap size={16} className="animate-spin" />
               <span>Importing...</span>
             </>
           ) : (
             <>
               <CloudArrowDown size={16} />
-              <span>Import</span>
+              <span>Import to Database</span>
             </>
           )}
         </button>
       </div>
 
+      {lastImported && (
+        <div className="dashboard-import-success">
+          <CheckCircle size={20} weight="fill" />
+          <div>
+            <strong>Successfully imported:</strong> {lastImported.title}
+            <br />
+            <Link to={`/${lastImported.slug}`} className="import-view-link">
+              View post →
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="dashboard-import-info">
         <h3>How it works</h3>
         <ol>
           <li>Enter the URL of an article you want to import</li>
-          <li>Firecrawl will scrape and convert it to markdown</li>
-          <li>A draft post will be created in content/blog/</li>
-          <li>Review, edit, and sync when ready</li>
+          <li>Firecrawl scrapes and converts it to markdown</li>
+          <li>Post is saved directly to the database</li>
+          <li>Edit and publish from the Posts section</li>
         </ol>
-        <p className="note">Requires FIRECRAWL_API_KEY in .env.local</p>
+        <p className="note">
+          Requires FIRECRAWL_API_KEY in Convex environment variables
+        </p>
       </div>
     </div>
   );
@@ -3495,11 +4726,6 @@ function IndexHtmlSection({
               Path to favicon (e.g., /favicon.svg)
             </span>
           </div>
-        </div>
-
-        {/* Theme and Appearance */}
-        <div className="dashboard-config-card">
-          <h3>Theme and Appearance</h3>
           <div className="config-field">
             <label>Theme Color</label>
             <input
@@ -3508,7 +4734,7 @@ function IndexHtmlSection({
               onChange={(e) => handleChange("themeColor", e.target.value)}
             />
             <span className="config-field-note">
-              Used in theme-color meta tag for mobile browsers
+              Mobile browser chrome color (theme-color meta tag)
             </span>
           </div>
         </div>
@@ -3526,6 +4752,17 @@ function IndexHtmlSection({
   );
 }
 
+/**
+ * ConfigSection - Dashboard UI for generating siteConfig.ts
+ *
+ * IMPORTANT: Keep this section in sync with src/config/siteConfig.ts
+ * When adding/modifying config options in siteConfig.ts, update:
+ * 1. Initial state (useState) with the new option
+ * 2. generateConfigCode() to include the option in output
+ * 3. UI section with appropriate input controls
+ *
+ * See CLAUDE.md "Configuration alignment" section for details.
+ */
 function ConfigSection({
   addToast,
   onNavigateToIndexHtml,
@@ -3611,6 +4848,7 @@ function ConfigSection({
     contactFormDescription: siteConfig.contactForm?.description || "",
     // Social footer
     socialFooterEnabled: siteConfig.socialFooter?.enabled || false,
+    socialFooterShowInHeader: siteConfig.socialFooter?.showInHeader || false,
     socialFooterShowOnHomepage:
       siteConfig.socialFooter?.showOnHomepage || false,
     socialFooterShowOnPosts: siteConfig.socialFooter?.showOnPosts || false,
@@ -3638,6 +4876,16 @@ function ConfigSection({
     mcpServerRequireAuth: siteConfig.mcpServer?.requireAuth || false,
     // Image lightbox
     imageLightboxEnabled: siteConfig.imageLightbox?.enabled !== false,
+    // Semantic search
+    semanticSearchEnabled: siteConfig.semanticSearch?.enabled || false,
+    // Ask AI
+    askAIEnabled: siteConfig.askAI?.enabled || false,
+    // Media library
+    mediaEnabled: siteConfig.media?.enabled || false,
+    mediaMaxFileSize: siteConfig.media?.maxFileSize || 10,
+    // Related posts
+    relatedPostsDefaultViewMode: siteConfig.relatedPosts?.defaultViewMode || "thumbnails",
+    relatedPostsShowViewToggle: siteConfig.relatedPosts?.showViewToggle !== false,
   });
 
   const [copied, setCopied] = useState(false);
@@ -3779,6 +5027,7 @@ export const siteConfig: SiteConfig = {
   
   socialFooter: {
     enabled: ${config.socialFooterEnabled},
+    showInHeader: ${config.socialFooterShowInHeader},
     showOnHomepage: ${config.socialFooterShowOnHomepage},
     showOnPosts: ${config.socialFooterShowOnPosts},
     showOnPages: ${config.socialFooterShowOnPages},
@@ -3802,6 +5051,33 @@ export const siteConfig: SiteConfig = {
   // Enables click-to-magnify functionality for images in blog posts and pages
   imageLightbox: {
     enabled: ${config.imageLightboxEnabled},
+  },
+
+  // Semantic search configuration
+  // Set enabled: true to enable AI-powered semantic search (requires OPENAI_API_KEY in Convex)
+  semanticSearch: {
+    enabled: ${config.semanticSearchEnabled},
+  },
+
+  // Ask AI header button (requires semanticSearch.enabled and API keys)
+  askAI: {
+    enabled: ${config.askAIEnabled},
+  },
+
+  // Media library configuration
+  // Upload and manage images via ConvexFS and Bunny.net CDN
+  // Requires BUNNY_API_KEY, BUNNY_STORAGE_ZONE, BUNNY_CDN_HOSTNAME in Convex dashboard
+  media: {
+    enabled: ${config.mediaEnabled},
+    maxFileSize: ${config.mediaMaxFileSize},
+    allowedTypes: ["image/png", "image/jpeg", "image/gif", "image/webp"],
+  },
+
+  // Related posts configuration
+  // Controls the display of related posts at the bottom of blog posts
+  relatedPosts: {
+    defaultViewMode: "${config.relatedPostsDefaultViewMode}",
+    showViewToggle: ${config.relatedPostsShowViewToggle},
   },
 };
 
@@ -4389,6 +5665,18 @@ export default siteConfig;
             <label>
               <input
                 type="checkbox"
+                checked={config.socialFooterShowInHeader}
+                onChange={(e) =>
+                  handleChange("socialFooterShowInHeader", e.target.checked)
+                }
+              />
+              <span>Show in header</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
                 checked={config.socialFooterShowOnHomepage}
                 onChange={(e) =>
                   handleChange("socialFooterShowOnHomepage", e.target.checked)
@@ -4614,6 +5902,111 @@ export default siteConfig;
           </div>
         </div>
 
+        {/* Semantic Search */}
+        <div className="dashboard-config-card">
+          <h3>Semantic Search</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.semanticSearchEnabled}
+                onChange={(e) =>
+                  handleChange("semanticSearchEnabled", e.target.checked)
+                }
+              />
+              <span>Enable semantic search (requires OPENAI_API_KEY in Convex)</span>
+            </label>
+          </div>
+          <p className="config-hint">
+            When enabled, search modal shows both Keyword and Semantic modes. Requires OpenAI API key for embeddings.
+          </p>
+        </div>
+
+        {/* Ask AI */}
+        <div className="dashboard-config-card">
+          <h3>Ask AI</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.askAIEnabled}
+                onChange={(e) =>
+                  handleChange("askAIEnabled", e.target.checked)
+                }
+              />
+              <span>Enable Ask AI header button</span>
+            </label>
+          </div>
+          <p className="config-hint">
+            Shows a sparkle icon in header. Requires semantic search enabled and API keys (ANTHROPIC_API_KEY or OPENAI_API_KEY in Convex).
+          </p>
+        </div>
+
+        {/* Media Library */}
+        <div className="dashboard-config-card">
+          <h3>Media Library</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.mediaEnabled}
+                onChange={(e) =>
+                  handleChange("mediaEnabled", e.target.checked)
+                }
+              />
+              <span>Enable media library</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Max File Size (MB)</label>
+            <input
+              type="number"
+              value={config.mediaMaxFileSize}
+              onChange={(e) => handleChange("mediaMaxFileSize", parseInt(e.target.value) || 10)}
+              min={1}
+              max={50}
+            />
+          </div>
+          <p className="config-hint">
+            Upload and manage images via ConvexFS and Bunny.net CDN. Requires BUNNY_API_KEY, BUNNY_STORAGE_ZONE, and BUNNY_CDN_HOSTNAME in Convex dashboard.
+          </p>
+        </div>
+
+        {/* Related Posts */}
+        <div className="dashboard-config-card">
+          <h3>Related Posts</h3>
+          <div className="config-field">
+            <label>Default View Mode</label>
+            <select
+              value={config.relatedPostsDefaultViewMode}
+              onChange={(e) =>
+                handleChange("relatedPostsDefaultViewMode", e.target.value)
+              }
+            >
+              <option value="thumbnails">Thumbnails</option>
+              <option value="list">List</option>
+            </select>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.relatedPostsShowViewToggle}
+                onChange={(e) =>
+                  handleChange("relatedPostsShowViewToggle", e.target.checked)
+                }
+              />
+              <span>Show view toggle button</span>
+            </label>
+          </div>
+          <p className="config-hint">
+            Controls the display of related posts at the bottom of blog posts. Thumbnails view shows image, title, description and author.
+          </p>
+        </div>
+
+        {/* Version Control */}
+        <VersionControlCard addToast={addToast} />
+
         {/* Links */}
         <div className="dashboard-config-card">
           <h3>External Links</h3>
@@ -4654,6 +6047,81 @@ export default siteConfig;
           definitions and add your logo gallery images manually.
         </p>
       </div>
+    </div>
+  );
+}
+
+// Version Control Card Component
+function VersionControlCard({
+  addToast,
+}: {
+  addToast: (message: string, type: ToastType) => void;
+}) {
+  const versionControlEnabled = useQuery(api.versions.isEnabled);
+  const versionStats = useQuery(api.versions.getStats);
+  const setVersionControlEnabled = useMutation(api.versions.setEnabled);
+  const [isToggling, setIsToggling] = useState(false);
+
+  const handleToggle = async () => {
+    setIsToggling(true);
+    try {
+      await setVersionControlEnabled({ enabled: !versionControlEnabled });
+      addToast(
+        `Version control ${!versionControlEnabled ? "enabled" : "disabled"}`,
+        "success"
+      );
+    } catch {
+      addToast("Failed to update version control setting", "error");
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
+  const formatDate = (timestamp: number | null) => {
+    if (!timestamp) return "N/A";
+    return new Date(timestamp).toLocaleString();
+  };
+
+  return (
+    <div className="dashboard-config-card">
+      <h3>Version Control</h3>
+      <div className="config-field checkbox">
+        <label>
+          <input
+            type="checkbox"
+            checked={versionControlEnabled ?? false}
+            onChange={handleToggle}
+            disabled={isToggling}
+          />
+          <span>
+            {isToggling ? "Updating..." : "Enable version history (3-day retention)"}
+          </span>
+        </label>
+      </div>
+      <p className="config-hint">
+        When enabled, saves a snapshot before each edit. View and restore previous versions
+        from the editor toolbar.
+      </p>
+      {versionStats && versionStats.totalVersions > 0 && (
+        <div className="version-stats">
+          <div className="version-stat">
+            <span className="version-stat-label">Total versions:</span>
+            <span className="version-stat-value">{versionStats.totalVersions}</span>
+          </div>
+          <div className="version-stat">
+            <span className="version-stat-label">Oldest:</span>
+            <span className="version-stat-value">
+              {formatDate(versionStats.oldestVersion)}
+            </span>
+          </div>
+          <div className="version-stat">
+            <span className="version-stat-label">Newest:</span>
+            <span className="version-stat-value">
+              {formatDate(versionStats.newestVersion)}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

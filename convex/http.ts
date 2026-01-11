@@ -1,13 +1,16 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, components } from "./_generated/api";
 import { rssFeed, rssFullFeed } from "./rss";
+import { streamResponse, streamResponseOptions } from "./askAI.node";
+import { registerRoutes } from "convex-fs";
+import { fs } from "./fs";
 
 const http = httpRouter();
 
-// Site configuration
-const SITE_URL = process.env.SITE_URL || "https://www.waynesutton.ai";
-const SITE_NAME = "Wayne Sutton";
+// Site configuration - update these for your site (or run npm run configure)
+const SITE_URL = process.env.SITE_URL || "https://www.markdown.fast";
+const SITE_NAME = "markdown sync framework";
 
 // RSS feed endpoint (descriptions only)
 http.route({
@@ -31,6 +34,7 @@ http.route({
     const posts = await ctx.runQuery(api.posts.getAllPosts);
     const pages = await ctx.runQuery(api.pages.getAllPages);
     const tags = await ctx.runQuery(api.posts.getAllTags);
+    const authors = await ctx.runQuery(api.posts.getAllAuthors);
 
     const urls = [
       // Homepage
@@ -64,6 +68,14 @@ http.route({
     <priority>0.6</priority>
   </url>`,
       ),
+      // All author pages
+      ...authors.map(
+        (author: { slug: string }) => `  <url>
+    <loc>${SITE_URL}/author/${encodeURIComponent(author.slug)}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>`,
+      ),
     ];
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -91,7 +103,7 @@ http.route({
       site: SITE_NAME,
       url: SITE_URL,
       description:
-        "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs.. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.",
+        "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.",
       posts: posts.map((post: { title: string; slug: string; description: string; date: string; readTime?: string; tags: string[] }) => ({
         title: post.title,
         slug: post.slug,
@@ -214,7 +226,7 @@ http.route({
       site: SITE_NAME,
       url: SITE_URL,
       description:
-        "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs.. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.",
+        "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.",
       exportedAt: new Date().toISOString(),
       totalPosts: fullPosts.length,
       posts: fullPosts,
@@ -293,12 +305,18 @@ function generateMetaHtml(content: {
       : ""
   }
   
+  <!-- Hreflang for language/region targeting -->
+  <link rel="alternate" hreflang="en" href="${canonicalUrl}">
+  <link rel="alternate" hreflang="x-default" href="${canonicalUrl}">
+
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${safeTitle}">
   <meta name="twitter:description" content="${safeDescription}">
   <meta name="twitter:image" content="${ogImage}">
-  
+  <meta name="twitter:site" content="">
+  <meta name="twitter:creator" content="">
+
   <!-- Redirect to actual page after a brief delay for crawlers -->
   <script>
     setTimeout(() => {
@@ -383,5 +401,39 @@ http.route({
     }
   }),
 });
+
+// Ask AI streaming endpoint for RAG-based Q&A
+http.route({
+  path: "/ask-ai-stream",
+  method: "POST",
+  handler: streamResponse,
+});
+
+// CORS preflight for Ask AI endpoint
+http.route({
+  path: "/ask-ai-stream",
+  method: "OPTIONS",
+  handler: streamResponseOptions,
+});
+
+// ConvexFS routes for file uploads/downloads
+// Only register routes when Bunny CDN is configured
+// - POST /fs/upload - Upload files to Bunny.net storage
+// - GET /fs/blobs/{blobId} - Returns 302 redirect to signed CDN URL
+if (fs) {
+  registerRoutes(http, components.fs, fs, {
+    pathPrefix: "/fs",
+    uploadAuth: async () => {
+      // TODO: Add authentication check for production
+      // const identity = await ctx.auth.getUserIdentity();
+      // return identity !== null;
+      return true;
+    },
+    downloadAuth: async () => {
+      // Public downloads - images should be accessible to all
+      return true;
+    },
+  });
+}
 
 export default http;

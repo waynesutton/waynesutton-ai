@@ -5,7 +5,7 @@ Project instructions for Claude Code.
 ## Project context
 
 <!-- Auto-updated by sync:discovery -->
-<!-- Site: Wayne Sutton | Posts: 3 | Pages: 1 | Updated: 2026-01-03T06:49:27.631Z -->
+<!-- Site: markdown sync | Posts: 19 | Pages: 4 | Updated: 2026-01-11T08:12:05.342Z -->
 
 Markdown sync framework. Write markdown in `content/`, run sync commands, content appears instantly via Convex real-time database. Built for developers and AI agents.
 
@@ -91,6 +91,17 @@ Netlify build command: `npm ci --include=dev && npx convex deploy --cmd 'npm run
 - Add features not requested
 - Use browser default modals/alerts
 
+## Configuration alignment
+
+**Important:** `src/config/siteConfig.ts` and the Dashboard Config section (`src/pages/Dashboard.tsx` ConfigSection) must stay in sync.
+
+When adding or modifying a configuration option:
+1. Add the option to `siteConfig.ts` with proper TypeScript types
+2. Add corresponding state, generated code, and UI in Dashboard.tsx ConfigSection
+3. Keep option names consistent (e.g., `socialFooter.showInHeader` in siteConfig maps to `socialFooterShowInHeader` in Dashboard state)
+
+The Dashboard Config generates downloadable siteConfig.ts code. Users can configure via either file editing or the dashboard UI. Both paths should produce equivalent results.
+
 ## Key files
 
 | File | Purpose |
@@ -100,6 +111,7 @@ Netlify build command: `npm ci --include=dev && npx convex deploy --cmd 'npm run
 | `convex/pages.ts` | Page queries and mutations |
 | `convex/stats.ts` | Analytics (conflict-free patterns) |
 | `src/config/siteConfig.ts` | Site configuration |
+| `src/pages/Dashboard.tsx` | Dashboard including ConfigSection |
 | `scripts/sync-posts.ts` | Markdown to Convex sync |
 | `scripts/sync-discovery-files.ts` | Updates AGENTS.md, llms.txt, CLAUDE.md |
 

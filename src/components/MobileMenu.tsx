@@ -2,6 +2,9 @@ import { ReactNode, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { Heading } from "../utils/extractHeadings";
+import DocsSidebar from "./DocsSidebar";
+import siteConfig from "../config/siteConfig";
+import { platformIcons } from "./SocialFooter";
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -9,6 +12,8 @@ interface MobileMenuProps {
   children: ReactNode;
   sidebarHeadings?: Heading[];
   sidebarActiveId?: string;
+  showDocsNav?: boolean;
+  currentDocsSlug?: string;
 }
 
 /**
@@ -22,9 +27,12 @@ export default function MobileMenu({
   children,
   sidebarHeadings = [],
   sidebarActiveId,
+  showDocsNav = false,
+  currentDocsSlug,
 }: MobileMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const hasSidebar = sidebarHeadings.length > 0;
+  const showDocsSection = showDocsNav && siteConfig.docsSection?.enabled;
 
   // Handle escape key to close menu
   useEffect(() => {
@@ -135,6 +143,35 @@ export default function MobileMenu({
         {/* Menu content */}
         <div className="mobile-menu-content">
           {children}
+
+          {/* Social icons (if enabled and showInHeader is true) */}
+          {siteConfig.socialFooter?.enabled &&
+            siteConfig.socialFooter?.showInHeader && (
+              <div className="mobile-menu-social">
+                {siteConfig.socialFooter.socialLinks.map((link) => {
+                  const IconComponent = platformIcons[link.platform];
+                  return (
+                    <a
+                      key={link.platform}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mobile-menu-social-link"
+                      aria-label={`Follow on ${link.platform}`}
+                    >
+                      <IconComponent size={20} weight="regular" />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+
+          {/* Docs sidebar navigation (when on a docs page) */}
+          {showDocsSection && (
+            <div className="mobile-menu-docs">
+              <DocsSidebar currentSlug={currentDocsSlug} isMobile={true} />
+            </div>
+          )}
 
           {/* Table of contents from sidebar (if page has sidebar) */}
           {hasSidebar && (

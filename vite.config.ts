@@ -12,6 +12,24 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     build: {
       outDir: "dist",
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Vendor chunks for better caching
+            "vendor-react": ["react", "react-dom", "react-router-dom"],
+            "vendor-convex": ["convex", "convex/react"],
+            "vendor-markdown": [
+              "react-markdown",
+              "remark-gfm",
+              "remark-breaks",
+              "rehype-raw",
+              "rehype-sanitize",
+            ],
+            "vendor-syntax": ["react-syntax-highlighter"],
+            "vendor-diffs": ["@pierre/diffs"],
+          },
+        },
+      },
     },
     server: {
       proxy: {

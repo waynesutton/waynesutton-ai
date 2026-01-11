@@ -12,6 +12,10 @@ featured: false
 layout: "sidebar"
 featuredOrder: 5
 image: "/images/markdown.png"
+docsSection: true
+docsSectionOrder: 3
+docsSectionGroup: "Publishing"
+docsLanding: true
 ---
 
 # Writing Markdown with Code Examples
@@ -332,6 +336,71 @@ For best results:
 - Author avatars: 200x200px (displays as circle)
 - Card thumbnails: Square images work best (auto-cropped to center)
 
+## Embeds
+
+Embed YouTube videos and Twitter/X posts directly in your markdown. Only YouTube and Twitter/X domains are allowed for security.
+
+### YouTube
+
+Embed a YouTube video using an iframe:
+
+```html
+<iframe
+  width="560"
+  height="315"
+  src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+  title="YouTube video"
+  allowfullscreen
+>
+</iframe>
+```
+
+Result:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="YouTube video" allowfullscreen></iframe>
+
+### Twitter/X
+
+Embed a tweet using the Twitter embed URL:
+
+```html
+<iframe
+  src="https://platform.twitter.com/embed/Tweet.html?id=20"
+  width="550"
+  height="250"
+>
+</iframe>
+```
+
+Result:
+
+<iframe src="https://platform.twitter.com/embed/Tweet.html?id=20" width="550" height="250"></iframe>
+
+### Privacy-enhanced YouTube
+
+Use `youtube-nocookie.com` for privacy-enhanced embeds:
+
+```html
+<iframe
+  width="560"
+  height="315"
+  src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
+  title="YouTube video"
+  allowfullscreen
+>
+</iframe>
+```
+
+### Allowed domains
+
+For security, only these domains are whitelisted:
+
+- `youtube.com`, `www.youtube.com`
+- `youtube-nocookie.com`, `www.youtube-nocookie.com`
+- `platform.twitter.com`, `platform.x.com`
+
+Iframes from other domains are silently blocked.
+
 ## Nested lists
 
 Indent with two spaces for nested items:
@@ -612,7 +681,7 @@ Create a grid layout using HTML and CSS Grid. Each cell contains an image, text,
 
 ```html
 <div
-  style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2rem 0;"
+  style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 2rem 0;"
 >
   <div style="text-align: center;">
     <img
@@ -625,13 +694,13 @@ Create a grid layout using HTML and CSS Grid. Each cell contains an image, text,
       >View</a
     >
   </div>
-  <!-- Repeat for 8 more cells -->
+  <!-- Repeat for 15 more cells -->
 </div>
 ```
 
 Result:
 
-<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2rem 0;">
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 2rem 0;">
   <div style="text-align: center;">
     <img src="https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=200&h=200&fit=crop" alt="" style="width: 100%; height: auto; border-radius: 4px;" />
     <p style="margin: 0.5rem 0 0.25rem;">Nature</p>
@@ -677,6 +746,41 @@ Result:
     <p style="margin: 0.5rem 0 0.25rem;">Beach</p>
     <a href="https://unsplash.com" style="font-size: 0.875rem; color: inherit;">View</a>
   </div>
+  <div style="text-align: center;">
+    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop" alt="" style="width: 100%; height: auto; border-radius: 4px;" />
+    <p style="margin: 0.5rem 0 0.25rem;">River</p>
+    <a href="https://unsplash.com" style="font-size: 0.875rem; color: inherit;">View</a>
+  </div>
+  <div style="text-align: center;">
+    <img src="https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=200&h=200&fit=crop" alt="" style="width: 100%; height: auto; border-radius: 4px;" />
+    <p style="margin: 0.5rem 0 0.25rem;">Valley</p>
+    <a href="https://unsplash.com" style="font-size: 0.875rem; color: inherit;">View</a>
+  </div>
+  <div style="text-align: center;">
+    <img src="https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=200&h=200&fit=crop" alt="" style="width: 100%; height: auto; border-radius: 4px;" />
+    <p style="margin: 0.5rem 0 0.25rem;">Flowers</p>
+    <a href="https://unsplash.com" style="font-size: 0.875rem; color: inherit;">View</a>
+  </div>
+  <div style="text-align: center;">
+    <img src="https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?w=200&h=200&fit=crop" alt="" style="width: 100%; height: auto; border-radius: 4px;" />
+    <p style="margin: 0.5rem 0 0.25rem;">Lake</p>
+    <a href="https://unsplash.com" style="font-size: 0.875rem; color: inherit;">View</a>
+  </div>
+  <div style="text-align: center;">
+    <img src="https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=200&h=200&fit=crop" alt="" style="width: 100%; height: auto; border-radius: 4px;" />
+    <p style="margin: 0.5rem 0 0.25rem;">Meadow</p>
+    <a href="https://unsplash.com" style="font-size: 0.875rem; color: inherit;">View</a>
+  </div>
+  <div style="text-align: center;">
+    <img src="https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=200&h=200&fit=crop" alt="" style="width: 100%; height: auto; border-radius: 4px;" />
+    <p style="margin: 0.5rem 0 0.25rem;">Waterfall</p>
+    <a href="https://unsplash.com" style="font-size: 0.875rem; color: inherit;">View</a>
+  </div>
+  <div style="text-align: center;">
+    <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=200&h=200&fit=crop" alt="" style="width: 100%; height: auto; border-radius: 4px;" />
+    <p style="margin: 0.5rem 0 0.25rem;">Sunrise</p>
+    <a href="https://unsplash.com" style="font-size: 0.875rem; color: inherit;">View</a>
+  </div>
 </div>
 
-**Note:** The grid uses CSS Grid with `repeat(3, 1fr)` to create 3 equal columns. Images have empty `alt` attributes so no captions appear. Adjust the `gap` value to change spacing between cells.
+**Note:** The grid uses CSS Grid with `repeat(4, 1fr)` to create 4 equal columns. Images have empty `alt` attributes so no captions appear. Adjust the `gap` value to change spacing between cells.

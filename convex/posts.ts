@@ -1,5 +1,6 @@
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 // Get all posts (published and unpublished) for dashboard admin view
 export const listAll = query({
@@ -22,6 +23,7 @@ export const listAll = query({
       featuredOrder: v.optional(v.number()),
       authorName: v.optional(v.string()),
       authorImage: v.optional(v.string()),
+      source: v.optional(v.union(v.literal("dashboard"), v.literal("sync"))),
     }),
   ),
   handler: async (ctx) => {
@@ -49,6 +51,7 @@ export const listAll = query({
       featuredOrder: post.featuredOrder,
       authorName: post.authorName,
       authorImage: post.authorImage,
+      source: post.source,
     }));
   },
 });
@@ -238,6 +241,7 @@ export const getPostBySlug = query({
       aiChat: v.optional(v.boolean()),
       newsletter: v.optional(v.boolean()),
       contactForm: v.optional(v.boolean()),
+      docsSection: v.optional(v.boolean()),
     }),
     v.null(),
   ),
@@ -277,6 +281,7 @@ export const getPostBySlug = query({
       aiChat: post.aiChat,
       newsletter: post.newsletter,
       contactForm: post.contactForm,
+      docsSection: post.docsSection,
     };
   },
 });
@@ -384,6 +389,12 @@ export const syncPosts = internalMutation({
         newsletter: v.optional(v.boolean()),
         contactForm: v.optional(v.boolean()),
         unlisted: v.optional(v.boolean()),
+        docsSection: v.optional(v.boolean()),
+        docsSectionGroup: v.optional(v.string()),
+        docsSectionOrder: v.optional(v.number()),
+        docsSectionGroupOrder: v.optional(v.number()),
+        docsSectionGroupIcon: v.optional(v.string()),
+        docsLanding: v.optional(v.boolean()),
       }),
     ),
   },
@@ -435,6 +446,12 @@ export const syncPosts = internalMutation({
           newsletter: post.newsletter,
           contactForm: post.contactForm,
           unlisted: post.unlisted,
+          docsSection: post.docsSection,
+          docsSectionGroup: post.docsSectionGroup,
+          docsSectionOrder: post.docsSectionOrder,
+          docsSectionGroupOrder: post.docsSectionGroupOrder,
+          docsSectionGroupIcon: post.docsSectionGroupIcon,
+          docsLanding: post.docsLanding,
           lastSyncedAt: now,
         });
         updated++;
@@ -461,6 +478,7 @@ export const syncPosts = internalMutation({
 });
 
 // Public mutation wrapper for sync script (no auth required for build-time sync)
+// Respects source field: only syncs posts where source !== "dashboard"
 export const syncPostsPublic = mutation({
   args: {
     posts: v.array(
@@ -490,6 +508,12 @@ export const syncPostsPublic = mutation({
         newsletter: v.optional(v.boolean()),
         contactForm: v.optional(v.boolean()),
         unlisted: v.optional(v.boolean()),
+        docsSection: v.optional(v.boolean()),
+        docsSectionGroup: v.optional(v.string()),
+        docsSectionOrder: v.optional(v.number()),
+        docsSectionGroupOrder: v.optional(v.number()),
+        docsSectionGroupIcon: v.optional(v.string()),
+        docsLanding: v.optional(v.boolean()),
       }),
     ),
   },
@@ -497,11 +521,13 @@ export const syncPostsPublic = mutation({
     created: v.number(),
     updated: v.number(),
     deleted: v.number(),
+    skipped: v.number(),
   }),
   handler: async (ctx, args) => {
     let created = 0;
     let updated = 0;
     let deleted = 0;
+    let skipped = 0;
 
     const now = Date.now();
     const incomingSlugs = new Set(args.posts.map((p) => p.slug));
@@ -510,12 +536,27 @@ export const syncPostsPublic = mutation({
     const existingPosts = await ctx.db.query("posts").collect();
     const existingBySlug = new Map(existingPosts.map((p) => [p.slug, p]));
 
-    // Upsert incoming posts
+    // Upsert incoming posts (only if source !== "dashboard")
     for (const post of args.posts) {
       const existing = existingBySlug.get(post.slug);
 
       if (existing) {
-        // Update existing post
+        // Skip dashboard-created posts - don't overwrite them
+        if (existing.source === "dashboard") {
+          skipped++;
+          continue;
+        }
+        // Capture version before update (async, non-blocking)
+        await ctx.scheduler.runAfter(0, internal.versions.createVersion, {
+          contentType: "post",
+          contentId: existing._id,
+          slug: existing.slug,
+          title: existing.title,
+          content: existing.content,
+          description: existing.description,
+          source: "sync",
+        });
+        // Update existing sync post
         await ctx.db.patch(existing._id, {
           title: post.title,
           description: post.description,
@@ -541,28 +582,36 @@ export const syncPostsPublic = mutation({
           newsletter: post.newsletter,
           contactForm: post.contactForm,
           unlisted: post.unlisted,
+          docsSection: post.docsSection,
+          docsSectionGroup: post.docsSectionGroup,
+          docsSectionOrder: post.docsSectionOrder,
+          docsSectionGroupOrder: post.docsSectionGroupOrder,
+          docsSectionGroupIcon: post.docsSectionGroupIcon,
+          docsLanding: post.docsLanding,
+          source: "sync",
           lastSyncedAt: now,
         });
         updated++;
       } else {
-        // Create new post
+        // Create new post with source: "sync"
         await ctx.db.insert("posts", {
           ...post,
+          source: "sync",
           lastSyncedAt: now,
         });
         created++;
       }
     }
 
-    // Delete posts that no longer exist in the repo
+    // Delete posts that no longer exist in the repo (but not dashboard posts)
     for (const existing of existingPosts) {
-      if (!incomingSlugs.has(existing.slug)) {
+      if (!incomingSlugs.has(existing.slug) && existing.source !== "dashboard") {
         await ctx.db.delete(existing._id);
         deleted++;
       }
     }
 
-    return { created, updated, deleted };
+    return { created, updated, deleted, skipped };
   },
 });
 
@@ -724,6 +773,10 @@ export const getRelatedPosts = query({
       date: v.string(),
       tags: v.array(v.string()),
       readTime: v.optional(v.string()),
+      image: v.optional(v.string()),
+      excerpt: v.optional(v.string()),
+      authorName: v.optional(v.string()),
+      authorImage: v.optional(v.string()),
       sharedTags: v.number(),
     }),
   ),
@@ -755,6 +808,10 @@ export const getRelatedPosts = query({
           date: post.date,
           tags: post.tags,
           readTime: post.readTime,
+          image: post.image,
+          excerpt: post.excerpt,
+          authorName: post.authorName,
+          authorImage: post.authorImage,
           sharedTags,
         };
       })
@@ -767,5 +824,213 @@ export const getRelatedPosts = query({
       .slice(0, maxResults);
 
     return relatedPosts;
+  },
+});
+
+// Get all unique authors with post counts (for author pages)
+export const getAllAuthors = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      name: v.string(),
+      slug: v.string(),
+      count: v.number(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .collect();
+
+    // Filter out unlisted posts and posts without author
+    const publishedPosts = posts.filter((p) => !p.unlisted && p.authorName);
+
+    // Count posts per author
+    const authorCounts = new Map<string, number>();
+    for (const post of publishedPosts) {
+      if (post.authorName) {
+        const count = authorCounts.get(post.authorName) || 0;
+        authorCounts.set(post.authorName, count + 1);
+      }
+    }
+
+    // Convert to array with slugs, sorted by count then name
+    return Array.from(authorCounts.entries())
+      .map(([name, count]) => ({
+        name,
+        slug: name.toLowerCase().replace(/\s+/g, "-"),
+        count,
+      }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.name.localeCompare(b.name);
+      });
+  },
+});
+
+// Get posts filtered by author slug
+export const getPostsByAuthor = query({
+  args: {
+    authorSlug: v.string(),
+  },
+  returns: v.array(
+    v.object({
+      _id: v.id("posts"),
+      _creationTime: v.number(),
+      slug: v.string(),
+      title: v.string(),
+      description: v.string(),
+      date: v.string(),
+      published: v.boolean(),
+      tags: v.array(v.string()),
+      readTime: v.optional(v.string()),
+      image: v.optional(v.string()),
+      excerpt: v.optional(v.string()),
+      featured: v.optional(v.boolean()),
+      featuredOrder: v.optional(v.number()),
+      authorName: v.optional(v.string()),
+      authorImage: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .collect();
+
+    // Filter posts by author slug match and not unlisted
+    const filteredPosts = posts.filter((post) => {
+      if (!post.authorName || post.unlisted) return false;
+      const slug = post.authorName.toLowerCase().replace(/\s+/g, "-");
+      return slug === args.authorSlug;
+    });
+
+    // Sort by date descending
+    const sortedPosts = filteredPosts.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
+
+    // Return without content for list view
+    return sortedPosts.map((post) => ({
+      _id: post._id,
+      _creationTime: post._creationTime,
+      slug: post.slug,
+      title: post.title,
+      description: post.description,
+      date: post.date,
+      published: post.published,
+      tags: post.tags,
+      readTime: post.readTime,
+      image: post.image,
+      excerpt: post.excerpt,
+      featured: post.featured,
+      featuredOrder: post.featuredOrder,
+      authorName: post.authorName,
+      authorImage: post.authorImage,
+    }));
+  },
+});
+
+// Get all posts marked for docs section navigation
+// Used by DocsSidebar to build the left navigation
+export const getDocsPosts = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("posts"),
+      slug: v.string(),
+      title: v.string(),
+      docsSectionGroup: v.optional(v.string()),
+      docsSectionOrder: v.optional(v.number()),
+      docsSectionGroupOrder: v.optional(v.number()),
+      docsSectionGroupIcon: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_docsSection", (q) => q.eq("docsSection", true))
+      .collect();
+
+    // Filter to only published posts
+    const publishedDocs = posts.filter((p) => p.published);
+
+    // Sort by docsSectionOrder, then by title
+    const sortedDocs = publishedDocs.sort((a, b) => {
+      const orderA = a.docsSectionOrder ?? 999;
+      const orderB = b.docsSectionOrder ?? 999;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.title.localeCompare(b.title);
+    });
+
+    return sortedDocs.map((post) => ({
+      _id: post._id,
+      slug: post.slug,
+      title: post.title,
+      docsSectionGroup: post.docsSectionGroup,
+      docsSectionOrder: post.docsSectionOrder,
+      docsSectionGroupOrder: post.docsSectionGroupOrder,
+      docsSectionGroupIcon: post.docsSectionGroupIcon,
+    }));
+  },
+});
+
+// Get the docs landing page (post with docsLanding: true)
+// Returns null if no landing page is set
+export const getDocsLandingPost = query({
+  args: {},
+  returns: v.union(
+    v.object({
+      _id: v.id("posts"),
+      slug: v.string(),
+      title: v.string(),
+      description: v.string(),
+      content: v.string(),
+      date: v.string(),
+      tags: v.array(v.string()),
+      readTime: v.optional(v.string()),
+      image: v.optional(v.string()),
+      showImageAtTop: v.optional(v.boolean()),
+      authorName: v.optional(v.string()),
+      authorImage: v.optional(v.string()),
+      docsSectionGroup: v.optional(v.string()),
+      docsSectionOrder: v.optional(v.number()),
+      showFooter: v.optional(v.boolean()),
+      footer: v.optional(v.string()),
+      aiChat: v.optional(v.boolean()),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx) => {
+    // Get all docs posts and find one with docsLanding: true
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_docsSection", (q) => q.eq("docsSection", true))
+      .collect();
+
+    const landing = posts.find((p) => p.published && p.docsLanding);
+
+    if (!landing) return null;
+
+    return {
+      _id: landing._id,
+      slug: landing.slug,
+      title: landing.title,
+      description: landing.description,
+      content: landing.content,
+      date: landing.date,
+      tags: landing.tags,
+      readTime: landing.readTime,
+      image: landing.image,
+      showImageAtTop: landing.showImageAtTop,
+      authorName: landing.authorName,
+      authorImage: landing.authorImage,
+      docsSectionGroup: landing.docsSectionGroup,
+      docsSectionOrder: landing.docsSectionOrder,
+      showFooter: landing.showFooter,
+      footer: landing.footer,
+      aiChat: landing.aiChat,
+    };
   },
 });

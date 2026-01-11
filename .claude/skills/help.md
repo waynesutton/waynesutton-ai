@@ -102,6 +102,16 @@ Don't write any code until you're very confident (98% or more) in what needs to 
 
 If unclear, ask for more information.
 
+## 7. Git safety
+
+Follow all rules in `.claude/skills/gitrules.md`:
+
+- Never use `git checkout` to revert changes without examining what will be destroyed
+- Always use `git diff <file>` before any destructive operation
+- Never run `git reset --hard`, `git checkout -- .`, `git clean -fd`, or `git stash drop` without explicit user approval
+- Always run `git status` first to check for uncommitted changes
+- When user asks to "undo" changes, manually edit files to revert specific sections instead of using checkout
+
 ## Quick reference checklist
 
 Before writing code:
@@ -119,3 +129,10 @@ When uncertain:
 - [ ] Don't assume
 - [ ] Reference documentation
 - [ ] Narrow down to 1-2 most likely solutions
+
+Before git operations:
+- [ ] Have I run `git status` first?
+- [ ] Am I about to run a destructive command?
+- [ ] Have I shown the user what will be affected?
+- [ ] Do I have explicit user approval for destructive operations?
+- [ ] Am I following `.claude/skills/gitrules.md`?

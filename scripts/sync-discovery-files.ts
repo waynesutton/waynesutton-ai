@@ -2,13 +2,17 @@
 /**
  * Discovery Files Sync Script
  *
- * Reads siteConfig.ts and Convex data to update discovery files.
+ * Reads fork-config.json (if available), siteConfig.ts, and Convex data to update discovery files.
  * Run with: npm run sync:discovery (dev) or npm run sync:discovery:prod (prod)
  *
  * This script updates:
  * - AGENTS.md (project overview and current status sections)
  * - CLAUDE.md (current status section for Claude Code)
  * - public/llms.txt (site info, API endpoints, GitHub links)
+ *
+ * IMPORTANT: If fork-config.json exists, it will be used as the source of truth.
+ * This ensures that after running `npm run configure`, subsequent sync:discovery
+ * commands will use your configured values.
  */
 
 import fs from "fs";
@@ -33,12 +37,48 @@ const PROJECT_ROOT = process.cwd();
 const PUBLIC_DIR = path.join(PROJECT_ROOT, "public");
 const ROOT_DIR = PROJECT_ROOT;
 
+// Fork config interface (matches fork-config.json structure)
+interface ForkConfig {
+  siteName: string;
+  siteTitle: string;
+  siteDescription: string;
+  siteUrl: string;
+  siteDomain: string;
+  githubUsername: string;
+  githubRepo: string;
+  contactEmail?: string;
+  bio?: string;
+  gitHubRepoConfig?: {
+    owner: string;
+    repo: string;
+    branch: string;
+    contentPath: string;
+  };
+}
+
+// Load fork-config.json if it exists
+function loadForkConfig(): ForkConfig | null {
+  try {
+    const configPath = path.join(PROJECT_ROOT, "fork-config.json");
+    if (fs.existsSync(configPath)) {
+      const content = fs.readFileSync(configPath, "utf-8");
+      const config = JSON.parse(content) as ForkConfig;
+      console.log("Using configuration from fork-config.json");
+      return config;
+    }
+  } catch (error) {
+    console.warn("Could not load fork-config.json, falling back to siteConfig.ts");
+  }
+  return null;
+}
+
 // Site config data structure
 interface SiteConfigData {
   name: string;
   title: string;
   bio: string;
   description?: string;
+  siteUrl?: string;  // Added to pass URL from fork-config.json
   gitHubRepo?: {
     owner: string;
     repo: string;
@@ -47,8 +87,39 @@ interface SiteConfigData {
   };
 }
 
-// Load site config from siteConfig.ts using regex
+// Cached fork config
+let cachedForkConfig: ForkConfig | null | undefined = undefined;
+
+// Get fork config (cached)
+function getForkConfig(): ForkConfig | null {
+  if (cachedForkConfig === undefined) {
+    cachedForkConfig = loadForkConfig();
+  }
+  return cachedForkConfig;
+}
+
+// Load site config - prioritizes fork-config.json over siteConfig.ts
 function loadSiteConfig(): SiteConfigData {
+  // First try fork-config.json
+  const forkConfig = getForkConfig();
+  if (forkConfig) {
+    return {
+      name: forkConfig.siteName,
+      title: forkConfig.siteTitle,
+      bio: forkConfig.bio || forkConfig.siteDescription,
+      description: forkConfig.siteDescription,
+      siteUrl: forkConfig.siteUrl,
+      gitHubRepo: forkConfig.gitHubRepoConfig || {
+        owner: forkConfig.githubUsername,
+        repo: forkConfig.githubRepo,
+        branch: "main",
+        contentPath: "public/raw",
+      },
+    };
+  }
+
+  // Fall back to siteConfig.ts
+  console.log("No fork-config.json found, reading from siteConfig.ts");
   try {
     const configPath = path.join(
       PROJECT_ROOT,
@@ -94,14 +165,14 @@ function loadSiteConfig(): SiteConfigData {
           : undefined;
 
       return {
-        name: nameMatch?.[1] || "markdown sync framework",
-        title: titleMatch?.[1] || "markdown sync framework",
+        name: nameMatch?.[1] || "Your Site Name",
+        title: titleMatch?.[1] || "Your Site Title",
         bio:
           bioMatch?.[1] ||
-          "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs..",
+          "Your site description here.",
         description:
           bioMatch?.[1] ||
-          "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs..",
+          "Your site description here.",
         gitHubRepo,
       };
     }
@@ -110,30 +181,51 @@ function loadSiteConfig(): SiteConfigData {
   }
 
   return {
-    name: "markdown sync framework",
-    title: "markdown sync framework",
-    bio: "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs..",
-    description:
-      "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs..",
+    name: "Your Site Name",
+    title: "Your Site Title",
+    bio: "Your site description here.",
+    description: "Your site description here.",
   };
 }
 
-// Get site URL from environment or config
-function getSiteUrl(): string {
-  return (
-    process.env.SITE_URL || process.env.VITE_SITE_URL || "https://www.waynesutton.ai"
-  );
+// Get site URL from fork-config.json, environment, or siteConfig
+function getSiteUrl(siteConfig?: SiteConfigData): string {
+  // 1. Check fork-config.json (via siteConfig)
+  if (siteConfig?.siteUrl) {
+    return siteConfig.siteUrl;
+  }
+  // 2. Check fork-config.json directly
+  const forkConfig = getForkConfig();
+  if (forkConfig?.siteUrl) {
+    return forkConfig.siteUrl;
+  }
+  // 3. Check environment variables
+  if (process.env.SITE_URL) {
+    return process.env.SITE_URL;
+  }
+  if (process.env.VITE_SITE_URL) {
+    return process.env.VITE_SITE_URL;
+  }
+  // 4. Return placeholder (user should configure)
+  return "https://yoursite.example.com";
 }
 
-// Build GitHub URL from repo config or fallback
+// Build GitHub URL from repo config or fork-config.json
 function getGitHubUrl(siteConfig: SiteConfigData): string {
   if (siteConfig.gitHubRepo) {
     return `https://github.com/${siteConfig.gitHubRepo.owner}/${siteConfig.gitHubRepo.repo}`;
   }
-  return (
-    process.env.GITHUB_REPO_URL ||
-    "https://github.com/waynesutton/markdown-site"
-  );
+  // Check fork-config.json directly
+  const forkConfig = getForkConfig();
+  if (forkConfig) {
+    return `https://github.com/${forkConfig.githubUsername}/${forkConfig.githubRepo}`;
+  }
+  // Check environment variable
+  if (process.env.GITHUB_REPO_URL) {
+    return process.env.GITHUB_REPO_URL;
+  }
+  // Return placeholder
+  return "https://github.com/yourusername/your-repo";
 }
 
 // Update CLAUDE.md with current status
@@ -326,9 +418,9 @@ async function syncDiscoveryFiles() {
   // Initialize Convex client
   const client = new ConvexHttpClient(convexUrl);
 
-  // Load site configuration
+  // Load site configuration (uses fork-config.json if available)
   const siteConfig = loadSiteConfig();
-  const siteUrl = getSiteUrl();
+  const siteUrl = getSiteUrl(siteConfig);
 
   console.log(`Site: ${siteConfig.name}`);
   console.log(`Title: ${siteConfig.title}`);

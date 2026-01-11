@@ -16,13 +16,13 @@ Instructions for AI coding agents working on this codebase.
 
 ## Current Status
 
-- **Site Name**: Wayne Sutton
-- **Site Title**: Helping developers and startups build faster with AI
-- **Site URL**: https://www.waynesutton.ai
-- **Total Posts**: 3
-- **Total Pages**: 1
-- **Latest Post**: 2026-01-02
-- **Last Updated**: 2026-01-03T06:49:27.628Z
+- **Site Name**: markdown sync
+- **Site Title**: markdown sync framework
+- **Site URL**: https://yoursite.example.com
+- **Total Posts**: 19
+- **Total Pages**: 4
+- **Latest Post**: 2026-01-10
+- **Last Updated**: 2026-01-11T08:12:05.341Z
 
 ## Tech stack
 

@@ -10,6 +10,9 @@ import {
   Warning,
   TextAa,
   ChatCircle,
+  ArrowsOut,
+  ArrowsIn,
+  SidebarSimple,
 } from "@phosphor-icons/react";
 import { Moon, Sun, Cloud } from "lucide-react";
 import { Half2Icon } from "@radix-ui/react-icons";
@@ -60,6 +63,12 @@ const POST_FIELDS = [
   { name: "newsletter", required: false, example: "true" },
   { name: "contactForm", required: false, example: "true" },
   { name: "unlisted", required: false, example: "true" },
+  { name: "docsSection", required: false, example: "true" },
+  { name: "docsSectionOrder", required: false, example: "1" },
+  { name: "docsSectionGroup", required: false, example: '"Setup"' },
+  { name: "docsSectionGroupOrder", required: false, example: "1" },
+  { name: "docsSectionGroupIcon", required: false, example: '"Rocket"' },
+  { name: "docsLanding", required: false, example: "true" },
 ];
 
 // Frontmatter field definitions for pages
@@ -92,6 +101,13 @@ const PAGE_FIELDS = [
   { name: "aiChat", required: false, example: "true" },
   { name: "newsletter", required: false, example: "true" },
   { name: "contactForm", required: false, example: "true" },
+  { name: "unlisted", required: false, example: "true" },
+  { name: "docsSection", required: false, example: "true" },
+  { name: "docsSectionOrder", required: false, example: "1" },
+  { name: "docsSectionGroup", required: false, example: '"Setup"' },
+  { name: "docsSectionGroupOrder", required: false, example: "1" },
+  { name: "docsSectionGroupIcon", required: false, example: '"Rocket"' },
+  { name: "docsLanding", required: false, example: "true" },
 ];
 
 // Generate frontmatter template based on content type
@@ -157,6 +173,9 @@ With sidebar layout enabled, headings automatically appear in the table of conte
 const STORAGE_KEY_CONTENT = "markdown_write_content";
 const STORAGE_KEY_TYPE = "markdown_write_type";
 const STORAGE_KEY_FONT = "markdown_write_font";
+const STORAGE_KEY_SIDEBAR = "markdown_write_sidebar_collapsed";
+const STORAGE_KEY_FOCUS = "markdown_write_focus_mode";
+const STORAGE_KEY_FRONTMATTER = "markdown_write_frontmatter_collapsed";
 
 // Font family definitions (matches global.css options)
 // Note: Write page uses its own font state for local editing, but respects global font on mount
@@ -192,6 +211,18 @@ export default function Write() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [font, setFont] = useState<"serif" | "sans" | "monospace">("sans");
   const [isAIChatMode, setIsAIChatMode] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_SIDEBAR);
+    return saved === "true";
+  });
+  const [focusMode, setFocusMode] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_FOCUS);
+    return saved === "true";
+  });
+  const [frontmatterCollapsed, setFrontmatterCollapsed] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_FRONTMATTER);
+    return saved === "true";
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Check if AI chat is enabled for write page
@@ -271,6 +302,56 @@ export default function Write() {
     });
   }, []);
 
+  // Toggle sidebar collapsed state
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const newValue = !prev;
+      localStorage.setItem(STORAGE_KEY_SIDEBAR, String(newValue));
+      return newValue;
+    });
+  }, []);
+
+  // Toggle focus mode (hides sidebars and header for distraction-free writing)
+  const toggleFocusMode = useCallback(() => {
+    setFocusMode((prev) => {
+      const newValue = !prev;
+      localStorage.setItem(STORAGE_KEY_FOCUS, String(newValue));
+      // When entering focus mode, collapse frontmatter by default
+      if (newValue) {
+        setFrontmatterCollapsed(true);
+        localStorage.setItem(STORAGE_KEY_FRONTMATTER, "true");
+      }
+      return newValue;
+    });
+  }, []);
+
+  // Toggle frontmatter sidebar
+  const toggleFrontmatter = useCallback(() => {
+    setFrontmatterCollapsed((prev) => {
+      const newValue = !prev;
+      localStorage.setItem(STORAGE_KEY_FRONTMATTER, String(newValue));
+      return newValue;
+    });
+  }, []);
+
+  // Keyboard shortcut: Cmd+. to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === ".") {
+        e.preventDefault();
+        toggleSidebar();
+      }
+      // Escape to exit focus mode
+      if (e.key === "Escape" && focusMode) {
+        e.preventDefault();
+        toggleFocusMode();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [toggleSidebar, toggleFocusMode, focusMode]);
+
   // Handle type change and update content template
   const handleTypeChange = (newType: "post" | "page") => {
     if (newType === contentType) return;
@@ -338,14 +419,25 @@ export default function Write() {
   const fields = contentType === "post" ? POST_FIELDS : PAGE_FIELDS;
 
   return (
-    <div className="write-layout">
+    <div
+      className={`write-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${focusMode ? "focus-mode" : ""} ${frontmatterCollapsed ? "frontmatter-collapsed" : ""}`}
+    >
       {/* Left Sidebar: Type selector */}
-      <aside className="write-sidebar-left">
+      <aside
+        className={`write-sidebar-left ${sidebarCollapsed ? "collapsed" : ""}`}
+      >
         <div className="write-sidebar-header">
           <Link to="/" className="write-logo-link" title="Back to home">
             <House size={20} weight="regular" />
             <span>Home</span>
           </Link>
+          <button
+            className="write-sidebar-toggle"
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <SidebarSimple size={20} weight="regular" />
+          </button>
         </div>
 
         <nav className="write-nav">
@@ -434,31 +526,46 @@ export default function Write() {
       {/* Main writing area */}
       <main className="write-main">
         <div className="write-main-header">
-          <h1 className="write-main-title">
-            {isAIChatMode
-              ? "Agent"
-              : contentType === "post"
-                ? "Blog Post"
-                : "Page"}
-          </h1>
-          {!isAIChatMode && (
+          <div className="write-header-left">
+            <h1 className="write-main-title">
+              {isAIChatMode
+                ? "Agent"
+                : contentType === "post"
+                  ? "Blog Post"
+                  : "Page"}
+            </h1>
+          </div>
+          <div className="write-header-actions">
+            {!isAIChatMode && (
+              <button
+                onClick={handleCopy}
+                className={`write-copy-btn ${copied ? "copied" : ""}`}
+              >
+                {copied ? (
+                  <>
+                    <Check size={16} weight="bold" />
+                    <span>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <CopySimple size={16} />
+                    <span>Copy All</span>
+                  </>
+                )}
+              </button>
+            )}
             <button
-              onClick={handleCopy}
-              className={`write-copy-btn ${copied ? "copied" : ""}`}
+              onClick={toggleFocusMode}
+              className={`write-focus-btn ${focusMode ? "active" : ""}`}
+              title={focusMode ? "Exit focus mode (Esc)" : "Enter focus mode"}
             >
-              {copied ? (
-                <>
-                  <Check size={16} weight="bold" />
-                  <span>Copied</span>
-                </>
+              {focusMode ? (
+                <ArrowsIn size={18} weight="regular" />
               ) : (
-                <>
-                  <CopySimple size={16} />
-                  <span>Copy All</span>
-                </>
+                <ArrowsOut size={18} weight="regular" />
               )}
             </button>
-          )}
+          </div>
         </div>
 
         {/* Conditionally render textarea or AI chat */}
@@ -500,9 +607,18 @@ export default function Write() {
       </main>
 
       {/* Right Sidebar: Frontmatter fields */}
-      <aside className="write-sidebar-right">
+      <aside
+        className={`write-sidebar-right ${frontmatterCollapsed ? "collapsed" : ""}`}
+      >
         <div className="write-sidebar-header">
           <span className="write-sidebar-title">Frontmatter</span>
+          <button
+            onClick={toggleFrontmatter}
+            className="write-sidebar-toggle"
+            title={frontmatterCollapsed ? "Expand" : "Collapse"}
+          >
+            <SidebarSimple size={16} weight="regular" />
+          </button>
         </div>
 
         <div className="write-fields">

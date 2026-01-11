@@ -354,3 +354,60 @@ export const getChatsBySession = query({
   },
 });
 
+/**
+ * Save generated image metadata (internal - called from action)
+ */
+export const saveGeneratedImage = internalMutation({
+  args: {
+    sessionId: v.string(),
+    prompt: v.string(),
+    model: v.string(),
+    storageId: v.id("_storage"),
+    mimeType: v.string(),
+  },
+  returns: v.id("aiGeneratedImages"),
+  handler: async (ctx, args) => {
+    const imageId = await ctx.db.insert("aiGeneratedImages", {
+      sessionId: args.sessionId,
+      prompt: args.prompt,
+      model: args.model,
+      storageId: args.storageId,
+      mimeType: args.mimeType,
+      createdAt: Date.now(),
+    });
+
+    return imageId;
+  },
+});
+
+/**
+ * Get recent generated images for a session (internal - called from action)
+ */
+export const getRecentImagesInternal = internalQuery({
+  args: {
+    sessionId: v.string(),
+    limit: v.number(),
+  },
+  returns: v.array(
+    v.object({
+      _id: v.id("aiGeneratedImages"),
+      _creationTime: v.number(),
+      sessionId: v.string(),
+      prompt: v.string(),
+      model: v.string(),
+      storageId: v.id("_storage"),
+      mimeType: v.string(),
+      createdAt: v.number(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const images = await ctx.db
+      .query("aiGeneratedImages")
+      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+      .order("desc")
+      .take(args.limit);
+
+    return images;
+  },
+});
+

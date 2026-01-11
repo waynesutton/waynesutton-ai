@@ -19,7 +19,7 @@ alwaysApply: true
 
 -Do you understand, what I’m asking? Never assume anything on your own, if anything isn’t clear, please ask questions and clarify your doubts.
 
-- reference @dev2.mdc @help.mdc @files.md if needed
+- reference @dev2.mdc @help.mdc @gitruels.mdc @files.md if needed
 - do not use use emoji or emojis in the readme or app unless instructed
 - always create type-safe code
 - you understand when to use Effect and when not to use Effect https://react.dev/learn/you-might-not-need-an-effect
@@ -82,3 +82,4 @@ alwaysApply: true
 - you never use placeholder text or images in code because everything is realtime sync with convex database
 - you don't ship code with placeholder text or images
 - **!IMPORTANT**: **DO NOT** externalize or document your work, usage guidelines, or benchmarks (e.g. `README.md`, `CONTRIBUTING.md`, `SUMMARY.md`, `USAGE_GUIDELINES.md` after completing the task, unless explicitly instructed to do so. You may include a brief summary of your work, but do not create separate documentation files for it.
+- **!IMPORTANT**: Follow all git safety rules in @gitruels.mdc - never use destructive git commands without explicit user approval, always run `git status` first, and manually edit files instead of using `git checkout` to revert changes.

@@ -33,6 +33,7 @@ interface AIChatViewProps {
   pageContent?: string; // Optional page content for context
   onClose?: () => void; // Optional close handler
   hideAttachments?: boolean; // Hide image/link attachment buttons (for right sidebar)
+  selectedModel?: string; // Selected AI model ID (e.g., "claude-sonnet-4-20250514", "gpt-4o", "gemini-2.0-flash")
 }
 
 export default function AIChatView({
@@ -40,6 +41,7 @@ export default function AIChatView({
   pageContent,
   onClose,
   hideAttachments = false,
+  selectedModel,
 }: AIChatViewProps) {
   // State
   const [inputValue, setInputValue] = useState("");
@@ -334,6 +336,7 @@ export default function AIChatView({
       await generateResponse({
         chatId,
         userMessage: message || "",
+        model: selectedModel as "claude-sonnet-4-20250514" | "gpt-4o" | "gemini-2.0-flash" | undefined,
         pageContext: hasLoadedContext ? undefined : pageContent,
         attachments:
           attachmentsToSend.length > 0 ? attachmentsToSend : undefined,

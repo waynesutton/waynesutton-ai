@@ -9,8 +9,20 @@ import type {
   TextBlockParam,
   ImageBlockParam,
 } from "@anthropic-ai/sdk/resources/messages/messages";
+import OpenAI from "openai";
+import { GoogleGenAI, Content } from "@google/genai";
 import FirecrawlApp from "@mendable/firecrawl-js";
-import type { Id } from "./_generated/dataModel";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+
+// Model validator for multi-model support
+const modelValidator = v.union(
+  v.literal("claude-sonnet-4-20250514"),
+  v.literal("gpt-4o"),
+  v.literal("gemini-2.0-flash")
+);
+
+// Type for model selection
+type AIModel = "claude-sonnet-4-20250514" | "gpt-4o" | "gemini-2.0-flash";
 
 // Default system prompt for writing assistant
 const DEFAULT_SYSTEM_PROMPT = `You are a helpful writing assistant. Help users write clearly and concisely.
@@ -83,13 +95,228 @@ async function scrapeUrl(url: string): Promise<{
 }
 
 /**
+ * Get provider from model ID
+ */
+function getProviderFromModel(model: AIModel): "anthropic" | "openai" | "google" {
+  if (model.startsWith("claude")) return "anthropic";
+  if (model.startsWith("gpt")) return "openai";
+  if (model.startsWith("gemini")) return "google";
+  return "anthropic"; // Default fallback
+}
+
+/**
+ * Get API key for a provider, returns null if not configured
+ */
+function getApiKeyForProvider(provider: "anthropic" | "openai" | "google"): string | null {
+  switch (provider) {
+    case "anthropic":
+      return process.env.ANTHROPIC_API_KEY || null;
+    case "openai":
+      return process.env.OPENAI_API_KEY || null;
+    case "google":
+      return process.env.GOOGLE_AI_API_KEY || null;
+  }
+}
+
+/**
+ * Get not configured message for a provider
+ */
+function getNotConfiguredMessage(provider: "anthropic" | "openai" | "google"): string {
+  const configs = {
+    anthropic: {
+      name: "Claude (Anthropic)",
+      envVar: "ANTHROPIC_API_KEY",
+      consoleUrl: "https://console.anthropic.com/",
+      consoleName: "Anthropic Console",
+    },
+    openai: {
+      name: "GPT (OpenAI)",
+      envVar: "OPENAI_API_KEY",
+      consoleUrl: "https://platform.openai.com/api-keys",
+      consoleName: "OpenAI Platform",
+    },
+    google: {
+      name: "Gemini (Google)",
+      envVar: "GOOGLE_AI_API_KEY",
+      consoleUrl: "https://aistudio.google.com/apikey",
+      consoleName: "Google AI Studio",
+    },
+  };
+
+  const config = configs[provider];
+  return (
+    `**${config.name} is not configured.**\n\n` +
+    `To enable this model, add your \`${config.envVar}\` to the Convex environment variables.\n\n` +
+    `**Setup steps:**\n` +
+    `1. Get an API key from [${config.consoleName}](${config.consoleUrl})\n` +
+    `2. Add it to Convex: \`npx convex env set ${config.envVar} your-key-here\`\n` +
+    `3. For production, set it in the [Convex Dashboard](https://dashboard.convex.dev/)\n\n` +
+    `See the [Convex environment variables docs](https://docs.convex.dev/production/environment-variables) for more details.`
+  );
+}
+
+/**
+ * Call Anthropic Claude API
+ */
+async function callAnthropicApi(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  messages: Array<{
+    role: "user" | "assistant";
+    content: string | Array<ContentBlockParam>;
+  }>
+): Promise<string> {
+  const anthropic = new Anthropic({ apiKey });
+
+  const response = await anthropic.messages.create({
+    model,
+    max_tokens: 2048,
+    system: systemPrompt,
+    messages,
+  });
+
+  const textContent = response.content.find((block) => block.type === "text");
+  if (!textContent || textContent.type !== "text") {
+    throw new Error("No text content in Claude response");
+  }
+
+  return textContent.text;
+}
+
+/**
+ * Call OpenAI GPT API
+ */
+async function callOpenAIApi(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  messages: Array<{
+    role: "user" | "assistant";
+    content: string | Array<ContentBlockParam>;
+  }>
+): Promise<string> {
+  const openai = new OpenAI({ apiKey });
+
+  // Convert messages to OpenAI format
+  const openaiMessages: ChatCompletionMessageParam[] = [
+    { role: "system", content: systemPrompt },
+  ];
+
+  for (const msg of messages) {
+    if (typeof msg.content === "string") {
+      if (msg.role === "user") {
+        openaiMessages.push({ role: "user", content: msg.content });
+      } else {
+        openaiMessages.push({ role: "assistant", content: msg.content });
+      }
+    } else {
+      // Convert content blocks to OpenAI format
+      const content: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [];
+      for (const block of msg.content) {
+        if (block.type === "text") {
+          content.push({ type: "text", text: block.text });
+        } else if (block.type === "image" && "source" in block && block.source.type === "url") {
+          content.push({ type: "image_url", image_url: { url: block.source.url } });
+        }
+      }
+      if (msg.role === "user") {
+        openaiMessages.push({
+          role: "user",
+          content: content.length === 1 && content[0].type === "text" ? content[0].text : content,
+        });
+      } else {
+        // Assistant messages only support string content in OpenAI
+        const textContent = content.filter(c => c.type === "text").map(c => (c as { type: "text"; text: string }).text).join("\n");
+        openaiMessages.push({ role: "assistant", content: textContent });
+      }
+    }
+  }
+
+  const response = await openai.chat.completions.create({
+    model,
+    max_tokens: 2048,
+    messages: openaiMessages,
+  });
+
+  const textContent = response.choices[0]?.message?.content;
+  if (!textContent) {
+    throw new Error("No text content in OpenAI response");
+  }
+
+  return textContent;
+}
+
+/**
+ * Call Google Gemini API
+ */
+async function callGeminiApi(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  messages: Array<{
+    role: "user" | "assistant";
+    content: string | Array<ContentBlockParam>;
+  }>
+): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey });
+
+  // Convert messages to Gemini format
+  const geminiMessages: Content[] = [];
+
+  for (const msg of messages) {
+    const role = msg.role === "assistant" ? "model" : "user";
+
+    if (typeof msg.content === "string") {
+      geminiMessages.push({
+        role,
+        parts: [{ text: msg.content }],
+      });
+    } else {
+      // Convert content blocks to Gemini format
+      const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+      for (const block of msg.content) {
+        if (block.type === "text") {
+          parts.push({ text: block.text });
+        }
+        // Note: Gemini handles images differently, would need base64 encoding
+        // For now, skip image blocks in Gemini
+      }
+      if (parts.length > 0) {
+        geminiMessages.push({ role, parts });
+      }
+    }
+  }
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: geminiMessages,
+    config: {
+      systemInstruction: systemPrompt,
+      maxOutputTokens: 2048,
+    },
+  });
+
+  const textContent = response.candidates?.[0]?.content?.parts?.find(
+    (part: { text?: string }) => part.text
+  );
+
+  if (!textContent || !("text" in textContent)) {
+    throw new Error("No text content in Gemini response");
+  }
+
+  return textContent.text as string;
+}
+
+/**
  * Generate AI response for a chat
- * Calls Claude API and saves the response
+ * Supports multiple AI providers: Anthropic, OpenAI, Google
  */
 export const generateResponse = action({
   args: {
     chatId: v.id("aiChats"),
     userMessage: v.string(),
+    model: v.optional(modelValidator),
     pageContext: v.optional(v.string()),
     attachments: v.optional(
       v.array(
@@ -105,17 +332,14 @@ export const generateResponse = action({
   },
   returns: v.string(),
   handler: async (ctx, args) => {
-    // Get API key - return friendly message if not configured
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    // Use default model if not specified
+    const selectedModel: AIModel = args.model || "claude-sonnet-4-20250514";
+    const provider = getProviderFromModel(selectedModel);
+
+    // Get API key for the selected provider - lazy check only when model is used
+    const apiKey = getApiKeyForProvider(provider);
     if (!apiKey) {
-      const notConfiguredMessage =
-        "**AI chat is not configured on production.**\n\n" +
-        "To enable AI responses, add your `ANTHROPIC_API_KEY` to the Convex environment variables.\n\n" +
-        "**Setup steps:**\n" +
-        "1. Get an API key from [Anthropic Console](https://console.anthropic.com/)\n" +
-        "2. Add it to Convex: `npx convex env set ANTHROPIC_API_KEY your-key-here`\n" +
-        "3. For production, set it in the [Convex Dashboard](https://dashboard.convex.dev/)\n\n" +
-        "See the [Convex environment variables docs](https://docs.convex.dev/production/environment-variables) for more details.";
+      const notConfiguredMessage = getNotConfiguredMessage(provider);
 
       // Save the message to chat history so it appears in the conversation
       await ctx.runMutation(internal.aiChats.addAssistantMessage, {
@@ -172,15 +396,15 @@ export const generateResponse = action({
 
     // Build messages array from chat history (last 20 messages)
     const recentMessages = chat.messages.slice(-20);
-    const claudeMessages: Array<{
+    const formattedMessages: Array<{
       role: "user" | "assistant";
       content: string | Array<ContentBlockParam>;
     }> = [];
 
-    // Convert chat messages to Claude format
+    // Convert chat messages to provider-agnostic format
     for (const msg of recentMessages) {
       if (msg.role === "assistant") {
-        claudeMessages.push({
+        formattedMessages.push({
           role: "assistant",
           content: msg.content,
         });
@@ -230,7 +454,7 @@ export const generateResponse = action({
           }
         }
 
-        claudeMessages.push({
+        formattedMessages.push({
           role: "user",
           content:
             contentParts.length === 1 && contentParts[0].type === "text"
@@ -282,7 +506,7 @@ export const generateResponse = action({
       }
     }
 
-    claudeMessages.push({
+    formattedMessages.push({
       role: "user",
       content:
         newMessageContent.length === 1 && newMessageContent[0].type === "text"
@@ -290,26 +514,25 @@ export const generateResponse = action({
           : newMessageContent,
     });
 
-    // Initialize Anthropic client
-    const anthropic = new Anthropic({
-      apiKey,
-    });
+    // Call the appropriate AI provider
+    let assistantMessage: string;
 
-    // Call Claude API
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages: claudeMessages,
-    });
-
-    // Extract text content from response
-    const textContent = response.content.find((block) => block.type === "text");
-    if (!textContent || textContent.type !== "text") {
-      throw new Error("No text content in Claude response");
+    try {
+      switch (provider) {
+        case "anthropic":
+          assistantMessage = await callAnthropicApi(apiKey, selectedModel, systemPrompt, formattedMessages);
+          break;
+        case "openai":
+          assistantMessage = await callOpenAIApi(apiKey, selectedModel, systemPrompt, formattedMessages);
+          break;
+        case "google":
+          assistantMessage = await callGeminiApi(apiKey, selectedModel, systemPrompt, formattedMessages);
+          break;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      assistantMessage = `**Error from ${provider}:** ${errorMessage}`;
     }
-
-    const assistantMessage = textContent.text;
 
     // Save the assistant message to the chat
     await ctx.runMutation(internal.aiChats.addAssistantMessage, {

@@ -1,20 +1,71 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
+// Import only needed languages for smaller bundle (INP optimization)
+import jsx from "react-syntax-highlighter/dist/esm/languages/prism/jsx";
+import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
+import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
+import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import css from "react-syntax-highlighter/dist/esm/languages/prism/css";
+import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown";
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
+import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
+import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
+import go from "react-syntax-highlighter/dist/esm/languages/prism/go";
+import rust from "react-syntax-highlighter/dist/esm/languages/prism/rust";
+import diff from "react-syntax-highlighter/dist/esm/languages/prism/diff";
+
+// Register languages
+SyntaxHighlighter.registerLanguage("jsx", jsx);
+SyntaxHighlighter.registerLanguage("tsx", tsx);
+SyntaxHighlighter.registerLanguage("typescript", typescript);
+SyntaxHighlighter.registerLanguage("ts", typescript);
+SyntaxHighlighter.registerLanguage("javascript", javascript);
+SyntaxHighlighter.registerLanguage("js", javascript);
+SyntaxHighlighter.registerLanguage("bash", bash);
+SyntaxHighlighter.registerLanguage("shell", bash);
+SyntaxHighlighter.registerLanguage("sh", bash);
+SyntaxHighlighter.registerLanguage("json", json);
+SyntaxHighlighter.registerLanguage("css", css);
+SyntaxHighlighter.registerLanguage("markdown", markdown);
+SyntaxHighlighter.registerLanguage("md", markdown);
+SyntaxHighlighter.registerLanguage("python", python);
+SyntaxHighlighter.registerLanguage("py", python);
+SyntaxHighlighter.registerLanguage("sql", sql);
+SyntaxHighlighter.registerLanguage("yaml", yaml);
+SyntaxHighlighter.registerLanguage("yml", yaml);
+SyntaxHighlighter.registerLanguage("go", go);
+SyntaxHighlighter.registerLanguage("rust", rust);
+SyntaxHighlighter.registerLanguage("diff", diff);
 import { Copy, Check, X } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import NewsletterSignup from "./NewsletterSignup";
 import ContactForm from "./ContactForm";
+import DiffCodeBlock from "./DiffCodeBlock";
 import siteConfig from "../config/siteConfig";
+import { useSearchHighlighting } from "../hooks/useSearchHighlighting";
 
-// Sanitize schema that allows collapsible sections (details/summary) and inline styles
+// Whitelisted domains for iframe embeds (YouTube and Twitter/X only)
+const ALLOWED_IFRAME_DOMAINS = [
+  "youtube.com",
+  "www.youtube.com",
+  "youtube-nocookie.com",
+  "www.youtube-nocookie.com",
+  "platform.twitter.com",
+  "platform.x.com",
+];
+
+// Sanitize schema that allows collapsible sections (details/summary), inline styles, and iframes
 const sanitizeSchema = {
   ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames || []), "details", "summary"],
+  tagNames: [...(defaultSchema.tagNames || []), "details", "summary", "iframe"],
   attributes: {
     ...defaultSchema.attributes,
     details: ["open"], // Allow the 'open' attribute for expanded by default
@@ -25,6 +76,17 @@ const sanitizeSchema = {
     p: ["style"], // Allow inline styles on p elements
     a: ["style", "href", "target", "rel"], // Allow inline styles on links
     img: [...(defaultSchema.attributes?.img || []), "style"], // Allow inline styles on images
+    span: ["className", "class", "style"], // Allow class attribute on span for copy-command
+    iframe: [
+      "src",
+      "width",
+      "height",
+      "allow",
+      "allowfullscreen",
+      "frameborder",
+      "title",
+      "style",
+    ], // Allow iframe with specific attributes
   },
 };
 
@@ -50,7 +112,31 @@ function CodeCopyButton({ code }: { code: string }) {
   );
 }
 
-// Image lightbox component
+// Inline copy button for commands in lists
+function InlineCopyButton({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await navigator.clipboard.writeText(command);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      className="inline-copy-button"
+      onClick={handleCopy}
+      aria-label={copied ? "Copied!" : "Copy command"}
+      title={copied ? "Copied!" : "Copy command"}
+    >
+      {copied ? <Check size={12} /> : <Copy size={12} />}
+    </button>
+  );
+}
+
+// Image lightbox component - uses portal to escape contain: layout
 function ImageLightbox({
   src,
   alt,
@@ -80,7 +166,8 @@ function ImageLightbox({
     };
   }, [onClose]);
 
-  return (
+  // Use portal to render at document body level, escaping contain: layout
+  return createPortal(
     <div className="image-lightbox-backdrop" onClick={handleBackdropClick}>
       <button
         className="image-lightbox-close"
@@ -93,7 +180,8 @@ function ImageLightbox({
         <img src={src} alt={alt} className="image-lightbox-image" />
         {alt && <div className="image-lightbox-caption">{alt}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -463,6 +551,10 @@ export default function BlogPost({
   } | null>(null);
   const isLightboxEnabled = siteConfig.imageLightbox?.enabled !== false;
 
+  // Search highlighting - scrolls to and highlights search terms from URL
+  const articleRef = useRef<HTMLElement>(null);
+  useSearchHighlighting({ containerRef: articleRef });
+
   const getCodeTheme = () => {
     switch (theme) {
       case "dark":
@@ -523,6 +615,17 @@ export default function BlogPost({
 
           const codeString = String(children).replace(/\n$/, "");
           const language = match ? match[1] : "text";
+
+          // Route diff/patch to DiffCodeBlock for enhanced diff rendering
+          if (language === "diff" || language === "patch") {
+            return (
+              <DiffCodeBlock
+                code={codeString}
+                language={language as "diff" | "patch"}
+              />
+            );
+          }
+
           const isTextBlock = language === "text";
 
           // Custom styles for text blocks to enable wrapping
@@ -593,12 +696,14 @@ export default function BlogPost({
           );
         },
         h1({ children }) {
+          // Demote H1 in markdown content to H2 since page title is the H1
+          // This ensures only one H1 per page for better SEO
           const id = generateSlug(getTextContent(children));
           return (
-            <h1 id={id} className="blog-h1">
+            <h2 id={id} className="blog-h1-demoted">
               <HeadingAnchor id={id} />
               {children}
-            </h1>
+            </h2>
           );
         },
         h2({ children }) {
@@ -681,6 +786,45 @@ export default function BlogPost({
         td({ children }) {
           return <td className="blog-td">{children}</td>;
         },
+        // Span component with copy-command support
+        span({ className, children }) {
+          if (className === "copy-command") {
+            const command = getTextContent(children);
+            return (
+              <span className="copy-command">
+                <code className="inline-code">{command}</code>
+                <InlineCopyButton command={command} />
+              </span>
+            );
+          }
+          return <span className={className}>{children}</span>;
+        },
+        // Iframe component with domain whitelisting for YouTube and Twitter/X
+        iframe(props) {
+          const src = props.src as string;
+          if (!src) return null;
+
+          try {
+            const url = new URL(src);
+            const isAllowed = ALLOWED_IFRAME_DOMAINS.some(
+              (domain) =>
+                url.hostname === domain || url.hostname.endsWith("." + domain),
+            );
+            if (!isAllowed) return null;
+
+            return (
+              <div className="embed-container">
+                <iframe
+                  {...props}
+                  sandbox="allow-scripts allow-same-origin allow-popups"
+                  loading="lazy"
+                />
+              </div>
+            );
+          } catch {
+            return null;
+          }
+        },
       }}
     >
       {markdownContent}
@@ -695,7 +839,7 @@ export default function BlogPost({
   if (hasInlineEmbeds) {
     return (
       <>
-        <article className="blog-post-content">
+        <article ref={articleRef} className="blog-post-content">
           {segments.map((segment, index) => {
             if (segment.type === "newsletter") {
               // Newsletter signup inline
@@ -731,7 +875,7 @@ export default function BlogPost({
   // No inline embeds, render content normally
   return (
     <>
-      <article className="blog-post-content">
+      <article ref={articleRef} className="blog-post-content">
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkBreaks]}
           rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
@@ -770,6 +914,17 @@ export default function BlogPost({
 
               const codeString = String(children).replace(/\n$/, "");
               const language = match ? match[1] : "text";
+
+              // Route diff/patch to DiffCodeBlock for enhanced diff rendering
+              if (language === "diff" || language === "patch") {
+                return (
+                  <DiffCodeBlock
+                    code={codeString}
+                    language={language as "diff" | "patch"}
+                  />
+                );
+              }
+
               const isTextBlock = language === "text";
 
               // Custom styles for text blocks to enable wrapping
@@ -842,12 +997,14 @@ export default function BlogPost({
               );
             },
             h1({ children }) {
+              // Demote H1 in markdown content to H2 since page title is the H1
+              // This ensures only one H1 per page for better SEO
               const id = generateSlug(getTextContent(children));
               return (
-                <h1 id={id} className="blog-h1">
+                <h2 id={id} className="blog-h1-demoted">
                   <HeadingAnchor id={id} />
                   {children}
-                </h1>
+                </h2>
               );
             },
             h2({ children }) {
@@ -929,6 +1086,46 @@ export default function BlogPost({
             },
             td({ children }) {
               return <td className="blog-td">{children}</td>;
+            },
+            // Span component with copy-command support
+            span({ className, children }) {
+              if (className === "copy-command") {
+                const command = getTextContent(children);
+                return (
+                  <span className="copy-command">
+                    <code className="inline-code">{command}</code>
+                    <InlineCopyButton command={command} />
+                  </span>
+                );
+              }
+              return <span className={className}>{children}</span>;
+            },
+            // Iframe component with domain whitelisting for YouTube and Twitter/X
+            iframe(props) {
+              const src = props.src as string;
+              if (!src) return null;
+
+              try {
+                const url = new URL(src);
+                const isAllowed = ALLOWED_IFRAME_DOMAINS.some(
+                  (domain) =>
+                    url.hostname === domain ||
+                    url.hostname.endsWith("." + domain),
+                );
+                if (!isAllowed) return null;
+
+                return (
+                  <div className="embed-container">
+                    <iframe
+                      {...props}
+                      sandbox="allow-scripts allow-same-origin allow-popups"
+                      loading="lazy"
+                    />
+                  </div>
+                );
+              } catch {
+                return null;
+              }
             },
           }}
         >

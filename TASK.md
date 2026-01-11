@@ -2,14 +2,354 @@
 
 ## To Do
 
-- [ ] Newsletter signup
-- [ ] Draft preview mode
-
 ## Current Status
 
-v2.2.0 ready. Footer content via markdown page complete. Created `content/pages/footer.md` for managing footer content via markdown sync. Footer content syncs with `npm run sync` without redeploy needed. Falls back to `siteConfig.footer.defaultContent` when page not found. Documentation updated in files.md, changelog.md, changelog-page.md, FORK_CONFIG.md, docs.md, setup-guide.md, and TASK.md.
+v2.19.0 ready. npx create-markdown-sync CLI.
 
 ## Completed
+
+- [x] npx create-markdown-sync CLI (v2.19.0)
+  - [x] Created packages/create-markdown-sync/ monorepo package
+  - [x] Interactive wizard with 13 sections (50+ prompts)
+  - [x] Clone template from GitHub via giget
+  - [x] Configure site settings automatically
+  - [x] Install dependencies and set up Convex
+  - [x] Disable WorkOS auth by default (empty auth.config.ts)
+  - [x] Start dev server and open browser
+  - [x] Clear next steps with docs, deployment, and WorkOS links
+  - [x] Template fixes for siteConfig.ts embedded quotes
+  - [x] npm publishable package
+
+- [x] Related posts thumbnail view with toggle (v2.18.2)
+  - [x] Added thumbnail view as default for related posts section
+  - [x] Card layout with image on left, title/excerpt/meta on right
+  - [x] Added view toggle button (same icons as homepage featured section)
+  - [x] Added RelatedPostsConfig interface to siteConfig.ts
+  - [x] Added relatedPosts config options: defaultViewMode, showViewToggle
+  - [x] Added config UI in Dashboard ConfigSection
+  - [x] Updated getRelatedPosts query to return image, excerpt, authorName, authorImage
+  - [x] Added localStorage persistence for view mode preference
+  - [x] Added ~100 lines of CSS for thumbnail card styles
+  - [x] Mobile responsive design for thumbnail cards
+
+- [x] README.md streamlined with docs links (v2.18.1)
+  - [x] Reduced from 609 lines to 155 lines
+  - [x] Added Documentation section with links to markdown.fast/docs
+  - [x] Added Guides subsection with links to specific doc pages
+  - [x] Simplified Features section with link to About page
+  - [x] Simplified Fork Configuration with doc link
+  - [x] Removed detailed sections covered by live docs
+
+- [x] OpenCode AI development tool integration (v2.18.0)
+  - [x] Created `.opencode/` directory structure
+  - [x] Created `opencode.json` root configuration
+  - [x] Created 3 agents: orchestrator, content-writer, sync-manager
+  - [x] Created 6 commands: sync, sync-prod, create-post, create-page, import, deploy
+  - [x] Adapted 4 skills from .claude/skills/: frontmatter, sync, convex, content
+  - [x] Created sync-helper plugin for content change reminders
+  - [x] Created docs-opencode.md documentation page
+  - [x] Updated files.md with OpenCode Configuration section
+  - [x] Works alongside Claude Code and Cursor without conflicts
+
+
+- [x] ConvexFS Media Library with Bunny CDN (v2.17.0)
+  - [x] Installed convex-fs package and configured Convex component
+  - [x] Created convex/fs.ts with Bunny CDN configuration
+  - [x] Created convex/files.ts with file mutations and queries
+  - [x] Added ConvexFS routes to convex/http.ts
+  - [x] Created MediaLibrary component with upload, copy, delete
+  - [x] Added bulk select and delete functionality
+  - [x] Enhanced ImageUploadModal with Media Library tab
+  - [x] Added size presets (Original, Large, Medium, Small, Thumbnail, Custom)
+  - [x] Added image dimensions display with aspect ratio
+  - [x] Added file expiration support via setFileExpiration action
+  - [x] Created docs-media-setup.md with ConvexFS documentation links
+  - [x] Added ~400 lines of CSS for media library and modal styles
+
+- [x] AI image generation download and copy options (v2.16.4)
+  - [x] Added Download button to save generated image to computer
+  - [x] Added MD button to copy Markdown code to clipboard
+  - [x] Added HTML button to copy HTML code to clipboard
+  - [x] Added code preview section showing Markdown and HTML snippets
+  - [x] Filename generated from prompt (sanitized and truncated)
+  - [x] Added CSS styles for action buttons and code preview
+
+- [x] Social icons in hamburger menu and Dashboard Config (v2.16.3)
+  - [x] Added social icons to MobileMenu below navigation links
+  - [x] Removed social icons from mobile header (now only in hamburger menu)
+  - [x] Added `socialFooter.showInHeader` toggle to Dashboard Config
+  - [x] Added `askAI.enabled` toggle to Dashboard Config (new Ask AI card)
+  - [x] Added "Configuration alignment" section to CLAUDE.md
+  - [x] Added sync comments to siteConfig.ts and Dashboard.tsx ConfigSection
+  - [x] Added mobile-menu-social CSS styles
+  - [x] Updated files.md, changelog.md, task.md, changelog-page.md
+
+- [x] Ask AI documentation alignment (v2.16.2)
+  - [x] Added `askAI` config to `fork-config.json.example`
+  - [x] Added Ask AI Configuration section to `FORK_CONFIG.md`
+  - [x] Added Ask AI (header chat) section to `docs-dashboard.md`
+  - [x] Added Ask AI (header chat) section to `how-to-use-the-markdown-sync-dashboard.md`
+  - [x] Updated changelog.md, task.md, changelog-page.md
+
+- [x] Docs layout scrollbar hiding (v2.16.1)
+  - [x] Hidden scrollbars on left sidebar, right sidebar, and main docs content
+  - [x] Added body:has(.docs-layout) to prevent page-level scrolling
+  - [x] Cross-browser support (IE/Edge, Firefox, Chrome/Safari)
+  - [x] Scrolling still works via trackpad, wheel, and touch
+  - [x] Updated files.md, changelog.md, task.md, changelog-page.md
+
+- [x] Version control system (v2.16.0)
+  - [x] Added contentVersions and versionControlSettings tables to schema
+  - [x] Created convex/versions.ts with 7 functions (isEnabled, setEnabled, createVersion, getVersionHistory, getVersion, restoreVersion, cleanupOldVersions, getStats)
+  - [x] Modified cms.ts to capture versions before dashboard edits
+  - [x] Modified posts.ts to capture versions before sync updates
+  - [x] Modified pages.ts to capture versions before sync updates
+  - [x] Added cleanup cron job (daily at 3 AM UTC) for 3-day retention
+  - [x] Created VersionHistoryModal component with diff view and restore functionality
+  - [x] Added Version Control card in Dashboard Config section with toggle and stats
+  - [x] Added History button in Dashboard editor for viewing version history
+  - [x] Added ~370 lines of CSS for version modal UI
+  - [x] Updated documentation: docs-dashboard.md, FORK_CONFIG.md, files.md, changelog.md, task.md, changelog-page.md
+
+- [x] Footer not displaying on /docs landing page fix (v2.15.3)
+  - [x] DocsPage.tsx was missing Footer component entirely
+  - [x] Added Footer import and footerPage query to DocsPage.tsx
+  - [x] Added footer rendering logic after BlogPost (same pattern as Post.tsx)
+  - [x] Updated getDocsLandingPage query to return showFooter, footer, excerpt, aiChat fields
+  - [x] Updated getDocsLandingPost query to return showFooter, footer, aiChat fields
+  - [x] Added aiChatEnabled and pageContent props to DocsLayout
+
+- [x] Additional Core Web Vitals CLS and INP improvements (v2.15.1)
+  - [x] Added aspect-ratio to blog images and header images to prevent layout shift
+  - [x] Added CSS containment to main content areas
+  - [x] Added fetchPriority="high" to logo and header images for faster LCP
+  - [x] Added will-change to continuous spin animations and marquee
+
+- [x] Additional Core Web Vitals fixes (v2.14.1)
+  - [x] Fixed docs-skeleton-pulse animation (background-position to transform: translateX())
+  - [x] Added will-change to 6 more animated elements (lightbox, modals, chat, toast)
+
+- [x] Export as PDF option in CopyPageDropdown
+  - [x] Added browser print dialog for saving pages as PDF
+  - [x] Clean formatted output with markdown syntax stripped
+  - [x] Title as heading, metadata on single line, readable content
+  - [x] Uses Phosphor FilePdf icon (already installed)
+  - [x] Positioned at end of dropdown menu
+  - [x] Added formatForPrint function and handleExportPDF handler
+  - [x] Updated files.md, changelog.md, task.md documentation
+
+- [x] Core Web Vitals performance optimizations
+  - [x] Fixed non-composited animations in visitor map (SVG r to transform: scale)
+  - [x] Removed 5 duplicate @keyframes spin definitions
+  - [x] Added will-change hints to animated elements
+  - [x] Inlined critical CSS in index.html for faster first paint
+  - [x] Added preconnect hints for convex.site
+
+- [x] Enhanced diff code block rendering with @pierre/diffs
+  - [x] Added @pierre/diffs package for Shiki-based diff visualization
+  - [x] Created DiffCodeBlock component with unified/split view toggle
+  - [x] Updated BlogPost.tsx to route diff/patch blocks to new renderer
+  - [x] Added theme-aware CSS styles for diff blocks
+  - [x] Added vendor-diffs chunk to Vite config for code splitting
+  - [x] Created "How to Use Code Blocks" blog post with examples
+  - [x] Updated files.md with DiffCodeBlock documentation
+
+- [x] Canonical URL mismatch fix (GitHub Issue #6)
+  - [x] Raw HTML was serving homepage canonical instead of page-specific canonical
+  - [x] Added SEARCH_ENGINE_BOTS array to botMeta.ts for search engine crawler detection
+  - [x] Added isSearchEngineBot() helper function
+  - [x] Updated condition to serve pre-rendered HTML to search engine bots
+  - [x] Added documentation header explaining bot detection configuration
+  - [x] Added SEO Bot Configuration section to FORK_CONFIG.md
+  - [x] Added SEO and Bot Detection section to setup-guide.md
+  - [x] Search engines (Google, Bing, DuckDuckGo, etc.) now receive correct canonical URLs
+
+- [x] SEO fixes for GitHub Issue #4 (7 issues)
+  - [x] Canonical URL: Dynamic canonical link tags for posts and pages in Post.tsx
+  - [x] Single H1 per page: Markdown H1s demoted to H2 with `.blog-h1-demoted` class in BlogPost.tsx
+  - [x] DOM order fix: Article before sidebar in DOM, CSS `order` for visual positioning
+  - [x] X-Robots-Tag: HTTP header in netlify.toml (index for public, noindex for dashboard/api)
+  - [x] Hreflang tags: Self-referencing hreflang (en, x-default) in index.html, Post.tsx, http.ts
+  - [x] og:url consistency: Uses same canonicalUrl variable as canonical link
+  - [x] twitter:site: New TwitterConfig in siteConfig.ts with site and creator fields
+  - [x] Updated fork-config.json.example with twitter configuration
+
+- [x] Optional semantic search configuration
+  - [x] Added `SemanticSearchConfig` interface to `siteConfig.ts`
+  - [x] Added `semanticSearch.enabled` toggle (default: false to avoid blocking forks)
+  - [x] Updated `SearchModal.tsx` to conditionally show mode toggle
+  - [x] Updated `sync-posts.ts` to skip embedding generation when disabled
+  - [x] Updated `src/pages/Dashboard.tsx` with semantic search config option
+  - [x] Updated `FORK_CONFIG.md` with Semantic Search Configuration section
+  - [x] Updated `fork-config.json.example` with semanticSearch option
+  - [x] Updated `docs-semantic-search.md` with enable/disable section
+  - [x] Updated `docs.md` with semantic search configuration note
+
+- [x] Semantic search with vector embeddings
+  - [x] Dual search modes: Keyword (exact match) and Semantic (meaning-based)
+  - [x] Toggle between modes in search modal (Cmd+K) with TextAa and Brain icons
+  - [x] OpenAI text-embedding-ada-002 for generating 1536-dimension embeddings
+  - [x] Similarity scores displayed as percentages in search results
+  - [x] Graceful fallback when OPENAI_API_KEY not configured
+  - [x] Embeddings generated automatically during `npm run sync`
+  - [x] New `convex/embeddings.ts` with embedding generation actions
+  - [x] New `convex/embeddingsQueries.ts` with queries and mutations for embedding storage
+  - [x] New `convex/semanticSearch.ts` with vector search action
+  - [x] New `convex/semanticSearchQueries.ts` with internal queries
+  - [x] Added `embedding` field and `by_embedding` vector index to posts and pages
+  - [x] Updated SearchModal.tsx with mode toggle and semantic search integration
+  - [x] Documentation pages: `docs-search.md` and `docs-semantic-search.md`
+
+- [x] Dashboard Cloud CMS features
+  - [x] Dual source architecture: `source: "dashboard"` vs `source: "sync"` coexist independently
+  - [x] Direct database operations: "Save to DB" in Write sections, "Save Changes" in editor
+  - [x] Source badges in Posts and Pages list views (blue Dashboard, gray Synced)
+  - [x] Delete button for dashboard-created content only
+  - [x] Delete confirmation modal with warning icon and danger button styling
+  - [x] Server-side URL import via Firecrawl (direct to database)
+  - [x] Export to markdown for backup or file-based workflow conversion
+  - [x] Bulk export script: `npm run export:db` and `npm run export:db:prod`
+  - [x] New `convex/cms.ts` with CRUD mutations
+  - [x] New `convex/importAction.ts` with Firecrawl action
+  - [x] New `scripts/export-db-posts.ts` for bulk export
+  - [x] Updated sync mutations to preserve dashboard content
+
+- [x] Rich Text Editor (Quill) in Dashboard
+  - [x] Three editing modes: Markdown (default), Rich Text (Quill), Preview
+  - [x] Quill toolbar: headers, bold, italic, strikethrough, blockquote, code, lists, links
+  - [x] Automatic HTML-to-Markdown conversion on mode switch
+  - [x] Theme-aware styling using CSS variables
+
+- [x] Dashboard UI fixes
+  - [x] Fixed source badge overlap with edit pencil in list rows
+  - [x] Adjusted grid column widths for proper badge display
+  - [x] Added source-badge CSS styles with proper spacing
+
+- [x] Write page frontmatter sidebar toggle fix
+  - [x] Added CSS rules for `.write-layout.frontmatter-collapsed` to adjust grid when sidebar collapsed
+  - [x] Added CSS rules for `.write-layout.sidebar-collapsed.frontmatter-collapsed` for both sidebars collapsed
+  - [x] Added responsive tablet styles for frontmatter collapsed state
+  - [x] Frontmatter toggle now works consistently in both focus mode and normal mode
+
+- [x] Fork configuration improvements
+  - [x] Updated `scripts/configure-fork.ts` to update 3 additional files (DocsPage.tsx, mcp.ts, send-newsletter.ts)
+  - [x] Improved `updateOpenApiYaml()` to handle all example URLs in OpenAPI spec
+  - [x] Changed logoGallery hrefs from hardcoded markdown.fast URLs to relative URLs
+  - [x] Updated `FORK_CONFIG.md` with complete file list (14 files, was 11)
+  - [x] Updated `content/blog/fork-configuration-guide.md` with accurate file count
+  - [x] Added missing options to `fork-config.json.example` (statsPage, mcpServer, imageLightbox)
+
+- [x] Search result highlighting and scroll-to-match
+  - [x] Created `useSearchHighlighting.ts` hook with polling mechanism to wait for content load
+  - [x] Search query passed via `?q=` URL parameter for highlighting on destination page
+  - [x] All matching text highlighted with theme-appropriate colors (dark/light/tan/cloud)
+  - [x] First match scrolls into view centered in viewport with header offset
+  - [x] Highlights pulse on arrival, fade to subtle after 4 seconds
+  - [x] Press Escape to clear highlights
+  - [x] Updated SearchModal.tsx, BlogPost.tsx, Post.tsx, global.css
+
+- [x] Update AI service links to use local /raw URLs
+  - [x] Changed ChatGPT, Claude, Perplexity links from GitHub raw URLs to `/raw/{slug}.md`
+  - [x] Simplified AI prompt to "Read this URL and summarize it:"
+  - [x] Removed unused `siteConfig` import and `getGitHubRawUrl` function
+  - [x] URLs now constructed using `window.location.origin` for consistency
+
+- [x] Update raw/index.md to include home.md and footer.md content
+  - [x] Updated `generateHomepageIndex` function in `scripts/sync-posts.ts`
+  - [x] Home intro content (slug: home-intro) now displays at top of index.md
+  - [x] Footer content (slug: footer) now displays at bottom of index.md
+  - [x] Horizontal rule separators between sections
+  - [x] Falls back to generic message if home-intro page not found
+  - [x] Mirrors actual homepage structure for AI agents reading raw markdown
+
+- [x] Fix footer not displaying on docs section pages with showFooter: true
+  - [x] Added footer.md content query to Post.tsx (matching Home.tsx and Blog.tsx pattern)
+  - [x] Updated all 4 Footer component calls to use `post.footer || footerPage?.content` pattern
+  - [x] Footer now falls back to footer.md content when no per-post footer is specified
+  - [x] Priority order: per-post frontmatter `footer:` > synced footer.md content > siteConfig.footer.defaultContent
+  - [x] Updated docs.md, files.md, changelog.md, changelog-page.md with fix documentation
+
+- [x] Centralize defaultTheme in siteConfig.ts
+  - [x] Added `defaultTheme` field to siteConfig.ts (type: `Theme`)
+  - [x] Added `Theme` type export to siteConfig.ts
+  - [x] Updated ThemeContext.tsx to import and use siteConfig.defaultTheme
+  - [x] Updated configure-fork.ts to update siteConfig.ts instead of ThemeContext.tsx
+  - [x] Renamed `updateThemeContext` to `updateThemeConfig` in configure-fork.ts
+  - [x] Updated docs.md Theme section with new siteConfig.ts example
+  - [x] Updated setup-guide.md "Change the Default Theme" section
+  - [x] Updated FORK_CONFIG.md with new theme configuration instructions
+  - [x] Updated fork-configuration-guide.md with siteConfig.ts reference
+  - [x] Backward compatible: falls back to "tan" if defaultTheme not set
+
+- [x] Docs sidebar group icons via frontmatter
+  - [x] Added `docsSectionGroupIcon` frontmatter field for posts and pages
+  - [x] Icon appears left of the group title expand/collapse chevron
+  - [x] Uses Phosphor Icons (55 supported icon names)
+  - [x] Icon weight: regular, size: 16px
+  - [x] Only one item per group needs to specify the icon
+  - [x] Graceful fallback if icon name not recognized
+  - [x] Updated sync-posts.ts, schema.ts, posts.ts, pages.ts
+  - [x] Updated DocsSidebar.tsx with icon mapping and rendering
+  - [x] Added CSS styles for group icons
+  - [x] Updated frontmatter.md skill with icon documentation
+  - [x] Updated docs.md, files.md, setup-guide.md with new field
+
+- [x] Multi-model AI chat and image generation in Dashboard
+  - [x] AI Agent section with tab-based UI (Chat and Image Generation tabs)
+  - [x] Multi-model selector for text chat (Claude Sonnet 4, GPT-4o, Gemini 2.0 Flash)
+  - [x] Lazy API key validation with friendly setup instructions per provider
+  - [x] Image generation with Nano Banana (gemini-2.0-flash-exp-image-generation) and Nano Banana Pro (imagen-3.0-generate-002)
+  - [x] Aspect ratio selector for images (1:1, 16:9, 9:16, 4:3, 3:4)
+  - [x] Generated images stored in Convex storage with session tracking
+  - [x] New `aiDashboard` configuration in siteConfig.ts
+  - [x] New `convex/aiImageGeneration.ts` for Gemini image generation
+  - [x] New `aiGeneratedImages` table in schema for tracking generated images
+  - [x] Updated aiChatActions.ts with multi-provider support (Anthropic, OpenAI, Google)
+  - [x] Updated AIChatView.tsx with selectedModel prop
+  - [x] CSS styles for AI Agent tabs, model selectors, and image display
+  - [x] Updated files.md, changelog.md, TASK.md, changelog-page.md
+
+- [x] Social footer icons in header navigation
+  - [x] Added `showInHeader` option to `siteConfig.socialFooter` config
+  - [x] Exported `platformIcons` from SocialFooter.tsx for reuse
+  - [x] Updated Layout.tsx to render social icons in header (left of search)
+  - [x] Added CSS styles for `.header-social-links` and `.header-social-link`
+  - [x] Added showInHeader to configure-fork.ts for automated setup
+  - [x] Updated FORK_CONFIG.md, fork-config.json.example, docs.md, setup-guide.md
+
+- [x] YouTube and Twitter/X embed support with domain whitelisting
+  - [x] Added `ALLOWED_IFRAME_DOMAINS` constant for whitelisted domains (YouTube, Twitter/X)
+  - [x] Added `iframe` to sanitize schema with allowed attributes
+  - [x] Added custom iframe component handler with domain validation
+  - [x] Auto-adds `sandbox` and `loading="lazy"` attributes for security
+  - [x] Non-whitelisted iframes silently blocked
+  - [x] Added `.embed-container` CSS styles for responsive embeds
+  - [x] Updated markdown-with-code-examples.md with Embeds section
+  - [x] Works on both blog posts and pages
+  - [x] Updated files.md, TASK.md, changelog.md, changelog-page.md
+
+- [x] Author pages at `/author/:authorSlug` with post list
+  - [x] Added `by_authorName` index to posts table in convex/schema.ts
+  - [x] Added `getAllAuthors` and `getPostsByAuthor` queries in convex/posts.ts
+  - [x] Created AuthorPage.tsx component with view mode toggle (list/cards)
+  - [x] Added `/author/:authorSlug` route in App.tsx
+  - [x] Made authorName clickable in Post.tsx (links to author page)
+  - [x] Added author link styles and author page styles to global.css
+  - [x] Added author pages to sitemap in convex/http.ts
+  - [x] Updated files.md with AuthorPage.tsx documentation
+  - [x] Saved implementation plan to prds/authorname-blogs.md
+
+- [x] Homepage intro loading flash fix
+  - [x] Removed "Loading..." text from Suspense fallback in main.tsx
+  - [x] Fixed Home.tsx conditional to render nothing while homeIntro query loads (undefined vs null)
+  - [x] Home intro content now appears without any visible loading state or fallback
+  - [x] Matches loading pattern used by Post.tsx for docs pages
+
+- [x] ES module compatibility fix for configure-fork.ts
+  - [x] Fixed `__dirname is not defined` error when running `npm run configure`
+  - [x] Added `fileURLToPath` import from `url` module
+  - [x] Created ES module equivalent of `__dirname` using `import.meta.url`
+  - [x] Updated files.md, changelog.md, changelog-page.md, TASK.md
 
 - [x] Footer content via markdown page (footer.md)
   - [x] Created `content/pages/footer.md` for managing footer content via markdown sync

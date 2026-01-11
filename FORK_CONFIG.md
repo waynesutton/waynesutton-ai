@@ -1,10 +1,47 @@
 # Fork Configuration Guide
 
-After forking this repo, update these files with your site information. Choose one of two options:
+After forking this repo, update these files with your site information. Choose one of three options:
+
+**Important**: Keep your `fork-config.json` file after configuring. The `sync:discovery` commands will use it to update discovery files (`AGENTS.md`, `CLAUDE.md`, `public/llms.txt`) with your configured values.
 
 ---
 
-## Option 1: Automated Script (Recommended)
+## Option 1: npx CLI (Recommended)
+
+Run a single command to scaffold and configure your project with an interactive wizard:
+
+```bash
+npx create-markdown-sync my-site
+```
+
+The interactive wizard will:
+
+1. Clone the repository
+2. Walk through all configuration options (site name, URL, features, etc.)
+3. Install dependencies
+4. Set up Convex backend (opens browser for login)
+5. Run initial content sync
+6. Open your site in the browser
+
+### After setup
+
+```bash
+cd my-site
+npm run dev      # Start dev server at localhost:5173
+npm run sync     # Sync content changes
+```
+
+### CLI Options
+
+```bash
+npx create-markdown-sync my-site --force       # Overwrite existing directory
+npx create-markdown-sync my-site --skip-convex # Skip Convex setup
+npx create-markdown-sync my-site --skip-open   # Don't open browser after setup
+```
+
+---
+
+## Option 2: Automated Script
 
 Run a single command to configure all files automatically.
 
@@ -15,6 +52,8 @@ cp fork-config.json.example fork-config.json
 ```
 
 The file `fork-config.json` is gitignored, so your configuration stays local and is not committed. The `.example` file remains as a template.
+
+**Keep this file**: Even after running `npm run configure`, keep the `fork-config.json` file. Future sync commands will use it to maintain your configuration.
 
 ### Step 2: Edit fork-config.json
 
@@ -45,19 +84,21 @@ The file `fork-config.json` is gitignored, so your configuration stays local and
 npm run configure
 ```
 
-This updates all 11 configuration files automatically:
+This updates all 14 configuration files automatically:
 
-- `src/config/siteConfig.ts`
-- `src/pages/Home.tsx`
-- `src/pages/Post.tsx`
-- `convex/http.ts`
-- `convex/rss.ts`
-- `index.html`
-- `public/llms.txt`
-- `public/robots.txt`
-- `public/openapi.yaml`
-- `public/.well-known/ai-plugin.json`
-- `src/context/ThemeContext.tsx`
+- `src/config/siteConfig.ts` (site name, bio, GitHub username, gitHubRepo config, default theme)
+- `src/pages/Home.tsx` (intro paragraph, footer links)
+- `src/pages/Post.tsx` (SITE_URL, SITE_NAME constants)
+- `src/pages/DocsPage.tsx` (SITE_URL constant for CopyPageDropdown)
+- `convex/http.ts` (SITE_URL, SITE_NAME constants)
+- `convex/rss.ts` (SITE_URL, SITE_TITLE, SITE_DESCRIPTION)
+- `netlify/edge-functions/mcp.ts` (SITE_URL, SITE_NAME, MCP_SERVER_NAME)
+- `scripts/send-newsletter.ts` (default SITE_URL)
+- `index.html` (meta tags, JSON-LD, page title)
+- `public/llms.txt` (site info, GitHub link)
+- `public/robots.txt` (sitemap URL)
+- `public/openapi.yaml` (server URL, site name, example URLs)
+- `public/.well-known/ai-plugin.json` (plugin metadata)
 
 ### Step 4: Review and deploy
 
@@ -70,25 +111,27 @@ npm run dev                 # Test locally
 
 ---
 
-## Option 2: Manual Configuration
+## Option 3: Manual Configuration
 
 Edit each file individually following the guide below.
 
 ### Files to Update
 
-| File                                | What to Update                                               |
-| ----------------------------------- | ------------------------------------------------------------ |
-| `src/config/siteConfig.ts`          | Site name, bio, GitHub username, gitHubRepo config, features |
-| `src/pages/Home.tsx`                | Intro paragraph, footer links                                |
-| `src/pages/Post.tsx`                | `SITE_URL`, `SITE_NAME` constants                            |
-| `convex/http.ts`                    | `SITE_URL`, `SITE_NAME` constants                            |
-| `convex/rss.ts`                     | `SITE_URL`, `SITE_TITLE`, `SITE_DESCRIPTION`                 |
-| `index.html`                        | Meta tags, JSON-LD, page title                               |
-| `public/llms.txt`                   | Site info, GitHub link                                       |
-| `public/robots.txt`                 | Sitemap URL                                                  |
-| `public/openapi.yaml`               | Server URL, site name                                        |
-| `public/.well-known/ai-plugin.json` | Plugin metadata                                              |
-| `src/context/ThemeContext.tsx`      | Default theme                                                |
+| File                                | What to Update                                                              |
+| ----------------------------------- | --------------------------------------------------------------------------- |
+| `src/config/siteConfig.ts`          | Site name, bio, GitHub username, gitHubRepo config, default theme, features |
+| `src/pages/Home.tsx`                | Intro paragraph, footer links                                               |
+| `src/pages/Post.tsx`                | `SITE_URL`, `SITE_NAME` constants                                           |
+| `src/pages/DocsPage.tsx`            | `SITE_URL` constant                                                         |
+| `convex/http.ts`                    | `SITE_URL`, `SITE_NAME` constants                                           |
+| `convex/rss.ts`                     | `SITE_URL`, `SITE_TITLE`, `SITE_DESCRIPTION`                                |
+| `netlify/edge-functions/mcp.ts`     | `SITE_URL`, `SITE_NAME`, `MCP_SERVER_NAME` constants                        |
+| `scripts/send-newsletter.ts`        | Default `SITE_URL` constant                                                 |
+| `index.html`                        | Meta tags, JSON-LD, page title                                              |
+| `public/llms.txt`                   | Site info, GitHub link                                                      |
+| `public/robots.txt`                 | Sitemap URL                                                                 |
+| `public/openapi.yaml`               | Server URL, site name, example URLs                                         |
+| `public/.well-known/ai-plugin.json` | Plugin metadata                                                             |
 
 ---
 
@@ -419,12 +462,15 @@ Update plugin metadata:
 }
 ```
 
-### 11. src/context/ThemeContext.tsx
+### 11. Default Theme (in siteConfig.ts)
 
-Change the default theme (line 21):
+Change the default theme in `src/config/siteConfig.ts`:
 
 ```typescript
-const DEFAULT_THEME: Theme = "tan"; // Options: dark, light, tan, cloud
+export const siteConfig: SiteConfig = {
+  // ... other config
+  defaultTheme: "tan", // Options: "dark", "light", "tan", "cloud"
+};
 ```
 
 ---
@@ -739,6 +785,7 @@ The dashboard includes a sync server feature that allows executing sync commands
 **Setup:**
 
 1. Start the sync server locally:
+
 ```bash
 npm run sync-server
 ```
@@ -817,6 +864,52 @@ imageLightbox: {
 - Click outside image (backdrop) to close
 - Alt text displayed as caption below image
 - Images show pointer cursor (`zoom-in`) when enabled
+
+---
+
+## Semantic Search Configuration
+
+Enable AI-powered semantic search using OpenAI embeddings. When disabled, only keyword search is available.
+
+### In fork-config.json
+
+```json
+{
+  "semanticSearch": {
+    "enabled": false
+  }
+}
+```
+
+### Manual Configuration
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+semanticSearch: {
+  enabled: true, // Enable semantic search (requires OPENAI_API_KEY)
+},
+```
+
+**Requirements:**
+
+When enabled, set the OpenAI API key in Convex:
+
+```bash
+npx convex env set OPENAI_API_KEY sk-your-key-here
+```
+
+**Features:**
+
+- Toggle between Keyword and Semantic modes in search modal (Cmd+K)
+- Keyword search: exact word matching (instant, free)
+- Semantic search: finds content by meaning (~300ms, ~$0.0001/query)
+- Similarity scores displayed as percentages
+- Embeddings generated automatically during `npm run sync`
+
+**Default:** `enabled: false` (keyword search only, no API key required)
+
+See [Semantic Search](/docs-semantic-search) for detailed documentation.
 
 ---
 
@@ -955,7 +1048,7 @@ Set `showFooter: false` in post/page frontmatter to hide footer on specific page
 
 ## Social Footer Configuration
 
-Display social icons and copyright information below the main footer.
+Display social icons and copyright information below the main footer. Icons can also appear in the header.
 
 ### In fork-config.json
 
@@ -967,6 +1060,7 @@ Display social icons and copyright information below the main footer.
     "showOnPosts": true,
     "showOnPages": true,
     "showOnBlogPage": true,
+    "showInHeader": true,
     "socialLinks": [
       {
         "platform": "github",
@@ -996,6 +1090,7 @@ socialFooter: {
   showOnPosts: true,
   showOnPages: true,
   showOnBlogPage: true,
+  showInHeader: true, // Show social icons in header (left of search icon)
   socialLinks: [
     { platform: "github", url: "https://github.com/username" },
     { platform: "twitter", url: "https://x.com/handle" },
@@ -1009,6 +1104,10 @@ socialFooter: {
 ```
 
 **Supported Platforms:** github, twitter, linkedin, instagram, youtube, tiktok, discord, website
+
+**Header Social Icons:**
+
+When `showInHeader: true`, social icons appear in the navigation header to the left of the search icon on desktop. This provides additional visibility for your social links while maintaining the footer placement.
 
 **Frontmatter Override:**
 
@@ -1064,7 +1163,7 @@ rightSidebar: true
 
 ## AI Chat Configuration
 
-Configure the AI writing assistant powered by Anthropic Claude.
+Configure the AI writing assistant. The Dashboard AI Agent supports multiple providers (Anthropic, OpenAI, Google) and includes image generation.
 
 ### In fork-config.json
 
@@ -1073,6 +1172,35 @@ Configure the AI writing assistant powered by Anthropic Claude.
   "aiChat": {
     "enabledOnWritePage": false,
     "enabledOnContent": false
+  },
+  "aiDashboard": {
+    "enableImageGeneration": true,
+    "defaultTextModel": "claude-sonnet-4-20250514",
+    "textModels": [
+      {
+        "id": "claude-sonnet-4-20250514",
+        "name": "Claude Sonnet 4",
+        "provider": "anthropic"
+      },
+      { "id": "gpt-4o", "name": "GPT-4o", "provider": "openai" },
+      {
+        "id": "gemini-2.0-flash",
+        "name": "Gemini 2.0 Flash",
+        "provider": "google"
+      }
+    ],
+    "imageModels": [
+      {
+        "id": "gemini-2.0-flash-exp-image-generation",
+        "name": "Nano Banana",
+        "provider": "google"
+      },
+      {
+        "id": "imagen-3.0-generate-002",
+        "name": "Nano Banana Pro",
+        "provider": "google"
+      }
+    ]
   }
 }
 ```
@@ -1086,13 +1214,35 @@ aiChat: {
   enabledOnWritePage: true,  // Show AI chat toggle on /write page
   enabledOnContent: true,    // Allow AI chat on posts/pages via frontmatter
 },
+aiDashboard: {
+  enableImageGeneration: true, // Enable image generation tab in Dashboard AI Agent
+  defaultTextModel: "claude-sonnet-4-20250514", // Default model for chat
+  textModels: [
+    { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", provider: "anthropic" },
+    { id: "gpt-4o", name: "GPT-4o", provider: "openai" },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "google" },
+  ],
+  imageModels: [
+    { id: "gemini-2.0-flash-exp-image-generation", name: "Nano Banana", provider: "google" },
+    { id: "imagen-3.0-generate-002", name: "Nano Banana Pro", provider: "google" },
+  ],
+},
 ```
 
 **Environment Variables (Convex):**
 
-- `ANTHROPIC_API_KEY` (required): Your Anthropic API key
+| Variable            | Provider  | Features                                 |
+| ------------------- | --------- | ---------------------------------------- |
+| `ANTHROPIC_API_KEY` | Anthropic | Claude Sonnet 4 chat                     |
+| `OPENAI_API_KEY`    | OpenAI    | GPT-4o chat                              |
+| `GOOGLE_AI_API_KEY` | Google    | Gemini 2.0 Flash chat + image generation |
+
+**Optional system prompt variables:**
+
 - `CLAUDE_PROMPT_STYLE`, `CLAUDE_PROMPT_COMMUNITY`, `CLAUDE_PROMPT_RULES` (optional): Split system prompts
 - `CLAUDE_SYSTEM_PROMPT` (optional): Single system prompt fallback
+
+**Note:** Only configure the API keys for providers you want to use. If a key is not set, users see a helpful setup message when they try to use that model.
 
 **Frontmatter Usage:**
 
@@ -1107,6 +1257,63 @@ aiChat: true
 ```
 
 Requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`.
+
+**Dashboard AI Agent Features:**
+
+- **Chat Tab:** Multi-model selector with lazy API key validation
+- **Image Tab:** AI image generation with aspect ratio selection (1:1, 16:9, 9:16, 4:3, 3:4)
+- Images stored in Convex storage with session tracking
+- Gallery view of recent generated images
+
+---
+
+## Ask AI Configuration
+
+Enable an Ask AI header chat button that opens a modal for asking questions about site content. Uses RAG (Retrieval Augmented Generation) with streaming responses.
+
+### In fork-config.json
+
+```json
+{
+  "askAI": {
+    "enabled": true,
+    "defaultModel": "claude-sonnet-4-20250514",
+    "models": [
+      { "id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "provider": "anthropic" },
+      { "id": "gpt-4o", "name": "GPT-4o", "provider": "openai" }
+    ]
+  }
+}
+```
+
+### Manual Configuration
+
+In `src/config/siteConfig.ts`:
+
+```typescript
+askAI: {
+  enabled: true, // Enable Ask AI header button
+  defaultModel: "claude-sonnet-4-20250514",
+  models: [
+    { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", provider: "anthropic" },
+    { id: "gpt-4o", name: "GPT-4o", provider: "openai" },
+  ],
+},
+```
+
+**Requirements:**
+
+- `semanticSearch.enabled: true` for content retrieval
+- `OPENAI_API_KEY` in Convex for embeddings
+- `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` for the LLM (depending on selected model)
+
+**Features:**
+
+- Header button opens a chat modal
+- Retrieves relevant content using semantic search
+- Streaming responses with markdown rendering
+- Multi-model selector (Claude Sonnet 4, GPT-4o)
+- Conversation history within session
 
 ---
 
@@ -1178,16 +1385,19 @@ GitHub Repo Config (for AI service links):
 - Content Path: public/raw
 
 Update these files:
-1. src/config/siteConfig.ts - site name, bio, GitHub username, gitHubRepo config
+1. src/config/siteConfig.ts - site name, bio, GitHub username, gitHubRepo config, defaultTheme
 2. src/pages/Home.tsx - intro paragraph and footer section with all creator links
 3. src/pages/Post.tsx - SITE_URL and SITE_NAME constants
-4. convex/http.ts - SITE_URL and SITE_NAME constants
-5. convex/rss.ts - SITE_URL, SITE_TITLE, SITE_DESCRIPTION
-6. index.html - all meta tags, JSON-LD, title
-7. public/llms.txt - site info and GitHub link
-8. public/robots.txt - header comment and sitemap URL
-9. public/openapi.yaml - API title, server URL, contact URL
-10. public/.well-known/ai-plugin.json - plugin metadata and contact email
+4. src/pages/DocsPage.tsx - SITE_URL constant
+5. convex/http.ts - SITE_URL and SITE_NAME constants
+6. convex/rss.ts - SITE_URL, SITE_TITLE, SITE_DESCRIPTION
+7. netlify/edge-functions/mcp.ts - SITE_URL, SITE_NAME, MCP_SERVER_NAME constants
+8. scripts/send-newsletter.ts - default SITE_URL constant
+9. index.html - all meta tags, JSON-LD, title
+10. public/llms.txt - site info and GitHub link
+11. public/robots.txt - header comment and sitemap URL
+12. public/openapi.yaml - API title, server URL, contact URL, example URLs
+13. public/.well-known/ai-plugin.json - plugin metadata and contact email
 ```
 
 ---
@@ -1199,11 +1409,15 @@ Update these files:
 3. Run `npm run dev` to test locally
 4. Deploy to Netlify when ready
 
+**Note**: Keep your `fork-config.json` file. When you run `npm run sync:discovery` or `npm run sync:all`, it reads from `fork-config.json` to update discovery files with your site information.
+
 ---
 
 ## Syncing Discovery Files
 
-Discovery files (`AGENTS.md` and `public/llms.txt`) can be automatically updated with your current app data.
+Discovery files (`AGENTS.md`, `CLAUDE.md`, and `public/llms.txt`) can be automatically updated with your current app data.
+
+**How it works**: The sync:discovery script reads from `fork-config.json` (if it exists) to get your site name, URL, and GitHub info. This ensures your configured values are preserved when updating discovery files.
 
 ### Commands
 
@@ -1235,12 +1449,124 @@ The script reads from `siteConfig.ts` and queries Convex for live content statis
 
 Replace example content in:
 
-| File                           | Purpose                    |
-| ------------------------------ | -------------------------- |
-| `content/blog/*.md`            | Blog posts                 |
-| `content/pages/*.md`           | Static pages (About, etc.) |
-| `content/pages/home.md`        | Homepage intro content (slug: `home-intro`, uses blog heading styles) |
+| File                           | Purpose                                                                                      |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `content/blog/*.md`            | Blog posts                                                                                   |
+| `content/pages/*.md`           | Static pages (About, etc.)                                                                   |
+| `content/pages/home.md`        | Homepage intro content (slug: `home-intro`, uses blog heading styles)                        |
 | `content/pages/footer.md`      | Footer content (slug: `footer`, syncs via markdown, falls back to siteConfig.defaultContent) |
-| `public/images/logo.svg`       | Site logo                  |
-| `public/images/og-default.svg` | Default social share image |
-| `public/images/logos/*.svg`    | Logo gallery images        |
+| `public/images/logo.svg`       | Site logo                                                                                    |
+| `public/images/og-default.svg` | Default social share image                                                                   |
+| `public/images/logos/*.svg`    | Logo gallery images                                                                          |
+
+---
+
+## SEO Bot Configuration
+
+The site serves pre-rendered HTML with correct canonical URLs and meta tags to search engines and social preview bots. Configure bot detection in `netlify/edge-functions/botMeta.ts`.
+
+### How It Works
+
+The edge function detects different types of bots and serves appropriate responses:
+
+| Bot Type            | Response                                 | Examples                             |
+| ------------------- | ---------------------------------------- | ------------------------------------ |
+| Social preview bots | Pre-rendered HTML with OG tags           | Twitter, Facebook, LinkedIn, Discord |
+| Search engine bots  | Pre-rendered HTML with correct canonical | Google, Bing, DuckDuckGo             |
+| AI crawlers         | Normal SPA (can render JavaScript)       | GPTBot, ClaudeBot, PerplexityBot     |
+| Regular browsers    | Normal SPA                               | Chrome, Firefox, Safari              |
+
+### Customizing Bot Lists
+
+Edit the arrays at the top of `netlify/edge-functions/botMeta.ts`:
+
+```typescript
+// Add or remove social preview bots
+const SOCIAL_PREVIEW_BOTS = [
+  "facebookexternalhit",
+  "twitterbot",
+  // ... add your own
+];
+
+// Add or remove search engine bots
+const SEARCH_ENGINE_BOTS = [
+  "googlebot",
+  "bingbot",
+  // ... add your own
+];
+
+// Add or remove AI crawlers
+const AI_CRAWLERS = [
+  "gptbot",
+  "claudebot",
+  // ... add your own
+];
+```
+
+### Testing Bot Detection
+
+Test with curl to simulate different bots:
+
+```bash
+# Test Googlebot (should get pre-rendered HTML with correct canonical)
+curl -H "User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1)" \
+  https://yoursite.com/your-post | grep canonical
+
+# Test normal browser (should get SPA with homepage canonical)
+curl https://yoursite.com/your-post | grep canonical
+```
+
+### Why This Matters
+
+Single-page apps (SPAs) update meta tags via JavaScript after the page loads. Search engines that check raw HTML before rendering may see incorrect canonical URLs. By serving pre-rendered HTML to search engine bots, we ensure they see the correct canonical URL for each page.
+
+---
+
+## Version Control Configuration
+
+The dashboard includes a built-in Sync version control system. Unlike most features, version control is configured via the Dashboard UI, not `siteConfig.ts` or `fork-config.json`.
+
+### How to enable
+
+1. Navigate to `/dashboard`
+2. Go to the **Config** section
+3. Find the **Version Control** card
+4. Toggle **Enable version control** on
+
+### Features
+
+- **3-day version history** for all posts, pages, home content, and footer
+- **Diff visualization** using unified diff format
+- **One-click restore** with automatic backup of current content
+- **Automatic cleanup** of versions older than 3 days (runs daily at 3 AM UTC)
+
+### When versions are captured
+
+| Source    | When created                                  |
+| --------- | --------------------------------------------- |
+| sync      | Before markdown sync updates (`npm run sync`) |
+| dashboard | Before saving edits in Dashboard              |
+| restore   | Before restoring a previous version           |
+
+### Viewing version history
+
+1. Open any post or page in the Dashboard editor
+2. Click the **History** button (clock icon) in the editor toolbar
+3. Select a version from the list
+4. View diff or preview
+5. Click **Restore This Version** to revert
+
+### Technical details
+
+- Versions stored in `contentVersions` table in Convex
+- Settings stored in `versionControlSettings` table
+- Cleanup via cron job in `convex/crons.ts`
+- Version capture is async (non-blocking via `ctx.scheduler.runAfter`)
+
+### Why database-based?
+
+Version control settings are stored in the Convex database rather than config files because:
+
+1. **Toggle requires real-time state** - UI needs to reflect current setting immediately
+2. **Shared across environments** - Same setting for all users of the dashboard
+3. **No redeploy needed** - Toggle works instantly without rebuilding

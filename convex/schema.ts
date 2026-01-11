@@ -29,19 +29,35 @@ export default defineSchema({
     newsletter: v.optional(v.boolean()), // Override newsletter signup display (true/false)
     contactForm: v.optional(v.boolean()), // Enable contact form on this post
     unlisted: v.optional(v.boolean()), // Hide from listings but allow direct access via slug
+    docsSection: v.optional(v.boolean()), // Include in docs navigation
+    docsSectionGroup: v.optional(v.string()), // Sidebar group name in docs
+    docsSectionOrder: v.optional(v.number()), // Order within group (lower = first)
+    docsSectionGroupOrder: v.optional(v.number()), // Order of group itself (lower = first)
+    docsSectionGroupIcon: v.optional(v.string()), // Phosphor icon name for sidebar group
+    docsLanding: v.optional(v.boolean()), // Use as /docs landing page
     lastSyncedAt: v.number(),
+    source: v.optional(v.union(v.literal("dashboard"), v.literal("sync"))), // Content source: "dashboard" (created in UI) or "sync" (from markdown files)
+    embedding: v.optional(v.array(v.float64())), // Vector embedding for semantic search (1536 dimensions, OpenAI text-embedding-ada-002)
   })
     .index("by_slug", ["slug"])
     .index("by_date", ["date"])
     .index("by_published", ["published"])
     .index("by_featured", ["featured"])
     .index("by_blogFeatured", ["blogFeatured"])
+    .index("by_authorName", ["authorName"])
+    .index("by_docsSection", ["docsSection"])
+    .index("by_source", ["source"])
     .searchIndex("search_content", {
       searchField: "content",
       filterFields: ["published"],
     })
     .searchIndex("search_title", {
       searchField: "title",
+      filterFields: ["published"],
+    })
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 1536,
       filterFields: ["published"],
     }),
 
@@ -69,17 +85,32 @@ export default defineSchema({
     contactForm: v.optional(v.boolean()), // Enable contact form on this page
     newsletter: v.optional(v.boolean()), // Override newsletter signup display (true/false)
     textAlign: v.optional(v.string()), // Text alignment: "left", "center", "right" (default: "left")
+    docsSection: v.optional(v.boolean()), // Include in docs navigation
+    docsSectionGroup: v.optional(v.string()), // Sidebar group name in docs
+    docsSectionOrder: v.optional(v.number()), // Order within group (lower = first)
+    docsSectionGroupOrder: v.optional(v.number()), // Order of group itself (lower = first)
+    docsSectionGroupIcon: v.optional(v.string()), // Phosphor icon name for sidebar group
+    docsLanding: v.optional(v.boolean()), // Use as /docs landing page
     lastSyncedAt: v.number(),
+    source: v.optional(v.union(v.literal("dashboard"), v.literal("sync"))), // Content source: "dashboard" (created in UI) or "sync" (from markdown files)
+    embedding: v.optional(v.array(v.float64())), // Vector embedding for semantic search (1536 dimensions, OpenAI text-embedding-ada-002)
   })
   .index("by_slug", ["slug"])
   .index("by_published", ["published"])
   .index("by_featured", ["featured"])
+  .index("by_docsSection", ["docsSection"])
+  .index("by_source", ["source"])
     .searchIndex("search_content", {
       searchField: "content",
       filterFields: ["published"],
     })
     .searchIndex("search_title", {
       searchField: "title",
+      filterFields: ["published"],
+    })
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 1536,
       filterFields: ["published"],
     }),
 
@@ -148,6 +179,18 @@ export default defineSchema({
     .index("by_session_and_context", ["sessionId", "contextId"])
     .index("by_session", ["sessionId"]),
 
+  // AI generated images from Gemini image generation
+  aiGeneratedImages: defineTable({
+    sessionId: v.string(), // Anonymous session ID from localStorage
+    prompt: v.string(), // User's image prompt
+    model: v.string(), // Model used: "gemini-2.5-flash-image" or "gemini-3-pro-image-preview"
+    storageId: v.id("_storage"), // Convex storage ID for the generated image
+    mimeType: v.string(), // Image MIME type: "image/png" or "image/jpeg"
+    createdAt: v.number(), // Timestamp when image was generated
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_createdAt", ["createdAt"]),
+
   // Newsletter subscribers table
   // Stores email subscriptions with unsubscribe tokens
   newsletterSubscribers: defineTable({
@@ -183,4 +226,50 @@ export default defineSchema({
     createdAt: v.number(), // Timestamp when submitted
     emailSentAt: v.optional(v.number()), // Timestamp when email was sent (if applicable)
   }).index("by_createdAt", ["createdAt"]),
+
+  // Ask AI sessions for header AI chat feature
+  // Stores questions and stream IDs for RAG-based Q&A
+  askAISessions: defineTable({
+    question: v.string(), // User's question
+    streamId: v.string(), // Persistent text streaming ID
+    model: v.optional(v.string()), // Selected AI model
+    createdAt: v.number(), // Timestamp when session was created
+    sources: v.optional(
+      v.array(
+        v.object({
+          title: v.string(),
+          slug: v.string(),
+          type: v.string(),
+        })
+      )
+    ), // Optional sources cited in the response
+  }).index("by_stream", ["streamId"]),
+
+  // Content version history for posts and pages
+  // Stores snapshots before each update for 3-day retention
+  contentVersions: defineTable({
+    contentType: v.union(v.literal("post"), v.literal("page")), // Type of content
+    contentId: v.string(), // ID of the post or page (stored as string for flexibility)
+    slug: v.string(), // Slug for display and querying
+    title: v.string(), // Title at time of snapshot
+    content: v.string(), // Full markdown content at time of snapshot
+    description: v.optional(v.string()), // Description (posts only)
+    createdAt: v.number(), // Timestamp when version was created
+    source: v.union(
+      v.literal("sync"),
+      v.literal("dashboard"),
+      v.literal("restore")
+    ), // What triggered the version capture
+  })
+    .index("by_content", ["contentType", "contentId"])
+    .index("by_slug", ["contentType", "slug"])
+    .index("by_createdAt", ["createdAt"])
+    .index("by_content_createdAt", ["contentType", "contentId", "createdAt"]),
+
+  // Version control settings
+  // Stores toggle state for version control feature
+  versionControlSettings: defineTable({
+    key: v.string(), // Setting key: "enabled"
+    value: v.boolean(), // Setting value
+  }).index("by_key", ["key"]),
 });

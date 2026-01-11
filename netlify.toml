@@ -92,7 +92,32 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Robots-Tag = "index, follow"
     # Link header removed from global scope to avoid applying to /raw/*
+
+# Dashboard - prevent indexing of admin pages
+[[headers]]
+  for = "/dashboard/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+# Write page - prevent indexing of admin pages
+[[headers]]
+  for = "/write"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+# Newsletter admin - prevent indexing of admin pages
+[[headers]]
+  for = "/newsletter-admin"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+# API endpoints - prevent indexing
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
 
 # Link header for SPA entry point only
 [[headers]]
@@ -105,7 +130,7 @@
 [[headers]]
   for = "/raw/*"
   [headers.values]
-    Content-Type = "text/markdown; charset=utf-8"
+    Content-Type = "text/plain; charset=utf-8"
     Access-Control-Allow-Origin = "*"
     Cache-Control = "public, max-age=3600"
     # Removed X-Robots-Tag = "noindex" - AI crawlers need to index raw content

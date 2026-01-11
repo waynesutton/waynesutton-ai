@@ -80,6 +80,7 @@
     "showOnPosts": true,
     "showOnPages": true,
     "showOnBlogPage": true,
+    "showInHeader": true,
     "socialLinks": [
       {
         "platform": "github",
@@ -102,6 +103,19 @@
   "aiChat": {
     "enabledOnWritePage": false,
     "enabledOnContent": false
+  },
+  "aiDashboard": {
+    "enableImageGeneration": true,
+    "defaultTextModel": "claude-sonnet-4-20250514",
+    "textModels": [
+      { "id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "provider": "anthropic" },
+      { "id": "gpt-4o", "name": "GPT-4o", "provider": "openai" },
+      { "id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "provider": "google" }
+    ],
+    "imageModels": [
+      { "id": "gemini-2.0-flash-exp-image-generation", "name": "Nano Banana", "provider": "google" },
+      { "id": "imagen-3.0-generate-002", "name": "Nano Banana Pro", "provider": "google" }
+    ]
   },
   "newsletter": {
     "enabled": false,
@@ -148,9 +162,38 @@
     "dayOfWeek": 0,
     "subject": "Weekly Digest"
   },
+  "statsPage": {
+    "enabled": true,
+    "showInNav": true
+  },
+  "mcpServer": {
+    "enabled": true,
+    "endpoint": "/mcp",
+    "publicRateLimit": 50,
+    "authenticatedRateLimit": 1000,
+    "requireAuth": false
+  },
+  "imageLightbox": {
+    "enabled": true
+  },
   "dashboard": {
     "enabled": true,
     "requireAuth": false
+  },
+  "semanticSearch": {
+    "enabled": false
+  },
+  "twitter": {
+    "site": "@yourhandle",
+    "creator": "@yourhandle"
+  },
+  "askAI": {
+    "enabled": false,
+    "defaultModel": "claude-sonnet-4-20250514",
+    "models": [
+      { "id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "provider": "anthropic" },
+      { "id": "gpt-4o", "name": "GPT-4o", "provider": "openai" }
+    ]
   }
 }
 

@@ -116,21 +116,21 @@ export default function VisitorMap({ locations, title }: VisitorMapProps) {
           {/* Visitor location dots with pulse animation */}
           {visitorDots.map((dot, i) => (
             <g key={`visitor-${i}`}>
-              {/* Outer pulse ring */}
+              {/* Outer pulse ring - base r=5, scaled via CSS transform */}
               <circle
                 cx={dot.x}
                 cy={dot.y}
-                r="12"
+                r="5"
                 fill="var(--visitor-map-dot)"
                 opacity="0"
                 className="visitor-pulse-ring"
                 style={{ animationDelay: `${i * 0.2}s` }}
               />
-              {/* Middle pulse ring */}
+              {/* Middle pulse ring - base r=5, scaled via CSS transform */}
               <circle
                 cx={dot.x}
                 cy={dot.y}
-                r="8"
+                r="5"
                 fill="var(--visitor-map-dot)"
                 opacity="0.2"
                 className="visitor-pulse-ring-mid"
