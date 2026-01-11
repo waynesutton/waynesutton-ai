@@ -2,45 +2,33 @@
 
 ---
 Type: page
-Date: 2026-01-11
+Date: 2026-01-09
 ---
 
-An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs. Two ways to publish: write markdown and sync from the terminal, or use the web dashboard. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.
+---
 
 I build developer communities. At Convex, I run programs like Convex Champions and Convex For Startups, organize meetups, and manage our Discord.
 
-**File-based content.** Posts and pages live in `content/blog/` and `content/pages/` as markdown files with frontmatter. Version controlled in your repo. The dashboard provides a web UI for creating and editing content directly in the database.
+I've spent 15 years doing this—100+ events across 50+ cities, working with startups and Fortune 500s. The goal is always the same: help developers connect, share feedback, and build things together.
 
 When I'm not working, I'm on my adventure motorcycle or finding excuses to meet more founders and developers in person.
 
-**Dashboard workflow.** Create and edit content at `/dashboard` without touching files. Dashboard content saves directly to the database with `source: "dashboard"` tracking. Export to markdown files with `npm run export:db` when needed.
+<details>
+  <summary>Long Bio</summary>
 
-**Sync commands:**
+I'm Wayne Sutton. I help startups build developer communities through strategy, events, and operations.
 
-Sync command scripts are located in `scripts/` (sync-posts.ts, sync-discovery-files.ts).
-
-**Development:**
-
-- <span class="copy-command">npm run sync</span> - Sync markdown content
-- <span class="copy-command">npm run sync:discovery</span> - Update discovery files (AGENTS.md, llms.txt)
-- <span class="copy-command">npm run sync:all</span> - Sync content + discovery files together
+As Head of Community and Events at Convex, I lead Convex Champions and Convex For Startups, organize developer meetups with partners, and manage our Discord community. The goal: create a space where developers collaborate, get technical support, and showcase what they build.
 
 I've spent over 15 years in this space. I've launched programs to support startups and developers, hosted virtual meetups and talks, and partnered with YouTube creators and influencers to help developers learn Convex and ship projects with it.
 
-- <span class="copy-command">npm run sync:prod</span> - Sync markdown content
-- <span class="copy-command">npm run sync:discovery:prod</span> - Update discovery files
-- <span class="copy-command">npm run sync:all:prod</span> - Sync content + discovery files together
-
-**Export dashboard content:**
-
-- <span class="copy-command">npm run export:db</span> - Export dashboard posts/pages to content folders (development)
-- <span class="copy-command">npm run export:db:prod</span> - Export dashboard posts/pages (production)
+Events are core to what I do. I've organized and managed over 100 virtual and in-person events across 50+ cities, bringing together more than 50,000 attendees. I've run conferences with million-dollar budgets and partnered with organizations from early-stage startups to Fortune 500 companies. Every event I touch is designed to run smoothly and deliver real value to attendees.
 
 Before Convex, I mentored startups, built programs to support emerging tech founders, and consulted with Fortune 500s on growth and marketing strategy.
 
 Outside of work, I live in the Bay Area with my wife and cat. I ride my adventure motorcycle across California, stay active, and look for excuses to connect with founders and developers in person.
 
-**Dual source architecture.** File-synced content (`source: "sync"`) and dashboard content (`source: "dashboard"`) coexist. Neither overwrites the other. Use whichever workflow fits your needs.
+---
 
 **Specialties:** Developer communities, champion and ambassador programs, startup programs, AI for community engagement, partnerships, international community management, community strategy and operations, social media strategy, campaign execution, product and project management, SaaS, partner management, BaaS, databases
 
@@ -54,105 +42,4 @@ Outside of work, I live in the Bay Area with my wife and cat. I ride my adventur
   <img src="/images/wayne-sutton.jpeg" alt="Wayne Sutton" /> 
   <img src="/images/wayne-sutton-2.jpeg" alt="Wayne Sutton" />
 
-| Layer    | Technology         |
-| -------- | ------------------ |
-| Frontend | React + TypeScript |
-| Backend  | Convex             |
-| Styling  | CSS variables      |
-| Hosting  | Netlify            |
-| Content  | Markdown           |
-
-## Features
-
-**Themes and UI:**
-
-- Four theme options (dark, light, tan, cloud)
-- Font switcher (serif, sans, monospace) with localStorage persistence
-- Mobile menu with hamburger navigation on smaller screens
-- Image lightbox for full-screen image viewing when clicked
-- Scroll-to-top button with configurable threshold
-
-**Content and navigation:**
-
-- Sidebar layout for docs-style pages with table of contents
-- Right sidebar with CopyPageDropdown on wide screens
-- Featured section with list/card view toggle and excerpts
-- Dedicated blog page with hero cards and featured rows
-- Tag pages at `/tags/{tag}` with related posts in footer
-- Homepage configuration to use any page or post as homepage
-
-**Search and discovery:**
-
-- Dual search modes: Keyword (exact match) and Semantic (meaning-based) with Cmd+K toggle
-- Semantic search uses OpenAI embeddings for finding conceptually similar content
-- Ask AI header button (Cmd+J) for RAG-based Q&A about site content with streaming responses
-- Full text search with Command+K shortcut and result highlighting
-- Static raw markdown files at `/raw/{slug}.md`
-- RSS feeds (`/rss.xml` and `/rss-full.xml`) and sitemap for SEO
-- API endpoints for AI/LLM access (`/api/posts`, `/api/export`)
-- HTTP-based MCP server at `/mcp` for AI tool integration (Cursor, Claude Desktop)
-
-**Sharing and AI integration:**
-
-- Copy to ChatGPT, Claude, and Perplexity sharing buttons
-- Generate Skill option for AI agent training
-- View as Markdown option in share dropdown
-
-**Content creation:**
-
-- Markdown writing page at `/write` with frontmatter reference
-- AI Agent chat powered by Anthropic Claude (toggle in Write page or right sidebar)
-- Firecrawl content importer (`npm run import <url>`) for external articles
-
-**Dashboard and admin:**
-
-- Dashboard at `/dashboard` for content management and site configuration
-- Posts and pages editor with live preview and frontmatter sidebar
-- Sync commands UI for executing syncs from browser
-- Newsletter management with AgentMail integration and admin UI
-- Real-time analytics at `/stats` with visitor map
-
-**Newsletter and contact:**
-
-- Newsletter signup forms on homepage, blog page, and posts
-- Contact forms on pages/posts via frontmatter with AgentMail delivery
-- Email notifications for new subscribers and weekly stats
-
-**Version control:**
-
-- 3-day version history for posts and pages (similar to Obsidian Sync)
-- Automatic snapshots before every content change (sync or dashboard edit)
-- Side-by-side diff view to compare versions
-- One-click restore with automatic backup of current version
-- Toggle to enable/disable via dashboard settings
-
-**Developer and AI agent support:**
-
-- CLAUDE.md for Claude Code instructions and workflows
-- AGENTS.md for AI coding agent context (agents.md spec)
-- Skills files in `.claude/skills/` (frontmatter, convex, sync)
-- Sync discovery commands to update AGENTS.md, CLAUDE.md, and llms.txt
-- Optional WorkOS authentication for dashboard access
-- GitHub contributions graph with year navigation
-- Logo gallery with clickable links and static grid or marquee scroll
-
-## Who this is for
-
-- Developers who want version-controlled content
-- Teams comfortable with markdown and CLI
-- Projects where AI agents generate content programmatically
-- Sites that need real-time updates without full rebuilds
-
-## Fork configuration
-
-After forking, configure your site with a single command:
-
-```bash
-cp fork-config.json.example fork-config.json
-# Edit fork-config.json
-npm run configure
-```
-
-Or follow the manual guide in `FORK_CONFIG.md`. Both options update all 11 configuration files with your site information.
-
-Fork it, customize it, ship it.
+</details>

@@ -2,35 +2,13 @@
 
 ---
 Type: page
-Date: 2026-01-11
+Date: 2026-01-09
 ---
 
-The open-source markdown publishing framework for developers and AI agents to ship **[docs](/docs)**, or **[blogs](/blog)** or **[websites](/)** that's always in sync.
+### Builder Operator | Developer Communities | Startup Programs | Adv Motorcycle Rider
 
-**[Fork it](https://github.com/waynesutton/markdown-site)** or **<span class="copy-command">npx create-markdown-sync my-site</span>**, customize it, ship it.
+I build developer communities. At Convex, I run programs like Convex Champions and Convex For Startups, organize events, and manage our Discord.
 
 I've spent 15 years doing this across 100+ events in 50+ cities, working with startups and Fortune 500s. The goal is always the same: help developers connect, share feedback, and build things together.
 
-## Features
-
-**AI agent integration** — API endpoints, raw markdown files, skills.md and MCP server included.
-
-**File-based publishing** — Write markdown locally, content syncs everywhere with version control.
-
-**URL content import** — Import urls to scrape any webpage into markdown with Firecrawl.
-
-**Newsletter automation** — Built-in subscription forms and admin dashboard powered by AgentMail.
-
-**Multiple output formats** — JSON via API endpoints, raw .md files, and RSS feeds.
-
-**Real-time team sync** — Multiple developers run npm run sync from different machines.
-
-**Sync Commands** - Sync discovery commands to update AGENTS.md, CLAUDE.md, and llms.txt
-
-**Semantic search** - Find content by meaning, not just keywords.
-
-**Ask AI** - Chat with your site content. Get answers with sources.
-
-```
-
-```
+I write about tech, life, and AI here. When I'm not working, I'm on my adventure motorcycle or finding excuses to meet more builders and developers.
