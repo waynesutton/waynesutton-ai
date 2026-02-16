@@ -1,11 +1,11 @@
-# Frontmatter
+# Frontmatter Options
 
 ---
 Type: page
-Date: 2026-01-11
+Date: 2026-02-16
 ---
 
-## Frontmatter
+## Frontmatter Options
 
 Frontmatter is the YAML metadata at the top of each markdown file between `---` markers. It controls how content is displayed, organized, and discovered.
 

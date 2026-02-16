@@ -1,12 +1,12 @@
 ---
-title: "The definition of sauce"
-description: "Humanity, creativity, and passion. The three ingredients that help you stand out in the AI era."
+title: "The definition of sauce aka tast"
+description: "Taste in the age of AI - Humanity, creativity, and passion. The three ingredients that help you stand out in the AI era."
 date: "2026-01-01"
 slug: "definition-of-sauce"
 published: true
 tags: ["entrepreneurship", "AI", "building"]
 featured: true
-featuredOrder: 1
+featuredOrder: 2
 blogFeatured: true
 showImageAtTop: true
 excerpt: "Before the product is built, before you tweet about your landing page, it starts with your sauce."
@@ -25,13 +25,15 @@ Before the product is built, before you tweet about your new landing page, befor
 
 We've always heard the quotes: "OpenAI just killed xyz startup" or "someone else already built it." In both cases, they wouldn't have built it like you would have. With your sauce.
 
+Paul Graham calls this [taste](https://paulgraham.com/taste.html), but we like sauce better.
+
 ## Sauce principles
 
 ### Humanity
 
 Humanity is your experience; how you see the world, your favorite music or color. It's also part of your why. What solutions do you want to build and why?
 
-I wanted to build [markdown.fast](https://markdown.fast) because after years of using or building WordPress sites for others back in the day and using other CMS tools that weren't AI-native or were just slow, I wanted a faster experience to publish content using [Convex](https://convex.dev).  I believed others would benefit from a more modern solution.
+I wanted to build [markdown.fast](https://markdown.fast) because after years of using or building WordPress sites for others back in the day and using other CMS tools that weren't AI-native or were just slow, I wanted a faster experience to publish content using [Convex](https://convex.dev). I believed others would benefit from a more modern solution.
 
 If I never had those experiences with WordPress or other CMS solutions, I would have never built something different. Plus I gotta stay up-to-date on my prompt engineering skills.
 
@@ -48,4 +50,5 @@ Humanity, creativity, and passion. Cook with these three and you'll have a great
 Happy New Year!
 
 ---
+
 Writing by a human, proofed by AI.

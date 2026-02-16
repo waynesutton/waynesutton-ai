@@ -1,5 +1,5 @@
 ---
-title: "Frontmatter"
+title: "Frontmatter Options"
 slug: "docs-frontmatter"
 published: true
 order: 3
@@ -7,13 +7,13 @@ showInNav: false
 layout: "sidebar"
 rightSidebar: true
 showFooter: true
-docsSection: true
+docsSection: false
 docsSectionOrder: 3
 docsSectionGroup: "Setup"
 docsSectionGroupIcon: "Rocket"
 ---
 
-## Frontmatter
+## Frontmatter Options
 
 Frontmatter is the YAML metadata at the top of each markdown file between `---` markers. It controls how content is displayed, organized, and discovered.
 

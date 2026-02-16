@@ -3,7 +3,7 @@ title: "How to Use Code Blocks"
 description: "A guide to syntax highlighting, diff rendering, and code formatting in your markdown posts."
 date: "2026-01-07"
 slug: "how-to-use-code-blocks"
-published: true
+published: false
 tags: ["tutorial", "markdown", "code", "syntax-highlighting"]
 readTime: "4 min read"
 featured: false

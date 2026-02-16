@@ -712,7 +712,7 @@ export const siteConfig: SiteConfig = {
     enabled: true, // Global toggle for docs section
     slug: "docs", // Base URL: /docs
     title: "Docs", // Page title
-    showInNav: true, // Show "Docs" link in navigation
+    showInNav: false, // Show "Docs" link in navigation
     order: 1, // Nav order (lower = first)
     defaultExpanded: true, // Expand all sidebar groups by default
   },
@@ -830,7 +830,7 @@ export const siteConfig: SiteConfig = {
   // Requires semanticSearch.enabled: true for content retrieval
   // Requires OPENAI_API_KEY (for embeddings) and ANTHROPIC_API_KEY or OPENAI_API_KEY (for LLM)
   askAI: {
-    enabled: true, // Set to true to enable Ask AI header button
+    enabled: false, // Set to true to enable Ask AI header button
     defaultModel: "claude-sonnet-4-20250514",
     models: [
       {

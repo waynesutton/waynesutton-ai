@@ -1,4 +1,4 @@
-# The blogging trap
+# Who are you blogging for anyway?
 
 > Why I refuse to make blogging every day a new year's resolution, even though I want to
 
@@ -9,7 +9,7 @@ Reading time: 2 min read
 Tags: blogging, new year, personal
 ---
 
->Beez in the Trap
+> Beez in the Trap
 
 It's day 2 of 2026 and I still haven't come up with a new year's resolution. And that's okay.
 
@@ -37,6 +37,6 @@ Is it going to be my new year's resolution? No.
 
 Depending on how the sunsets beam in the spring as the seasons change, maybe I'll pick a goal then. But for now, one day at a time.
 
-
 ---
+
 Writing by a human, proofed by AI.

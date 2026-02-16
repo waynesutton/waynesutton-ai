@@ -3512,6 +3512,14 @@ function AIAgentSection() {
                   {copiedFormat === "html" ? <Check size={16} /> : <CopySimple size={16} />}
                   <span>{copiedFormat === "html" ? "Copied" : "HTML"}</span>
                 </button>
+                <button
+                  className="ai-image-action-btn clear"
+                  onClick={() => setGeneratedImage(null)}
+                  title="Clear image"
+                >
+                  <Trash size={16} />
+                  <span>Clear</span>
+                </button>
               </div>
 
               {/* Code Preview */}

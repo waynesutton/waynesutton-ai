@@ -1,5 +1,5 @@
 ---
-title: "The blogging trap"
+title: "Who are you blogging for anyway?"
 description: "Why I refuse to make blogging every day a new year's resolution, even though I want to"
 date: "2026-01-02"
 slug: "the-blogging-trap"
@@ -8,13 +8,13 @@ tags: ["blogging", "new year", "personal"]
 authorName: "Wayne Sutton"
 showImageAtTop: true
 featured: true
-featuredOrder: 2
+featuredOrder: 4
 blogFeatured: true
 image: "/images/blogging-trap.png"
 authorImage: "/images/authors/wayne.jpeg"
-
 ---
->Beez in the Trap
+
+> Beez in the Trap
 
 It's day 2 of 2026 and I still haven't come up with a new year's resolution. And that's okay.
 
@@ -42,6 +42,6 @@ Is it going to be my new year's resolution? No.
 
 Depending on how the sunsets beam in the spring as the seasons change, maybe I'll pick a goal then. But for now, one day at a time.
 
-
 ---
+
 Writing by a human, proofed by AI.

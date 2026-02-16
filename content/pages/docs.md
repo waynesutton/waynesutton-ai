@@ -1,7 +1,7 @@
 ---
 title: "Documentation"
 slug: "documentation"
-published: true
+published: false
 order: 0
 showInNav: false
 layout: "sidebar"

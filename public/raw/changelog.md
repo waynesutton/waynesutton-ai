@@ -1,13 +1,8 @@
+# Changelog
+
 ---
-title: "Changelog"
-slug: "changelog"
-published: true
-order: 5
-rightSidebar: false
-showInNav: false
-layout: "sidebar"
-docsSection: false
-docsSectionOrder: 4
+Type: page
+Date: 2026-02-16
 ---
 
 All notable changes to this project.
