@@ -47,6 +47,7 @@ interface PostFrontmatter {
   blogFeatured?: boolean; // Show as hero featured post on /blog page
   newsletter?: boolean; // Override newsletter signup display (true/false)
   contactForm?: boolean; // Enable contact form on this post
+  unlisted?: boolean; // Hide from listings but allow direct access via slug
   docsSection?: boolean; // Include in docs navigation
   docsSectionGroup?: string; // Sidebar group name in docs
   docsSectionOrder?: number; // Order within group (lower = first)

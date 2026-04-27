@@ -1,4 +1,4 @@
-# The definition of sauce aka tast
+# The definition of sauce aka taste
 
 > Taste in the age of AI - Humanity, creativity, and passion. The three ingredients that help you stand out in the AI era.
 

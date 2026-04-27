@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.19.1] - 2026-02-15
+
+### Changed
+
+- Consolidated site configuration by merging `fork-config.json` values into `siteConfig.ts`
+  - `siteConfig.ts` is now the single source of truth for all site configuration
+  - Updated bio, fontFamily, gitHubContributions, postsDisplay, newsletter, and socialFooter settings
+  - Removed `fork-config.json` (optional template remains as `fork-config.json.example`)
+  - `sync-discovery-files.ts` now reads from `siteConfig.ts` when `fork-config.json` is not present
+
+### Fixed
+
+- TypeScript errors across multiple files
+  - Fixed Layout.tsx useQuery "skip" pattern for docs section detection
+  - Fixed AskAIModal.tsx by removing unused config check that referenced unavailable API
+  - Fixed Post.tsx authorTwitter property reference
+  - Fixed unused variable warnings in Blog.tsx, DocsPage.tsx, Home.tsx, BlogPost.tsx
+  - Fixed useSearchHighlighting.ts TypeScript narrowing issue in setTimeout callback
+  - Fixed configure-fork.ts duplicate __dirname declaration
+  - Fixed sync-posts.ts missing unlisted field in PostFrontmatter interface
+  - Fixed sync-discovery-files.ts unused parameter warnings
+
 ## [2.19.0] - 2026-01-10
 
 ### Added

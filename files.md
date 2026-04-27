@@ -18,7 +18,7 @@ A brief description of each file in the codebase.
 | `changelog.md`             | Version history and changes                           |
 | `TASK.md`                  | Task tracking and project status                      |
 | `FORK_CONFIG.md`           | Fork configuration guide (manual + automated options) |
-| `fork-config.json.example` | Template JSON config for automated fork setup         |
+| `fork-config.json.example` | Template JSON config for automated fork setup (optional, siteConfig.ts is the primary config) |
 
 ## Source Files (`src/`)
 

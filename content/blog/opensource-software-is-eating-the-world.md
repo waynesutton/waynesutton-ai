@@ -1,5 +1,5 @@
 ---
-title: "Open source communities are eating the world and always have been"
+title: "Open source developer communities are eating the world and always have been"
 description: "Developer communities keep winning when platforms open their APIs and let builders create."
 date: "2026-02-15"
 slug: "open-source-communities-are-eating-the-world"
@@ -15,7 +15,7 @@ image: "/images/openclaw-coding.png"
 authorImage: "/images/authors/wayne.jpeg"
 ---
 
-## Open source communities have been the growth engine for every major platform cycle.
+## Open source developer communities have been the growth engine for every major platform cycle.
 
 I have watched this pattern repeat from web communities to mobile to AI. The platforms that win are the ones developers can build on.
 

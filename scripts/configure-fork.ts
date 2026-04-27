@@ -117,7 +117,6 @@ interface ForkConfig {
 }
 
 // Get project root directory
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "..");
 
 // Read fork config

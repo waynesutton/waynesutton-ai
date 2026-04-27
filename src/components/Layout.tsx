@@ -34,11 +34,14 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
 
   // Fetch docs pages and posts for detecting if current page is in docs section
+  const docsEnabled = siteConfig.docsSection?.enabled ?? false;
   const docsPages = useQuery(
-    siteConfig.docsSection?.enabled ? api.pages.getDocsPages : "skip"
+    api.pages.getDocsPages,
+    docsEnabled ? {} : "skip"
   );
   const docsPosts = useQuery(
-    siteConfig.docsSection?.enabled ? api.posts.getDocsPosts : "skip"
+    api.posts.getDocsPosts,
+    docsEnabled ? {} : "skip"
   );
 
   // Check if current page is a docs page

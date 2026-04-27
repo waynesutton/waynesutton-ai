@@ -429,16 +429,16 @@ export interface SiteConfig {
 // Customize this for your site
 export const siteConfig: SiteConfig = {
   // Basic site info
-  name: "markdown sync",
-  title: "markdown sync framework",
+  name: "Wayne Sutton",
+  title: "Developer Community Builder",
   // Optional logo/header image (place in public/images/, set to null to hide)
-   logo: "/images/logo.svg",
+  logo: "/images/logo.svg",
   intro: null, // Set in Home.tsx to allow JSX with links
-  bio: `  `,
+  bio: `Developer Community Lead at Convex, tech event organizer, startup ecosystem builder, and adventure motorcycle rider—helping developers and startups build faster with Convex and AI.`,
 
   // Font family configuration
   // Options: "serif" (New York), "sans" (system fonts), "monospace" (IBM Plex Mono)
-  fontFamily: "sans",
+  fontFamily: "serif",
 
   // Default theme configuration
   // Options: "dark", "light", "tan", "cloud"
@@ -502,7 +502,7 @@ export const siteConfig: SiteConfig = {
   // GitHub contributions graph configuration
   // Set enabled to false to hide, or change username to your GitHub username
   gitHubContributions: {
-    enabled: true, // Set to false to hide the contributions graph
+    enabled: false, // Set to false to hide the contributions graph
     username: "waynesutton", // Your GitHub username
     showYearNavigation: true, // Show arrows to navigate between years
     linkToProfile: true, // Click graph to open GitHub profile
@@ -564,7 +564,7 @@ export const siteConfig: SiteConfig = {
     homePostsLimit: 5, // Limit number of posts on homepage (undefined = show all)
     homePostsReadMore: {
       enabled: true, // Show "read more" link when posts are limited
-      text: "Articles", // Customizable link text
+      text: "Read more blog posts", // Customizable link text
       link: "/blog", // URL to link to (usually "/blog")
     },
   },
@@ -633,7 +633,7 @@ export const siteConfig: SiteConfig = {
     enabled: true, // Set to true to enable newsletter signup forms
     signup: {
       home: {
-        enabled: false,
+        enabled: true,
         position: "above-footer",
         title: "Stay Updated",
         description: "Get new posts delivered to your inbox.",
@@ -677,13 +677,13 @@ export const siteConfig: SiteConfig = {
     socialLinks: [
       {
         platform: "github",
-        url: "https://github.com/waynesutton/",
+        url: "https://github.com/waynesutton",
       },
       { platform: "twitter", url: "https://x.com/waynesutton" },
       { platform: "linkedin", url: "https://www.linkedin.com/in/waynesutton/" },
     ],
     copyright: {
-      siteName: "Wayne Sutton", // Update with your site/company name
+      siteName: "waynesutton.ai", // Update with your site/company name
       showYear: true, // Auto-updates to current year
     },
   },

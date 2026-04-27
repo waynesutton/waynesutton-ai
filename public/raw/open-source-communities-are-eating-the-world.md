@@ -1,4 +1,4 @@
-# Open source communities are eating the world and always have been
+# Open source developer communities are eating the world and always have been
 
 > Developer communities keep winning when platforms open their APIs and let builders create.
 
@@ -9,7 +9,7 @@ Reading time: 3 min read
 Tags: open source, developer community, apis, openclaw, ai
 ---
 
-## Open source communities have been the growth engine for every major platform cycle.
+## Open source developer communities have been the growth engine for every major platform cycle.
 
 I have watched this pattern repeat from web communities to mobile to AI. The platforms that win are the ones developers can build on.
 

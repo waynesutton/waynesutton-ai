@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import PostList from "../components/PostList";
@@ -8,7 +7,6 @@ import Footer from "../components/Footer";
 import SocialFooter from "../components/SocialFooter";
 import NewsletterSignup from "../components/NewsletterSignup";
 import siteConfig from "../config/siteConfig";
-import { ArrowLeft } from "lucide-react";
 
 // Local storage key for blog view mode preference
 const BLOG_VIEW_MODE_KEY = "blog-view-mode";
@@ -20,7 +18,6 @@ const BLOG_VIEW_MODE_KEY = "blog-view-mode";
 // 3. Regular posts: non-featured posts (3 columns)
 // Controlled by siteConfig.blogPage and siteConfig.postsDisplay settings
 export default function Blog() {
-  const navigate = useNavigate();
 
   // Fetch all published posts from Convex
   const posts = useQuery(api.posts.getAllPosts);

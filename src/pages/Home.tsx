@@ -268,7 +268,7 @@ function getTextContent(children: React.ReactNode): string {
 
 // Anchor link component for headings
 function HeadingAnchor({ id }: { id: string }) {
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleClick = (_e: React.MouseEvent<HTMLAnchorElement>) => {
     // Copy URL to clipboard, but allow default scroll behavior
     const url = `${window.location.origin}${window.location.pathname}#${id}`;
     navigator.clipboard.writeText(url).catch(() => {

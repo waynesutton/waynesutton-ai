@@ -232,10 +232,10 @@ function getGitHubUrl(siteConfig: SiteConfigData): string {
 function updateClaudeMd(
   content: string,
   siteConfig: SiteConfigData,
-  siteUrl: string,
+  _siteUrl: string,
   postCount: number,
   pageCount: number,
-  latestPostDate?: string,
+  _latestPostDate?: string,
 ): string {
   // Build status comment to insert after "## Project context"
   const statusComment = `<!-- Auto-updated by sync:discovery -->

@@ -4,9 +4,17 @@
 
 ## Current Status
 
-v2.19.0 ready. npx create-markdown-sync CLI.
+v2.19.1 ready. Configuration consolidated into siteConfig.ts.
 
 ## Completed
+
+- [x] Consolidated site configuration (v2.19.1)
+  - [x] Merged fork-config.json values into siteConfig.ts
+  - [x] Updated bio, fontFamily, gitHubContributions, postsDisplay, newsletter, socialFooter
+  - [x] Removed fork-config.json (siteConfig.ts is now the single source of truth)
+  - [x] Fixed TypeScript errors across Layout.tsx, AskAIModal.tsx, Post.tsx, and 10+ other files
+  - [x] Updated files.md, changelog.md, task.md documentation
+
 
 - [x] npx create-markdown-sync CLI (v2.19.0)
   - [x] Created packages/create-markdown-sync/ monorepo package

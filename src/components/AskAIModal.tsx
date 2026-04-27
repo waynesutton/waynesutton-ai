@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useMutation, useAction } from "convex/react";
+import { useMutation } from "convex/react";
 import { useStream } from "@convex-dev/persistent-text-streaming/react";
 import { StreamId } from "@convex-dev/persistent-text-streaming";
 import { api } from "../../convex/_generated/api";
@@ -14,7 +14,6 @@ import {
   Trash,
   Copy,
   Check,
-  Warning,
 } from "@phosphor-icons/react";
 import { siteConfig } from "../config/siteConfig";
 
@@ -115,14 +114,6 @@ function StreamingMessage({
   );
 }
 
-// Configuration status interface
-interface ConfigStatus {
-  configured: boolean;
-  hasOpenAI: boolean;
-  hasAnthropic: boolean;
-  missingKeys: string[];
-}
-
 export default function AskAIModal({ isOpen, onClose }: AskAIModalProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -132,29 +123,11 @@ export default function AskAIModal({ isOpen, onClose }: AskAIModalProps) {
   );
   const [drivenIds, setDrivenIds] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [configStatus, setConfigStatus] = useState<ConfigStatus | null>(null);
-  const [configChecked, setConfigChecked] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const createSession = useMutation(api.askAI.createSession);
-  const checkConfiguration = useAction(api.askAI.checkConfiguration);
-
-  // Check configuration when modal opens
-  useEffect(() => {
-    if (isOpen && !configChecked) {
-      checkConfiguration({})
-        .then((status) => {
-          setConfigStatus(status);
-          setConfigChecked(true);
-        })
-        .catch((err) => {
-          console.error("Failed to check Ask AI configuration:", err);
-          setConfigChecked(true);
-        });
-    }
-  }, [isOpen, configChecked, checkConfiguration]);
 
   // Handle copy message
   const handleCopy = useCallback(async (content: string, messageId: string) => {
@@ -306,26 +279,9 @@ export default function AskAIModal({ isOpen, onClose }: AskAIModalProps) {
           </div>
         </div>
 
-        {/* Configuration warning banner */}
-        {configChecked && configStatus && !configStatus.configured && (
-          <div className="ask-ai-config-warning">
-            <Warning size={18} weight="bold" />
-            <div className="ask-ai-config-warning-content">
-              <strong>Ask AI is not fully configured</strong>
-              <p>
-                Missing environment variables in Convex dashboard:{" "}
-                {configStatus.missingKeys.join(", ")}
-              </p>
-              <p className="ask-ai-config-warning-hint">
-                Add these keys via: <code>npx convex env set KEY_NAME value</code>
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Messages */}
         <div className="ask-ai-messages">
-          {messages.length === 0 && configStatus?.configured !== false && (
+          {messages.length === 0 && (
             <div className="ask-ai-empty">
               <Sparkle size={32} weight="light" />
               <p>Ask a question about this site</p>

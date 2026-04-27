@@ -37,7 +37,8 @@ export default function DocsPage() {
     const orderB = b.docsSectionOrder ?? 999;
     return orderA - orderB;
   });
-  const firstDocSlug = allDocsItems.length > 0 ? allDocsItems[0].slug : null;
+  // First doc slug available for potential future use
+  void (allDocsItems.length > 0 ? allDocsItems[0].slug : null);
 
   // Update page title
   useEffect(() => {

@@ -35,7 +35,7 @@ interface PostProps {
 export default function Post({
   slug: propSlug,
   isHomepage = false,
-  homepageType,
+  homepageType: _homepageType,
 }: PostProps = {}) {
   const { slug: routeSlug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -256,11 +256,11 @@ export default function Post({
     if (siteConfig.twitter?.site) {
       updateMeta('meta[name="twitter:site"]', "content", siteConfig.twitter.site);
     }
-    if (siteConfig.twitter?.creator || post.authorTwitter) {
+    if (siteConfig.twitter?.creator) {
       updateMeta(
         'meta[name="twitter:creator"]',
         "content",
-        post.authorTwitter || siteConfig.twitter?.creator || "",
+        siteConfig.twitter.creator,
       );
     }
 

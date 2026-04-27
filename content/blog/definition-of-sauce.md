@@ -1,5 +1,5 @@
 ---
-title: "The definition of sauce aka tast"
+title: "The definition of sauce aka taste"
 description: "Taste in the age of AI - Humanity, creativity, and passion. The three ingredients that help you stand out in the AI era."
 date: "2026-01-01"
 slug: "definition-of-sauce"
