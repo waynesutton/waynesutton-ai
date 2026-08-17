@@ -1,4 +1,5 @@
 import "../styles/dashboard-forms.css";
+import "../styles/dashboard.css";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useQuery, useMutation, useAction } from "convex/react";
@@ -69,6 +70,8 @@ import {
   Broadcast,
   BookOpen,
   XLogo,
+  SquaresFour,
+  List,
 } from "@phosphor-icons/react";
 import { DraftsInbox } from "../components/dashboard/DraftsInbox";
 import { ApiKeysSection } from "../components/dashboard/ApiKeysSection";
@@ -537,6 +540,7 @@ function SyncWarningModal({
 
 // Dashboard sections
 type DashboardSection =
+  | "overview"
   | "posts"
   | "pages"
   | "post-editor"
@@ -1031,7 +1035,8 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
   const { fontFamily, setFontFamily, fontScale, setFontScale } = useFont();
   const { signOut } = useAuthActions();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [activeSection, setActiveSection] = useState<DashboardSection>("posts");
+  const [activeSection, setActiveSection] = useState<DashboardSection>("overview");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
   const [editingType, setEditingType] = useState<"post" | "page">("post");
@@ -1642,6 +1647,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
     {
       label: "Content",
       items: [
+        { id: "overview" as const, label: "Overview", icon: SquaresFour },
         { id: "posts" as const, label: "Posts", icon: Article },
         { id: "pages" as const, label: "Pages", icon: Files },
       ],
@@ -1805,8 +1811,20 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
         isSaving={isSavingWithWarning}
       />
 
+      {/* Mobile drawer overlay */}
+      {mobileNavOpen && (
+        <div
+          className="dashboard-mobile-overlay"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Left Sidebar */}
-      <aside className={`dashboard-sidebar-left ${sidebarCollapsed ? "collapsed" : ""}`}>
+      <aside
+        className={`dashboard-sidebar-left ${sidebarCollapsed ? "collapsed" : ""} ${
+          mobileNavOpen ? "mobile-open" : ""
+        }`}>
         <div className="dashboard-sidebar-header">
           <Link to="/" className="dashboard-logo-link" title="Back to home">
             <House size={20} weight="regular" />
@@ -1817,6 +1835,12 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
             onClick={toggleSidebar}
             title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
             <SidebarSimple size={20} weight="regular" />
+          </button>
+          <button
+            className="dashboard-mobile-close-btn"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close menu">
+            <X size={20} weight="regular" />
           </button>
         </div>
 
@@ -1831,6 +1855,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
                   onClick={() => {
                     setActiveSection(item.id);
                     setEditingItem(null);
+                    setMobileNavOpen(false);
                   }}>
                   <item.icon size={18} weight={activeSection === item.id ? "fill" : "regular"} />
                   <span>{item.label}</span>
@@ -1871,7 +1896,14 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
         {/* Header */}
         <header className="dashboard-header">
           <div className="dashboard-header-left">
+            <button
+              className="dashboard-mobile-menu-btn"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open menu">
+              <List size={20} weight="regular" />
+            </button>
             <h1 className="dashboard-title">
+              {activeSection === "overview" && "Overview"}
               {activeSection === "posts" && "Posts"}
               {activeSection === "pages" && "Pages"}
               {activeSection === "post-editor" && "Edit Post"}
@@ -2008,6 +2040,17 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
 
         {/* Content Area */}
         <div className="dashboard-content">
+          {/* Overview */}
+          {activeSection === "overview" && (
+            <OverviewSection
+              posts={posts}
+              pages={pages}
+              isDemo={isDemo}
+              onNavigate={(section) => setActiveSection(section)}
+              onEditPost={handleEditPost}
+            />
+          )}
+
           {/* Posts List */}
           {activeSection === "posts" && (
             <PostsListView
@@ -2184,6 +2227,144 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
   );
 }
 
+// Overview Section: greeting, quick actions, stat cards, recent posts
+function OverviewSection({
+  posts,
+  pages,
+  isDemo,
+  onNavigate,
+  onEditPost,
+}: {
+  posts: ContentItem[] | undefined;
+  pages: ContentItem[] | undefined;
+  isDemo: boolean;
+  onNavigate: (section: DashboardSection) => void;
+  onEditPost: (post: ContentItem) => void;
+}) {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  const publishedPosts = posts?.filter((p) => p.published) ?? [];
+  const draftPosts = posts?.filter((p) => !p.published) ?? [];
+  const featuredPosts = posts?.filter((p) => p.featured) ?? [];
+  const navPages = pages?.filter((p) => p.showInNav) ?? [];
+  const tagSet = new Set<string>();
+  for (const post of posts ?? []) {
+    for (const tag of post.tags ?? []) tagSet.add(tag);
+  }
+
+  // Most recent posts by date (frontmatter date is YYYY-MM-DD, sortable as string)
+  const recentPosts = [...(posts ?? [])]
+    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+    .slice(0, 5);
+  const lastPublished = [...publishedPosts].sort((a, b) =>
+    (b.date ?? "").localeCompare(a.date ?? "")
+  )[0];
+
+  const quickActions = [
+    { id: "write-post" as const, label: "Write Post", icon: PencilSimple },
+    { id: "write-page" as const, label: "Write Page", icon: File },
+    { id: "import" as const, label: "Import URL", icon: CloudArrowDown },
+    { id: "drafts" as const, label: "Drafts Inbox", icon: Tray },
+    { id: "sync" as const, label: "Sync Content", icon: ArrowsClockwise },
+  ];
+
+  return (
+    <div className="db-overview">
+      <header className="db-overview-hero">
+        <h2 className="db-greeting">{isDemo ? `${greeting}, explorer` : greeting}</h2>
+        <p className="db-insight">
+          {!posts ? (
+            "Loading your content..."
+          ) : draftPosts.length > 0 ? (
+            <>
+              <strong>
+                {draftPosts.length} {draftPosts.length === 1 ? "draft" : "drafts"}
+              </strong>{" "}
+              waiting to publish, {publishedPosts.length} posts live.
+            </>
+          ) : (
+            <>
+              All <strong>{publishedPosts.length}</strong>{" "}
+              {publishedPosts.length === 1 ? "post is" : "posts are"} live. Time to write
+              something new.
+            </>
+          )}
+        </p>
+      </header>
+
+      <div className="db-quick-actions">
+        {quickActions.map((action) => (
+          <button key={action.id} className="db-quick-action" onClick={() => onNavigate(action.id)}>
+            <action.icon size={17} weight="regular" />
+            <span>{action.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="db-stat-grid">
+        <div className="db-stat-card">
+          <span className="db-stat-label">Posts</span>
+          <span className="db-stat-value">{posts ? posts.length : "–"}</span>
+          <span className="db-stat-denominator">
+            {publishedPosts.length} published · {draftPosts.length}{" "}
+            {draftPosts.length === 1 ? "draft" : "drafts"}
+          </span>
+        </div>
+        <div className="db-stat-card">
+          <span className="db-stat-label">Pages</span>
+          <span className="db-stat-value">{pages ? pages.length : "–"}</span>
+          <span className="db-stat-denominator">{navPages.length} in navigation</span>
+        </div>
+        <div className="db-stat-card">
+          <span className="db-stat-label">Tags</span>
+          <span className="db-stat-value">{posts ? tagSet.size : "–"}</span>
+          <span className="db-stat-denominator">across {posts?.length ?? 0} posts</span>
+        </div>
+        <div className="db-stat-card">
+          <span className="db-stat-label">Last published</span>
+          <span className="db-stat-value">{lastPublished?.date ?? "–"}</span>
+          <span className="db-stat-denominator">
+            {lastPublished ? lastPublished.title : `${featuredPosts.length} featured posts`}
+          </span>
+        </div>
+      </div>
+
+      <section className="db-recent">
+        <div className="db-recent-header">
+          <h3>Recent posts</h3>
+          <button className="db-recent-viewall" onClick={() => onNavigate("posts")}>
+            View all
+          </button>
+        </div>
+        <div className="db-recent-list">
+          {!posts ? (
+            <div className="db-recent-empty">Loading...</div>
+          ) : recentPosts.length === 0 ? (
+            <div className="db-recent-empty">No posts yet. Write your first one.</div>
+          ) : (
+            recentPosts.map((post) => (
+              <div key={post._id} className="db-recent-row">
+                <div className="db-recent-main">
+                  <span className="db-recent-title">{post.title}</span>
+                  <span className="db-recent-slug">/{post.slug}</span>
+                </div>
+                <span className="db-recent-date">{post.date ?? ""}</span>
+                <span className={`status-badge ${post.published ? "published" : "draft"}`}>
+                  {post.published ? "Published" : "Draft"}
+                </span>
+                <button className="action-btn edit" onClick={() => onEditPost(post)} title="Edit">
+                  <PencilSimple size={16} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // Posts List View Component
 function PostsListView({
   posts,
@@ -2316,7 +2497,18 @@ function PostsListView({
           paginatedPosts.map((post) => (
             <div key={post._id} className="dashboard-list-row">
               <div className="col-title">
-                <span className="post-title">{post.title}</span>
+                {/* Clicking the title opens the editor, same gating as the edit icon */}
+                {!isDemo || post.source === "demo" ? (
+                  <button
+                    type="button"
+                    className="post-title post-title-link"
+                    onClick={() => onEdit(post as ContentItem)}
+                    title="Edit">
+                    {post.title}
+                  </button>
+                ) : (
+                  <span className="post-title">{post.title}</span>
+                )}
                 <span className="post-slug">/{post.slug}</span>
               </div>
               <div className="col-date">
@@ -2528,7 +2720,18 @@ function PagesListView({
           paginatedPages.map((page) => (
             <div key={page._id} className="dashboard-list-row">
               <div className="col-title">
-                <span className="post-title">{page.title}</span>
+                {/* Clicking the title opens the editor, same gating as the edit icon */}
+                {!isDemo || page.source === "demo" ? (
+                  <button
+                    type="button"
+                    className="post-title post-title-link"
+                    onClick={() => onEdit(page as ContentItem)}
+                    title="Edit">
+                    {page.title}
+                  </button>
+                ) : (
+                  <span className="post-title">{page.title}</span>
+                )}
                 <span className="post-slug">/{page.slug}</span>
               </div>
               <div className="col-order">{page.order !== undefined ? page.order : "-"}</div>

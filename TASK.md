@@ -11,6 +11,18 @@
 
 ## Completed
 
+- [x] Clickable titles in dashboard Posts and Pages lists (2026-08-17 08:08 UTC)
+  - [x] Post and page titles are now buttons that open the editor, same gating as the edit icon (demo mode can only open demo content)
+  - [x] Styled in dashboard.css: inherits title weight, underline on hover, focus ring, wraps on mobile
+  - [x] Verified: npx tsc --noEmit and npm run build pass
+
+- [x] Dashboard UI redesign (2026-08-17 07:55 UTC) (PRD: prds/dashboard-ui-redesign.md)
+  - [x] New src/styles/dashboard.css (~1500 lines): per-theme design tokens on :root[data-theme=...] including the previously undefined --text-tertiary and --bg-tertiary plus a --db-* token set (layered surfaces, hairline borders, shadows, radii, semantic success/warning/danger/info pairs tuned per theme), loaded after global.css so equal-specificity rules win without touching the 5,500-line legacy block
+  - [x] Full visual pass: sidebar, nav, header, search, all button families, cards, list tables, status and source badges, filter tabs, pagination, toasts, modals, editor chrome, write section, config, sync, stats, newsletter, drafts, media, pipeline
+  - [x] New Overview section (default landing): time-of-day greeting, insight line (drafts waiting or posts live), verb quick actions (Write Post, Write Page, Import URL, Drafts Inbox, Sync), stat cards with denominator lines, recent posts list with edit shortcuts; works in demo mode
+  - [x] Mobile: off-canvas drawer sidebar with overlay, close button, and header hamburger (replaces the old horizontally scrolling pill strip); tables stack into cards with wrapping titles; 44px touch targets; no horizontal scroll at 390px
+  - [x] Verified: npx tsc --noEmit and npm run build pass; browser-tested overview, posts list, drawer open/close/select in all four themes (dark, light, tan, cloud) at desktop 1440px and mobile 390px
+
 - [x] Security review of dashboard config save (2026-08-17 07:06 UTC)
   - [x] Verified saveOverrides is admin-gated (requireDashboardAdmin first statement, generic errors), getOverrides is intentionally public and scoped to the runtimeOverrides key so future siteConfig table rows cannot leak
   - [x] Verified merge safety: prototype pollution keys blocked, plain-object gate before recursion, depth bounded by Convex 16-level nesting limit, bootstrap catch falls back to static config on any query failure

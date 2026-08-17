@@ -4,6 +4,12 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### Dashboard UI redesign (2026-08-17)
+
+- **New file** `prds/dashboard-ui-redesign.md`: PRD for the dashboard visual overhaul, overview section, and mobile drawer.
+- **New file** `src/styles/dashboard.css`: Dashboard design system loaded after global.css. Per-theme tokens (`--db-*` surfaces, borders, shadows, radii, semantic status colors; defines the previously missing `--text-tertiary` and `--bg-tertiary`), a full restyle of every dashboard primitive (sidebar, header, buttons, cards, tables, badges, toasts, modals, editor, forms), overview section styles, and mobile rules (off-canvas drawer, stacked card tables, 44px touch targets).
+- **Modified** `src/pages/Dashboard.tsx`: New Overview section (default landing) with greeting, insight line, quick actions, stat cards with denominators, and recent posts; mobile drawer state with hamburger button, overlay, and close-on-select; post and page titles in the lists are clickable and open the editor; imports the new stylesheet.
+
 ### Dashboard config save with runtime overrides (2026-08-16)
 
 - **New file** `prds/dashboard-config-save.md`: PRD for saving dashboard config edits as live runtime overrides.
