@@ -123,7 +123,6 @@ export default function AskAIModal({ isOpen, onClose }: AskAIModalProps) {
   );
   const [drivenIds, setDrivenIds] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -136,11 +135,11 @@ export default function AskAIModal({ isOpen, onClose }: AskAIModalProps) {
     setTimeout(() => setCopiedId(null), 2000);
   }, []);
 
-  // Get Convex URL from environment and convert to site URL for HTTP routes
-  // VITE_CONVEX_URL is like https://xxx.convex.cloud
-  // HTTP routes are served from https://xxx.convex.site
-  const convexCloudUrl = import.meta.env.VITE_CONVEX_URL as string;
-  const convexUrl = convexCloudUrl.replace(".convex.cloud", ".convex.site");
+  // Resolve HTTP base URL with custom-domain override support.
+  const convexUrl =
+    (import.meta.env.VITE_CONVEX_SITE_URL as string | undefined) ||
+    (import.meta.env.VITE_SITE_URL as string | undefined) ||
+    (import.meta.env.VITE_CONVEX_URL as string).replace(".convex.cloud", ".convex.site");
 
   // Focus input when modal opens
   useEffect(() => {

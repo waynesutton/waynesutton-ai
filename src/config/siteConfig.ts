@@ -126,9 +126,9 @@ export interface AIChatConfig {
 
 // AI Model configuration for Dashboard multi-model support
 export interface AIModelOption {
-  id: string; // Model identifier (e.g., "claude-sonnet-4-20250514", "gpt-4o")
+  id: string; // Model identifier (e.g., "claude-sonnet-4-20250514", "gpt-4.1-mini")
   name: string; // Display name (e.g., "Claude Sonnet 4", "GPT-4o")
-  provider: "anthropic" | "openai" | "google"; // Provider for the model
+  provider: "anthropic" | "openai" | "google" | "concentrate" | "openrouter" | "runware"; // Provider for the model
 }
 
 // AI Dashboard configuration
@@ -229,16 +229,36 @@ export interface MCPServerConfig {
 
 // Dashboard configuration
 // Controls access to the /dashboard admin page
-// WorkOS authentication is optional - if not configured, dashboard shows setup instructions
+// Works with auth.mode "convex-auth" (default) or "none" for local-only open access
 export interface DashboardConfig {
   enabled: boolean; // Global toggle for dashboard page
-  requireAuth: boolean; // Require WorkOS authentication (only works if WorkOS is configured)
+  requireAuth: boolean; // Require authenticated + server-side admin access
+  showInNav?: boolean; // Show dashboard entry in top navigation
+}
+
+// Auth mode configuration
+// Controls which auth provider is active
+export interface AuthModeConfig {
+  mode: "convex-auth" | "none";
+}
+
+// Hosting mode configuration
+// Controls primary deployment target
+export interface HostingModeConfig {
+  mode: "convex-self-hosted" | "netlify";
+}
+
+// Compatibility configuration
+// Allows docs/UI to expose legacy guidance
+export interface CompatibilityConfig {
+  legacyDocs?: boolean;
 }
 
 // Media library configuration
 // Controls image upload and CDN storage via ConvexFS and Bunny.net
 export interface MediaConfig {
   enabled: boolean; // Global toggle for media library feature
+  provider?: "convex" | "convexfs" | "r2"; // Active media backend (default: "convex")
   maxFileSize: number; // Max file size in MB (default: 10)
   allowedTypes: string[]; // Allowed MIME types
 }
@@ -403,6 +423,15 @@ export interface SiteConfig {
   // Dashboard configuration (optional)
   dashboard?: DashboardConfig;
 
+  // Auth mode configuration (optional)
+  auth?: AuthModeConfig;
+
+  // Hosting mode configuration (optional)
+  hosting?: HostingModeConfig;
+
+  // Compatibility options (optional)
+  compat?: CompatibilityConfig;
+
   // Media library configuration (optional)
   media?: MediaConfig;
 
@@ -442,7 +471,9 @@ export const siteConfig: SiteConfig = {
 
   // Default theme configuration
   // Options: "dark", "light", "tan", "cloud"
-  defaultTheme: "tan",
+  // light: white canvas with near-black ink and geometric sans headings
+  // dark: black canvas with blue accent and editorial serif display headings
+  defaultTheme: "light",
 
   // Featured section configuration
   // viewMode: 'list' shows bullet list, 'cards' shows card grid with excerpts
@@ -502,7 +533,7 @@ export const siteConfig: SiteConfig = {
   // GitHub contributions graph configuration
   // Set enabled to false to hide, or change username to your GitHub username
   gitHubContributions: {
-    enabled: false, // Set to false to hide the contributions graph
+    enabled: true, // Set to false to hide the contributions graph
     username: "waynesutton", // Your GitHub username
     showYearNavigation: true, // Show arrows to navigate between years
     linkToProfile: true, // Click graph to open GitHub profile
@@ -747,12 +778,26 @@ export const siteConfig: SiteConfig = {
 
   // Dashboard configuration
   // Admin dashboard at /dashboard for managing content and settings
-  // WorkOS authentication is optional - if not configured, dashboard is open access
   // Set enabled: false to disable the dashboard entirely
   // WARNING: When requireAuth is false, anyone can access the dashboard
   dashboard: {
     enabled: true,
     requireAuth: true,
+    showInNav: false,
+  },
+
+  // Auth mode configuration
+  auth: {
+    mode: "convex-auth",
+  },
+
+  // Hosting mode configuration
+  hosting: {
+    mode: "convex-self-hosted",
+  },
+
+  compat: {
+    legacyDocs: true,
   },
 
   // Media library configuration
@@ -760,6 +805,7 @@ export const siteConfig: SiteConfig = {
   // Requires BUNNY_API_KEY, BUNNY_STORAGE_ZONE, BUNNY_CDN_HOSTNAME in Convex dashboard
   media: {
     enabled: true,
+    provider: "convex",
     maxFileSize: 10, // Max file size in MB
     allowedTypes: ["image/png", "image/jpeg", "image/gif", "image/webp"],
   },
@@ -773,10 +819,13 @@ export const siteConfig: SiteConfig = {
 
   // AI Dashboard configuration
   // Multi-model AI chat and image generation in the Dashboard
-  // Requires API keys in Convex environment variables:
+  // Requires API keys in Convex environment variables (or dashboard API keys settings):
   // - ANTHROPIC_API_KEY for Claude models
   // - OPENAI_API_KEY for OpenAI models
   // - GOOGLE_AI_API_KEY for Gemini models (chat and image generation)
+  // - CONCENTRATE_API_KEY for the Concentrate gateway (auto routing across providers)
+  // - OPENROUTER_API_KEY for the OpenRouter gateway (auto routing across providers)
+  // - RUNWARE_API_KEY for Runware image models
   aiDashboard: {
     enableImageGeneration: true, // Enable image generation tab
     defaultTextModel: "claude-sonnet-4-20250514", // Default model for text chat
@@ -787,14 +836,24 @@ export const siteConfig: SiteConfig = {
         provider: "anthropic",
       },
       {
-        id: "gpt-4o",
-        name: "GPT-4o",
+        id: "gpt-4.1-mini",
+        name: "GPT-4.1 mini",
         provider: "openai",
       },
       {
         id: "gemini-2.0-flash",
         name: "Gemini 2.0 Flash",
         provider: "google",
+      },
+      {
+        id: "concentrate/auto",
+        name: "Concentrate Auto",
+        provider: "concentrate",
+      },
+      {
+        id: "openrouter/auto",
+        name: "OpenRouter Auto",
+        provider: "openrouter",
       },
     ],
     imageModels: [
@@ -807,6 +866,11 @@ export const siteConfig: SiteConfig = {
         id: "imagen-3.0-generate-002",
         name: "Nano Banana Pro",
         provider: "google",
+      },
+      {
+        id: "runware:101@1",
+        name: "Runware Flux",
+        provider: "runware",
       },
     ],
   },
@@ -839,8 +903,8 @@ export const siteConfig: SiteConfig = {
         provider: "anthropic",
       },
       {
-        id: "gpt-4o",
-        name: "GPT-4o",
+        id: "gpt-4.1-mini",
+        name: "GPT-4.1 mini",
         provider: "openai",
       },
     ],

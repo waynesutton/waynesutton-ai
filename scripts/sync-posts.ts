@@ -54,6 +54,7 @@ interface PostFrontmatter {
   docsSectionGroupOrder?: number; // Order of group itself (lower = first)
   docsSectionGroupIcon?: string; // Phosphor icon name for sidebar group
   docsLanding?: boolean; // Use as /docs landing page
+  slides?: boolean; // Enable slide presentation mode (--- separates slides)
 }
 
 interface ParsedPost {
@@ -88,6 +89,7 @@ interface ParsedPost {
   docsSectionGroupOrder?: number; // Order of group itself (lower = first)
   docsSectionGroupIcon?: string; // Phosphor icon name for sidebar group
   docsLanding?: boolean; // Use as /docs landing page
+  slides?: boolean; // Enable slide presentation mode (--- separates slides)
 }
 
 // Page frontmatter (for static pages like About, Projects, Contact)
@@ -112,6 +114,7 @@ interface PageFrontmatter {
   aiChat?: boolean; // Enable AI chat in right sidebar (requires rightSidebar: true)
   contactForm?: boolean; // Enable contact form on this page
   newsletter?: boolean; // Override newsletter signup display (true/false)
+  unlisted?: boolean; // Hide from listings but allow direct access via slug
   textAlign?: string; // Text alignment: "left", "center", "right" (default: "left")
   docsSection?: boolean; // Include in docs navigation
   docsSectionGroup?: string; // Sidebar group name in docs
@@ -119,6 +122,7 @@ interface PageFrontmatter {
   docsSectionGroupOrder?: number; // Order of group itself (lower = first)
   docsSectionGroupIcon?: string; // Phosphor icon name for sidebar group
   docsLanding?: boolean; // Use as /docs landing page
+  slides?: boolean; // Enable slide presentation mode (--- separates slides)
 }
 
 interface ParsedPage {
@@ -143,6 +147,7 @@ interface ParsedPage {
   aiChat?: boolean; // Enable AI chat in right sidebar (requires rightSidebar: true)
   contactForm?: boolean; // Enable contact form on this page
   newsletter?: boolean; // Override newsletter signup display (true/false)
+  unlisted?: boolean; // Hide from listings but allow direct access via slug
   textAlign?: string; // Text alignment: "left", "center", "right" (default: "left")
   docsSection?: boolean; // Include in docs navigation
   docsSectionGroup?: string; // Sidebar group name in docs
@@ -150,6 +155,7 @@ interface ParsedPage {
   docsSectionGroupOrder?: number; // Order of group itself (lower = first)
   docsSectionGroupIcon?: string; // Phosphor icon name for sidebar group
   docsLanding?: boolean; // Use as /docs landing page
+  slides?: boolean; // Enable slide presentation mode (--- separates slides)
 }
 
 // Calculate reading time based on word count
@@ -206,6 +212,7 @@ function parseMarkdownFile(filePath: string): ParsedPost | null {
       docsSectionGroupOrder: frontmatter.docsSectionGroupOrder, // Order of group itself
       docsSectionGroupIcon: frontmatter.docsSectionGroupIcon, // Phosphor icon name for sidebar group
       docsLanding: frontmatter.docsLanding, // Use as docs landing page
+      slides: frontmatter.slides, // Enable slide presentation mode
     };
   } catch (error) {
     console.error(`Error parsing ${filePath}:`, error);
@@ -265,6 +272,7 @@ function parsePageFile(filePath: string): ParsedPage | null {
       aiChat: frontmatter.aiChat, // Enable AI chat in right sidebar
       contactForm: frontmatter.contactForm, // Enable contact form on this page
       newsletter: frontmatter.newsletter, // Override newsletter signup display
+      unlisted: frontmatter.unlisted, // Hide from listings but allow direct access
       textAlign: frontmatter.textAlign, // Text alignment: "left", "center", "right"
       docsSection: frontmatter.docsSection, // Include in docs navigation
       docsSectionGroup: frontmatter.docsSectionGroup, // Sidebar group name
@@ -272,6 +280,7 @@ function parsePageFile(filePath: string): ParsedPage | null {
       docsSectionGroupOrder: frontmatter.docsSectionGroupOrder, // Order of group itself
       docsSectionGroupIcon: frontmatter.docsSectionGroupIcon, // Phosphor icon name for sidebar group
       docsLanding: frontmatter.docsLanding, // Use as docs landing page
+      slides: frontmatter.slides, // Enable slide presentation mode
     };
   } catch (error) {
     console.error(`Error parsing page ${filePath}:`, error);
@@ -383,15 +392,15 @@ async function syncPosts() {
   } else {
     console.log("\nGenerating embeddings for semantic search...");
     try {
-      const embeddingResult = await client.action(
-        api.embeddings.generateMissingEmbeddings,
+      const embeddingResult = await client.mutation(
+        api.embeddingsAdmin.generateMissingEmbeddings,
         {}
       );
       if (embeddingResult.skipped) {
         console.log("  Skipped: OPENAI_API_KEY not configured");
       } else {
-        console.log(`  Posts: ${embeddingResult.postsProcessed} embeddings generated`);
-        console.log(`  Pages: ${embeddingResult.pagesProcessed} embeddings generated`);
+        console.log("  Queued post embeddings refresh");
+        console.log("  Queued page embeddings refresh");
       }
     } catch (error) {
       // Non-fatal - continue even if embedding generation fails
@@ -492,8 +501,9 @@ function generateRawMarkdownFile(
 
 // Generate homepage index markdown file listing all posts
 function generateHomepageIndex(posts: ParsedPost[], pages: ParsedPage[]): void {
-  const publishedPosts = posts.filter((p) => p.published);
-  const publishedPages = pages.filter((p) => p.published);
+  // Unlisted content keeps its raw file but is never linked from the index
+  const publishedPosts = posts.filter((p) => p.published && !p.unlisted);
+  const publishedPages = pages.filter((p) => p.published && !p.unlisted);
 
   // Sort posts by date (newest first)
   const sortedPosts = [...publishedPosts].sort((a, b) => {

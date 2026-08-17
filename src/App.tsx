@@ -1,10 +1,33 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
 import Layout from "./components/Layout";
 import ScrollToTopOnNav from "./components/ScrollToTopOnNav";
 import { usePageTracking } from "./hooks/usePageTracking";
 import { SidebarProvider } from "./context/SidebarContext";
 import siteConfig from "./config/siteConfig";
+import { AgentReadyWidget, UpdateBanner } from "@waynesutton/agent-ready/react";
+
+// Mirror the widget's prop unions (not exported from the package entry point)
+type WidgetPosition =
+  | "footer"
+  | "floating-bottom-right"
+  | "floating-bottom-left"
+  | "floating-center";
+type WidgetTheme = "light" | "dark" | "system";
+
+// Fallback widget settings used until the dashboard-controlled values load
+const WIDGET_FALLBACK = {
+  enabled: true,
+  position: "floating-bottom-right",
+  widgetTheme: "dark",
+  defaultMobileCollapsed: true,
+  showHumanTab: false,
+  showMachineTab: true,
+  showScoreTab: false,
+  showChatLinks: false,
+};
 
 // Lazy load page components for better LCP and code splitting
 const Home = lazy(() => import("./pages/Home"));
@@ -18,7 +41,6 @@ const AuthorPage = lazy(() => import("./pages/AuthorPage"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
 const NewsletterAdmin = lazy(() => import("./pages/NewsletterAdmin"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Callback = lazy(() => import("./pages/Callback"));
 
 // Minimal loading fallback to prevent layout shift
 function PageSkeleton() {
@@ -29,6 +51,10 @@ function App() {
   // Track page views and active sessions
   usePageTracking();
   const location = useLocation();
+
+  // Dashboard-controlled widget settings; falls back to defaults while loading
+  const widgetSettings =
+    useQuery(api.agentReady.settings.getWidgetSettings) ?? WIDGET_FALLBACK;
 
   // Write page renders without Layout (no header, full-screen writing)
   if (location.pathname === "/write") {
@@ -57,18 +83,16 @@ function App() {
     );
   }
 
-  // Callback handles OAuth redirect from WorkOS
-  if (location.pathname === "/callback") {
-    return (
-      <Suspense fallback={<PageSkeleton />}>
-        <Callback />
-      </Suspense>
-    );
-  }
-
   // Determine if we should use a custom homepage
-  const useCustomHomepage =
-    siteConfig.homepage.type !== "default" && siteConfig.homepage.slug;
+  const useCustomHomepage = siteConfig.homepage.type !== "default" && siteConfig.homepage.slug;
+
+  const configuredSiteUrl = import.meta.env.VITE_SITE_URL as string | undefined;
+  const convexSiteUrl = import.meta.env.DEV
+    ? (import.meta.env.VITE_CONVEX_SITE_URL as string | undefined)
+    : undefined;
+  const isLocalhost =
+    typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  const appUrl = configuredSiteUrl || (isLocalhost ? convexSiteUrl : window.location.origin);
 
   return (
     <SidebarProvider>
@@ -76,58 +100,66 @@ function App() {
       <Layout>
         <Suspense fallback={<PageSkeleton />}>
           <Routes>
-          {/* Homepage route - either default Home or custom page/post */}
-          <Route
-            path="/"
-            element={
-              useCustomHomepage ? (
-                <Post
-                  slug={siteConfig.homepage.slug!}
-                  isHomepage={true}
-                  homepageType={
-                    siteConfig.homepage.type === "default"
-                      ? undefined
-                      : siteConfig.homepage.type
-                  }
-                />
-              ) : (
-                <Home />
-              )
-            }
-          />
-          {/* Original homepage route (when custom homepage is set) */}
-          {useCustomHomepage && (
+            {/* Homepage route - either default Home or custom page/post */}
             <Route
-              path={siteConfig.homepage.originalHomeRoute || "/home"}
-              element={<Home />}
+              path="/"
+              element={
+                useCustomHomepage ? (
+                  <Post
+                    slug={siteConfig.homepage.slug!}
+                    isHomepage={true}
+                    homepageType={
+                      siteConfig.homepage.type === "default" ? undefined : siteConfig.homepage.type
+                    }
+                  />
+                ) : (
+                  <Home />
+                )
+              }
             />
-          )}
-          {/* Stats page route - only enabled when statsPage.enabled is true */}
-          {siteConfig.statsPage?.enabled && (
-            <Route path="/stats" element={<Stats />} />
-          )}
-          {/* Unsubscribe route for newsletter */}
-          <Route path="/unsubscribe" element={<Unsubscribe />} />
-          {/* Blog page route - only enabled when blogPage.enabled is true */}
-          {siteConfig.blogPage.enabled && (
-            <Route path="/blog" element={<Blog />} />
-          )}
-          {/* Docs page route - only enabled when docsSection.enabled is true */}
-          {siteConfig.docsSection?.enabled && (
-            <Route
-              path={`/${siteConfig.docsSection.slug}`}
-              element={<DocsPage />}
-            />
-          )}
-          {/* Tag page route - displays posts filtered by tag */}
-          <Route path="/tags/:tag" element={<TagPage />} />
-          {/* Author page route - displays posts by a specific author */}
-          <Route path="/author/:authorSlug" element={<AuthorPage />} />
-          {/* Catch-all for post/page slugs - must be last */}
-          <Route path="/:slug" element={<Post />} />
+            {/* Original homepage route (when custom homepage is set) */}
+            {useCustomHomepage && (
+              <Route path={siteConfig.homepage.originalHomeRoute || "/home"} element={<Home />} />
+            )}
+            {/* Stats page route - only enabled when statsPage.enabled is true */}
+            {siteConfig.statsPage?.enabled && <Route path="/stats" element={<Stats />} />}
+            {/* Unsubscribe route for newsletter */}
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
+            {/* Blog page route - only enabled when blogPage.enabled is true */}
+            {siteConfig.blogPage.enabled && <Route path="/blog" element={<Blog />} />}
+            {/* Docs page route - only enabled when docsSection.enabled is true */}
+            {siteConfig.docsSection?.enabled && (
+              <Route path={`/${siteConfig.docsSection.slug}`} element={<DocsPage />} />
+            )}
+            {/* Tag page route - displays posts filtered by tag */}
+            <Route path="/tags/:tag" element={<TagPage />} />
+            {/* Author page route - displays posts by a specific author */}
+            <Route path="/author/:authorSlug" element={<AuthorPage />} />
+            {/* Catch-all for post/page slugs - must be last */}
+            <Route path="/:slug" element={<Post />} />
           </Routes>
         </Suspense>
       </Layout>
+      {appUrl && (
+        <>
+          <UpdateBanner appUrl={appUrl} />
+          {/* Widget render settings are controlled live from the dashboard
+              Agent Ready section (Convex agentReadySettings table) */}
+          {widgetSettings.enabled && (
+            <AgentReadyWidget
+              appUrl={appUrl}
+              publicAppUrl="https://waynesutton.ai"
+              position={widgetSettings.position as WidgetPosition}
+              theme={widgetSettings.widgetTheme as WidgetTheme}
+              defaultMobileCollapsed={widgetSettings.defaultMobileCollapsed}
+              showHumanTab={widgetSettings.showHumanTab}
+              showMachineTab={widgetSettings.showMachineTab}
+              showScoreTab={widgetSettings.showScoreTab}
+              showChatLinks={widgetSettings.showChatLinks}
+            />
+          )}
+        </>
+      )}
     </SidebarProvider>
   );
 }

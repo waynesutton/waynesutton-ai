@@ -28,7 +28,7 @@ Sync command scripts are located in `scripts/` (sync-posts.ts, sync-discovery-fi
 **Development:**
 
 - <span class="copy-command">npm run sync</span> - Sync markdown content
-- <span class="copy-command">npm run sync:discovery</span> - Update discovery files (AGENTS.md, llms.txt)
+- <span class="copy-command">npm run sync:discovery</span> - Update AGENTS.md, CLAUDE.md, llms.txt (copies AGENTS.md to public/)
 - <span class="copy-command">npm run sync:all</span> - Sync content + discovery files together
 
 **Production:**
@@ -36,6 +36,7 @@ Sync command scripts are located in `scripts/` (sync-posts.ts, sync-discovery-fi
 - <span class="copy-command">npm run sync:prod</span> - Sync markdown content
 - <span class="copy-command">npm run sync:discovery:prod</span> - Update discovery files
 - <span class="copy-command">npm run sync:all:prod</span> - Sync content + discovery files together
+- <span class="copy-command">npm run deploy</span> - Build and upload static assets with the <a href="https://www.convex.dev/components/static-hosting" target="_blank" rel="noopener noreferrer">Convex Static Hosting component</a>
 
 **Export dashboard content:**
 
@@ -56,11 +57,13 @@ npm run dev
 
 Open `http://localhost:5173` to view locally.
 
+Default production hosting uses the <a href="https://www.convex.dev/components/static-hosting" target="_blank" rel="noopener noreferrer">Convex Static Hosting component</a>. Markdown content syncs with `npm run sync:prod`. Source code, styles, images in `public/`, and static assets deploy with `npm run deploy`.
+
 ## Requirements
 
 - Node.js 18+
 - Convex account (free at convex.dev)
-- Netlify account (free at netlify.com)
+- Netlify account (optional, only for legacy Netlify hosting mode)
 
 ## Project structure
 
@@ -74,13 +77,11 @@ markdown-site/
 │   ├── posts.ts        # Post queries/mutations
 │   ├── pages.ts        # Page queries/mutations
 │   ├── http.ts         # API endpoints
-│   └── rss.ts          # RSS generation
-├── netlify/
-│   └── edge-functions/ # Netlify edge functions
-│       ├── rss.ts      # RSS proxy
-│       ├── sitemap.ts  # Sitemap proxy
-│       ├── api.ts      # API proxy
-│       └── botMeta.ts  # OG crawler detection
+│   ├── rss.ts          # RSS generation
+│   ├── virtualFs.ts    # Virtual filesystem
+│   └── demo.ts         # Anonymous demo mode
+├── netlify/            # Legacy hosting support only
+│   └── edge-functions/ # Netlify edge functions (legacy mode)
 ├── src/
 │   ├── components/     # React components
 │   ├── context/        # Theme context
@@ -91,7 +92,7 @@ markdown-site/
 │   ├── raw/            # Generated raw markdown files
 │   ├── robots.txt      # Crawler rules
 │   └── llms.txt        # AI discovery
-└── netlify.toml        # Deployment config
+└── netlify.toml        # Netlify deployment config (legacy mode)
 ```
 
 ## Search
@@ -124,7 +125,7 @@ Each post and page includes a share dropdown with options:
 | View as Markdown     | Opens raw `.md` file in new tab            |
 | Download as SKILL.md | Downloads skill file for AI agent training |
 
-**Raw markdown URLs:** AI service links use GitHub raw URLs to fetch markdown content. This bypasses Netlify edge functions and provides reliable access for AI services.
+**Raw markdown URLs:** AI service links use GitHub raw URLs to fetch markdown content. This keeps AI link behavior stable across both Convex self-hosting and legacy Netlify hosting modes.
 
 **Git push required for AI links:** The "Open in ChatGPT," "Open in Claude," and "Open in Perplexity" options use GitHub raw URLs. For these to work, you must push your content to GitHub with `git push`. The `npm run sync` command syncs content to Convex for your live site, but AI services fetch directly from GitHub.
 
@@ -208,7 +209,7 @@ newsletterAdmin: {
 | Variable                  | Description                                         |
 | ------------------------- | --------------------------------------------------- |
 | `AGENTMAIL_API_KEY`       | Your AgentMail API key                              |
-| `AGENTMAIL_INBOX`         | Your AgentMail inbox (e.g., `inbox@agentmail.to`)   |
+| `AGENTMAIL_INBOX`         | Your AgentMail inbox (e.g., `email-address`)   |
 | `AGENTMAIL_CONTACT_EMAIL` | Optional contact form recipient (defaults to inbox) |
 
 **Note:** If environment variables are not configured, users will see the error message: "AgentMail Environment Variables are not configured in production. Please set AGENTMAIL_API_KEY and AGENTMAIL_INBOX." when attempting to send newsletters or use contact forms.
@@ -249,31 +250,36 @@ The `newsletter:send` command calls the `scheduleSendPostNewsletter` mutation di
 
 ## API endpoints
 
-| Endpoint                       | Description                 |
-| ------------------------------ | --------------------------- |
-| `/stats`                       | Real-time analytics         |
-| `/newsletter-admin`            | Newsletter management UI    |
-| `/rss.xml`                     | RSS feed (descriptions)     |
-| `/rss-full.xml`                | RSS feed (full content)     |
-| `/sitemap.xml`                 | XML sitemap                 |
-| `/api/posts`                   | JSON post list              |
-| `/api/post?slug=xxx`           | Single post (JSON)          |
-| `/api/post?slug=xxx&format=md` | Single post (markdown)      |
-| `/api/export`                  | All posts with full content |
-| `/raw/{slug}.md`               | Static raw markdown file    |
-| `/.well-known/ai-plugin.json`  | AI plugin manifest          |
-| `/openapi.yaml`                | OpenAPI 3.0 specification   |
-| `/llms.txt`                    | AI agent discovery          |
+All public endpoints are rate limited via `@convex-dev/rate-limiter`. Exceeding limits returns HTTP 429 with a `Retry-After` header.
+
+| Endpoint                       | Description                 | Rate limit |
+| ------------------------------ | --------------------------- | ---------- |
+| `/stats`                       | Real-time analytics         |            |
+| `/newsletter-admin`            | Newsletter management UI    |            |
+| `/rss.xml`                     | RSS feed (descriptions)     | 30/min     |
+| `/rss-full.xml`                | RSS feed (full content)     | 20/min     |
+| `/sitemap.xml`                 | XML sitemap                 | 10/min     |
+| `/api/posts`                   | JSON post list              | 60/min     |
+| `/api/post?slug=xxx`           | Single post (JSON)          | 60/min     |
+| `/api/post?slug=xxx&format=md` | Single post (markdown)      | 60/min     |
+| `/api/export`                  | All posts with full content | 10/min     |
+| `/raw/{slug}.md`               | Static raw markdown file    | 60/min     |
+| `/vfs/tree`                    | Virtual filesystem tree     | 30/min     |
+| `/vfs/exec`                    | VFS command execution       | 30/min     |
+| `/ask-ai-stream`               | AI Q&A streaming            | 10/min/user|
+| `/.well-known/ai-plugin.json`  | AI plugin manifest          |            |
+| `/openapi.yaml`                | OpenAPI 3.0 specification   |            |
+| `/llms.txt`                    | AI agent discovery          |            |
 
 ## MCP Server
 
 The site includes an HTTP-based Model Context Protocol (MCP) server for AI tool integration. It allows AI assistants like Cursor and Claude Desktop to access blog content programmatically.
 
-**Endpoint:** `https://www.waynesutton.ai/mcp`
+**Endpoint:** `https://waynesutton.ai/mcp`
 
 **Features:**
 
-- 24/7 availability via Netlify Edge Functions
+- 24/7 availability via Convex HTTP endpoints by default
 - Public access with rate limiting (50 req/min per IP)
 - Optional API key for higher limits (1000 req/min)
 - Read-only access to content
@@ -298,19 +304,49 @@ Add to `~/.cursor/mcp.json`:
 {
   "mcpServers": {
     "markdown-fast": {
-      "url": "https://www.waynesutton.ai/mcp"
+      "url": "https://waynesutton.ai/mcp"
     }
   }
 }
 ```
 
-**For forks:** The MCP server automatically connects to your Convex deployment. Ensure `VITE_CONVEX_URL` is set in Netlify. Optionally set `MCP_API_KEY` for authenticated access with higher rate limits.
+**For forks:** The MCP server connects to your Convex deployment. In default Convex self-hosted mode, deploy with `npm run deploy`. In legacy Netlify mode, ensure `VITE_CONVEX_URL` is set in Netlify. Optionally set `MCP_API_KEY` for authenticated access with higher rate limits.
 
 See [How to Use the MCP Server](/how-to-use-mcp-server) for full documentation.
 
+## Virtual filesystem
+
+The virtual filesystem exposes all site content through a shell-like HTTP interface. AI agents and CLI tools can browse posts, pages, and docs content as if navigating a directory tree.
+
+**Endpoints:**
+
+| Route | Method | Description |
+| --- | --- | --- |
+| `/vfs/tree` | GET | Full directory tree of all content |
+| `/vfs/exec` | POST | Execute commands: `ls`, `cat`, `grep`, `find`, `tree`, `pwd`, `cd`, `head`, `wc` |
+
+**Example:**
+
+```bash
+curl -X POST https://yoursite.example.com/vfs/exec \
+  -H "Content-Type: application/json" \
+  -d '{"command": "ls /blog"}'
+```
+
+The VFS reads from the same Convex database as the live site. No extra sync step needed. VFS endpoints are rate limited to 30 requests per minute.
+
+## Anonymous demo mode
+
+Visitors can explore the dashboard at `/dashboard` without signing in. Demo mode provides full read access to all dashboard features and lets users create temporary content.
+
+- Demo posts and pages are tagged with `source: "demo"`
+- Content is sanitized (scripts, iframes, event handlers stripped)
+- A cron job runs every 30 minutes to clean up all demo content
+- Upgrade to full admin by signing in with GitHub
+
 ## Raw markdown files
 
-When you run `npm run sync` (development) or `npm run sync:prod` (production), static `.md` files are generated in `public/raw/` for each published post and page. Use `npm run sync:all` or `npm run sync:all:prod` to sync content and update discovery files together.
+When you run `npm run sync` (development) or `npm run sync:prod` (production), static `.md` files are generated in `public/raw/` for each published post and page. Use `npm run sync:all` or `npm run sync:all:prod` to sync content and discovery files together.
 
 **Access pattern:** `/raw/{slug}.md`
 
@@ -353,7 +389,7 @@ The import command creates local markdown files only. It does not interact with 
 
 - `npm run sync` to push to development
 - `npm run sync:prod` to push to production
-- Use `npm run sync:all` or `npm run sync:all:prod` to sync content and update discovery files together
+- Use `npm run sync:all` or `npm run sync:all:prod` to sync content and discovery files together
 
 There is no `npm run import:prod` because import creates local files and sync handles the target environment.
 

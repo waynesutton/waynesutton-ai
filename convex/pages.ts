@@ -1,6 +1,37 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { requireDashboardAdmin } from "./dashboardAuth";
+
+const ADMIN_PAGE_QUERY_LIMIT = 500;
+const PUBLIC_PAGE_QUERY_LIMIT = 250;
+const SYNC_PAGE_QUERY_LIMIT = 2000;
+
+function comparePageOrder(a: { order?: number; title: string }, b: { order?: number; title: string }): number {
+  const orderA = a.order ?? 999;
+  const orderB = b.order ?? 999;
+  if (orderA !== orderB) return orderA - orderB;
+  return a.title.localeCompare(b.title);
+}
+
+function compareFeaturedOrder(
+  a: { featuredOrder?: number },
+  b: { featuredOrder?: number },
+): number {
+  const orderA = a.featuredOrder ?? 999;
+  const orderB = b.featuredOrder ?? 999;
+  return orderA - orderB;
+}
+
+function compareDocsOrder(
+  a: { docsSectionOrder?: number; title: string },
+  b: { docsSectionOrder?: number; title: string },
+): number {
+  const orderA = a.docsSectionOrder ?? 999;
+  const orderB = b.docsSectionOrder ?? 999;
+  if (orderA !== orderB) return orderA - orderB;
+  return a.title.localeCompare(b.title);
+}
 
 // Get all pages (published and unpublished) for dashboard admin view
 export const listAll = query({
@@ -21,19 +52,17 @@ export const listAll = query({
       featuredOrder: v.optional(v.number()),
       authorName: v.optional(v.string()),
       authorImage: v.optional(v.string()),
-      source: v.optional(v.union(v.literal("dashboard"), v.literal("sync"))),
+      unlisted: v.optional(v.boolean()),
+      source: v.optional(v.union(v.literal("dashboard"), v.literal("sync"), v.literal("demo"))),
     }),
   ),
   handler: async (ctx) => {
-    const pages = await ctx.db.query("pages").collect();
+    await requireDashboardAdmin(ctx);
+
+    const pages = await ctx.db.query("pages").take(ADMIN_PAGE_QUERY_LIMIT);
 
     // Sort by order, then by title
-    const sortedPages = pages.sort((a, b) => {
-      const orderA = a.order ?? 999;
-      const orderB = b.order ?? 999;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.title.localeCompare(b.title);
-    });
+    const sortedPages = pages.sort(comparePageOrder);
 
     return sortedPages.map((page) => ({
       _id: page._id,
@@ -50,6 +79,7 @@ export const listAll = query({
       featuredOrder: page.featuredOrder,
       authorName: page.authorName,
       authorImage: page.authorImage,
+      unlisted: page.unlisted,
       source: page.source,
     }));
   },
@@ -79,24 +109,27 @@ export const getAllPages = query({
     }),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const pages = await ctx.db
       .query("pages")
       .withIndex("by_published", (q) => q.eq("published", true))
-      .collect();
+      .take(PUBLIC_PAGE_QUERY_LIMIT);
 
-    // Filter out pages where showInNav is explicitly false
-    // Default to true for backwards compatibility (undefined/null = show in nav)
-    const visiblePages = pages.filter(
-      (page) => page.showInNav !== false,
-    );
+    const visiblePages: typeof pages = [];
+    for (const page of pages) {
+      // Demo content is never eligible for the navbar, regardless of
+      // frontmatter. This is a safety net on top of the demo mutation
+      // hardcoding showInNav: false.
+      if (page.source === "demo") continue;
+      // Unlisted pages stay reachable by direct URL but never appear in nav
+      if (page.unlisted) continue;
+      // Default to visible for backwards compatibility.
+      if (page.showInNav !== false) {
+        visiblePages.push(page);
+      }
+    }
 
-    // Sort by order (lower numbers first), then by title
-    const sortedPages = visiblePages.sort((a, b) => {
-      const orderA = a.order ?? 999;
-      const orderB = b.order ?? 999;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.title.localeCompare(b.title);
-    });
+    const sortedPages = visiblePages.sort(comparePageOrder);
 
     return sortedPages.map((page) => ({
       _id: page._id,
@@ -132,19 +165,21 @@ export const getFeaturedPages = query({
     }),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const pages = await ctx.db
       .query("pages")
       .withIndex("by_featured", (q) => q.eq("featured", true))
-      .collect();
+      .take(PUBLIC_PAGE_QUERY_LIMIT);
 
-    // Filter to only published pages and sort by featuredOrder
-    const featuredPages = pages
-      .filter((p) => p.published)
-      .sort((a, b) => {
-        const orderA = a.featuredOrder ?? 999;
-        const orderB = b.featuredOrder ?? 999;
-        return orderA - orderB;
-      });
+    const featuredPages: typeof pages = [];
+    for (const page of pages) {
+      // Demo pages never appear in the homepage featured section.
+      if (page.source === "demo") continue;
+      if (page.published && !page.unlisted) {
+        featuredPages.push(page);
+      }
+    }
+    featuredPages.sort(compareFeaturedOrder);
 
     return featuredPages.map((page) => ({
       _id: page._id,
@@ -186,16 +221,19 @@ export const getPageBySlug = query({
       aiChat: v.optional(v.boolean()),
       contactForm: v.optional(v.boolean()),
       newsletter: v.optional(v.boolean()),
+      unlisted: v.optional(v.boolean()),
       textAlign: v.optional(v.string()),
       docsSection: v.optional(v.boolean()),
+      slides: v.optional(v.boolean()),
     }),
     v.null(),
   ),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
     const page = await ctx.db
       .query("pages")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
-      .first();
+      .unique();
 
     if (!page || !page.published) {
       return null;
@@ -224,8 +262,10 @@ export const getPageBySlug = query({
       aiChat: page.aiChat,
       contactForm: page.contactForm,
       newsletter: page.newsletter,
+      unlisted: page.unlisted,
       textAlign: page.textAlign,
       docsSection: page.docsSection,
+      slides: page.slides,
     };
   },
 });
@@ -246,21 +286,21 @@ export const getDocsPages = query({
     }),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const pages = await ctx.db
       .query("pages")
-      .withIndex("by_docsSection", (q) => q.eq("docsSection", true))
-      .collect();
+      .withIndex("by_docssection", (q) => q.eq("docsSection", true))
+      .take(PUBLIC_PAGE_QUERY_LIMIT);
 
-    // Filter to only published pages
-    const publishedDocs = pages.filter((p) => p.published);
+    const publishedDocs: typeof pages = [];
+    for (const page of pages) {
+      // Unlisted pages stay reachable by direct URL but never appear in docs nav
+      if (page.published && !page.unlisted) {
+        publishedDocs.push(page);
+      }
+    }
 
-    // Sort by docsSectionOrder, then by title
-    const sortedDocs = publishedDocs.sort((a, b) => {
-      const orderA = a.docsSectionOrder ?? 999;
-      const orderB = b.docsSectionOrder ?? 999;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.title.localeCompare(b.title);
-    });
+    const sortedDocs = publishedDocs.sort(compareDocsOrder);
 
     return sortedDocs.map((page) => ({
       _id: page._id,
@@ -298,13 +338,20 @@ export const getDocsLandingPage = query({
     v.null(),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     // Get all docs pages and find one with docsLanding: true
     const pages = await ctx.db
       .query("pages")
-      .withIndex("by_docsSection", (q) => q.eq("docsSection", true))
-      .collect();
+      .withIndex("by_docssection", (q) => q.eq("docsSection", true))
+      .take(PUBLIC_PAGE_QUERY_LIMIT);
 
-    const landing = pages.find((p) => p.published && p.docsLanding);
+    let landing: (typeof pages)[number] | undefined;
+    for (const page of pages) {
+      if (page.published && !page.unlisted && page.docsLanding) {
+        landing = page;
+        break;
+      }
+    }
 
     if (!landing) return null;
 
@@ -354,6 +401,7 @@ export const syncPagesPublic = mutation({
         aiChat: v.optional(v.boolean()),
         contactForm: v.optional(v.boolean()),
         newsletter: v.optional(v.boolean()),
+        unlisted: v.optional(v.boolean()),
         textAlign: v.optional(v.string()),
         docsSection: v.optional(v.boolean()),
         docsSectionGroup: v.optional(v.string()),
@@ -361,6 +409,7 @@ export const syncPagesPublic = mutation({
         docsSectionGroupOrder: v.optional(v.number()),
         docsSectionGroupIcon: v.optional(v.string()),
         docsLanding: v.optional(v.boolean()),
+        slides: v.optional(v.boolean()),
       }),
     ),
   },
@@ -371,16 +420,26 @@ export const syncPagesPublic = mutation({
     skipped: v.number(),
   }),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
     let created = 0;
     let updated = 0;
     let deleted = 0;
     let skipped = 0;
+    const versionsToCreate: Array<{
+      contentType: "page";
+      contentId: string;
+      slug: string;
+      title: string;
+      content: string;
+      description?: string;
+      source: "sync";
+    }> = [];
 
     const now = Date.now();
     const incomingSlugs = new Set(args.pages.map((p) => p.slug));
 
     // Get all existing pages
-    const existingPages = await ctx.db.query("pages").collect();
+    const existingPages = await ctx.db.query("pages").take(SYNC_PAGE_QUERY_LIMIT);
     const existingBySlug = new Map(existingPages.map((p) => [p.slug, p]));
 
     // Upsert incoming pages (only if source !== "dashboard")
@@ -388,13 +447,12 @@ export const syncPagesPublic = mutation({
       const existing = existingBySlug.get(page.slug);
 
       if (existing) {
-        // Skip dashboard-created pages - don't overwrite them
-        if (existing.source === "dashboard") {
+        // Skip dashboard-created and demo pages - don't overwrite them
+        if (existing.source === "dashboard" || existing.source === "demo") {
           skipped++;
           continue;
         }
-        // Capture version before update (async, non-blocking)
-        await ctx.scheduler.runAfter(0, internal.versions.createVersion, {
+        versionsToCreate.push({
           contentType: "page",
           contentId: existing._id,
           slug: existing.slug,
@@ -424,6 +482,7 @@ export const syncPagesPublic = mutation({
           aiChat: page.aiChat,
           contactForm: page.contactForm,
           newsletter: page.newsletter,
+          unlisted: page.unlisted,
           textAlign: page.textAlign,
           docsSection: page.docsSection,
           docsSectionGroup: page.docsSectionGroup,
@@ -446,14 +505,108 @@ export const syncPagesPublic = mutation({
       }
     }
 
-    // Delete pages that no longer exist in the repo (but not dashboard pages)
+    if (versionsToCreate.length > 0) {
+      await ctx.scheduler.runAfter(0, internal.versions.createVersionsBatch, {
+        versions: versionsToCreate,
+      });
+    }
+
+    // Delete pages that no longer exist in the repo (but not dashboard or demo pages)
     for (const existing of existingPages) {
-      if (!incomingSlugs.has(existing.slug) && existing.source !== "dashboard") {
+      if (!incomingSlugs.has(existing.slug) && existing.source !== "dashboard" && existing.source !== "demo") {
         await ctx.db.delete(existing._id);
         deleted++;
       }
     }
 
     return { created, updated, deleted, skipped };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Internal query equivalents for server-to-server calls (httpActions, rss, etc.)
+// ---------------------------------------------------------------------------
+
+export const getAllPagesInternal = internalQuery({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("pages"),
+      slug: v.string(),
+      title: v.string(),
+      published: v.boolean(),
+      order: v.optional(v.number()),
+      showInNav: v.optional(v.boolean()),
+      excerpt: v.optional(v.string()),
+      image: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const pages = await ctx.db
+      .query("pages")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .take(PUBLIC_PAGE_QUERY_LIMIT);
+
+    const visiblePages: typeof pages = [];
+    for (const page of pages) {
+      // Demo content is never surfaced in navigation.
+      if (page.source === "demo") continue;
+      // Unlisted pages never appear in navigation or the sitemap
+      if (page.unlisted) continue;
+      if (page.showInNav !== false) {
+        visiblePages.push(page);
+      }
+    }
+
+    const sortedPages = visiblePages.sort(comparePageOrder);
+
+    return sortedPages.map((page) => ({
+      _id: page._id,
+      slug: page.slug,
+      title: page.title,
+      published: page.published,
+      order: page.order,
+      showInNav: page.showInNav,
+      excerpt: page.excerpt,
+      image: page.image,
+    }));
+  },
+});
+
+export const getPageBySlugInternal = internalQuery({
+  args: { slug: v.string() },
+  returns: v.union(
+    v.object({
+      _id: v.id("pages"),
+      slug: v.string(),
+      title: v.string(),
+      content: v.string(),
+      published: v.boolean(),
+      excerpt: v.optional(v.string()),
+      image: v.optional(v.string()),
+      unlisted: v.optional(v.boolean()),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("pages")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .unique();
+
+    if (!page || !page.published) {
+      return null;
+    }
+
+    return {
+      _id: page._id,
+      slug: page.slug,
+      title: page.title,
+      content: page.content,
+      published: page.published,
+      excerpt: page.excerpt,
+      image: page.image,
+      unlisted: page.unlisted,
+    };
   },
 });

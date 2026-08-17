@@ -1,0 +1,234 @@
+/* Agent ready dashboard section. Uses site theme variables so it follows all themes. */
+
+.agent-ready-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 860px;
+}
+
+.agent-ready-intro h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.agent-ready-intro p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.agent-ready-panel {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  padding: 1.25rem;
+}
+
+.agent-ready-panel h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.agent-ready-hint {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* Toggle grid */
+.agent-ready-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.agent-ready-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.agent-ready-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.agent-ready-toggle-track {
+  flex-shrink: 0;
+  width: 34px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  position: relative;
+  transition: background 0.15s ease;
+  margin-top: 2px;
+}
+
+.agent-ready-toggle-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+
+.agent-ready-toggle input:checked + .agent-ready-toggle-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.agent-ready-toggle input:checked + .agent-ready-toggle-track::after {
+  transform: translateX(14px);
+  background: var(--bg-primary);
+}
+
+.agent-ready-toggle input:focus-visible + .agent-ready-toggle-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.agent-ready-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.agent-ready-toggle-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.agent-ready-toggle-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Selects */
+.agent-ready-select-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.agent-ready-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 200px;
+  flex: 1;
+}
+
+.agent-ready-select span {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.agent-ready-select select {
+  appearance: none;
+  padding: 0.55rem 2rem 0.55rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  min-height: 40px;
+}
+
+.agent-ready-select select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Save row */
+.agent-ready-save-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.agent-ready-save-button {
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--bg-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  min-height: 40px;
+  transition: opacity 0.15s ease;
+}
+
+.agent-ready-save-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.agent-ready-save-status {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.agent-ready-save-error {
+  color: #d64545;
+}
+
+/* Code block */
+.agent-ready-code {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  overflow-x: auto;
+}
+
+/* Mobile */
+@media (max-width: 700px) {
+  .agent-ready-toggle-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-ready-select-row {
+    flex-direction: column;
+  }
+
+  .agent-ready-save-button {
+    width: 100%;
+    min-height: 48px;
+  }
+}

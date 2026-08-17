@@ -1,6 +1,48 @@
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { requireDashboardAdmin } from "./dashboardAuth";
+
+const ADMIN_POST_QUERY_LIMIT = 2000;
+const PUBLIC_POST_QUERY_LIMIT = 1000;
+const SYNC_POST_QUERY_LIMIT = 5000;
+
+function compareIsoDateDesc(a: string, b: string): number {
+  return b.localeCompare(a);
+}
+
+function compareFeaturedOrder(
+  a: { featuredOrder?: number },
+  b: { featuredOrder?: number },
+): number {
+  const orderA = a.featuredOrder ?? 999;
+  const orderB = b.featuredOrder ?? 999;
+  return orderA - orderB;
+}
+
+function compareDocsOrder(
+  a: { docsSectionOrder?: number; title: string },
+  b: { docsSectionOrder?: number; title: string },
+): number {
+  const orderA = a.docsSectionOrder ?? 999;
+  const orderB = b.docsSectionOrder ?? 999;
+  if (orderA !== orderB) return orderA - orderB;
+  return a.title.localeCompare(b.title);
+}
+
+function authorSlug(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, "-");
+}
+
+function countSharedTags(a: string[], b: string[]): number {
+  let shared = 0;
+  for (const tag of a) {
+    if (b.some((other) => other.toLowerCase() === tag.toLowerCase())) {
+      shared += 1;
+    }
+  }
+  return shared;
+}
 
 // Get all posts (published and unpublished) for dashboard admin view
 export const listAll = query({
@@ -23,15 +65,18 @@ export const listAll = query({
       featuredOrder: v.optional(v.number()),
       authorName: v.optional(v.string()),
       authorImage: v.optional(v.string()),
-      source: v.optional(v.union(v.literal("dashboard"), v.literal("sync"))),
+      unlisted: v.optional(v.boolean()),
+      source: v.optional(v.union(v.literal("dashboard"), v.literal("sync"), v.literal("demo"))),
     }),
   ),
   handler: async (ctx) => {
-    const posts = await ctx.db.query("posts").collect();
+    await requireDashboardAdmin(ctx);
+
+    const posts = await ctx.db.query("posts").take(ADMIN_POST_QUERY_LIMIT);
 
     // Sort by date descending
     const sortedPosts = posts.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      (a, b) => compareIsoDateDesc(a.date, b.date),
     );
 
     return sortedPosts.map((post) => ({
@@ -51,6 +96,7 @@ export const listAll = query({
       featuredOrder: post.featuredOrder,
       authorName: post.authorName,
       authorImage: post.authorImage,
+      unlisted: post.unlisted,
       source: post.source,
     }));
   },
@@ -84,17 +130,22 @@ export const getAllPosts = query({
     }),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const posts = await ctx.db
       .query("posts")
       .withIndex("by_published", (q) => q.eq("published", true))
-      .collect();
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
-    // Filter out unlisted posts
-    const listedPosts = posts.filter((p) => !p.unlisted);
+    const listedPosts: typeof posts = [];
+    for (const post of posts) {
+      if (!post.unlisted) {
+        listedPosts.push(post);
+      }
+    }
 
     // Sort by date descending
     const sortedPosts = listedPosts.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      (a, b) => compareIsoDateDesc(a.date, b.date),
     );
 
     // Return without content for list view
@@ -142,15 +193,21 @@ export const getBlogFeaturedPosts = query({
     }),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const posts = await ctx.db
       .query("posts")
-      .withIndex("by_blogFeatured", (q) => q.eq("blogFeatured", true))
-      .collect();
+      .withIndex("by_blogfeatured", (q) => q.eq("blogFeatured", true))
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
-    // Filter to only published posts and sort by date descending
-    const publishedFeatured = posts
-      .filter((p) => p.published && !p.unlisted)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const publishedFeatured: typeof posts = [];
+    for (const post of posts) {
+      // Demo posts are never eligible for the blog featured section.
+      if (post.source === "demo") continue;
+      if (post.published && !post.unlisted) {
+        publishedFeatured.push(post);
+      }
+    }
+    publishedFeatured.sort((a, b) => compareIsoDateDesc(a.date, b.date));
 
     return publishedFeatured.map((post) => ({
       _id: post._id,
@@ -183,19 +240,21 @@ export const getFeaturedPosts = query({
     }),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const posts = await ctx.db
       .query("posts")
       .withIndex("by_featured", (q) => q.eq("featured", true))
-      .collect();
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
-    // Filter to only published posts and sort by featuredOrder
-    const featuredPosts = posts
-      .filter((p) => p.published && !p.unlisted)
-      .sort((a, b) => {
-        const orderA = a.featuredOrder ?? 999;
-        const orderB = b.featuredOrder ?? 999;
-        return orderA - orderB;
-      });
+    const featuredPosts: typeof posts = [];
+    for (const post of posts) {
+      // Demo posts are never eligible for the homepage featured section.
+      if (post.source === "demo") continue;
+      if (post.published && !post.unlisted) {
+        featuredPosts.push(post);
+      }
+    }
+    featuredPosts.sort(compareFeaturedOrder);
 
     return featuredPosts.map((post) => ({
       _id: post._id,
@@ -241,15 +300,18 @@ export const getPostBySlug = query({
       aiChat: v.optional(v.boolean()),
       newsletter: v.optional(v.boolean()),
       contactForm: v.optional(v.boolean()),
+      unlisted: v.optional(v.boolean()),
       docsSection: v.optional(v.boolean()),
+      slides: v.optional(v.boolean()),
     }),
     v.null(),
   ),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
     const post = await ctx.db
       .query("posts")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
-      .first();
+      .unique();
 
     if (!post || !post.published) {
       return null;
@@ -281,7 +343,9 @@ export const getPostBySlug = query({
       aiChat: post.aiChat,
       newsletter: post.newsletter,
       contactForm: post.contactForm,
+      unlisted: post.unlisted,
       docsSection: post.docsSection,
+      slides: post.slides,
     };
   },
 });
@@ -306,7 +370,7 @@ export const getPostBySlugInternal = internalQuery({
     const post = await ctx.db
       .query("posts")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
-      .first();
+      .unique();
 
     if (!post || !post.published) {
       return null;
@@ -341,19 +405,21 @@ export const getRecentPostsInternal = internalQuery({
     const posts = await ctx.db
       .query("posts")
       .withIndex("by_published", (q) => q.eq("published", true))
-      .collect();
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
-    // Filter posts by date and sort descending, excluding unlisted
-    const recentPosts = posts
-      .filter((post) => post.date >= args.since && !post.unlisted)
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .map((post) => ({
-        slug: post.slug,
-        title: post.title,
-        description: post.description,
-        date: post.date,
-        excerpt: post.excerpt,
-      }));
+    const recentPosts = [];
+    for (const post of posts) {
+      if (post.date >= args.since && !post.unlisted) {
+        recentPosts.push({
+          slug: post.slug,
+          title: post.title,
+          description: post.description,
+          date: post.date,
+          excerpt: post.excerpt,
+        });
+      }
+    }
+    recentPosts.sort((a, b) => b.date.localeCompare(a.date));
 
     return recentPosts;
   },
@@ -412,7 +478,7 @@ export const syncPosts = internalMutation({
     const incomingSlugs = new Set(args.posts.map((p) => p.slug));
 
     // Get all existing posts
-    const existingPosts = await ctx.db.query("posts").collect();
+    const existingPosts = await ctx.db.query("posts").take(SYNC_POST_QUERY_LIMIT);
     const existingBySlug = new Map(existingPosts.map((p) => [p.slug, p]));
 
     // Upsert incoming posts
@@ -514,6 +580,7 @@ export const syncPostsPublic = mutation({
         docsSectionGroupOrder: v.optional(v.number()),
         docsSectionGroupIcon: v.optional(v.string()),
         docsLanding: v.optional(v.boolean()),
+        slides: v.optional(v.boolean()),
       }),
     ),
   },
@@ -524,16 +591,26 @@ export const syncPostsPublic = mutation({
     skipped: v.number(),
   }),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
     let created = 0;
     let updated = 0;
     let deleted = 0;
     let skipped = 0;
+    const versionsToCreate: Array<{
+      contentType: "post";
+      contentId: string;
+      slug: string;
+      title: string;
+      content: string;
+      description?: string;
+      source: "sync";
+    }> = [];
 
     const now = Date.now();
     const incomingSlugs = new Set(args.posts.map((p) => p.slug));
 
     // Get all existing posts
-    const existingPosts = await ctx.db.query("posts").collect();
+    const existingPosts = await ctx.db.query("posts").take(SYNC_POST_QUERY_LIMIT);
     const existingBySlug = new Map(existingPosts.map((p) => [p.slug, p]));
 
     // Upsert incoming posts (only if source !== "dashboard")
@@ -541,13 +618,12 @@ export const syncPostsPublic = mutation({
       const existing = existingBySlug.get(post.slug);
 
       if (existing) {
-        // Skip dashboard-created posts - don't overwrite them
-        if (existing.source === "dashboard") {
+        // Skip dashboard-created and demo posts - don't overwrite them
+        if (existing.source === "dashboard" || existing.source === "demo") {
           skipped++;
           continue;
         }
-        // Capture version before update (async, non-blocking)
-        await ctx.scheduler.runAfter(0, internal.versions.createVersion, {
+        versionsToCreate.push({
           contentType: "post",
           contentId: existing._id,
           slug: existing.slug,
@@ -603,9 +679,15 @@ export const syncPostsPublic = mutation({
       }
     }
 
-    // Delete posts that no longer exist in the repo (but not dashboard posts)
+    if (versionsToCreate.length > 0) {
+      await ctx.scheduler.runAfter(0, internal.versions.createVersionsBatch, {
+        versions: versionsToCreate,
+      });
+    }
+
+    // Delete posts that no longer exist in the repo (but not dashboard or demo posts)
     for (const existing of existingPosts) {
-      if (!incomingSlugs.has(existing.slug) && existing.source !== "dashboard") {
+      if (!incomingSlugs.has(existing.slug) && existing.source !== "dashboard" && existing.source !== "demo") {
         await ctx.db.delete(existing._id);
         deleted++;
       }
@@ -622,10 +704,11 @@ export const incrementViewCount = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
     const existing = await ctx.db
       .query("viewCounts")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
-      .first();
+      .unique();
 
     if (existing) {
       await ctx.db.patch(existing._id, {
@@ -649,10 +732,11 @@ export const getViewCount = query({
   },
   returns: v.number(),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
     const viewCount = await ctx.db
       .query("viewCounts")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
-      .first();
+      .unique();
 
     return viewCount?.count ?? 0;
   },
@@ -668,17 +752,18 @@ export const getAllTags = query({
     }),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const posts = await ctx.db
       .query("posts")
       .withIndex("by_published", (q) => q.eq("published", true))
-      .collect();
-
-    // Filter out unlisted posts
-    const listedPosts = posts.filter((p) => !p.unlisted);
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
     // Count occurrences of each tag
     const tagCounts = new Map<string, number>();
-    for (const post of listedPosts) {
+    for (const post of posts) {
+      if (post.unlisted) {
+        continue;
+      }
       for (const tag of post.tags) {
         tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
       }
@@ -719,21 +804,25 @@ export const getPostsByTag = query({
     }),
   ),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
     const posts = await ctx.db
       .query("posts")
       .withIndex("by_published", (q) => q.eq("published", true))
-      .collect();
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
-    // Filter posts that have the specified tag and are not unlisted
-    const filteredPosts = posts.filter(
-      (post) =>
-        !post.unlisted &&
-        post.tags.some((t) => t.toLowerCase() === args.tag.toLowerCase()),
-    );
+    const filteredPosts: typeof posts = [];
+    for (const post of posts) {
+      if (post.unlisted) {
+        continue;
+      }
+      if (post.tags.some((tag) => tag.toLowerCase() === args.tag.toLowerCase())) {
+        filteredPosts.push(post);
+      }
+    }
 
     // Sort by date descending
     const sortedPosts = filteredPosts.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      (a, b) => compareIsoDateDesc(a.date, b.date),
     );
 
     // Return without content for list view
@@ -781,6 +870,7 @@ export const getRelatedPosts = query({
     }),
   ),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
     const maxResults = args.limit ?? 3;
 
     // Skip if no tags provided
@@ -791,39 +881,38 @@ export const getRelatedPosts = query({
     const posts = await ctx.db
       .query("posts")
       .withIndex("by_published", (q) => q.eq("published", true))
-      .collect();
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
-    // Find posts that share tags, excluding current post and unlisted posts
-    const relatedPosts = posts
-      .filter((post) => post.slug !== args.currentSlug && !post.unlisted)
-      .map((post) => {
-        const sharedTags = post.tags.filter((tag) =>
-          args.tags.some((t) => t.toLowerCase() === tag.toLowerCase()),
-        ).length;
-        return {
-          _id: post._id,
-          slug: post.slug,
-          title: post.title,
-          description: post.description,
-          date: post.date,
-          tags: post.tags,
-          readTime: post.readTime,
-          image: post.image,
-          excerpt: post.excerpt,
-          authorName: post.authorName,
-          authorImage: post.authorImage,
-          sharedTags,
-        };
-      })
-      .filter((post) => post.sharedTags > 0)
-      .sort((a, b) => {
-        // Sort by shared tags count first, then by date
-        if (b.sharedTags !== a.sharedTags) return b.sharedTags - a.sharedTags;
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
-      })
-      .slice(0, maxResults);
+    const relatedPosts = [];
+    for (const post of posts) {
+      if (post.slug === args.currentSlug || post.unlisted) {
+        continue;
+      }
+      const sharedTags = countSharedTags(post.tags, args.tags);
+      if (sharedTags === 0) {
+        continue;
+      }
+      relatedPosts.push({
+        _id: post._id,
+        slug: post.slug,
+        title: post.title,
+        description: post.description,
+        date: post.date,
+        tags: post.tags,
+        readTime: post.readTime,
+        image: post.image,
+        excerpt: post.excerpt,
+        authorName: post.authorName,
+        authorImage: post.authorImage,
+        sharedTags,
+      });
+    }
+    relatedPosts.sort((a, b) => {
+      if (b.sharedTags !== a.sharedTags) return b.sharedTags - a.sharedTags;
+      return compareIsoDateDesc(a.date, b.date);
+    });
 
-    return relatedPosts;
+    return relatedPosts.slice(0, maxResults);
   },
 });
 
@@ -838,17 +927,18 @@ export const getAllAuthors = query({
     }),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const posts = await ctx.db
       .query("posts")
       .withIndex("by_published", (q) => q.eq("published", true))
-      .collect();
-
-    // Filter out unlisted posts and posts without author
-    const publishedPosts = posts.filter((p) => !p.unlisted && p.authorName);
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
     // Count posts per author
     const authorCounts = new Map<string, number>();
-    for (const post of publishedPosts) {
+    for (const post of posts) {
+      if (post.unlisted || !post.authorName) {
+        continue;
+      }
       if (post.authorName) {
         const count = authorCounts.get(post.authorName) || 0;
         authorCounts.set(post.authorName, count + 1);
@@ -894,21 +984,25 @@ export const getPostsByAuthor = query({
     }),
   ),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
     const posts = await ctx.db
       .query("posts")
       .withIndex("by_published", (q) => q.eq("published", true))
-      .collect();
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
-    // Filter posts by author slug match and not unlisted
-    const filteredPosts = posts.filter((post) => {
-      if (!post.authorName || post.unlisted) return false;
-      const slug = post.authorName.toLowerCase().replace(/\s+/g, "-");
-      return slug === args.authorSlug;
-    });
+    const filteredPosts: typeof posts = [];
+    for (const post of posts) {
+      if (!post.authorName || post.unlisted) {
+        continue;
+      }
+      if (authorSlug(post.authorName) === args.authorSlug) {
+        filteredPosts.push(post);
+      }
+    }
 
     // Sort by date descending
     const sortedPosts = filteredPosts.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      (a, b) => compareIsoDateDesc(a.date, b.date),
     );
 
     // Return without content for list view
@@ -948,21 +1042,21 @@ export const getDocsPosts = query({
     }),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const posts = await ctx.db
       .query("posts")
-      .withIndex("by_docsSection", (q) => q.eq("docsSection", true))
-      .collect();
+      .withIndex("by_docssection", (q) => q.eq("docsSection", true))
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
-    // Filter to only published posts
-    const publishedDocs = posts.filter((p) => p.published);
+    const publishedDocs: typeof posts = [];
+    for (const post of posts) {
+      // Unlisted posts stay reachable by direct URL but never appear in docs nav
+      if (post.published && !post.unlisted) {
+        publishedDocs.push(post);
+      }
+    }
 
-    // Sort by docsSectionOrder, then by title
-    const sortedDocs = publishedDocs.sort((a, b) => {
-      const orderA = a.docsSectionOrder ?? 999;
-      const orderB = b.docsSectionOrder ?? 999;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.title.localeCompare(b.title);
-    });
+    const sortedDocs = publishedDocs.sort(compareDocsOrder);
 
     return sortedDocs.map((post) => ({
       _id: post._id,
@@ -1003,13 +1097,20 @@ export const getDocsLandingPost = query({
     v.null(),
   ),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     // Get all docs posts and find one with docsLanding: true
     const posts = await ctx.db
       .query("posts")
-      .withIndex("by_docsSection", (q) => q.eq("docsSection", true))
-      .collect();
+      .withIndex("by_docssection", (q) => q.eq("docsSection", true))
+      .take(PUBLIC_POST_QUERY_LIMIT);
 
-    const landing = posts.find((p) => p.published && p.docsLanding);
+    let landing: (typeof posts)[number] | undefined;
+    for (const post of posts) {
+      if (post.published && !post.unlisted && post.docsLanding) {
+        landing = post;
+        break;
+      }
+    }
 
     if (!landing) return null;
 
@@ -1032,5 +1133,225 @@ export const getDocsLandingPost = query({
       footer: landing.footer,
       aiChat: landing.aiChat,
     };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Internal query equivalents for server-to-server calls (httpActions, rss, etc.)
+// These mirror the public queries but are not exposed on the public API surface.
+// ---------------------------------------------------------------------------
+
+export const getAllPostsInternal = internalQuery({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("posts"),
+      slug: v.string(),
+      title: v.string(),
+      description: v.string(),
+      date: v.string(),
+      tags: v.array(v.string()),
+      readTime: v.optional(v.string()),
+      image: v.optional(v.string()),
+      excerpt: v.optional(v.string()),
+      authorName: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .take(PUBLIC_POST_QUERY_LIMIT);
+
+    const listedPosts: typeof posts = [];
+    for (const post of posts) {
+      if (!post.unlisted) {
+        listedPosts.push(post);
+      }
+    }
+
+    const sortedPosts = listedPosts.sort(
+      (a, b) => compareIsoDateDesc(a.date, b.date),
+    );
+
+    return sortedPosts.map((post) => ({
+      _id: post._id,
+      slug: post.slug,
+      title: post.title,
+      description: post.description,
+      date: post.date,
+      tags: post.tags,
+      readTime: post.readTime,
+      image: post.image,
+      excerpt: post.excerpt,
+      authorName: post.authorName,
+    }));
+  },
+});
+
+export const getPostBySlugWithContent = internalQuery({
+  args: { slug: v.string() },
+  returns: v.union(
+    v.object({
+      _id: v.id("posts"),
+      slug: v.string(),
+      title: v.string(),
+      description: v.string(),
+      content: v.string(),
+      date: v.string(),
+      tags: v.array(v.string()),
+      readTime: v.optional(v.string()),
+      image: v.optional(v.string()),
+      excerpt: v.optional(v.string()),
+      authorName: v.optional(v.string()),
+      authorImage: v.optional(v.string()),
+      showFooter: v.optional(v.boolean()),
+      footer: v.optional(v.string()),
+      showSocialFooter: v.optional(v.boolean()),
+      aiChat: v.optional(v.boolean()),
+      newsletter: v.optional(v.boolean()),
+      contactForm: v.optional(v.boolean()),
+      unlisted: v.optional(v.boolean()),
+      docsSection: v.optional(v.boolean()),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const post = await ctx.db
+      .query("posts")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .unique();
+
+    if (!post || !post.published) {
+      return null;
+    }
+
+    return {
+      _id: post._id,
+      slug: post.slug,
+      title: post.title,
+      description: post.description,
+      content: post.content,
+      date: post.date,
+      tags: post.tags,
+      readTime: post.readTime,
+      image: post.image,
+      excerpt: post.excerpt,
+      authorName: post.authorName,
+      authorImage: post.authorImage,
+      showFooter: post.showFooter,
+      footer: post.footer,
+      showSocialFooter: post.showSocialFooter,
+      aiChat: post.aiChat,
+      newsletter: post.newsletter,
+      contactForm: post.contactForm,
+      unlisted: post.unlisted,
+      docsSection: post.docsSection,
+    };
+  },
+});
+
+export const getAllTagsInternal = internalQuery({
+  args: {},
+  returns: v.array(v.object({ tag: v.string(), count: v.number() })),
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .take(PUBLIC_POST_QUERY_LIMIT);
+
+    const tagCounts = new Map<string, number>();
+    for (const post of posts) {
+      if (post.unlisted) {
+        continue;
+      }
+      for (const tag of post.tags) {
+        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+      }
+    }
+
+    return Array.from(tagCounts.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.tag.localeCompare(b.tag);
+      });
+  },
+});
+
+// Returns all published posts with full content (for export/RSS batch endpoints)
+export const getAllPostsWithContentInternal = internalQuery({
+  args: {},
+  returns: v.array(
+    v.object({
+      slug: v.string(),
+      title: v.string(),
+      description: v.string(),
+      content: v.string(),
+      date: v.string(),
+      tags: v.array(v.string()),
+      readTime: v.optional(v.string()),
+      image: v.optional(v.string()),
+      excerpt: v.optional(v.string()),
+      authorName: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .take(PUBLIC_POST_QUERY_LIMIT);
+
+    const listedPosts: typeof posts = [];
+    for (const post of posts) {
+      if (!post.unlisted) {
+        listedPosts.push(post);
+      }
+    }
+
+    return listedPosts.sort((a, b) => compareIsoDateDesc(a.date, b.date)).map((post) => ({
+      slug: post.slug,
+      title: post.title,
+      description: post.description,
+      content: post.content,
+      date: post.date,
+      tags: post.tags,
+      readTime: post.readTime,
+      image: post.image,
+      excerpt: post.excerpt,
+      authorName: post.authorName,
+    }));
+  },
+});
+
+export const getAllAuthorsInternal = internalQuery({
+  args: {},
+  returns: v.array(v.object({ name: v.string(), slug: v.string(), count: v.number() })),
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .take(PUBLIC_POST_QUERY_LIMIT);
+
+    const authorCounts = new Map<string, number>();
+    for (const post of posts) {
+      if (post.unlisted || !post.authorName) {
+        continue;
+      }
+      if (post.authorName) {
+        authorCounts.set(post.authorName, (authorCounts.get(post.authorName) || 0) + 1);
+      }
+    }
+
+    return Array.from(authorCounts.entries())
+      .map(([name, count]) => ({
+        name,
+        slug: authorSlug(name),
+        count,
+      }))
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.name.localeCompare(b.name);
+      });
   },
 });

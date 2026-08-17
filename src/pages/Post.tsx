@@ -13,17 +13,18 @@ import ContactForm from "../components/ContactForm";
 import { extractHeadings } from "../utils/extractHeadings";
 import { useSidebar } from "../context/SidebarContext";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Link as LinkIcon, Rss, Tag } from "lucide-react";
+import { ArrowLeft, Link as LinkIcon, Rss, Tag, Presentation } from "lucide-react";
 import { XLogo, LinkedinLogo } from "@phosphor-icons/react";
 import { useState, useEffect, useRef, useCallback } from "react";
+import SlidePresentation from "../components/SlidePresentation";
 import siteConfig from "../config/siteConfig";
 
 // Local storage key for related posts view mode preference
 const RELATED_POSTS_VIEW_MODE_KEY = "related-posts-view-mode";
 
 // Site configuration - update these for your site (or run npm run configure)
-const SITE_URL = "https://www.markdown.fast";
-const SITE_NAME = "markdown sync framework";
+const SITE_URL = "https://waynesutton.ai";
+const SITE_NAME = "Wayne Sutton";
 const DEFAULT_OG_IMAGE = "/images/og-default.svg";
 
 interface PostProps {
@@ -89,6 +90,7 @@ export default function Post({
   const footerPage = useQuery(api.pages.getPageBySlug, { slug: "footer" });
 
   const [copied, setCopied] = useState(false);
+  const [showSlides, setShowSlides] = useState(false);
 
   // State for related posts view mode toggle (list or thumbnails)
   const [relatedPostsViewMode, setRelatedPostsViewMode] = useState<"list" | "thumbnails">(
@@ -239,6 +241,13 @@ export default function Post({
     // Update meta description
     updateMeta('meta[name="description"]', "content", post.description);
 
+    // Unlisted posts stay viewable at their URL but are excluded from search engines
+    updateMeta(
+      'meta[name="robots"]',
+      "content",
+      post.unlisted ? "noindex, nofollow" : "index, follow",
+    );
+
     // Update Open Graph meta tags
     updateMeta('meta[property="og:title"]', "content", post.title);
     updateMeta('meta[property="og:description"]', "content", post.description);
@@ -253,14 +262,15 @@ export default function Post({
     updateMeta('meta[name="twitter:card"]', "content", "summary_large_image");
 
     // Update twitter:site and twitter:creator if configured
+    const postAuthorTwitter = (post as { authorTwitter?: string }).authorTwitter;
     if (siteConfig.twitter?.site) {
       updateMeta('meta[name="twitter:site"]', "content", siteConfig.twitter.site);
     }
-    if (siteConfig.twitter?.creator) {
+    if (siteConfig.twitter?.creator || postAuthorTwitter) {
       updateMeta(
         'meta[name="twitter:creator"]',
         "content",
-        siteConfig.twitter.creator,
+        postAuthorTwitter || siteConfig.twitter?.creator || "",
       );
     }
 
@@ -303,6 +313,9 @@ export default function Post({
     return () => {
       const scriptEl = document.getElementById("json-ld-article");
       if (scriptEl) scriptEl.remove();
+      // Restore default robots directive when leaving an unlisted post
+      const robotsMeta = document.querySelector('meta[name="robots"]');
+      if (robotsMeta) robotsMeta.setAttribute("content", "index, follow");
     };
   }, [post, page]);
 
@@ -333,6 +346,13 @@ export default function Post({
     // Update meta description
     const description = page.excerpt || `${page.title} - ${SITE_NAME}`;
     updateMeta('meta[name="description"]', "content", description);
+
+    // Unlisted pages stay viewable at their URL but are excluded from search engines
+    updateMeta(
+      'meta[name="robots"]',
+      "content",
+      page.unlisted ? "noindex, nofollow" : "index, follow",
+    );
 
     // Update Open Graph meta tags
     updateMeta('meta[property="og:title"]', "content", page.title);
@@ -389,6 +409,12 @@ export default function Post({
       document.head.appendChild(hreflangDefault);
     }
     hreflangDefault.setAttribute("href", canonicalUrl);
+
+    // Restore default robots directive when leaving an unlisted page
+    return () => {
+      const robotsMeta = document.querySelector('meta[name="robots"]');
+      if (robotsMeta) robotsMeta.setAttribute("content", "index, follow");
+    };
   }, [page, post]);
 
   // Check if we're loading a docs page - keep layout mounted to prevent flash
@@ -443,7 +469,6 @@ export default function Post({
                   src={page.image}
                   alt={page.title}
                   className="post-header-image-img"
-                  fetchPriority="high"
                 />
               </div>
             )}
@@ -517,7 +542,6 @@ export default function Post({
                   src={page.image}
                   alt={page.title}
                   className="post-header-image-img"
-                  fetchPriority="high"
                 />
               </div>
             )}
@@ -527,6 +551,15 @@ export default function Post({
                 {/* Show CopyPageDropdown aligned with title when sidebars are enabled */}
                 {hasAnySidebar && (
                   <div className="post-header-actions">
+                    {page.slides && (
+                      <button
+                        className="slide-present-btn"
+                        onClick={() => setShowSlides(true)}
+                      >
+                        <Presentation size={16} />
+                        <span>Present</span>
+                      </button>
+                    )}
                     <CopyPageDropdown
                       title={page.title}
                       content={page.content}
@@ -537,6 +570,16 @@ export default function Post({
                   </div>
                 )}
               </div>
+              {page.slides && !hasAnySidebar && (
+                <button
+                  className="slide-present-btn"
+                  onClick={() => setShowSlides(true)}
+                  style={{ marginTop: "8px" }}
+                >
+                  <Presentation size={16} />
+                  <span>Present</span>
+                </button>
+              )}
               {/* Author avatar and name for pages (optional) */}
               {(page.authorImage || page.authorName) && (
                 <div className="post-meta-header">
@@ -562,6 +605,14 @@ export default function Post({
             </header>
 
             <BlogPost content={page.content} slug={page.slug} pageType="page" />
+
+            {showSlides && page.slides && (
+              <SlidePresentation
+                content={page.content}
+                title={page.title}
+                onClose={() => setShowSlides(false)}
+              />
+            )}
 
             {/* Contact form - shown when contactForm: true in frontmatter (only if not inline) */}
             {siteConfig.contactForm?.enabled &&
@@ -670,6 +721,15 @@ export default function Post({
       >
         <article className="docs-article">
           <div className="docs-article-actions">
+            {post.slides && (
+              <button
+                className="slide-present-btn"
+                onClick={() => setShowSlides(true)}
+              >
+                <Presentation size={16} />
+                <span>Present</span>
+              </button>
+            )}
             <CopyPageDropdown
               title={post.title}
               content={post.content}
@@ -686,7 +746,6 @@ export default function Post({
                 src={post.image}
                 alt={post.title}
                 className="post-header-image-img"
-                  fetchPriority="high"
               />
             </div>
           )}
@@ -697,6 +756,14 @@ export default function Post({
             )}
           </header>
           <BlogPost content={post.content} slug={post.slug} pageType="post" />
+
+          {showSlides && post.slides && (
+            <SlidePresentation
+              content={post.content}
+              title={post.title}
+              onClose={() => setShowSlides(false)}
+            />
+          )}
           {siteConfig.footer.enabled &&
             (post.showFooter !== undefined
               ? post.showFooter
@@ -764,7 +831,6 @@ export default function Post({
                 src={post.image}
                 alt={post.title}
                 className="post-header-image-img"
-                  fetchPriority="high"
               />
             </div>
           )}
@@ -774,6 +840,15 @@ export default function Post({
               {/* Show CopyPageDropdown aligned with title when sidebars are enabled */}
               {hasAnySidebar && (
                 <div className="post-header-actions">
+                  {post.slides && (
+                    <button
+                      className="slide-present-btn"
+                      onClick={() => setShowSlides(true)}
+                    >
+                      <Presentation size={16} />
+                      <span>Present</span>
+                    </button>
+                  )}
                   <CopyPageDropdown
                     title={post.title}
                     content={post.content}
@@ -818,6 +893,18 @@ export default function Post({
                   <span className="post-read-time">{post.readTime}</span>
                 </>
               )}
+              {post.slides && !hasAnySidebar && (
+                <>
+                  <span className="post-meta-separator">·</span>
+                  <button
+                    className="slide-present-btn"
+                    onClick={() => setShowSlides(true)}
+                  >
+                    <Presentation size={16} />
+                    <span>Present</span>
+                  </button>
+                </>
+              )}
             </div>
             {post.description && (
               <p className="post-description">{post.description}</p>
@@ -825,6 +912,14 @@ export default function Post({
           </header>
           {/* Blog post content - raw markdown or rendered */}
           <BlogPost content={post.content} slug={post.slug} pageType="post" />
+
+          {showSlides && post.slides && (
+            <SlidePresentation
+              content={post.content}
+              title={post.title}
+              onClose={() => setShowSlides(false)}
+            />
+          )}
 
           <footer className="post-footer">
             <div className="post-share">

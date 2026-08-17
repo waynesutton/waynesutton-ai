@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "convex/react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
+
+const TICK_INTERVAL_MS = 60_000;
 import {
   ArrowLeft,
   Users,
@@ -35,7 +37,28 @@ function formatTrackingDate(timestamp: number | null): string {
 
 export default function Stats() {
   const navigate = useNavigate();
-  const stats = useQuery(api.stats.getStats);
+
+  // Round to 60-second intervals so the Convex subscription stays stable
+  const [tick, setTick] = useState(() => Math.floor(Date.now() / TICK_INTERVAL_MS));
+  useEffect(() => {
+    const id = setInterval(
+      () => setTick(Math.floor(Date.now() / TICK_INTERVAL_MS)),
+      TICK_INTERVAL_MS,
+    );
+    return () => clearInterval(id);
+  }, []);
+  const now = useMemo(() => tick * TICK_INTERVAL_MS, [tick]);
+
+  const stats = useQuery(api.stats.getStats, { now });
+  const [githubStars, setGithubStars] = useState<number | null>(null);
+
+  // Fetch GitHub stars on mount
+  useEffect(() => {
+    fetch("https://api.github.com/repos/waynesutton/markdown-site")
+      .then((res) => res.json())
+      .then((data) => setGithubStars(data.stargazers_count))
+      .catch(() => setGithubStars(null));
+  }, []);
 
   // Check if stats page is enabled
   if (!siteConfig.statsPage?.enabled) {
@@ -72,17 +95,6 @@ export default function Stats() {
       </div>
     );
   }
-
-  // GitHub stars state
-  const [githubStars, setGithubStars] = useState<number | null>(null);
-
-  // Fetch GitHub stars on mount
-  useEffect(() => {
-    fetch("https://api.github.com/repos/waynesutton/markdown-site")
-      .then((res) => res.json())
-      .then((data) => setGithubStars(data.stargazers_count))
-      .catch(() => setGithubStars(null));
-  }, []);
 
   // Show loading spinner while stats load
   if (stats === undefined) {
@@ -224,10 +236,15 @@ export default function Stats() {
         </section>
       )}
 
-      {/* Page views by page */}
+      {/* Page views by page (top 50) */}
       {stats.pageStats.length > 0 && (
         <section className="stats-section-wide">
-          <h2 className="stats-section-title-wide">Views by Page</h2>
+          <h2 className="stats-section-title-wide">
+            Top Pages by Views
+            {stats.totalPaths > stats.pageStats.length && (
+              <span className="stats-section-subtitle"> (showing {stats.pageStats.length} of {stats.totalPaths})</span>
+            )}
+          </h2>
           <div className="stats-list-wide">
             {stats.pageStats.map((item) => (
               <div key={item.path} className="stats-list-item-wide">

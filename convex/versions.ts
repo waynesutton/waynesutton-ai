@@ -1,19 +1,35 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { requireDashboardAdmin } from "./dashboardAuth";
 
 // Retention period: 3 days in milliseconds
 const RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
+
+const versionSnapshotValidator = v.object({
+  contentType: v.union(v.literal("post"), v.literal("page")),
+  contentId: v.string(),
+  slug: v.string(),
+  title: v.string(),
+  content: v.string(),
+  description: v.optional(v.string()),
+  source: v.union(
+    v.literal("sync"),
+    v.literal("dashboard"),
+    v.literal("restore"),
+  ),
+});
 
 // Check if version control is enabled
 export const isEnabled = query({
   args: {},
   returns: v.boolean(),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const setting = await ctx.db
       .query("versionControlSettings")
       .withIndex("by_key", (q) => q.eq("key", "enabled"))
-      .first();
+      .unique();
     return setting?.value === true;
   },
 });
@@ -23,10 +39,12 @@ export const setEnabled = mutation({
   args: { enabled: v.boolean() },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+
     const existing = await ctx.db
       .query("versionControlSettings")
       .withIndex("by_key", (q) => q.eq("key", "enabled"))
-      .first();
+      .unique();
 
     if (existing) {
       await ctx.db.patch(existing._id, { value: args.enabled });
@@ -43,26 +61,14 @@ export const setEnabled = mutation({
 // Create a version snapshot (called before updates)
 // This is an internal mutation to be called from other mutations
 export const createVersion = internalMutation({
-  args: {
-    contentType: v.union(v.literal("post"), v.literal("page")),
-    contentId: v.string(),
-    slug: v.string(),
-    title: v.string(),
-    content: v.string(),
-    description: v.optional(v.string()),
-    source: v.union(
-      v.literal("sync"),
-      v.literal("dashboard"),
-      v.literal("restore")
-    ),
-  },
+  args: versionSnapshotValidator,
   returns: v.union(v.id("contentVersions"), v.null()),
   handler: async (ctx, args) => {
     // Check if version control is enabled
     const setting = await ctx.db
       .query("versionControlSettings")
       .withIndex("by_key", (q) => q.eq("key", "enabled"))
-      .first();
+      .unique();
 
     if (setting?.value !== true) {
       return null;
@@ -81,6 +87,42 @@ export const createVersion = internalMutation({
     });
 
     return versionId;
+  },
+});
+
+export const createVersionsBatch = internalMutation({
+  args: {
+    versions: v.array(versionSnapshotValidator),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (args.versions.length === 0) {
+      return null;
+    }
+
+    const setting = await ctx.db
+      .query("versionControlSettings")
+      .withIndex("by_key", (q) => q.eq("key", "enabled"))
+      .unique();
+
+    if (setting?.value !== true) {
+      return null;
+    }
+
+    for (const version of args.versions) {
+      await ctx.db.insert("contentVersions", {
+        contentType: version.contentType,
+        contentId: version.contentId,
+        slug: version.slug,
+        title: version.title,
+        content: version.content,
+        description: version.description,
+        createdAt: Date.now(),
+        source: version.source,
+      });
+    }
+
+    return null;
   },
 });
 
@@ -104,13 +146,15 @@ export const getVersionHistory = query({
     })
   ),
   handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+
     const versions = await ctx.db
       .query("contentVersions")
-      .withIndex("by_content", (q) =>
+      .withIndex("by_contenttype_and_contentid_and_createdat", (q) =>
         q.eq("contentType", args.contentType).eq("contentId", args.contentId)
       )
       .order("desc")
-      .collect();
+      .take(100);
 
     return versions.map((v) => ({
       _id: v._id,
@@ -145,6 +189,8 @@ export const getVersion = query({
     v.null()
   ),
   handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+
     const version = await ctx.db.get(args.versionId);
     if (!version) return null;
 
@@ -170,6 +216,8 @@ export const restoreVersion = mutation({
     message: v.string(),
   }),
   handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+
     const version = await ctx.db.get(args.versionId);
     if (!version) {
       return { success: false, message: "Version not found" };
@@ -235,7 +283,7 @@ export const cleanupOldVersions = internalMutation({
     // Get old versions using the createdAt index
     const oldVersions = await ctx.db
       .query("contentVersions")
-      .withIndex("by_createdAt", (q) => q.lt("createdAt", cutoff))
+      .withIndex("by_createdat", (q) => q.lt("createdAt", cutoff))
       .take(1000);
 
     // Delete the batch
@@ -250,27 +298,39 @@ export const getStats = query({
   args: {},
   returns: v.object({
     enabled: v.boolean(),
-    totalVersions: v.number(),
+    totalVersions: v.union(v.number(), v.null()),
     oldestVersion: v.union(v.number(), v.null()),
     newestVersion: v.union(v.number(), v.null()),
   }),
   handler: async (ctx) => {
+    await requireDashboardAdmin(ctx);
+
     const setting = await ctx.db
       .query("versionControlSettings")
       .withIndex("by_key", (q) => q.eq("key", "enabled"))
+      .unique();
+
+    // Avoid full-table scans. contentVersions documents include full markdown content,
+    // so collecting all rows can exceed Convex's 16 MB read limit.
+    const oldestVersion = await ctx.db
+      .query("contentVersions")
+      .withIndex("by_createdat")
       .first();
 
-    const versions = await ctx.db.query("contentVersions").collect();
+    const newestVersion = await ctx.db
+      .query("contentVersions")
+      .withIndex("by_createdat")
+      .order("desc")
+      .first();
 
-    const timestamps = versions.map((v) => v.createdAt);
-    const oldest = timestamps.length > 0 ? Math.min(...timestamps) : null;
-    const newest = timestamps.length > 0 ? Math.max(...timestamps) : null;
+    const hasVersions = Boolean(oldestVersion);
 
     return {
       enabled: setting?.value === true,
-      totalVersions: versions.length,
-      oldestVersion: oldest,
-      newestVersion: newest,
+      // Returning null here avoids expensive counting logic for large datasets.
+      totalVersions: hasVersions ? null : 0,
+      oldestVersion: oldestVersion?.createdAt ?? null,
+      newestVersion: newestVersion?.createdAt ?? null,
     };
   },
 });

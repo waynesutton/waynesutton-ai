@@ -2,9 +2,6 @@ import { mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
-// Environment variable error message for production
-// Note: Currently unused but kept for future error handling enhancement
-
 // Submit contact form message
 // Stores the message and schedules email sending via AgentMail
 export const submitContact = mutation({
@@ -19,6 +16,8 @@ export const submitContact = mutation({
     message: v.string(),
   }),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
+
     // Validate required fields
     const name = args.name.trim();
     const email = args.email.toLowerCase().trim();

@@ -1,6 +1,8 @@
+import "../styles/dashboard-forms.css";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useQuery, useMutation, useAction } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { useTheme } from "../context/ThemeContext";
@@ -10,10 +12,8 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
 import TurndownService from "turndown";
-import Showdown from "showdown";
+import { Marked } from "marked";
 import {
   ArrowLeft,
   Article,
@@ -34,12 +34,12 @@ import {
   Check,
   X,
   Download,
-  Plus,
   Clock,
   Link as LinkIcon,
   Copy,
   Terminal,
   CheckCircle,
+  WarningCircle,
   Warning,
   Info,
   Trash,
@@ -62,50 +62,35 @@ import {
   ArrowsOut,
   ArrowsIn,
   FloppyDisk,
+  Globe,
+  Lock,
+  Tray,
+  Key,
+  Broadcast,
+  BookOpen,
+  XLogo,
 } from "@phosphor-icons/react";
+import { DraftsInbox } from "../components/dashboard/DraftsInbox";
+import { ApiKeysSection } from "../components/dashboard/ApiKeysSection";
+import { XSection } from "../components/dashboard/XSection";
+import AgentReadySection from "../components/AgentReadySection";
+import DashboardDocsSection from "../components/DashboardDocsSection";
 import siteConfig from "../config/siteConfig";
 import AIChatView from "../components/AIChatView";
 import VersionHistoryModal from "../components/VersionHistoryModal";
 import { MediaLibrary } from "../components/MediaLibrary";
 import { ImageUploadModal } from "../components/ImageUploadModal";
-import { isWorkOSConfigured } from "../utils/workos";
-// Always import auth components - they're only used when WorkOS is configured
 import {
-  Authenticated as ConvexAuthenticated,
-  Unauthenticated as ConvexUnauthenticated,
-  AuthLoading as ConvexAuthLoading,
-} from "convex/react";
-import { useAuth as useWorkOSAuth } from "@workos-inc/authkit-react";
+  FrontmatterForm,
+  createDefaultFrontmatter,
+  parseFrontmatterDocument,
+  serializeFrontmatter,
+  SLUG_PATTERN,
+} from "../components/FrontmatterForm";
+import type { FrontmatterValues } from "../components/FrontmatterForm";
 
-// Conditionally use auth components based on WorkOS configuration
-// When WorkOS is not configured, use dummy components that render nothing or just children
-const Authenticated: React.ComponentType<{ children: React.ReactNode }> =
-  isWorkOSConfigured ? ConvexAuthenticated : ({ children }) => <>{children}</>;
-
-const Unauthenticated: React.ComponentType<{ children: React.ReactNode }> =
-  isWorkOSConfigured ? ConvexUnauthenticated : () => null;
-
-const AuthLoading: React.ComponentType<{ children: React.ReactNode }> =
-  isWorkOSConfigured ? ConvexAuthLoading : () => null;
-
-// Dummy auth hook for when WorkOS is not configured
-const dummyAuth = {
-  user: undefined as undefined,
-  signIn: () => {},
-  signOut: () => {},
-};
-
-// Hook to get auth state - returns dummy values when WorkOS not configured
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const useAuth = (): any => {
-  // When WorkOS is configured, use the real hook
-  if (isWorkOSConfigured) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useWorkOSAuth();
-  }
-  // When not configured, return dummy values
-  return dummyAuth;
-};
+// Default slug values that should trigger a warning
+const DEFAULT_SLUGS = ["your-post-url", "page-url"];
 
 // Toast notification types
 type ToastType = "success" | "error" | "info" | "warning";
@@ -149,10 +134,7 @@ function ToastNotification({
     <div className={`dashboard-toast ${toast.type}`}>
       <span className="dashboard-toast-icon">{getIcon()}</span>
       <span className="dashboard-toast-message">{toast.message}</span>
-      <button
-        className="dashboard-toast-close"
-        onClick={() => onDismiss(toast.id)}
-      >
+      <button className="dashboard-toast-close" onClick={() => onDismiss(toast.id)}>
         <X size={14} />
       </button>
     </div>
@@ -187,13 +169,7 @@ interface CommandModalProps {
   description?: string;
 }
 
-function CommandModal({
-  isOpen,
-  onClose,
-  title,
-  command,
-  description,
-}: CommandModalProps) {
+function CommandModal({ isOpen, onClose, title, command, description }: CommandModalProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopyCommand = async () => {
@@ -235,33 +211,25 @@ function CommandModal({
           </button>
         </div>
 
-        {description && (
-          <p className="dashboard-modal-description">{description}</p>
-        )}
+        {description && <p className="dashboard-modal-description">{description}</p>}
 
         <div className="dashboard-modal-command-container">
           <code className="dashboard-modal-command">{command}</code>
           <button
             className="dashboard-modal-copy-btn"
             onClick={handleCopyCommand}
-            title="Copy command"
-          >
+            title="Copy command">
             {copied ? <Check size={16} /> : <Copy size={16} />}
           </button>
         </div>
 
         <div className="dashboard-modal-footer">
-          <p className="dashboard-modal-hint">
-            Copy this command and run it in your terminal
-          </p>
+          <p className="dashboard-modal-hint">Copy this command and run it in your terminal</p>
           <div className="dashboard-modal-actions">
             <button className="dashboard-modal-btn secondary" onClick={onClose}>
               Close
             </button>
-            <button
-              className="dashboard-modal-btn primary"
-              onClick={handleCopyCommand}
-            >
+            <button className="dashboard-modal-btn primary" onClick={handleCopyCommand}>
               {copied ? "Copied!" : "Copy Command"}
             </button>
           </div>
@@ -336,11 +304,7 @@ function ConfirmDeleteModal({
             <Warning size={24} weight="fill" />
           </div>
           <h3 className="dashboard-modal-title">{title}</h3>
-          <button
-            className="dashboard-modal-close"
-            onClick={onClose}
-            disabled={isDeleting}
-          >
+          <button className="dashboard-modal-close" onClick={onClose} disabled={isDeleting}>
             <X size={18} weight="bold" />
           </button>
         </div>
@@ -354,8 +318,8 @@ function ConfirmDeleteModal({
             <span>{itemName}</span>
           </div>
           <p className="dashboard-modal-warning-text">
-            This action cannot be undone. The {itemType} will be permanently
-            removed from the database.
+            This action cannot be undone. The {itemType} will be permanently removed from the
+            database.
           </p>
           <div className="dashboard-modal-copy-prompt">
             <div className="dashboard-modal-copy-prompt-text">
@@ -366,8 +330,7 @@ function ConfirmDeleteModal({
               className={`dashboard-modal-copy-btn ${copied ? "copied" : ""}`}
               onClick={handleCopy}
               disabled={isDeleting}
-              title="Copy markdown to clipboard"
-            >
+              title="Copy markdown to clipboard">
               {copied ? (
                 <>
                   <Check size={16} weight="bold" />
@@ -388,15 +351,13 @@ function ConfirmDeleteModal({
             <button
               className="dashboard-modal-btn secondary"
               onClick={onClose}
-              disabled={isDeleting}
-            >
+              disabled={isDeleting}>
               Cancel
             </button>
             <button
               className="dashboard-modal-btn danger"
               onClick={onConfirm}
-              disabled={isDeleting}
-            >
+              disabled={isDeleting}>
               {isDeleting ? (
                 <>
                   <SpinnerGap size={16} className="animate-spin" />
@@ -406,6 +367,163 @@ function ConfirmDeleteModal({
                 <>
                   <Trash size={16} />
                   <span>Delete {itemType}</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Sync Warning modal component - warns when saving synced content
+interface SyncWarningModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSaveAnyway: () => void;
+  onDownload: () => void;
+  onCopy: () => void;
+  itemName: string;
+  itemType: "post" | "page";
+  isSaving: boolean;
+}
+
+function SyncWarningModal({
+  isOpen,
+  onClose,
+  onSaveAnyway,
+  onDownload,
+  onCopy,
+  itemName,
+  itemType,
+  isSaving,
+}: SyncWarningModalProps) {
+  const [copied, setCopied] = useState(false);
+  const [downloaded, setDownloaded] = useState(false);
+
+  const handleCopy = async () => {
+    await onCopy();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    onDownload();
+    setDownloaded(true);
+    setTimeout(() => setDownloaded(false), 2000);
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget && !isSaving) {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSaving) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("keydown", handleEsc);
+    }
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [isOpen, onClose, isSaving]);
+
+  // Reset states when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setCopied(false);
+      setDownloaded(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="dashboard-modal-backdrop" onClick={handleBackdropClick}>
+      <div className="dashboard-modal dashboard-modal-sync-warning">
+        <div className="dashboard-modal-header">
+          <div className="dashboard-modal-icon dashboard-modal-icon-warning">
+            <Warning size={24} weight="fill" />
+          </div>
+          <h3 className="dashboard-modal-title">Synced Content Warning</h3>
+          <button className="dashboard-modal-close" onClick={onClose} disabled={isSaving}>
+            <X size={18} weight="bold" />
+          </button>
+        </div>
+
+        <div className="dashboard-modal-content">
+          <p className="dashboard-modal-message">
+            This {itemType} was synced from a local markdown file.
+          </p>
+          <div className="dashboard-modal-item-name">
+            <FileText size={18} />
+            <span>{itemName}</span>
+          </div>
+          <p className="dashboard-modal-warning-text">
+            Changes saved here will be <strong>overwritten</strong> on the next{" "}
+            <code>npm run sync</code>. To persist your changes, download or copy the markdown and
+            update your local file.
+          </p>
+          <div className="dashboard-modal-sync-actions">
+            <button
+              className={`dashboard-modal-action-btn ${downloaded ? "success" : ""}`}
+              onClick={handleDownload}
+              disabled={isSaving}
+              title="Download as .md file">
+              {downloaded ? (
+                <>
+                  <Check size={16} weight="bold" />
+                  <span>Downloaded</span>
+                </>
+              ) : (
+                <>
+                  <Download size={16} />
+                  <span>Download .md</span>
+                </>
+              )}
+            </button>
+            <button
+              className={`dashboard-modal-action-btn ${copied ? "success" : ""}`}
+              onClick={handleCopy}
+              disabled={isSaving}
+              title="Copy markdown to clipboard">
+              {copied ? (
+                <>
+                  <Check size={16} weight="bold" />
+                  <span>Copied</span>
+                </>
+              ) : (
+                <>
+                  <CopySimple size={16} />
+                  <span>Copy Markdown</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="dashboard-modal-footer">
+          <div className="dashboard-modal-actions">
+            <button className="dashboard-modal-btn secondary" onClick={onClose} disabled={isSaving}>
+              Cancel
+            </button>
+            <button
+              className="dashboard-modal-btn warning"
+              onClick={onSaveAnyway}
+              disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <SpinnerGap size={16} className="animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <FloppyDisk size={16} />
+                  <span>Save Anyway</span>
                 </>
               )}
             </button>
@@ -435,7 +553,12 @@ type DashboardSection =
   | "index-html"
   | "stats"
   | "sync"
-  | "media";
+  | "media"
+  | "drafts"
+  | "api-keys"
+  | "agent-ready"
+  | "x"
+  | "docs";
 
 // Post/Page type for editing
 interface ContentItem {
@@ -451,64 +574,207 @@ interface ContentItem {
   featuredOrder?: number;
   excerpt?: string;
   image?: string;
+  showImageAtTop?: boolean;
   authorName?: string;
   authorImage?: string;
   order?: number;
-  source?: "dashboard" | "sync";
+  showInNav?: boolean;
+  readTime?: string;
+  layout?: string;
+  rightSidebar?: boolean;
+  aiChat?: boolean;
+  blogFeatured?: boolean;
+  newsletter?: boolean;
+  contactForm?: boolean;
+  unlisted?: boolean;
+  showFooter?: boolean;
+  footer?: string;
+  showSocialFooter?: boolean;
+  textAlign?: string;
+  docsSection?: boolean;
+  docsSectionGroup?: string;
+  docsSectionOrder?: number;
+  docsSectionGroupOrder?: number;
+  docsSectionGroupIcon?: string;
+  docsLanding?: boolean;
+  source?: "dashboard" | "sync" | "demo";
+}
+
+// Frontmatter field definition used by generateMarkdown and the
+// additional-fields panel in the edit flows
+interface FrontmatterFieldDef {
+  key: string;
+  label: string;
+  type: string;
+  required: boolean;
+  options?: string[];
 }
 
 // Frontmatter fields for posts
-const postFrontmatterFields = [
+const postFrontmatterFields: FrontmatterFieldDef[] = [
+  // Required fields
   { key: "title", label: "Title", type: "text", required: true },
-  {
-    key: "description",
-    label: "Description",
-    type: "textarea",
-    required: true,
-  },
+  { key: "description", label: "Description", type: "textarea", required: true },
   { key: "date", label: "Date", type: "date", required: true },
   { key: "slug", label: "Slug", type: "text", required: true },
   { key: "published", label: "Published", type: "checkbox", required: true },
   { key: "tags", label: "Tags", type: "tags", required: true },
+  // Display options
   { key: "featured", label: "Featured", type: "checkbox", required: false },
-  {
-    key: "featuredOrder",
-    label: "Featured Order",
-    type: "number",
-    required: false,
-  },
+  { key: "featuredOrder", label: "Featured Order", type: "number", required: false },
+  { key: "blogFeatured", label: "Blog Featured", type: "checkbox", required: false },
+  { key: "unlisted", label: "Unlisted", type: "checkbox", required: false },
+  // Content options
   { key: "excerpt", label: "Excerpt", type: "textarea", required: false },
   { key: "image", label: "Image URL", type: "text", required: false },
+  { key: "showImageAtTop", label: "Show Image at Top", type: "checkbox", required: false },
+  { key: "readTime", label: "Read Time", type: "text", required: false },
+  // Author
   { key: "authorName", label: "Author Name", type: "text", required: false },
-  {
-    key: "authorImage",
-    label: "Author Image URL",
-    type: "text",
-    required: false,
-  },
+  { key: "authorImage", label: "Author Image URL", type: "text", required: false },
+  // Layout options
+  { key: "layout", label: "Layout", type: "select", options: ["", "sidebar"], required: false },
+  { key: "rightSidebar", label: "Right Sidebar", type: "checkbox", required: false },
+  { key: "aiChat", label: "AI Chat", type: "checkbox", required: false },
+  // Footer options
+  { key: "showFooter", label: "Show Footer", type: "checkbox", required: false },
+  { key: "footer", label: "Footer Content", type: "textarea", required: false },
+  { key: "showSocialFooter", label: "Show Social Footer", type: "checkbox", required: false },
+  // Features
+  { key: "newsletter", label: "Newsletter", type: "checkbox", required: false },
+  { key: "contactForm", label: "Contact Form", type: "checkbox", required: false },
+  // Docs section
+  { key: "docsSection", label: "Docs Section", type: "checkbox", required: false },
+  { key: "docsSectionGroup", label: "Docs Group", type: "text", required: false },
+  { key: "docsSectionOrder", label: "Docs Order", type: "number", required: false },
+  { key: "docsSectionGroupOrder", label: "Docs Group Order", type: "number", required: false },
+  { key: "docsSectionGroupIcon", label: "Docs Group Icon", type: "text", required: false },
+  { key: "docsLanding", label: "Docs Landing", type: "checkbox", required: false },
 ];
 
 // Frontmatter fields for pages
-const pageFrontmatterFields = [
+const pageFrontmatterFields: FrontmatterFieldDef[] = [
+  // Required fields
   { key: "title", label: "Title", type: "text", required: true },
   { key: "slug", label: "Slug", type: "text", required: true },
   { key: "published", label: "Published", type: "checkbox", required: true },
+  // Navigation
   { key: "order", label: "Nav Order", type: "number", required: false },
+  { key: "showInNav", label: "Show in Nav", type: "checkbox", required: false },
+  // Display options
   { key: "featured", label: "Featured", type: "checkbox", required: false },
+  { key: "featuredOrder", label: "Featured Order", type: "number", required: false },
+  { key: "unlisted", label: "Unlisted", type: "checkbox", required: false },
+  // Content options
+  { key: "excerpt", label: "Excerpt", type: "textarea", required: false },
+  { key: "image", label: "Image URL", type: "text", required: false },
+  { key: "showImageAtTop", label: "Show Image at Top", type: "checkbox", required: false },
   {
-    key: "featuredOrder",
-    label: "Featured Order",
-    type: "number",
+    key: "textAlign",
+    label: "Text Align",
+    type: "select",
+    options: ["left", "center", "right"],
     required: false,
   },
+  // Author
   { key: "authorName", label: "Author Name", type: "text", required: false },
-  {
-    key: "authorImage",
-    label: "Author Image URL",
-    type: "text",
-    required: false,
-  },
+  { key: "authorImage", label: "Author Image URL", type: "text", required: false },
+  // Layout options
+  { key: "layout", label: "Layout", type: "select", options: ["", "sidebar"], required: false },
+  { key: "rightSidebar", label: "Right Sidebar", type: "checkbox", required: false },
+  { key: "aiChat", label: "AI Chat", type: "checkbox", required: false },
+  // Footer options
+  { key: "showFooter", label: "Show Footer", type: "checkbox", required: false },
+  { key: "footer", label: "Footer Content", type: "textarea", required: false },
+  { key: "showSocialFooter", label: "Show Social Footer", type: "checkbox", required: false },
+  // Features
+  { key: "newsletter", label: "Newsletter", type: "checkbox", required: false },
+  { key: "contactForm", label: "Contact Form", type: "checkbox", required: false },
+  // Docs section
+  { key: "docsSection", label: "Docs Section", type: "checkbox", required: false },
+  { key: "docsSectionGroup", label: "Docs Group", type: "text", required: false },
+  { key: "docsSectionOrder", label: "Docs Order", type: "number", required: false },
+  { key: "docsSectionGroupOrder", label: "Docs Group Order", type: "number", required: false },
+  { key: "docsSectionGroupIcon", label: "Docs Group Icon", type: "text", required: false },
+  { key: "docsLanding", label: "Docs Landing", type: "checkbox", required: false },
 ];
+
+// Frontmatter keys managed by the FrontmatterForm component. Everything else
+// persisted on ContentItem is edited through the additional-fields panel.
+const FORM_MANAGED_KEYS: ReadonlySet<string> = new Set([
+  "title",
+  "description",
+  "date",
+  "slug",
+  "published",
+  "tags",
+  "featured",
+  "featuredOrder",
+  "order",
+  "showInNav",
+  "excerpt",
+  "image",
+  "readTime",
+  "authorName",
+  "authorImage",
+]);
+
+// Map a ContentItem to the FrontmatterForm value object
+function itemToFrontmatter(item: ContentItem): FrontmatterValues {
+  return {
+    title: item.title ?? "",
+    slug: item.slug ?? "",
+    description: item.description ?? "",
+    date: item.date ?? "",
+    published: item.published ?? false,
+    tags: item.tags ?? [],
+    featured: item.featured ?? false,
+    featuredOrder: item.featuredOrder,
+    order: item.order,
+    showInNav: item.showInNav ?? false,
+    excerpt: item.excerpt ?? "",
+    image: item.image ?? "",
+    readTime: item.readTime ?? "",
+    authorName: item.authorName ?? "",
+    authorImage: item.authorImage ?? "",
+  };
+}
+
+// Apply FrontmatterForm values back onto a ContentItem. Empty optional
+// strings become undefined so they are omitted from YAML and mutations.
+function applyFrontmatterToItem(
+  item: ContentItem,
+  type: "post" | "page",
+  fm: FrontmatterValues
+): ContentItem {
+  const optionalString = (value: string): string | undefined =>
+    value.trim() === "" ? undefined : value;
+
+  const next: ContentItem = {
+    ...item,
+    title: fm.title,
+    slug: fm.slug,
+    published: fm.published,
+    featured: fm.featured,
+    featuredOrder: fm.featuredOrder,
+    excerpt: optionalString(fm.excerpt),
+    image: optionalString(fm.image),
+    authorName: optionalString(fm.authorName),
+    authorImage: optionalString(fm.authorImage),
+  };
+
+  if (type === "post") {
+    next.description = fm.description;
+    next.date = optionalString(fm.date);
+    next.tags = fm.tags;
+    next.readTime = optionalString(fm.readTime);
+  } else {
+    next.order = fm.order;
+    next.showInNav = fm.showInNav;
+  }
+
+  return next;
+}
 
 // Loading state component for auth
 function LoadingState() {
@@ -531,8 +797,7 @@ function DashboardDisabled() {
             marginTop: "1rem",
             fontSize: "0.875rem",
             color: "var(--text-secondary)",
-          }}
-        >
+          }}>
           To enable the dashboard, set <code>dashboard.enabled: true</code> in{" "}
           <code>siteConfig.ts</code>.
         </p>
@@ -544,53 +809,36 @@ function DashboardDisabled() {
   );
 }
 
-// WorkOS not configured message with setup instructions
-function WorkOSSetupRequired() {
+function LoginPrompt() {
+  const { signIn } = useAuthActions();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleGithubSignIn = async () => {
+    setIsSubmitting(true);
+    try {
+      const result = await signIn("github", { redirectTo: "/dashboard" });
+      if (result.redirect) {
+        window.location.assign(result.redirect.toString());
+      }
+    } catch {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="dashboard-auth-container">
       <div className="dashboard-auth-card">
-        <h1>Authentication Required</h1>
-        <p>
-          WorkOS authentication is not configured. To enable dashboard access:
-        </p>
-        <ol
-          style={{
-            textAlign: "left",
-            marginTop: "1rem",
-            marginBottom: "1rem",
-            lineHeight: "1.8",
+        <h1>WayneSutton.ai Dashboard</h1>
+        <p>Restricted access to WayneSutton.ai team members only.</p>
+        <button
+          onClick={() => {
+            void handleGithubSignIn();
           }}
-        >
-          <li>
-            Create a WorkOS account at{" "}
-            <a
-              href="https://workos.com"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              workos.com
-            </a>
-          </li>
-          <li>
-            Set <code>VITE_WORKOS_CLIENT_ID</code> in your environment
-          </li>
-          <li>
-            Set <code>VITE_WORKOS_REDIRECT_URI</code> (e.g.,{" "}
-            <code>http://localhost:5173/callback</code>)
-          </li>
-          <li>Configure the redirect URI in your WorkOS dashboard</li>
-        </ol>
-        <p
-          style={{
-            marginTop: "1rem",
-            fontSize: "0.875rem",
-            color: "var(--text-secondary)",
-          }}
-        >
-          Alternatively, set <code>dashboard.requireAuth: false</code> in{" "}
-          <code>siteConfig.ts</code> to allow open access.
-        </p>
-        <p style={{ marginTop: "1.5rem" }}>
+          className="dashboard-sign-in-button"
+          disabled={isSubmitting}>
+          {isSubmitting ? "Redirecting..." : "Sign in with GitHub"}
+        </button>
+        <p style={{ marginTop: "1rem" }}>
           <Link to="/">Back to Home</Link>
         </p>
       </div>
@@ -598,18 +846,121 @@ function WorkOSSetupRequired() {
   );
 }
 
-// Login prompt component for unauthenticated users (only shown when WorkOS is configured)
-function LoginPrompt() {
-  const { signIn } = useAuth();
+// Compact sign-in button for the demo sidebar footer
+// Read-only gate shown for admin-only sections in demo mode
+function DemoSectionGate({ section }: { section: string }) {
+  return (
+    <div className="demo-section-gate">
+      <Lock size={32} weight="bold" />
+      <h3>{section}</h3>
+      <p>Sign in with GitHub for full access to {section.toLowerCase()}.</p>
+      <p className="demo-gate-hint">This feature requires an authenticated admin session.</p>
+    </div>
+  );
+}
+
+function DemoSignInButton() {
+  const { signIn } = useAuthActions();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleGithubSignIn = async () => {
+    setIsSubmitting(true);
+    try {
+      const result = await signIn("github", { redirectTo: "/dashboard" });
+      if (result.redirect) {
+        window.location.assign(result.redirect.toString());
+      }
+    } catch {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="dashboard-user-card">
+        <Globe size={20} weight="bold" />
+        <div className="dashboard-user-info">
+          <span className="dashboard-user-name">Demo Mode</span>
+        </div>
+      </div>
+      <button
+        className="dashboard-signout-btn"
+        onClick={() => {
+          void handleGithubSignIn();
+        }}
+        title="Sign in with GitHub for full access"
+        disabled={isSubmitting}>
+        <span>{isSubmitting ? "Redirecting..." : "Sign in with GitHub"}</span>
+      </button>
+    </>
+  );
+}
+
+// Blocks users who completed OAuth but are not in the admin allowlist.
+// Keep sign-out visible so admins can recover from an email mismatch.
+function DeniedAccessDemo() {
+  const authDebug = useQuery(api.authAdmin.getCurrentDashboardAuthDebug);
+  const { signOut } = useAuthActions();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      window.location.assign("/dashboard");
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
+  const signedInEmail = authDebug?.authUserEmail ?? authDebug?.identityEmail ?? "unknown email";
+  const adminGate = authDebug?.strictAdminEmail
+    ? "the configured strict admin email"
+    : "one of the configured dashboard admin emails";
 
   return (
     <div className="dashboard-auth-container">
-      <div className="dashboard-auth-card">
-        <h1>Markdown Sync Dashboard</h1>
-        <p>You need to sign in to access the dashboard.</p>
-        <button onClick={() => signIn()} className="dashboard-sign-in-button">
-          Sign In
+      <div className="dashboard-auth-card" role="status">
+        <strong>Signed in, but not a dashboard admin.</strong>
+        <p style={{ marginTop: "0.75rem" }}>
+          GitHub email: {signedInEmail}. Expected {adminGate}.
+        </p>
+        <button
+          type="button"
+          className="dashboard-signout-btn"
+          onClick={() => {
+            void handleSignOut();
+          }}
+          disabled={isSigningOut}>
+          <SignOut size={18} />
+          <span>{isSigningOut ? "Signing out..." : "Sign out and retry"}</span>
         </button>
+      </div>
+    </div>
+  );
+}
+
+function FirstAdminSetupRequired() {
+  return (
+    <div className="dashboard-auth-container">
+      <div className="dashboard-auth-card">
+        <h1>Dashboard admin setup required</h1>
+        <p>
+          You are signed in, but no dashboard admin exists yet. Bootstrap the first admin from your
+          terminal.
+        </p>
+        <p style={{ marginTop: "0.75rem", textAlign: "left", color: "var(--text-secondary)" }}>
+          1. Set a bootstrap key in Convex env:
+          <br />
+          <code>
+            npx convex env set DASHBOARD_ADMIN_BOOTSTRAP_KEY &quot;&lt;random-key&gt;&quot;
+          </code>
+          <br />
+          2. Run bootstrap:
+          <br />
+          <code>npx convex run authAdmin:bootstrapDashboardAdmin</code>
+        </p>
         <p style={{ marginTop: "1rem" }}>
           <Link to="/">Back to Home</Link>
         </p>
@@ -623,43 +974,62 @@ export default function Dashboard() {
   // Check if dashboard is enabled in siteConfig
   const dashboardEnabled = siteConfig.dashboard?.enabled ?? true;
   const requireAuth = siteConfig.dashboard?.requireAuth ?? true;
+  const authMode = siteConfig.auth?.mode ?? "convex-auth";
+  const isDashboardAdmin = useQuery(api.authAdmin.isCurrentUserDashboardAdmin);
+  const isAuthenticated = useQuery(api.authAdmin.isCurrentUserAuthenticated);
+  const authSetupStatus = useQuery(api.authAdmin.getAuthSetupStatus);
 
   // If dashboard is disabled, show disabled message
   if (!dashboardEnabled) {
     return <DashboardDisabled />;
   }
 
-  // If auth is required but WorkOS is not configured, show setup instructions
-  if (requireAuth && !isWorkOSConfigured) {
-    return <WorkOSSetupRequired />;
-  }
-
-  // If WorkOS is not configured and auth is not required, show dashboard directly
-  if (!isWorkOSConfigured) {
+  // Optional local mode without auth
+  if (!requireAuth) {
     return <DashboardContent />;
   }
 
-  // WorkOS is configured, use auth flow
-  return (
-    <>
-      <AuthLoading>
-        <LoadingState />
-      </AuthLoading>
-      <Unauthenticated>
-        <LoginPrompt />
-      </Unauthenticated>
-      <Authenticated>
-        <DashboardContent />
-      </Authenticated>
-    </>
-  );
+  // Convex auth mode: show login prompt or demo mode for unauthenticated users.
+  if (authMode === "convex-auth") {
+    if (
+      isAuthenticated === undefined ||
+      isDashboardAdmin === undefined ||
+      authSetupStatus === undefined
+    ) {
+      return <LoadingState />;
+    }
+    if (!isAuthenticated) {
+      return <LoginPrompt />;
+    }
+    if (!isDashboardAdmin) {
+      // Bootstrap path remains for forks without DASHBOARD_PRIMARY_ADMIN_EMAIL set.
+      // Once strict email mode is configured, that env var is the sole admin gate.
+      if (!authSetupStatus.strictAdminEmailConfigured && authSetupStatus.adminCount === 0) {
+        return <FirstAdminSetupRequired />;
+      }
+      // App-level denied session: block dashboard and offer sign-out.
+      return <DeniedAccessDemo />;
+    }
+    return <DashboardContent />;
+  }
+
+  // No-auth mode still enforces server-side admin checks when requireAuth is true.
+  if (isDashboardAdmin === undefined) {
+    return <LoadingState />;
+  }
+  if (!isDashboardAdmin) {
+    return <Navigate to="/?dashboardNotice=not-admin" replace />;
+  }
+
+  return <DashboardContent />;
 }
 
 // Dashboard content (protected by auth wrapper above)
-function DashboardContent() {
+function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
   const { theme, setTheme } = useTheme();
-  const { fontFamily, setFontFamily } = useFont();
-  const { user, signOut } = useAuth();
+  const { fontFamily, setFontFamily, fontScale, setFontScale } = useFont();
+  const { signOut } = useAuthActions();
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSection, setActiveSection] = useState<DashboardSection>("posts");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
@@ -715,23 +1085,39 @@ function DashboardContent() {
   }>({ isOpen: false, id: "", title: "", type: "post", item: null });
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Sync warning modal state (for saving synced content)
+  const [syncWarningModal, setSyncWarningModal] = useState<{
+    isOpen: boolean;
+    item: ContentItem | null;
+    type: "post" | "page";
+  }>({ isOpen: false, item: null, type: "post" });
+  const [isSavingWithWarning, setIsSavingWithWarning] = useState(false);
+
   // Sync server state
   const [syncOutput, setSyncOutput] = useState<string>("");
   const [syncRunning, setSyncRunning] = useState<string | null>(null); // command id or null
-  const [syncServerAvailable, setSyncServerAvailable] = useState<
-    boolean | null
-  >(null);
+  const [syncServerAvailable, setSyncServerAvailable] = useState<boolean | null>(null);
   const syncOutputRef = useRef<HTMLPreElement>(null);
 
-  // Convex queries
-  const posts = useQuery(api.posts.listAll);
-  const pages = useQuery(api.pages.listAll);
+  // Convex queries: use auth-free demo queries when in demo mode
+  const adminPosts = useQuery(api.posts.listAll, isDemo ? "skip" : {});
+  const adminPages = useQuery(api.pages.listAll, isDemo ? "skip" : {});
+  const demoPosts = useQuery(api.demo.listAllPosts, isDemo ? {} : "skip");
+  const demoPages = useQuery(api.demo.listAllPages, isDemo ? {} : "skip");
+  const posts: typeof adminPosts = isDemo ? demoPosts : adminPosts;
+  const pages: typeof adminPages = isDemo ? demoPages : adminPages;
 
-  // CMS mutations for CRUD operations
+  // CMS mutations for CRUD operations (admin)
   const deletePostMutation = useMutation(api.cms.deletePost);
   const deletePageMutation = useMutation(api.cms.deletePage);
   const updatePostMutation = useMutation(api.cms.updatePost);
   const updatePageMutation = useMutation(api.cms.updatePage);
+
+  // Demo mutations (no auth required, only operates on source="demo" content)
+  const demoDeletePostMutation = useMutation(api.demo.deleteDemoPost);
+  const demoDeletePageMutation = useMutation(api.demo.deleteDemoPage);
+  const demoUpdatePostMutation = useMutation(api.demo.updateDemoPost);
+  const demoUpdatePageMutation = useMutation(api.demo.updateDemoPage);
 
   // Add toast notification
   const addToast = useCallback((message: string, type: ToastType = "info") => {
@@ -744,8 +1130,39 @@ function DashboardContent() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Check if sync server is available on mount
+  // Handle the X OAuth callback landing (?x=connected|denied|error), then
+  // clean the param so refreshes do not repeat the toast
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const xResult = params.get("x");
+    if (!xResult) return;
+    if (xResult === "connected") {
+      setActiveSection("x");
+      addToast("X account connected", "success");
+    } else if (xResult === "denied") {
+      addToast("X connect was cancelled", "info");
+    } else {
+      addToast("X connect failed. Check X_CLIENT_ID and X_CLIENT_SECRET.", "error");
+    }
+    params.delete("x");
+    const rest = params.toString();
+    window.history.replaceState(
+      {},
+      "",
+      `${window.location.pathname}${rest ? `?${rest}` : ""}`,
+    );
+  }, [addToast]);
+
+  // Check if sync server is available on mount
+  // Skip check entirely in development to avoid console noise
+  useEffect(() => {
+    // Only check sync server if explicitly enabled via env var
+    const syncServerEnabled = import.meta.env.VITE_SYNC_SERVER_ENABLED === "true";
+    if (!syncServerEnabled) {
+      setSyncServerAvailable(false);
+      return;
+    }
+
     const checkServer = async () => {
       try {
         const res = await fetch("http://127.0.0.1:3001/health", {
@@ -769,10 +1186,7 @@ function DashboardContent() {
     async (commandId: string, commandLabel: string) => {
       // Check server availability first
       if (syncServerAvailable === false) {
-        addToast(
-          "Sync server not running. Start it with: npm run sync-server",
-          "error",
-        );
+        addToast("Sync server not running. Start it with: npm run sync-server", "error");
         return;
       }
 
@@ -814,7 +1228,7 @@ function DashboardContent() {
 
         addToast(`Running: ${commandLabel}`, "info");
 
-        while (true) {
+        for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -823,23 +1237,15 @@ function DashboardContent() {
 
           // Auto-scroll to bottom
           if (syncOutputRef.current) {
-            syncOutputRef.current.scrollTop =
-              syncOutputRef.current.scrollHeight;
+            syncOutputRef.current.scrollTop = syncOutputRef.current.scrollHeight;
           }
         }
 
         addToast(`Completed: ${commandLabel}`, "success");
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown error";
-        if (
-          message.includes("Failed to fetch") ||
-          message.includes("NetworkError")
-        ) {
-          addToast(
-            "Sync server not running. Start it with: npm run sync-server",
-            "error",
-          );
+        const message = error instanceof Error ? error.message : "Unknown error";
+        if (message.includes("Failed to fetch") || message.includes("NetworkError")) {
+          addToast("Sync server not running. Start it with: npm run sync-server", "error");
           setSyncServerAvailable(false);
         } else {
           addToast(`Sync failed: ${message}`, "error");
@@ -848,16 +1254,13 @@ function DashboardContent() {
         setSyncRunning(null);
       }
     },
-    [syncRunning, syncServerAvailable, addToast],
+    [syncRunning, syncServerAvailable, addToast]
   );
 
   // Show command modal
-  const showCommandModal = useCallback(
-    (title: string, command: string, description?: string) => {
-      setCommandModal({ isOpen: true, title, command, description });
-    },
-    [],
-  );
+  const showCommandModal = useCallback((title: string, command: string, description?: string) => {
+    setCommandModal({ isOpen: true, title, command, description });
+  }, []);
 
   // Close command modal
   const closeCommandModal = useCallback(() => {
@@ -873,7 +1276,7 @@ function DashboardContent() {
       (post) =>
         post.title.toLowerCase().includes(query) ||
         post.slug.toLowerCase().includes(query) ||
-        post.description?.toLowerCase().includes(query),
+        post.description?.toLowerCase().includes(query)
     );
   }, [posts, searchQuery]);
 
@@ -882,9 +1285,7 @@ function DashboardContent() {
     if (!searchQuery) return pages;
     const query = searchQuery.toLowerCase();
     return pages.filter(
-      (page) =>
-        page.title.toLowerCase().includes(query) ||
-        page.slug.toLowerCase().includes(query),
+      (page) => page.title.toLowerCase().includes(query) || page.slug.toLowerCase().includes(query)
     );
   }, [pages, searchQuery]);
 
@@ -903,32 +1304,26 @@ function DashboardContent() {
   }, []);
 
   // Show delete confirmation modal for a post
-  const handleDeletePost = useCallback(
-    (item: ContentItem) => {
-      setDeleteModal({
-        isOpen: true,
-        id: item._id,
-        title: item.title,
-        type: "post",
-        item,
-      });
-    },
-    [],
-  );
+  const handleDeletePost = useCallback((item: ContentItem) => {
+    setDeleteModal({
+      isOpen: true,
+      id: item._id,
+      title: item.title,
+      type: "post",
+      item,
+    });
+  }, []);
 
   // Show delete confirmation modal for a page
-  const handleDeletePage = useCallback(
-    (item: ContentItem) => {
-      setDeleteModal({
-        isOpen: true,
-        id: item._id,
-        title: item.title,
-        type: "page",
-        item,
-      });
-    },
-    [],
-  );
+  const handleDeletePage = useCallback((item: ContentItem) => {
+    setDeleteModal({
+      isOpen: true,
+      id: item._id,
+      title: item.title,
+      type: "page",
+      item,
+    });
+  }, []);
 
   // Close delete modal
   const closeDeleteModal = useCallback(() => {
@@ -942,112 +1337,240 @@ function DashboardContent() {
     setIsDeleting(true);
     try {
       if (deleteModal.type === "post") {
-        await deletePostMutation({ id: deleteModal.id as Id<"posts"> });
+        if (isDemo) {
+          await demoDeletePostMutation({ id: deleteModal.id as Id<"posts"> });
+        } else {
+          await deletePostMutation({ id: deleteModal.id as Id<"posts"> });
+        }
         addToast("Post deleted successfully", "success");
       } else {
-        await deletePageMutation({ id: deleteModal.id as Id<"pages"> });
+        if (isDemo) {
+          await demoDeletePageMutation({ id: deleteModal.id as Id<"pages"> });
+        } else {
+          await deletePageMutation({ id: deleteModal.id as Id<"pages"> });
+        }
         addToast("Page deleted successfully", "success");
       }
       setDeleteModal({ isOpen: false, id: "", title: "", type: "post", item: null });
     } catch (error) {
       addToast(
         error instanceof Error ? error.message : `Failed to delete ${deleteModal.type}`,
-        "error",
+        "error"
       );
     } finally {
       setIsDeleting(false);
     }
-  }, [deleteModal, deletePostMutation, deletePageMutation, addToast]);
+  }, [
+    deleteModal,
+    deletePostMutation,
+    deletePageMutation,
+    demoDeletePostMutation,
+    demoDeletePageMutation,
+    isDemo,
+    addToast,
+  ]);
 
-  // Handle saving post changes
-  const handleSavePost = useCallback(
+  // Internal function to save post (called after warning or directly for dashboard content)
+  const doSavePost = useCallback(
     async (item: ContentItem) => {
       try {
-        await updatePostMutation({
-          id: item._id as Id<"posts">,
-          post: {
-            title: item.title,
-            description: item.description,
-            content: item.content,
-            date: item.date,
-            published: item.published,
-            tags: item.tags,
-            excerpt: item.excerpt,
-            image: item.image,
-            featured: item.featured,
-            featuredOrder: item.featuredOrder,
-            authorName: item.authorName,
-            authorImage: item.authorImage,
-          },
-        });
+        if (isDemo) {
+          await demoUpdatePostMutation({
+            id: item._id as Id<"posts">,
+            post: {
+              title: item.title,
+              description: item.description,
+              content: item.content,
+              date: item.date,
+              published: item.published,
+              tags: item.tags,
+              excerpt: item.excerpt,
+              image: item.image,
+              readTime: item.readTime,
+              authorName: item.authorName,
+            },
+          });
+        } else {
+          await updatePostMutation({
+            id: item._id as Id<"posts">,
+            post: {
+              title: item.title,
+              description: item.description,
+              content: item.content,
+              date: item.date,
+              published: item.published,
+              tags: item.tags,
+              excerpt: item.excerpt,
+              image: item.image,
+              showImageAtTop: item.showImageAtTop,
+              readTime: item.readTime,
+              featured: item.featured,
+              featuredOrder: item.featuredOrder,
+              blogFeatured: item.blogFeatured,
+              unlisted: item.unlisted,
+              authorName: item.authorName,
+              authorImage: item.authorImage,
+              layout: item.layout,
+              rightSidebar: item.rightSidebar,
+              aiChat: item.aiChat,
+              showFooter: item.showFooter,
+              footer: item.footer,
+              showSocialFooter: item.showSocialFooter,
+              newsletter: item.newsletter,
+              contactForm: item.contactForm,
+              docsSection: item.docsSection,
+              docsSectionGroup: item.docsSectionGroup,
+              docsSectionOrder: item.docsSectionOrder,
+              docsSectionGroupOrder: item.docsSectionGroupOrder,
+              docsSectionGroupIcon: item.docsSectionGroupIcon,
+              docsLanding: item.docsLanding,
+            },
+          });
+        }
         addToast("Post saved successfully", "success");
       } catch (error) {
-        addToast(
-          error instanceof Error ? error.message : "Failed to save post",
-          "error",
-        );
+        addToast(error instanceof Error ? error.message : "Failed to save post", "error");
       }
     },
-    [updatePostMutation, addToast],
+    [updatePostMutation, demoUpdatePostMutation, isDemo, addToast]
   );
 
-  // Handle saving page changes
-  const handleSavePage = useCallback(
+  // Internal function to save page (called after warning or directly for dashboard content)
+  const doSavePage = useCallback(
     async (item: ContentItem) => {
       try {
-        await updatePageMutation({
-          id: item._id as Id<"pages">,
-          page: {
-            title: item.title,
-            content: item.content,
-            published: item.published,
-            order: item.order,
-            excerpt: item.excerpt,
-            image: item.image,
-            featured: item.featured,
-            featuredOrder: item.featuredOrder,
-            authorName: item.authorName,
-            authorImage: item.authorImage,
-          },
-        });
+        if (isDemo) {
+          await demoUpdatePageMutation({
+            id: item._id as Id<"pages">,
+            page: {
+              title: item.title,
+              content: item.content,
+              published: item.published,
+              excerpt: item.excerpt,
+              image: item.image,
+              authorName: item.authorName,
+            },
+          });
+        } else {
+          await updatePageMutation({
+            id: item._id as Id<"pages">,
+            page: {
+              title: item.title,
+              content: item.content,
+              published: item.published,
+              order: item.order,
+              showInNav: item.showInNav,
+              excerpt: item.excerpt,
+              image: item.image,
+              showImageAtTop: item.showImageAtTop,
+              featured: item.featured,
+              featuredOrder: item.featuredOrder,
+              unlisted: item.unlisted,
+              authorName: item.authorName,
+              authorImage: item.authorImage,
+              layout: item.layout,
+              rightSidebar: item.rightSidebar,
+              aiChat: item.aiChat,
+              showFooter: item.showFooter,
+              footer: item.footer,
+              showSocialFooter: item.showSocialFooter,
+              newsletter: item.newsletter,
+              contactForm: item.contactForm,
+              textAlign: item.textAlign,
+              docsSection: item.docsSection,
+              docsSectionGroup: item.docsSectionGroup,
+              docsSectionOrder: item.docsSectionOrder,
+              docsSectionGroupOrder: item.docsSectionGroupOrder,
+              docsSectionGroupIcon: item.docsSectionGroupIcon,
+              docsLanding: item.docsLanding,
+            },
+          });
+        }
         addToast("Page saved successfully", "success");
       } catch (error) {
-        addToast(
-          error instanceof Error ? error.message : "Failed to save page",
-          "error",
-        );
+        addToast(error instanceof Error ? error.message : "Failed to save page", "error");
       }
     },
-    [updatePageMutation, addToast],
+    [updatePageMutation, demoUpdatePageMutation, isDemo, addToast]
   );
+
+  // Handle saving post - shows warning if synced content
+  const handleSavePost = useCallback(
+    async (item: ContentItem) => {
+      // Check if this is synced content (not created in dashboard)
+      if (item.source === "sync" || !item.source) {
+        // Show warning modal
+        setSyncWarningModal({ isOpen: true, item, type: "post" });
+      } else {
+        // Dashboard-created content, save directly
+        await doSavePost(item);
+      }
+    },
+    [doSavePost]
+  );
+
+  // Handle saving page - shows warning if synced content
+  const handleSavePage = useCallback(
+    async (item: ContentItem) => {
+      // Check if this is synced content (not created in dashboard)
+      if (item.source === "sync" || !item.source) {
+        // Show warning modal
+        setSyncWarningModal({ isOpen: true, item, type: "page" });
+      } else {
+        // Dashboard-created content, save directly
+        await doSavePage(item);
+      }
+    },
+    [doSavePage]
+  );
+
+  // Close sync warning modal
+  const closeSyncWarningModal = useCallback(() => {
+    if (!isSavingWithWarning) {
+      setSyncWarningModal({ isOpen: false, item: null, type: "post" });
+    }
+  }, [isSavingWithWarning]);
+
+  // Handle "Save Anyway" from sync warning modal
+  const handleSaveAnywayFromModal = useCallback(async () => {
+    if (!syncWarningModal.item) return;
+
+    setIsSavingWithWarning(true);
+    try {
+      if (syncWarningModal.type === "post") {
+        await doSavePost(syncWarningModal.item);
+      } else {
+        await doSavePage(syncWarningModal.item);
+      }
+      setSyncWarningModal({ isOpen: false, item: null, type: "post" });
+    } finally {
+      setIsSavingWithWarning(false);
+    }
+  }, [syncWarningModal, doSavePost, doSavePage]);
 
   // Generate markdown content from item
-  const generateMarkdown = useCallback(
-    (item: ContentItem, type: "post" | "page"): string => {
-      const fields =
-        type === "post" ? postFrontmatterFields : pageFrontmatterFields;
-      let frontmatter = "---\n";
+  const generateMarkdown = useCallback((item: ContentItem, type: "post" | "page"): string => {
+    const fields = type === "post" ? postFrontmatterFields : pageFrontmatterFields;
+    let frontmatter = "---\n";
 
-      fields.forEach((field) => {
-        const value = item[field.key as keyof ContentItem];
-        if (value !== undefined && value !== null && value !== "") {
-          if (field.type === "tags" && Array.isArray(value)) {
-            frontmatter += `${field.key}: [${value.map((t) => `"${t}"`).join(", ")}]\n`;
-          } else if (field.type === "checkbox") {
-            frontmatter += `${field.key}: ${value}\n`;
-          } else if (field.type === "number") {
-            frontmatter += `${field.key}: ${value}\n`;
-          } else {
-            frontmatter += `${field.key}: "${String(value).replace(/"/g, '\\"')}"\n`;
-          }
+    fields.forEach((field) => {
+      const value = item[field.key as keyof ContentItem];
+      if (value !== undefined && value !== null && value !== "") {
+        if (field.type === "tags" && Array.isArray(value)) {
+          frontmatter += `${field.key}: [${value.map((t) => `"${t}"`).join(", ")}]\n`;
+        } else if (field.type === "checkbox") {
+          frontmatter += `${field.key}: ${value}\n`;
+        } else if (field.type === "number") {
+          frontmatter += `${field.key}: ${value}\n`;
+        } else {
+          frontmatter += `${field.key}: "${String(value).replace(/"/g, '\\"')}"\n`;
         }
-      });
+      }
+    });
 
-      frontmatter += "---\n\n";
-      return frontmatter + item.content;
-    },
-    [],
-  );
+    frontmatter += "---\n\n";
+    return frontmatter + item.content;
+  }, []);
 
   // Copy markdown content before deletion
   const handleCopyBeforeDelete = useCallback(async () => {
@@ -1083,11 +1606,37 @@ function DashboardContent() {
     addToast("Markdown copied to clipboard", "success");
   }, [editingItem, editingType, generateMarkdown, addToast]);
 
+  // Generate markdown for sync warning modal download/copy
+  const handleSyncWarningDownload = useCallback(() => {
+    if (!syncWarningModal.item) return;
+
+    const markdown = generateMarkdown(syncWarningModal.item, syncWarningModal.type);
+    const blob = new Blob([markdown], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${syncWarningModal.item.slug}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    addToast(`Downloaded ${syncWarningModal.item.slug}.md`, "success");
+  }, [syncWarningModal, generateMarkdown, addToast]);
+
+  const handleSyncWarningCopy = useCallback(async () => {
+    if (!syncWarningModal.item) return;
+
+    const markdown = generateMarkdown(syncWarningModal.item, syncWarningModal.type);
+    await navigator.clipboard.writeText(markdown);
+    addToast("Markdown copied to clipboard", "success");
+  }, [syncWarningModal, generateMarkdown, addToast]);
+
   // Navigation items for left sidebar
   // Filter items based on feature configuration
   const mediaEnabled = siteConfig.media?.enabled ?? false;
   const newsletterEnabled = siteConfig.newsletter?.enabled ?? false;
 
+  // All sections visible in both admin and demo mode (demo gates interactivity, not visibility)
   const navSections = [
     {
       label: "Content",
@@ -1101,15 +1650,12 @@ function DashboardContent() {
       items: [
         { id: "write-post" as const, label: "Write Post", icon: Article },
         { id: "write-page" as const, label: "Write Page", icon: File },
+        { id: "drafts" as const, label: "Drafts Inbox", icon: Tray },
         { id: "ai-agent" as const, label: "AI Agent", icon: Robot },
         { id: "import" as const, label: "Import URL", icon: CloudArrowDown },
-        // Only show Media if media feature is enabled
-        ...(mediaEnabled
-          ? [{ id: "media" as const, label: "Media", icon: Image }]
-          : []),
+        ...(mediaEnabled ? [{ id: "media" as const, label: "Media", icon: Image }] : []),
       ],
     },
-    // Only show Newsletter section if newsletter is enabled
     ...(newsletterEnabled
       ? [
           {
@@ -1147,22 +1693,24 @@ function DashboardContent() {
     {
       label: "Settings",
       items: [
+        { id: "api-keys" as const, label: "API Keys", icon: Key },
         { id: "config" as const, label: "Site Config", icon: Gear },
+        { id: "agent-ready" as const, label: "Agent Ready", icon: Broadcast },
+        { id: "x" as const, label: "X", icon: XLogo },
         { id: "index-html" as const, label: "Index HTML", icon: FileText },
         { id: "stats" as const, label: "Analytics", icon: ChartLine },
         { id: "sync" as const, label: "Sync Content", icon: ArrowsClockwise },
       ],
     },
+    {
+      label: "Help",
+      items: [{ id: "docs" as const, label: "Docs", icon: BookOpen }],
+    },
   ];
 
   // Theme toggle
   const toggleTheme = () => {
-    const themes: Array<"dark" | "light" | "tan" | "cloud"> = [
-      "dark",
-      "light",
-      "tan",
-      "cloud",
-    ];
+    const themes: Array<"dark" | "light" | "tan" | "cloud"> = ["dark", "light", "tan", "cloud"];
     const currentIndex = themes.indexOf(theme);
     const nextIndex = (currentIndex + 1) % themes.length;
     setTheme(themes[nextIndex]);
@@ -1170,24 +1718,45 @@ function DashboardContent() {
 
   // Font toggle
   const toggleFont = () => {
-    const fonts: Array<"serif" | "sans" | "monospace"> = [
-      "serif",
-      "sans",
-      "monospace",
-    ];
+    const fonts: Array<"serif" | "sans" | "monospace"> = ["serif", "sans", "monospace"];
     const currentIndex = fonts.indexOf(fontFamily);
     const nextIndex = (currentIndex + 1) % fonts.length;
     setFontFamily(fonts[nextIndex]);
   };
 
+  // Font size cycle: small -> default -> large -> xlarge
+  const toggleFontScale = () => {
+    const scales: Array<"small" | "default" | "large" | "xlarge"> = [
+      "small",
+      "default",
+      "large",
+      "xlarge",
+    ];
+    const currentIndex = scales.indexOf(fontScale);
+    setFontScale(scales[(currentIndex + 1) % scales.length]);
+  };
+
+  const fontScaleLabel = { small: "S", default: "M", large: "L", xlarge: "XL" }[fontScale];
+
+  const handleDashboardSignOut = useCallback(async () => {
+    if (isSigningOut) {
+      return;
+    }
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      window.location.assign("/dashboard");
+    } finally {
+      setIsSigningOut(false);
+    }
+  }, [isSigningOut, signOut]);
+
   // Check if auth is disabled (for warning banner)
   const requireAuth = siteConfig.dashboard?.requireAuth ?? false;
-  const showAuthWarning = !requireAuth || !isWorkOSConfigured;
+  const showAuthWarning = !requireAuth;
 
   return (
-    <div
-      className={`dashboard-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
-    >
+    <div className={`dashboard-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
@@ -1196,10 +1765,8 @@ function DashboardContent() {
         <div className="dashboard-auth-warning">
           <Warning size={16} weight="bold" />
           <span>
-            Dashboard access is open.{" "}
-            {!isWorkOSConfigured
-              ? "Configure WorkOS and set requireAuth: true in siteConfig.ts for secure access."
-              : "Set requireAuth: true in siteConfig.ts for secure access."}
+            Dashboard access is open. Keep dashboard.requireAuth: true in siteConfig.ts for secure
+            access.
           </span>
         </div>
       )}
@@ -1225,10 +1792,20 @@ function DashboardContent() {
         isDeleting={isDeleting}
       />
 
+      {/* Sync Warning Modal - warns when saving synced content */}
+      <SyncWarningModal
+        isOpen={syncWarningModal.isOpen}
+        onClose={closeSyncWarningModal}
+        onSaveAnyway={handleSaveAnywayFromModal}
+        onDownload={handleSyncWarningDownload}
+        onCopy={handleSyncWarningCopy}
+        itemName={syncWarningModal.item?.title || ""}
+        itemType={syncWarningModal.type}
+        isSaving={isSavingWithWarning}
+      />
+
       {/* Left Sidebar */}
-      <aside
-        className={`dashboard-sidebar-left ${sidebarCollapsed ? "collapsed" : ""}`}
-      >
+      <aside className={`dashboard-sidebar-left ${sidebarCollapsed ? "collapsed" : ""}`}>
         <div className="dashboard-sidebar-header">
           <Link to="/" className="dashboard-logo-link" title="Back to home">
             <House size={20} weight="regular" />
@@ -1237,8 +1814,7 @@ function DashboardContent() {
           <button
             className="dashboard-sidebar-toggle"
             onClick={toggleSidebar}
-            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
             <SidebarSimple size={20} weight="regular" />
           </button>
         </div>
@@ -1254,12 +1830,8 @@ function DashboardContent() {
                   onClick={() => {
                     setActiveSection(item.id);
                     setEditingItem(null);
-                  }}
-                >
-                  <item.icon
-                    size={18}
-                    weight={activeSection === item.id ? "fill" : "regular"}
-                  />
+                  }}>
+                  <item.icon size={18} weight={activeSection === item.id ? "fill" : "regular"} />
                   <span>{item.label}</span>
                 </button>
               ))}
@@ -1267,32 +1839,29 @@ function DashboardContent() {
           ))}
         </nav>
 
-        {/* User Profile Section at bottom of sidebar */}
+        {/* User Profile / Demo Section at bottom of sidebar */}
         <div className="dashboard-sidebar-footer">
-          <div className="dashboard-user-card">
-            {user?.profilePictureUrl && (
-              <img
-                src={user.profilePictureUrl}
-                alt={user.firstName || "User"}
-                className="dashboard-user-avatar"
-              />
-            )}
-            <div className="dashboard-user-info">
-              <span className="dashboard-user-name">
-                {user?.firstName
-                  ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
-                  : "User"}
-              </span>
-            </div>
-          </div>
-          <button
-            className="dashboard-signout-btn"
-            onClick={() => signOut()}
-            title="Sign out"
-          >
-            <SignOut size={18} />
-            <span>Sign out</span>
-          </button>
+          {isDemo ? (
+            <DemoSignInButton />
+          ) : (
+            <>
+              <div className="dashboard-user-card">
+                <div className="dashboard-user-info">
+                  <span className="dashboard-user-name">Authenticated admin</span>
+                </div>
+              </div>
+              <button
+                className="dashboard-signout-btn"
+                onClick={() => {
+                  void handleDashboardSignOut();
+                }}
+                title="Sign out"
+                disabled={isSigningOut}>
+                <SignOut size={18} />
+                <span>{isSigningOut ? "Signing out..." : "Sign out"}</span>
+              </button>
+            </>
+          )}
         </div>
       </aside>
 
@@ -1320,6 +1889,11 @@ function DashboardContent() {
               {activeSection === "stats" && "Analytics"}
               {activeSection === "sync" && "Sync Content"}
               {activeSection === "media" && "Media"}
+              {activeSection === "drafts" && "Drafts Inbox"}
+              {activeSection === "api-keys" && "API Keys"}
+              {activeSection === "agent-ready" && "Agent Ready"}
+              {activeSection === "x" && "X"}
+              {activeSection === "docs" && "Docs"}
             </h1>
           </div>
 
@@ -1337,67 +1911,61 @@ function DashboardContent() {
           </div>
 
           <div className="dashboard-header-right">
-            <button
-              className={`dashboard-sync-btn dev ${syncRunning === "sync:all" ? "running" : ""}`}
-              title={
-                syncServerAvailable
-                  ? "Execute Sync Dev"
-                  : "Copy sync command (server not running)"
-              }
-              onClick={() => {
-                if (syncServerAvailable) {
-                  executeSync("sync:all", "Sync All (Dev)");
-                } else {
-                  showCommandModal(
-                    "Sync Development",
-                    "npm run sync:all",
-                    "Sync all content to development environment",
-                  );
-                }
-              }}
-              disabled={syncRunning !== null}
-            >
-              <ArrowsClockwise
-                size={16}
-                className={syncRunning === "sync:all" ? "spinning" : ""}
-              />
-              <span>
-                {syncRunning === "sync:all" ? "Running..." : "Sync Dev"}
-              </span>
-            </button>
-            <button
-              className={`dashboard-sync-btn prod ${syncRunning === "sync:all:prod" ? "running" : ""}`}
-              title={
-                syncServerAvailable
-                  ? "Execute Sync Prod"
-                  : "Copy sync command (server not running)"
-              }
-              onClick={() => {
-                if (syncServerAvailable) {
-                  executeSync("sync:all:prod", "Sync All (Prod)");
-                } else {
-                  showCommandModal(
-                    "Sync Production",
-                    "npm run sync:all:prod",
-                    "Sync all content to production environment",
-                  );
-                }
-              }}
-              disabled={syncRunning !== null}
-            >
-              <ArrowsClockwise
-                size={16}
-                className={syncRunning === "sync:all:prod" ? "spinning" : ""}
-              />
-              <span>
-                {syncRunning === "sync:all:prod" ? "Running..." : "Sync Prod"}
-              </span>
-            </button>
-            <button
-              className="dashboard-theme-btn"
-              onClick={toggleTheme}
-              title={`Theme: ${theme}`}
-            >
+            {!isDemo && (
+              <>
+                <button
+                  className={`dashboard-sync-btn dev ${syncRunning === "sync:all" ? "running" : ""}`}
+                  title={
+                    syncServerAvailable
+                      ? "Execute Sync Dev"
+                      : "Copy sync command (server not running)"
+                  }
+                  onClick={() => {
+                    if (syncServerAvailable) {
+                      executeSync("sync:all", "Sync All (Dev)");
+                    } else {
+                      showCommandModal(
+                        "Sync Development",
+                        "npm run sync:all",
+                        "Sync all content to development environment"
+                      );
+                    }
+                  }}
+                  disabled={syncRunning !== null}>
+                  <ArrowsClockwise
+                    size={16}
+                    className={syncRunning === "sync:all" ? "spinning" : ""}
+                  />
+                  <span>{syncRunning === "sync:all" ? "Running..." : "Sync Dev"}</span>
+                </button>
+                <button
+                  className={`dashboard-sync-btn prod ${syncRunning === "sync:all:prod" ? "running" : ""}`}
+                  title={
+                    syncServerAvailable
+                      ? "Execute Sync Prod"
+                      : "Copy sync command (server not running)"
+                  }
+                  onClick={() => {
+                    if (syncServerAvailable) {
+                      executeSync("sync:all:prod", "Sync All (Prod)");
+                    } else {
+                      showCommandModal(
+                        "Sync Production",
+                        "npm run sync:all:prod",
+                        "Sync all content to production environment"
+                      );
+                    }
+                  }}
+                  disabled={syncRunning !== null}>
+                  <ArrowsClockwise
+                    size={16}
+                    className={syncRunning === "sync:all:prod" ? "spinning" : ""}
+                  />
+                  <span>{syncRunning === "sync:all:prod" ? "Running..." : "Sync Prod"}</span>
+                </button>
+              </>
+            )}
+            <button className="dashboard-theme-btn" onClick={toggleTheme} title={`Theme: ${theme}`}>
               {theme === "dark" ? (
                 <Moon size={18} weight="fill" />
               ) : (
@@ -1407,15 +1975,35 @@ function DashboardContent() {
             <button
               className="dashboard-font-btn"
               onClick={toggleFont}
-              title={`Font: ${fontFamily}`}
-            >
-              <TextAa
-                size={18}
-                weight={fontFamily === "monospace" ? "fill" : "regular"}
-              />
+              title={`Font: ${fontFamily}`}>
+              <TextAa size={18} weight={fontFamily === "monospace" ? "fill" : "regular"} />
+            </button>
+            <button
+              className="dashboard-font-btn dashboard-font-scale-btn"
+              onClick={toggleFontScale}
+              title={`Font size: ${fontScale}`}>
+              <span aria-hidden="true">A</span>
+              <span className="dashboard-font-scale-label">{fontScaleLabel}</span>
             </button>
           </div>
         </header>
+
+        {/* Demo mode banner */}
+        {isDemo && (
+          <div className="dashboard-demo-banner">
+            <Info size={16} weight="bold" />
+            <span>
+              Demo mode: your content resets every 30 minutes. Admins have full access.{" "}
+              <a
+                href="https://github.com/waynesutton/markdown-site"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "inherit", textDecoration: "underline" }}>
+                Fork and set up your own
+              </a>
+            </span>
+          </div>
+        )}
 
         {/* Content Area */}
         <div className="dashboard-content">
@@ -1426,6 +2014,7 @@ function DashboardContent() {
               onEdit={handleEditPost}
               searchQuery={searchQuery}
               onDelete={handleDeletePost}
+              isDemo={isDemo}
             />
           )}
 
@@ -1436,29 +2025,24 @@ function DashboardContent() {
               onEdit={handleEditPage}
               searchQuery={searchQuery}
               onDelete={handleDeletePage}
+              isDemo={isDemo}
             />
           )}
 
           {/* Post/Page Editor */}
-          {(activeSection === "post-editor" ||
-            activeSection === "page-editor") &&
-            editingItem && (
-              <EditorView
-                item={editingItem}
-                type={editingType}
-                showPreview={showPreview}
-                setShowPreview={setShowPreview}
-                setItem={setEditingItem}
-                onDownload={handleDownloadMarkdown}
-                onCopy={handleCopyMarkdown}
-                onBack={() =>
-                  setActiveSection(editingType === "post" ? "posts" : "pages")
-                }
-                onSave={
-                  editingType === "post" ? handleSavePost : handleSavePage
-                }
-              />
-            )}
+          {(activeSection === "post-editor" || activeSection === "page-editor") && editingItem && (
+            <EditorView
+              item={editingItem}
+              type={editingType}
+              showPreview={showPreview}
+              setShowPreview={setShowPreview}
+              setItem={setEditingItem}
+              onDownload={handleDownloadMarkdown}
+              onCopy={handleCopyMarkdown}
+              onBack={() => setActiveSection(editingType === "post" ? "posts" : "pages")}
+              onSave={editingType === "post" ? handleSavePost : handleSavePage}
+            />
+          )}
 
           {/* Write Post Section */}
           {activeSection === "write-post" && (
@@ -1468,6 +2052,7 @@ function DashboardContent() {
               setSidebarCollapsed={setSidebarCollapsed}
               addToast={addToast}
               setActiveSection={setActiveSection}
+              isDemo={isDemo}
             />
           )}
 
@@ -1479,69 +2064,119 @@ function DashboardContent() {
               setSidebarCollapsed={setSidebarCollapsed}
               addToast={addToast}
               setActiveSection={setActiveSection}
+              isDemo={isDemo}
             />
           )}
 
           {/* AI Agent Section */}
-          {activeSection === "ai-agent" && <AIAgentSection />}
+          {activeSection === "ai-agent" &&
+            (isDemo ? <DemoSectionGate section="AI Agent" /> : <AIAgentSection />)}
 
           {/* Newsletter Subscribers */}
-          {activeSection === "newsletter" && <NewsletterSubscribersSection />}
+          {activeSection === "newsletter" &&
+            (isDemo ? <DemoSectionGate section="Newsletter" /> : <NewsletterSubscribersSection />)}
 
           {/* Newsletter Send */}
-          {activeSection === "newsletter-send" && (
-            <NewsletterSendSection addToast={addToast} />
-          )}
+          {activeSection === "newsletter-send" &&
+            (isDemo ? (
+              <DemoSectionGate section="Newsletter" />
+            ) : (
+              <NewsletterSendSection addToast={addToast} />
+            ))}
 
           {/* Newsletter Write Email */}
-          {activeSection === "newsletter-write-email" && (
-            <NewsletterWriteEmailSection addToast={addToast} />
-          )}
+          {activeSection === "newsletter-write-email" &&
+            (isDemo ? (
+              <DemoSectionGate section="Newsletter" />
+            ) : (
+              <NewsletterWriteEmailSection addToast={addToast} />
+            ))}
 
           {/* Newsletter Recent Sends */}
-          {activeSection === "newsletter-recent-sends" && (
-            <NewsletterRecentSendsSection />
-          )}
+          {activeSection === "newsletter-recent-sends" &&
+            (isDemo ? <DemoSectionGate section="Newsletter" /> : <NewsletterRecentSendsSection />)}
 
           {/* Newsletter Stats */}
-          {activeSection === "newsletter-stats" && <NewsletterStatsSection />}
+          {activeSection === "newsletter-stats" &&
+            (isDemo ? <DemoSectionGate section="Newsletter" /> : <NewsletterStatsSection />)}
 
           {/* Import URL */}
-          {activeSection === "import" && (
-            <ImportURLSection addToast={addToast} />
-          )}
+          {activeSection === "import" &&
+            (isDemo ? (
+              <DemoSectionGate section="Import" />
+            ) : (
+              <ImportURLSection addToast={addToast} />
+            ))}
 
           {/* Site Config */}
-          {activeSection === "config" && (
-            <ConfigSection
-              addToast={addToast}
-              onNavigateToIndexHtml={() => setActiveSection("index-html")}
-            />
-          )}
+          {activeSection === "config" &&
+            (isDemo ? (
+              <DemoSectionGate section="Site Config" />
+            ) : (
+              <ConfigSection
+                addToast={addToast}
+                onNavigateToIndexHtml={() => setActiveSection("index-html")}
+              />
+            ))}
 
           {/* Index HTML */}
-          {activeSection === "index-html" && (
-            <IndexHtmlSection addToast={addToast} />
-          )}
+          {activeSection === "index-html" &&
+            (isDemo ? (
+              <DemoSectionGate section="Index HTML" />
+            ) : (
+              <IndexHtmlSection addToast={addToast} />
+            ))}
 
           {/* Stats */}
-          {activeSection === "stats" && <StatsSection />}
+          {activeSection === "stats" &&
+            (isDemo ? <DemoSectionGate section="Analytics" /> : <StatsSection />)}
 
           {/* Sync */}
-          {activeSection === "sync" && (
-            <SyncSection
-              showCommandModal={showCommandModal}
-              executeSync={executeSync}
-              syncOutput={syncOutput}
-              syncRunning={syncRunning}
-              syncServerAvailable={syncServerAvailable}
-              syncOutputRef={syncOutputRef}
-              setSyncOutput={setSyncOutput}
-            />
-          )}
+          {activeSection === "sync" &&
+            (isDemo ? (
+              <DemoSectionGate section="Sync" />
+            ) : (
+              <SyncSection
+                showCommandModal={showCommandModal}
+                executeSync={executeSync}
+                syncOutput={syncOutput}
+                syncRunning={syncRunning}
+                syncServerAvailable={syncServerAvailable}
+                syncOutputRef={syncOutputRef}
+                setSyncOutput={setSyncOutput}
+              />
+            ))}
 
           {/* Media */}
-          {activeSection === "media" && <MediaLibrary />}
+          {activeSection === "media" &&
+            (isDemo ? <DemoSectionGate section="Media" /> : <MediaLibrary />)}
+
+          {/* Drafts Inbox (agent blog pipeline) */}
+          {activeSection === "drafts" &&
+            (isDemo ? (
+              <DemoSectionGate section="Drafts Inbox" />
+            ) : (
+              <DraftsInbox addToast={addToast} />
+            ))}
+
+          {/* Pipeline API Keys */}
+          {activeSection === "api-keys" &&
+            (isDemo ? (
+              <DemoSectionGate section="API Keys" />
+            ) : (
+              <ApiKeysSection addToast={addToast} />
+            ))}
+
+          {/* Agent Ready discovery and widget controls */}
+          {activeSection === "agent-ready" &&
+            (isDemo ? <DemoSectionGate section="Agent Ready" /> : <AgentReadySection />)}
+
+          {/* X account, compose, and tweet-to-draft import */}
+          {activeSection === "x" &&
+            (isDemo ? <DemoSectionGate section="X" /> : <XSection addToast={addToast} />)}
+
+          {/* Internal docs (behind dashboard login) */}
+          {activeSection === "docs" && <DashboardDocsSection />}
         </div>
       </main>
     </div>
@@ -1554,20 +2189,32 @@ function PostsListView({
   onEdit,
   searchQuery,
   onDelete,
+  isDemo = false,
 }: {
   posts: ContentItem[];
   onEdit: (post: ContentItem) => void;
   searchQuery: string;
   onDelete: (item: ContentItem) => void;
+  isDemo?: boolean;
 }) {
-  const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
+  const [filter, setFilter] = useState<"all" | "published" | "draft" | "unlisted">("all");
   const [itemsPerPage, setItemsPerPage] = useState(15);
   const [currentPage, setCurrentPage] = useState(0);
+
+  // Track which row's live URL was just copied for button feedback
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyUrl = (item: ContentItem) => {
+    void navigator.clipboard.writeText(`${window.location.origin}/${item.slug}`);
+    setCopiedId(item._id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const filteredPosts = useMemo(() => {
     let filtered = posts;
     if (filter === "published") filtered = posts.filter((p) => p.published);
     if (filter === "draft") filtered = posts.filter((p) => !p.published);
+    if (filter === "unlisted") filtered = posts.filter((p) => p.unlisted);
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -1577,7 +2224,7 @@ function PostsListView({
           p.title.toLowerCase().includes(query) ||
           p.slug.toLowerCase().includes(query) ||
           (p.description && p.description.toLowerCase().includes(query)) ||
-          (p.content && p.content.toLowerCase().includes(query)),
+          (p.content && p.content.toLowerCase().includes(query))
       );
     }
 
@@ -1602,7 +2249,7 @@ function PostsListView({
     }
   };
 
-  const handleFilterChange = (newFilter: "all" | "published" | "draft") => {
+  const handleFilterChange = (newFilter: "all" | "published" | "draft" | "unlisted") => {
     setFilter(newFilter);
     setCurrentPage(0); // Reset to first page when filter changes
   };
@@ -1613,21 +2260,23 @@ function PostsListView({
         <div className="dashboard-filter-tabs">
           <button
             className={`dashboard-filter-tab ${filter === "all" ? "active" : ""}`}
-            onClick={() => handleFilterChange("all")}
-          >
+            onClick={() => handleFilterChange("all")}>
             All ({posts.length})
           </button>
           <button
             className={`dashboard-filter-tab ${filter === "published" ? "active" : ""}`}
-            onClick={() => handleFilterChange("published")}
-          >
+            onClick={() => handleFilterChange("published")}>
             Published ({posts.filter((p) => p.published).length})
           </button>
           <button
             className={`dashboard-filter-tab ${filter === "draft" ? "active" : ""}`}
-            onClick={() => handleFilterChange("draft")}
-          >
+            onClick={() => handleFilterChange("draft")}>
             Drafts ({posts.filter((p) => !p.published).length})
+          </button>
+          <button
+            className={`dashboard-filter-tab ${filter === "unlisted" ? "active" : ""}`}
+            onClick={() => handleFilterChange("unlisted")}>
+            Unlisted ({posts.filter((p) => p.unlisted).length})
           </button>
           <div className="dashboard-items-per-page">
             <label htmlFor="posts-per-page" className="dashboard-items-label">
@@ -1640,8 +2289,7 @@ function PostsListView({
                 setItemsPerPage(Number(e.target.value));
                 setCurrentPage(0);
               }}
-              className="dashboard-items-select"
-            >
+              className="dashboard-items-select">
               <option value={15}>15</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
@@ -1675,11 +2323,11 @@ function PostsListView({
                 <span>{post.date || "No date"}</span>
               </div>
               <div className="col-status">
-                <span
-                  className={`status-badge ${post.published ? "published" : "draft"}`}
-                >
+                <span className={`status-badge ${post.published ? "published" : "draft"}`}>
                   {post.published ? "Published" : "Draft"}
                 </span>
+                {post.unlisted && <span className="status-badge unlisted">Unlisted</span>}
+                {post.source === "demo" && <span className="source-badge demo">Demo</span>}
                 {post.source === "dashboard" && (
                   <span className="source-badge dashboard">Dashboard</span>
                 )}
@@ -1688,27 +2336,34 @@ function PostsListView({
                 )}
               </div>
               <div className="col-actions">
-                <button
-                  className="action-btn edit"
-                  onClick={() => onEdit(post as ContentItem)}
-                  title="Edit"
-                >
-                  <PencilSimple size={16} />
-                </button>
-                <Link
-                  to={`/${post.slug}`}
-                  className="action-btn view"
-                  title="View"
-                  target="_blank"
-                >
+                {/* In demo mode, only allow editing demo content */}
+                {(!isDemo || post.source === "demo") && (
+                  <button
+                    className="action-btn edit"
+                    onClick={() => onEdit(post as ContentItem)}
+                    title="Edit">
+                    <PencilSimple size={16} />
+                  </button>
+                )}
+                <Link to={`/${post.slug}`} className="action-btn view" title="View" target="_blank">
                   <Eye size={16} />
                 </Link>
-                {post.source === "dashboard" && (
+                {/* Unlisted posts are shared by direct URL, so offer a quick copy */}
+                {post.unlisted && (
+                  <button
+                    className="action-btn view"
+                    onClick={() => handleCopyUrl(post as ContentItem)}
+                    title="Copy live URL">
+                    {copiedId === post._id ? <Check size={16} /> : <LinkIcon size={16} />}
+                  </button>
+                )}
+                {/* Delete: admin can delete dashboard posts; demo can delete demo posts */}
+                {((!isDemo && post.source === "dashboard") ||
+                  (isDemo && post.source === "demo")) && (
                   <button
                     className="action-btn delete"
                     onClick={() => onDelete(post as ContentItem)}
-                    title="Delete"
-                  >
+                    title="Delete">
                     <Trash size={16} />
                   </button>
                 )}
@@ -1724,16 +2379,14 @@ function PostsListView({
           <button
             onClick={handleFirstPage}
             disabled={currentPage === 0}
-            className="dashboard-pagination-btn"
-          >
+            className="dashboard-pagination-btn">
             <CaretLeft size={16} />
             First
           </button>
           <button
             onClick={handleNextPage}
             disabled={!hasNextPage}
-            className="dashboard-pagination-btn"
-          >
+            className="dashboard-pagination-btn">
             Next
             <CaretRight size={16} />
           </button>
@@ -1749,20 +2402,32 @@ function PagesListView({
   onEdit,
   searchQuery,
   onDelete,
+  isDemo = false,
 }: {
   pages: ContentItem[];
   onEdit: (page: ContentItem) => void;
   searchQuery: string;
   onDelete: (item: ContentItem) => void;
+  isDemo?: boolean;
 }) {
-  const [filter, setFilter] = useState<"all" | "published" | "draft">("all");
+  const [filter, setFilter] = useState<"all" | "published" | "draft" | "unlisted">("all");
   const [itemsPerPage, setItemsPerPage] = useState(15);
   const [currentPage, setCurrentPage] = useState(0);
+
+  // Track which row's live URL was just copied for button feedback
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyUrl = (item: ContentItem) => {
+    void navigator.clipboard.writeText(`${window.location.origin}/${item.slug}`);
+    setCopiedId(item._id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const filteredPages = useMemo(() => {
     let filtered = pages;
     if (filter === "published") filtered = pages.filter((p) => p.published);
     if (filter === "draft") filtered = pages.filter((p) => !p.published);
+    if (filter === "unlisted") filtered = pages.filter((p) => p.unlisted);
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -1771,7 +2436,7 @@ function PagesListView({
         (p) =>
           p.title.toLowerCase().includes(query) ||
           p.slug.toLowerCase().includes(query) ||
-          (p.content && p.content.toLowerCase().includes(query)),
+          (p.content && p.content.toLowerCase().includes(query))
       );
     }
 
@@ -1796,7 +2461,7 @@ function PagesListView({
     }
   };
 
-  const handleFilterChange = (newFilter: "all" | "published" | "draft") => {
+  const handleFilterChange = (newFilter: "all" | "published" | "draft" | "unlisted") => {
     setFilter(newFilter);
     setCurrentPage(0); // Reset to first page when filter changes
   };
@@ -1807,21 +2472,23 @@ function PagesListView({
         <div className="dashboard-filter-tabs">
           <button
             className={`dashboard-filter-tab ${filter === "all" ? "active" : ""}`}
-            onClick={() => handleFilterChange("all")}
-          >
+            onClick={() => handleFilterChange("all")}>
             All ({pages.length})
           </button>
           <button
             className={`dashboard-filter-tab ${filter === "published" ? "active" : ""}`}
-            onClick={() => handleFilterChange("published")}
-          >
+            onClick={() => handleFilterChange("published")}>
             Published ({pages.filter((p) => p.published).length})
           </button>
           <button
             className={`dashboard-filter-tab ${filter === "draft" ? "active" : ""}`}
-            onClick={() => handleFilterChange("draft")}
-          >
+            onClick={() => handleFilterChange("draft")}>
             Drafts ({pages.filter((p) => !p.published).length})
+          </button>
+          <button
+            className={`dashboard-filter-tab ${filter === "unlisted" ? "active" : ""}`}
+            onClick={() => handleFilterChange("unlisted")}>
+            Unlisted ({pages.filter((p) => p.unlisted).length})
           </button>
           <div className="dashboard-items-per-page">
             <label htmlFor="pages-per-page" className="dashboard-items-label">
@@ -1834,8 +2501,7 @@ function PagesListView({
                 setItemsPerPage(Number(e.target.value));
                 setCurrentPage(0);
               }}
-              className="dashboard-items-select"
-            >
+              className="dashboard-items-select">
               <option value={15}>15</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
@@ -1864,15 +2530,13 @@ function PagesListView({
                 <span className="post-title">{page.title}</span>
                 <span className="post-slug">/{page.slug}</span>
               </div>
-              <div className="col-order">
-                {page.order !== undefined ? page.order : "-"}
-              </div>
+              <div className="col-order">{page.order !== undefined ? page.order : "-"}</div>
               <div className="col-status">
-                <span
-                  className={`status-badge ${page.published ? "published" : "draft"}`}
-                >
+                <span className={`status-badge ${page.published ? "published" : "draft"}`}>
                   {page.published ? "Published" : "Draft"}
                 </span>
+                {page.unlisted && <span className="status-badge unlisted">Unlisted</span>}
+                {page.source === "demo" && <span className="source-badge demo">Demo</span>}
                 {page.source === "dashboard" && (
                   <span className="source-badge dashboard">Dashboard</span>
                 )}
@@ -1881,27 +2545,32 @@ function PagesListView({
                 )}
               </div>
               <div className="col-actions">
-                <button
-                  className="action-btn edit"
-                  onClick={() => onEdit(page as ContentItem)}
-                  title="Edit"
-                >
-                  <PencilSimple size={16} />
-                </button>
-                <Link
-                  to={`/${page.slug}`}
-                  className="action-btn view"
-                  title="View"
-                  target="_blank"
-                >
+                {(!isDemo || page.source === "demo") && (
+                  <button
+                    className="action-btn edit"
+                    onClick={() => onEdit(page as ContentItem)}
+                    title="Edit">
+                    <PencilSimple size={16} />
+                  </button>
+                )}
+                <Link to={`/${page.slug}`} className="action-btn view" title="View" target="_blank">
                   <Eye size={16} />
                 </Link>
-                {page.source === "dashboard" && (
+                {/* Unlisted pages are shared by direct URL, so offer a quick copy */}
+                {page.unlisted && (
+                  <button
+                    className="action-btn view"
+                    onClick={() => handleCopyUrl(page as ContentItem)}
+                    title="Copy live URL">
+                    {copiedId === page._id ? <Check size={16} /> : <LinkIcon size={16} />}
+                  </button>
+                )}
+                {((!isDemo && page.source === "dashboard") ||
+                  (isDemo && page.source === "demo")) && (
                   <button
                     className="action-btn delete"
                     onClick={() => onDelete(page as ContentItem)}
-                    title="Delete"
-                  >
+                    title="Delete">
                     <Trash size={16} />
                   </button>
                 )}
@@ -1917,16 +2586,14 @@ function PagesListView({
           <button
             onClick={handleFirstPage}
             disabled={currentPage === 0}
-            className="dashboard-pagination-btn"
-          >
+            className="dashboard-pagination-btn">
             <CaretLeft size={16} />
             First
           </button>
           <button
             onClick={handleNextPage}
             disabled={!hasNextPage}
-            className="dashboard-pagination-btn"
-          >
+            className="dashboard-pagination-btn">
             Next
             <CaretRight size={16} />
           </button>
@@ -1997,7 +2664,7 @@ function EditorView({
       startXRef.current = e.clientX;
       startWidthRef.current = sidebarWidth;
     },
-    [sidebarWidth],
+    [sidebarWidth]
   );
 
   useEffect(() => {
@@ -2040,21 +2707,15 @@ function EditorView({
         <div className="dashboard-editor-actions">
           <button
             className={`dashboard-view-toggle ${!showPreview ? "active" : ""}`}
-            onClick={() => setShowPreview(false)}
-          >
+            onClick={() => setShowPreview(false)}>
             Markdown
           </button>
           <button
             className={`dashboard-view-toggle ${showPreview ? "active" : ""}`}
-            onClick={() => setShowPreview(true)}
-          >
+            onClick={() => setShowPreview(true)}>
             Preview
           </button>
-          <button
-            className="dashboard-action-btn"
-            onClick={handleCopy}
-            title="Copy Markdown"
-          >
+          <button className="dashboard-action-btn" onClick={handleCopy} title="Copy Markdown">
             {copied ? <Check size={16} /> : <Copy size={16} />}
             <span>{copied ? "Copied" : "Copy"}</span>
           </button>
@@ -2062,8 +2723,7 @@ function EditorView({
             <button
               className="dashboard-action-btn"
               onClick={() => setShowVersionHistory(true)}
-              title="View Version History"
-            >
+              title="View Version History">
               <ClockCounterClockwise size={16} />
               <span>History</span>
             </button>
@@ -2071,8 +2731,7 @@ function EditorView({
           <button
             className="dashboard-action-btn primary"
             onClick={onDownload}
-            title="Download Markdown"
-          >
+            title="Download Markdown">
             <Download size={16} />
             <span>Download .md</span>
           </button>
@@ -2080,8 +2739,7 @@ function EditorView({
             className="dashboard-action-btn success"
             onClick={handleSave}
             disabled={isSaving}
-            title="Save to Database"
-          >
+            title="Save to Database">
             {isSaving ? (
               <SpinnerGap size={16} className="animate-spin" />
             ) : (
@@ -2102,8 +2760,7 @@ function EditorView({
                 <div className="blog-post-content">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkBreaks]}
-                    rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}
-                  >
+                    rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}>
                     {item.content}
                   </ReactMarkdown>
                 </div>
@@ -2122,14 +2779,21 @@ function EditorView({
         <div
           ref={sidebarRef}
           className={`dashboard-editor-sidebar ${isResizing ? "resizing" : ""}`}
-          style={{ width: `${sidebarWidth}px` }}
-        >
+          style={{ width: `${sidebarWidth}px` }}>
           <div
             className="dashboard-sidebar-resize-handle"
             onMouseDown={handleMouseDown}
             title="Drag to resize"
           />
-          <FrontmatterSidebar item={item} type={type} setItem={setItem} />
+          <div className="fmf-panel">
+            <h3 className="fmf-panel-title">Frontmatter</h3>
+            <FrontmatterForm
+              kind={type}
+              value={itemToFrontmatter(item)}
+              onChange={(next) => setItem(applyFrontmatterToItem(item, type, next))}
+            />
+            <AdditionalFieldsPanel item={item} type={type} setItem={setItem} />
+          </div>
         </div>
       </div>
 
@@ -2147,71 +2811,10 @@ function EditorView({
   );
 }
 
-// Helper function to convert POST_FIELDS/PAGE_FIELDS to sidebar field format
-function convertFieldsToSidebarFormat(
-  allFields: Array<{ name: string; required: boolean; example: string }>,
-  activeFields: Array<{
-    key: string;
-    label: string;
-    type: string;
-    required: boolean;
-  }>,
-): Array<{ key: string; label: string; type: string; required: boolean }> {
-  const activeKeys = new Set(activeFields.map((f) => f.key));
-
-  // Convert all fields to sidebar format
-  const allFieldsConverted = allFields.map((field) => {
-    // Determine field type based on field name
-    let fieldType = "text";
-    if (
-      field.name === "description" ||
-      field.name === "excerpt" ||
-      field.name === "footer"
-    ) {
-      fieldType = "textarea";
-    } else if (field.name === "date") {
-      fieldType = "date";
-    } else if (field.name === "tags") {
-      fieldType = "tags";
-    } else if (
-      field.name === "published" ||
-      field.name === "featured" ||
-      field.name === "showImageAtTop" ||
-      field.name === "rightSidebar" ||
-      field.name === "showFooter" ||
-      field.name === "showSocialFooter" ||
-      field.name === "aiChat" ||
-      field.name === "blogFeatured" ||
-      field.name === "newsletter" ||
-      field.name === "contactForm" ||
-      field.name === "showInNav"
-    ) {
-      fieldType = "checkbox";
-    } else if (field.name === "featuredOrder" || field.name === "order") {
-      fieldType = "number";
-    }
-
-    // Convert field name to label
-    const label = field.name
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (str) => str.toUpperCase())
-      .trim();
-
-    return {
-      key: field.name,
-      label,
-      type: fieldType,
-      required: field.required,
-    };
-  });
-
-  // Return active fields first, then all other fields
-  const otherFields = allFieldsConverted.filter((f) => !activeKeys.has(f.key));
-  return [...activeFields, ...otherFields];
-}
-
-// Frontmatter Sidebar Component
-function FrontmatterSidebar({
+// Additional (less common) frontmatter fields for the edit flows. Renders
+// every persisted ContentItem field not covered by FrontmatterForm so no
+// editing capability is lost.
+function AdditionalFieldsPanel({
   item,
   type,
   setItem,
@@ -2220,329 +2823,129 @@ function FrontmatterSidebar({
   type: "post" | "page";
   setItem: (item: ContentItem) => void;
 }) {
-  const activeFields =
-    type === "post" ? postFrontmatterFields : pageFrontmatterFields;
-  const allFields = type === "post" ? POST_FIELDS : PAGE_FIELDS;
-  const fields = convertFieldsToSidebarFormat(allFields, activeFields);
-  const [tagInput, setTagInput] = useState("");
+  const [open, setOpen] = useState(false);
+  const fields = (type === "post" ? postFrontmatterFields : pageFrontmatterFields).filter(
+    (field) => !FORM_MANAGED_KEYS.has(field.key)
+  );
 
   const handleFieldChange = (key: string, value: unknown) => {
     setItem({ ...item, [key]: value });
   };
 
-  const handleAddTag = () => {
-    if (tagInput.trim() && item.tags) {
-      if (!item.tags.includes(tagInput.trim())) {
-        handleFieldChange("tags", [...item.tags, tagInput.trim()]);
-      }
-      setTagInput("");
-    }
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    if (item.tags) {
-      handleFieldChange(
-        "tags",
-        item.tags.filter((t) => t !== tag),
-      );
-    }
-  };
-
-  // Separate active and additional fields
-  const activeKeys = new Set(activeFields.map((f) => f.key));
-  const activeFieldsList = fields.filter((f) => activeKeys.has(f.key));
-  const additionalFields = fields.filter((f) => !activeKeys.has(f.key));
-
   return (
-    <div className="dashboard-frontmatter">
-      <h3 className="dashboard-frontmatter-title">Frontmatter</h3>
-      <div className="dashboard-frontmatter-fields">
-        {activeFieldsList.map((field) => (
-          <div key={field.key} className="dashboard-frontmatter-field">
-            <label className="dashboard-field-label">
-              {field.label}
-              {field.required && <span className="required">*</span>}
-            </label>
+    <div className="fmf-additional">
+      <div className="fmf-section">
+        <button
+          type="button"
+          className="fmf-section-toggle"
+          onClick={() => setOpen((prev) => !prev)}
+          aria-expanded={open}>
+          {open ? <CaretDown size={14} /> : <CaretRight size={14} />}
+          <span>Additional fields</span>
+        </button>
+        {open && (
+          <div className="fmf-section-body">
+            {fields.map((field) => {
+              const rawValue = item[field.key as keyof ContentItem];
 
-            {field.type === "text" && (
-              <input
-                type="text"
-                className="dashboard-field-input"
-                value={String(item[field.key as keyof ContentItem] || "")}
-                onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                placeholder={field.label}
-              />
-            )}
-
-            {field.type === "textarea" && (
-              <textarea
-                className="dashboard-field-textarea"
-                value={String(item[field.key as keyof ContentItem] || "")}
-                onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                placeholder={field.label}
-                rows={3}
-              />
-            )}
-
-            {field.type === "date" && (
-              <input
-                type="date"
-                className="dashboard-field-input"
-                value={String(item[field.key as keyof ContentItem] || "")}
-                onChange={(e) => handleFieldChange(field.key, e.target.value)}
-              />
-            )}
-
-            {field.type === "number" && (
-              <input
-                type="number"
-                className="dashboard-field-input"
-                value={String(item[field.key as keyof ContentItem] || "")}
-                onChange={(e) =>
-                  handleFieldChange(
-                    field.key,
-                    e.target.value ? Number(e.target.value) : undefined,
-                  )
-                }
-                placeholder={field.label}
-              />
-            )}
-
-            {field.type === "checkbox" && (
-              <label className="dashboard-checkbox">
-                <input
-                  type="checkbox"
-                  checked={Boolean(item[field.key as keyof ContentItem])}
-                  onChange={(e) =>
-                    handleFieldChange(field.key, e.target.checked)
-                  }
-                />
-                <span>{field.label}</span>
-              </label>
-            )}
-
-            {field.type === "tags" && (
-              <div className="dashboard-tags-field">
-                <div className="dashboard-tags-list">
-                  {(item.tags || []).map((tag) => (
-                    <span key={tag} className="dashboard-tag">
-                      {tag}
-                      <button onClick={() => handleRemoveTag(tag)}>
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="dashboard-tags-input">
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && (e.preventDefault(), handleAddTag())
-                    }
-                    placeholder="Add tag..."
-                  />
-                  <button onClick={handleAddTag}>
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-
-        {additionalFields.length > 0 && (
-          <>
-            <div className="dashboard-frontmatter-divider" />
-            <div className="dashboard-frontmatter-section-title">
-              Additional Fields
-            </div>
-            {additionalFields.map((field) => (
-              <div key={field.key} className="dashboard-frontmatter-field">
-                <label className="dashboard-field-label">
-                  {field.label}
-                  {field.required && <span className="required">*</span>}
-                </label>
-
-                {field.type === "text" && (
-                  <input
-                    type="text"
-                    className="dashboard-field-input"
-                    value={String(item[field.key as keyof ContentItem] || "")}
-                    onChange={(e) =>
-                      handleFieldChange(field.key, e.target.value)
-                    }
-                    placeholder={field.label}
-                  />
-                )}
-
-                {field.type === "textarea" && (
-                  <textarea
-                    className="dashboard-field-textarea"
-                    value={String(item[field.key as keyof ContentItem] || "")}
-                    onChange={(e) =>
-                      handleFieldChange(field.key, e.target.value)
-                    }
-                    placeholder={field.label}
-                    rows={3}
-                  />
-                )}
-
-                {field.type === "date" && (
-                  <input
-                    type="date"
-                    className="dashboard-field-input"
-                    value={String(item[field.key as keyof ContentItem] || "")}
-                    onChange={(e) =>
-                      handleFieldChange(field.key, e.target.value)
-                    }
-                  />
-                )}
-
-                {field.type === "number" && (
-                  <input
-                    type="number"
-                    className="dashboard-field-input"
-                    value={String(item[field.key as keyof ContentItem] || "")}
-                    onChange={(e) =>
-                      handleFieldChange(
-                        field.key,
-                        e.target.value ? Number(e.target.value) : undefined,
-                      )
-                    }
-                    placeholder={field.label}
-                  />
-                )}
-
-                {field.type === "checkbox" && (
-                  <label className="dashboard-checkbox">
+              if (field.type === "checkbox") {
+                return (
+                  <label key={field.key} className="fmf-switch">
                     <input
                       type="checkbox"
-                      checked={Boolean(item[field.key as keyof ContentItem])}
-                      onChange={(e) =>
-                        handleFieldChange(field.key, e.target.checked)
-                      }
+                      checked={Boolean(rawValue)}
+                      onChange={(e) => handleFieldChange(field.key, e.target.checked)}
                     />
-                    <span>{field.label}</span>
+                    <span className="fmf-switch-track" aria-hidden="true">
+                      <span className="fmf-switch-thumb" />
+                    </span>
+                    <span className="fmf-switch-label">{field.label}</span>
                   </label>
-                )}
-              </div>
-            ))}
-          </>
+                );
+              }
+
+              if (field.type === "textarea") {
+                return (
+                  <div key={field.key} className="fmf-field">
+                    <label className="fmf-label">{field.label}</label>
+                    <textarea
+                      className="fmf-textarea"
+                      value={String(rawValue ?? "")}
+                      onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                      placeholder={field.label}
+                      rows={2}
+                    />
+                  </div>
+                );
+              }
+
+              if (field.type === "number") {
+                return (
+                  <div key={field.key} className="fmf-field">
+                    <label className="fmf-label">{field.label}</label>
+                    <input
+                      type="number"
+                      className="fmf-input"
+                      value={rawValue === undefined || rawValue === null ? "" : String(rawValue)}
+                      onChange={(e) =>
+                        handleFieldChange(
+                          field.key,
+                          e.target.value === "" ? undefined : Number(e.target.value)
+                        )
+                      }
+                      placeholder={field.label}
+                    />
+                  </div>
+                );
+              }
+
+              if (field.type === "select" && field.options) {
+                return (
+                  <div key={field.key} className="fmf-field">
+                    <label className="fmf-label">{field.label}</label>
+                    <select
+                      className="fmf-select"
+                      value={String(rawValue ?? "")}
+                      onChange={(e) => handleFieldChange(field.key, e.target.value || undefined)}>
+                      {field.options.map((option) => (
+                        <option key={option} value={option}>
+                          {option === "" ? "Default" : option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={field.key} className="fmf-field">
+                  <label className="fmf-label">{field.label}</label>
+                  <input
+                    type="text"
+                    className="fmf-input"
+                    value={String(rawValue ?? "")}
+                    onChange={(e) => handleFieldChange(field.key, e.target.value || undefined)}
+                    placeholder={field.label}
+                  />
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-// Frontmatter field definitions for blog posts (matches Write.tsx)
-const POST_FIELDS = [
-  { name: "title", required: true, example: '"Your Post Title"' },
-  {
-    name: "description",
-    required: true,
-    example: '"A brief description for SEO"',
-  },
-  { name: "date", required: true, example: '"2025-01-20"' },
-  { name: "slug", required: true, example: '"your-post-url"' },
-  { name: "published", required: true, example: "true" },
-  { name: "tags", required: true, example: '["tag1", "tag2"]' },
-  { name: "readTime", required: false, example: '"5 min read"' },
-  { name: "image", required: false, example: '"/images/my-image.png"' },
-  { name: "showImageAtTop", required: false, example: "true" },
-  {
-    name: "excerpt",
-    required: false,
-    example: '"Short description for cards"',
-  },
-  { name: "featured", required: false, example: "true" },
-  { name: "featuredOrder", required: false, example: "1" },
-  { name: "authorName", required: false, example: '"Jane Doe"' },
-  {
-    name: "authorImage",
-    required: false,
-    example: '"/images/authors/jane.png"',
-  },
-  { name: "layout", required: false, example: '"sidebar"' },
-  { name: "rightSidebar", required: false, example: "true" },
-  { name: "showFooter", required: false, example: "true" },
-  {
-    name: "footer",
-    required: false,
-    example: '"Built with [Convex](https://convex.dev)."',
-  },
-  { name: "showSocialFooter", required: false, example: "true" },
-  { name: "aiChat", required: false, example: "true" },
-  { name: "blogFeatured", required: false, example: "true" },
-  { name: "newsletter", required: false, example: "true" },
-  { name: "contactForm", required: false, example: "true" },
-  { name: "unlisted", required: false, example: "true" },
-  { name: "docsSection", required: false, example: "true" },
-  { name: "docsSectionOrder", required: false, example: "1" },
-  { name: "docsSectionGroup", required: false, example: '"Setup"' },
-  { name: "docsSectionGroupOrder", required: false, example: "1" },
-  { name: "docsSectionGroupIcon", required: false, example: '"Rocket"' },
-  { name: "docsLanding", required: false, example: "true" },
-];
-
-// Frontmatter field definitions for pages (matches Write.tsx)
-const PAGE_FIELDS = [
-  { name: "title", required: true, example: '"Page Title"' },
-  { name: "slug", required: true, example: '"page-url"' },
-  { name: "published", required: true, example: "true" },
-  { name: "order", required: false, example: "1" },
-  { name: "showInNav", required: false, example: "true" },
-  { name: "excerpt", required: false, example: '"Short description"' },
-  { name: "image", required: false, example: '"/images/thumbnail.png"' },
-  { name: "showImageAtTop", required: false, example: "true" },
-  { name: "featured", required: false, example: "true" },
-  { name: "featuredOrder", required: false, example: "1" },
-  { name: "authorName", required: false, example: '"Jane Doe"' },
-  {
-    name: "authorImage",
-    required: false,
-    example: '"/images/authors/jane.png"',
-  },
-  { name: "layout", required: false, example: '"sidebar"' },
-  { name: "rightSidebar", required: false, example: "true" },
-  { name: "showFooter", required: false, example: "true" },
-  {
-    name: "footer",
-    required: false,
-    example: '"Built with [Convex](https://convex.dev)."',
-  },
-  { name: "showSocialFooter", required: false, example: "true" },
-  { name: "aiChat", required: false, example: "true" },
-  { name: "newsletter", required: false, example: "true" },
-  { name: "contactForm", required: false, example: "true" },
-  { name: "unlisted", required: false, example: "true" },
-  { name: "docsSection", required: false, example: "true" },
-  { name: "docsSectionOrder", required: false, example: "1" },
-  { name: "docsSectionGroup", required: false, example: '"Setup"' },
-  { name: "docsSectionGroupOrder", required: false, example: "1" },
-  { name: "docsSectionGroupIcon", required: false, example: '"Rocket"' },
-  { name: "docsLanding", required: false, example: "true" },
-];
-
-// Generate frontmatter template based on content type
-function generateWriteTemplate(type: "post" | "page"): string {
+// Generate the starter markdown BODY for the write editor. Frontmatter is
+// managed by the FrontmatterForm and serialized separately.
+function generateWriteBodyTemplate(type: "post" | "page", isDemo: boolean = false): string {
   if (type === "post") {
-    return `---
-title: "Your Post Title"
-description: "A brief description for SEO and social sharing"
-date: "${new Date().toISOString().split("T")[0]}"
-slug: "your-post-url"
-published: true
-tags: ["tag1", "tag2"]
-readTime: "5 min read"
----
+    return `# Your post title
 
-# Your Post Title
+Start writing your content here...${isDemo ? " Demo posts reset every 30 minutes." : ""}
 
-Start writing your content here...
-
-## Section Heading
+## Section heading
 
 Add your markdown content. You can use:
 
@@ -2554,33 +2957,16 @@ Add your markdown content. You can use:
 const greeting = "Hello, world";
 console.log(greeting);
 \`\`\`
-
-## Conclusion
-
-Wrap up your thoughts here.
 `;
   }
 
-  return `---
-title: "Page Title"
-slug: "page-url"
-published: true
-order: 1
-showInNav: true
-layout: "sidebar"
----
+  return `# Page title
 
-# Page Title
-
-Your page content goes here...
+Your page content goes here...${isDemo ? " Demo pages reset every 30 minutes." : ""}
 
 ## Section
 
 Add your markdown content.
-
-## Another Section
-
-With sidebar layout enabled, headings automatically appear in the table of contents.
 `;
 }
 
@@ -2596,20 +2982,32 @@ function WriteSection({
   setSidebarCollapsed,
   addToast,
   setActiveSection,
+  isDemo = false,
 }: {
   contentType: "post" | "page";
   sidebarCollapsed: boolean;
   setSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   addToast: (message: string, type?: ToastType) => void;
   setActiveSection: (section: DashboardSection) => void;
+  isDemo?: boolean;
 }) {
-  const [content, setContent] = useState("");
+  // Frontmatter form state + markdown body (body contains no YAML)
+  const [frontmatter, setFrontmatter] = useState<FrontmatterValues>(() =>
+    createDefaultFrontmatter(contentType)
+  );
+  const [body, setBody] = useState("");
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editorMode, setEditorMode] = useState<"markdown" | "richtext" | "preview">("markdown");
   const createPostMutation = useMutation(api.cms.createPost);
   const createPageMutation = useMutation(api.cms.createPage);
+  const createDemoPostMutation = useMutation(api.demo.createDemoPost);
+  const createDemoPageMutation = useMutation(api.demo.createDemoPage);
+  // Share on X after publishing (posts only, needs a connected account)
+  const xStatus = useQuery(api.xIntegration.getXStatus, isDemo ? "skip" : {});
+  const sharePublishedPost = useAction(api.xIntegration.sharePublishedPost);
+  const [shareOnX, setShareOnX] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [focusMode, setFocusMode] = useState(() => {
     const saved = localStorage.getItem(DASHBOARD_WRITE_FOCUS_MODE);
     return saved === "true";
@@ -2624,6 +3022,7 @@ function WriteSection({
   // Image upload modal state
   const [showImageUpload, setShowImageUpload] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const richTextRef = useRef<HTMLDivElement>(null);
 
   // Toggle focus mode
   const toggleFocusMode = useCallback(() => {
@@ -2664,65 +3063,55 @@ function WriteSection({
     return service;
   }, []);
 
-  const showdownConverter = useMemo(() => {
-    const converter = new Showdown.Converter({
-      tables: true,
-      strikethrough: true,
-      tasklists: true,
-    });
-    return converter;
-  }, []);
-
-  // Convert between modes - extract body content for rich text editing
-  const getBodyContent = useCallback((fullContent: string): string => {
-    const frontmatterMatch = fullContent.match(/^---\n[\s\S]*?\n---\n?([\s\S]*)$/);
-    return frontmatterMatch ? frontmatterMatch[1].trim() : fullContent;
-  }, []);
-
-  const getFrontmatter = useCallback((fullContent: string): string => {
-    const frontmatterMatch = fullContent.match(/^(---\n[\s\S]*?\n---\n?)/);
-    return frontmatterMatch ? frontmatterMatch[1] : "";
+  const markedInstance = useMemo(() => {
+    const instance = new Marked({ gfm: true, breaks: false });
+    return instance;
   }, []);
 
   // State for rich text HTML content
   const [richTextHtml, setRichTextHtml] = useState("");
 
-  // Handle mode changes with content conversion
+  // Handle mode changes with content conversion (body only; frontmatter is
+  // managed by the form and never round-trips through rich text)
   const handleModeChange = useCallback(
     (newMode: "markdown" | "richtext" | "preview") => {
       if (newMode === editorMode) return;
 
       if (newMode === "richtext" && editorMode === "markdown") {
         // Converting from markdown to rich text
-        const bodyContent = getBodyContent(content);
-        const html = showdownConverter.makeHtml(bodyContent);
+        const html = markedInstance.parse(body) as string;
         setRichTextHtml(html);
       } else if (newMode === "markdown" && editorMode === "richtext") {
         // Converting from rich text back to markdown
         const markdown = turndownService.turndown(richTextHtml);
-        const frontmatter = getFrontmatter(content);
-        setContent(frontmatter + markdown);
+        setBody(markdown);
       }
 
       setEditorMode(newMode);
     },
-    [editorMode, content, richTextHtml, getBodyContent, getFrontmatter, showdownConverter, turndownService]
+    [editorMode, body, richTextHtml, markedInstance, turndownService]
   );
 
-  // Quill modules configuration
-  const quillModules = useMemo(
-    () => ({
-      toolbar: [
-        [{ header: [1, 2, 3, false] }],
-        ["bold", "italic", "strike"],
-        ["blockquote", "code-block"],
-        [{ list: "ordered" }, { list: "bullet" }],
-        ["link"],
-        ["clean"],
-      ],
-    }),
-    []
+  // Run a rich text command on the contenteditable editor
+  const applyRichTextCommand = useCallback(
+    (command: string, value?: string) => {
+      if (editorMode !== "richtext" || !richTextRef.current) {
+        return;
+      }
+      richTextRef.current.focus();
+      document.execCommand(command, false, value);
+      setRichTextHtml(richTextRef.current.innerHTML);
+    },
+    [editorMode]
   );
+
+  // Keep rich text HTML state in sync with contenteditable DOM changes
+  const handleRichTextInput = useCallback(() => {
+    if (!richTextRef.current) {
+      return;
+    }
+    setRichTextHtml(richTextRef.current.innerHTML);
+  }, []);
 
   // Keyboard shortcut: Escape to exit focus mode
   useEffect(() => {
@@ -2739,35 +3128,46 @@ function WriteSection({
 
   // localStorage key based on content type
   const storageKey =
-    contentType === "post"
-      ? DASHBOARD_WRITE_POST_CONTENT
-      : DASHBOARD_WRITE_PAGE_CONTENT;
+    contentType === "post" ? DASHBOARD_WRITE_POST_CONTENT : DASHBOARD_WRITE_PAGE_CONTENT;
 
-  // Load from localStorage on mount
+  // Full markdown document (YAML frontmatter block + body), kept identical to
+  // what gets copied, downloaded, and stored as a draft
+  const fullContent = useMemo(
+    () => serializeFrontmatter(contentType, frontmatter) + "\n" + body,
+    [contentType, frontmatter, body]
+  );
+
+  // Restore draft from localStorage on mount. Older drafts stored the raw
+  // markdown with a YAML block, so parse it to populate the form and body.
   useEffect(() => {
     const savedContent = localStorage.getItem(storageKey);
-    if (savedContent) {
-      setContent(savedContent);
+    if (savedContent && savedContent.trim() !== "") {
+      const parsed = parseFrontmatterDocument(savedContent, contentType);
+      setFrontmatter(parsed.values);
+      setBody(parsed.hasFrontmatter ? parsed.body : savedContent);
     } else {
-      setContent(generateWriteTemplate(contentType));
+      setFrontmatter(createDefaultFrontmatter(contentType));
+      setBody(generateWriteBodyTemplate(contentType, isDemo));
     }
-  }, [storageKey, contentType]);
+    setDraftLoaded(true);
+  }, [storageKey, contentType, isDemo]);
 
-  // Save to localStorage on content change
+  // Autosave the full markdown draft (frontmatter + body) on change
   useEffect(() => {
-    localStorage.setItem(storageKey, content);
-  }, [content, storageKey]);
+    if (!draftLoaded) return;
+    localStorage.setItem(storageKey, fullContent);
+  }, [fullContent, storageKey, draftLoaded]);
 
-  // Copy content to clipboard
+  // Copy the full markdown document (frontmatter + body) to clipboard
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(fullContent);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback
       const textarea = document.createElement("textarea");
-      textarea.value = content;
+      textarea.value = fullContent;
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand("copy");
@@ -2775,111 +3175,64 @@ function WriteSection({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [content]);
+  }, [fullContent]);
 
   // Insert image markdown at cursor position
-  const handleInsertImage = useCallback((markdown: string) => {
-    if (editorMode === "markdown" && textareaRef.current) {
-      const textarea = textareaRef.current;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newContent = content.substring(0, start) + markdown + "\n" + content.substring(end);
-      setContent(newContent);
-      // Set cursor position after inserted text
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + markdown.length + 1, start + markdown.length + 1);
-      }, 0);
-    } else if (editorMode === "richtext") {
-      // For rich text mode, convert markdown to HTML and append
-      const imgMatch = markdown.match(/!\[(.*?)\]\((.*?)\)/);
-      if (imgMatch) {
-        const alt = imgMatch[1];
-        const src = imgMatch[2];
-        setRichTextHtml(prev => prev + `<p><img src="${src}" alt="${alt}" /></p>`);
-      }
-    } else {
-      // Preview mode - append to content
-      setContent(prev => prev + "\n" + markdown);
-    }
-  }, [content, editorMode]);
+  const handleInsertImage = useCallback(
+    (markdown: string) => {
+      if (editorMode === "markdown" && textareaRef.current) {
+        const textarea = textareaRef.current;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const newBody = body.substring(0, start) + markdown + "\n" + body.substring(end);
+        setBody(newBody);
+        // Set cursor position after inserted text
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + markdown.length + 1, start + markdown.length + 1);
+        }, 0);
+      } else if (editorMode === "richtext") {
+        // For rich text mode, insert image at cursor when possible
+        const imgMatch = markdown.match(/!\[(.*?)\]\((.*?)\)/);
+        if (imgMatch) {
+          const escapeAttr = (value: string) =>
+            value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+          const alt = escapeAttr(imgMatch[1]);
+          const src = escapeAttr(imgMatch[2]);
+          const imageHtml = `<p><img src="${src}" alt="${alt}" /></p>`;
 
-  // Copy a single frontmatter field
-  const handleCopyField = useCallback(
-    async (fieldName: string, example: string) => {
-      const fieldText = `${fieldName}: ${example}`;
-      try {
-        await navigator.clipboard.writeText(fieldText);
-        setCopiedField(fieldName);
-        setTimeout(() => setCopiedField(null), 1500);
-      } catch {
-        // Fallback
-        const textarea = document.createElement("textarea");
-        textarea.value = fieldText;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-        setCopiedField(fieldName);
-        setTimeout(() => setCopiedField(null), 1500);
+          if (richTextRef.current) {
+            richTextRef.current.focus();
+            document.execCommand("insertHTML", false, imageHtml);
+            setRichTextHtml(richTextRef.current.innerHTML);
+          } else {
+            setRichTextHtml((prev) => prev + imageHtml);
+          }
+        }
+      } else {
+        // Preview mode - append to body
+        setBody((prev) => prev + "\n" + markdown);
       }
     },
-    [],
+    [body, editorMode]
   );
 
-  // Clear content and reset to template
+  // Clear form and body, reset to defaults
   const handleClear = useCallback(() => {
-    setContent(generateWriteTemplate(contentType));
-  }, [contentType]);
+    setFrontmatter(createDefaultFrontmatter(contentType));
+    setBody(generateWriteBodyTemplate(contentType, isDemo));
+  }, [contentType, isDemo]);
 
-  // Generate markdown file with frontmatter for download
+  // Download the full markdown file (serialized frontmatter + body)
   const handleDownloadMarkdown = useCallback(() => {
-    // Extract frontmatter from content if it exists, otherwise generate basic template
-    let markdownContent = content;
-    let frontmatter = "";
+    const slug =
+      frontmatter.slug.trim() !== ""
+        ? frontmatter.slug.trim()
+        : contentType === "post"
+          ? "your-post-url"
+          : "your-page-url";
 
-    // Check if content already has frontmatter
-    if (content.startsWith("---\n")) {
-      // Content already has frontmatter, use as-is
-      markdownContent = content;
-    } else {
-      // Generate basic frontmatter with required fields
-      const today = new Date().toISOString().split("T")[0];
-      const defaultSlug =
-        contentType === "post" ? "your-post-url" : "your-page-url";
-
-      if (contentType === "post") {
-        frontmatter = `---
-title: "Your Post Title"
-description: "A brief description for SEO and social sharing"
-date: "${today}"
-slug: "${defaultSlug}"
-published: false
-tags: ["tag1", "tag2"]
----
-
-`;
-      } else {
-        frontmatter = `---
-title: "Your Page Title"
-slug: "${defaultSlug}"
-published: false
----
-
-`;
-      }
-      markdownContent = frontmatter + content;
-    }
-
-    // Extract slug from frontmatter or use default
-    let slug = contentType === "post" ? "your-post-url" : "your-page-url";
-    const slugMatch = markdownContent.match(/slug:\s*["']([^"']+)["']/);
-    if (slugMatch) {
-      slug = slugMatch[1];
-    }
-
-    // Download the markdown file
-    const blob = new Blob([markdownContent], { type: "text/markdown" });
+    const blob = new Blob([fullContent], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -2888,55 +3241,29 @@ published: false
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [content, contentType]);
+  }, [fullContent, frontmatter.slug, contentType]);
 
-  // Default slug values that should trigger a warning
-  const DEFAULT_SLUGS = ["your-post-url", "page-url"];
-
-  // Parse frontmatter and save to database
+  // Save form state + body to the database
   const handleSaveToDb = useCallback(async () => {
     setIsSaving(true);
     try {
-      // Parse frontmatter
-      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-      if (!frontmatterMatch) {
-        addToast("Content must have valid frontmatter (---)", "error");
+      // If the editor is in rich text mode, convert the latest HTML back to
+      // markdown so unsaved rich text edits are not lost
+      const bodyContent = (
+        editorMode === "richtext" ? turndownService.turndown(richTextHtml) : body
+      ).trim();
+
+      const title = frontmatter.title.trim();
+      const slug = frontmatter.slug.trim();
+
+      if (!title || !slug) {
+        addToast("Title and slug are required", "error");
         setIsSaving(false);
         return;
       }
 
-      const frontmatterText = frontmatterMatch[1];
-      const bodyContent = frontmatterMatch[2].trim();
-
-      // Parse frontmatter fields
-      const parseValue = (key: string): string | undefined => {
-        const match = frontmatterText.match(new RegExp(`^${key}:\\s*["']?([^"'\\n]+)["']?`, "m"));
-        return match ? match[1].trim() : undefined;
-      };
-
-      const parseBool = (key: string): boolean | undefined => {
-        const match = frontmatterText.match(new RegExp(`^${key}:\\s*(true|false)`, "m"));
-        return match ? match[1] === "true" : undefined;
-      };
-
-      const parseNumber = (key: string): number | undefined => {
-        const match = frontmatterText.match(new RegExp(`^${key}:\\s*(\\d+)`, "m"));
-        return match ? parseInt(match[1], 10) : undefined;
-      };
-
-      const parseTags = (): string[] => {
-        const match = frontmatterText.match(/^tags:\s*\[(.*?)\]/m);
-        if (match) {
-          return match[1].split(",").map((t) => t.trim().replace(/["']/g, "")).filter(Boolean);
-        }
-        return [];
-      };
-
-      const title = parseValue("title");
-      const slug = parseValue("slug");
-
-      if (!title || !slug) {
-        addToast("Frontmatter must include title and slug", "error");
+      if (!SLUG_PATTERN.test(slug)) {
+        addToast("Slug must use lowercase letters, digits, and hyphens only", "error");
         setIsSaving(false);
         return;
       }
@@ -2961,71 +3288,99 @@ published: false
         return;
       }
 
-      if (contentType === "post") {
-        const description = parseValue("description") || "";
-        const date = parseValue("date") || new Date().toISOString().split("T")[0];
-        const published = parseBool("published") ?? false;
-        const tags = parseTags();
-        const readTime = parseValue("readTime");
-        const image = parseValue("image");
-        const excerpt = parseValue("excerpt");
-        const featured = parseBool("featured");
-        const featuredOrder = parseNumber("featuredOrder");
-        const authorName = parseValue("authorName");
-        const authorImage = parseValue("authorImage");
+      const optionalString = (value: string): string | undefined =>
+        value.trim() === "" ? undefined : value.trim();
 
-        await createPostMutation({
-          post: {
-            slug,
-            title,
-            description,
-            content: bodyContent,
-            date,
-            published,
-            tags,
-            readTime,
-            image,
-            excerpt,
-            featured,
-            featuredOrder,
-            authorName,
-            authorImage,
-          },
-        });
+      if (contentType === "post") {
+        const description = frontmatter.description.trim();
+        const date =
+          frontmatter.date.trim() !== ""
+            ? frontmatter.date.trim()
+            : new Date().toISOString().split("T")[0];
+
+        if (isDemo) {
+          await createDemoPostMutation({
+            post: {
+              slug,
+              title,
+              description,
+              content: bodyContent,
+              date,
+              published: frontmatter.published,
+              tags: frontmatter.tags,
+              readTime: optionalString(frontmatter.readTime),
+              image: optionalString(frontmatter.image),
+              excerpt: optionalString(frontmatter.excerpt),
+              authorName: optionalString(frontmatter.authorName),
+            },
+          });
+        } else {
+          await createPostMutation({
+            post: {
+              slug,
+              title,
+              description,
+              content: bodyContent,
+              date,
+              published: frontmatter.published,
+              tags: frontmatter.tags,
+              readTime: optionalString(frontmatter.readTime),
+              image: optionalString(frontmatter.image),
+              excerpt: optionalString(frontmatter.excerpt),
+              featured: frontmatter.featured ? true : undefined,
+              featuredOrder: frontmatter.featuredOrder,
+              authorName: optionalString(frontmatter.authorName),
+              authorImage: optionalString(frontmatter.authorImage),
+            },
+          });
+        }
         addToast(`Post "${title}" saved to database. Redirecting to Posts...`, "success");
-        // Navigate to posts section after successful save
+        // Share on X in the background; a share failure never blocks the save
+        if (!isDemo && shareOnX && frontmatter.published && xStatus?.connected) {
+          void sharePublishedPost({ title, slug })
+            .then((result) => addToast(`Shared on X: ${result.tweetUrl}`, "success"))
+            .catch((error) =>
+              addToast(
+                error instanceof Error ? error.message : "X share failed",
+                "error",
+              ),
+            );
+        }
         setTimeout(() => {
           setActiveSection("posts");
         }, 500);
       } else {
-        const published = parseBool("published") ?? false;
-        const order = parseNumber("order");
-        const showInNav = parseBool("showInNav");
-        const excerpt = parseValue("excerpt");
-        const image = parseValue("image");
-        const featured = parseBool("featured");
-        const featuredOrder = parseNumber("featuredOrder");
-        const authorName = parseValue("authorName");
-        const authorImage = parseValue("authorImage");
-
-        await createPageMutation({
-          page: {
-            slug,
-            title,
-            content: bodyContent,
-            published,
-            order,
-            showInNav,
-            excerpt,
-            image,
-            featured,
-            featuredOrder,
-            authorName,
-            authorImage,
-          },
-        });
+        if (isDemo) {
+          await createDemoPageMutation({
+            page: {
+              slug,
+              title,
+              content: bodyContent,
+              published: frontmatter.published,
+              excerpt: optionalString(frontmatter.excerpt),
+              image: optionalString(frontmatter.image),
+              authorName: optionalString(frontmatter.authorName),
+            },
+          });
+        } else {
+          await createPageMutation({
+            page: {
+              slug,
+              title,
+              content: bodyContent,
+              published: frontmatter.published,
+              order: frontmatter.order,
+              showInNav: frontmatter.showInNav ? true : undefined,
+              excerpt: optionalString(frontmatter.excerpt),
+              image: optionalString(frontmatter.image),
+              featured: frontmatter.featured ? true : undefined,
+              featuredOrder: frontmatter.featuredOrder,
+              authorName: optionalString(frontmatter.authorName),
+              authorImage: optionalString(frontmatter.authorImage),
+            },
+          });
+        }
         addToast(`Page "${title}" saved to database. Redirecting to Pages...`, "success");
-        // Navigate to pages section after successful save
         setTimeout(() => {
           setActiveSection("pages");
         }, 500);
@@ -3036,19 +3391,42 @@ published: false
     } finally {
       setIsSaving(false);
     }
-  }, [content, contentType, createPostMutation, createPageMutation, addToast, setActiveSection]);
+  }, [
+    frontmatter,
+    body,
+    editorMode,
+    richTextHtml,
+    turndownService,
+    contentType,
+    createPostMutation,
+    createPageMutation,
+    createDemoPostMutation,
+    createDemoPageMutation,
+    isDemo,
+    shareOnX,
+    xStatus,
+    sharePublishedPost,
+    addToast,
+    setActiveSection,
+  ]);
 
-  // Calculate stats
-  const lines = content.split("\n").length;
-  const characters = content.length;
-  const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+  // Calculate stats (markdown body only)
+  const lines = body.split("\n").length;
+  const characters = body.length;
+  const words = body.trim() ? body.trim().split(/\s+/).length : 0;
 
-  const fields = contentType === "post" ? POST_FIELDS : PAGE_FIELDS;
+  // In demo mode, hide frontmatter fields the demo mutations silently drop
+  // (featured, ordering, nav placement, author image) so demo users can't
+  // enter values that never persist or surface demo content in the navbar.
+  const demoHiddenFields: ReadonlyArray<keyof FrontmatterValues> | undefined = isDemo
+    ? contentType === "post"
+      ? ["featured", "featuredOrder", "authorImage"]
+      : ["featured", "featuredOrder", "order", "showInNav", "authorImage"]
+    : undefined;
 
   return (
     <div
-      className={`dashboard-write-section ${focusMode ? "focus-mode" : ""} ${frontmatterCollapsed ? "frontmatter-collapsed" : ""}`}
-    >
+      className={`dashboard-write-section ${focusMode ? "focus-mode" : ""} ${frontmatterCollapsed ? "frontmatter-collapsed" : ""}`}>
       {/* Write Actions Header */}
       <div className="dashboard-write-header">
         <div className="dashboard-write-title">
@@ -3056,51 +3434,37 @@ published: false
           <div className="dashboard-editor-mode-toggles">
             <button
               className={`dashboard-view-toggle ${editorMode === "markdown" ? "active" : ""}`}
-              onClick={() => handleModeChange("markdown")}
-            >
+              onClick={() => handleModeChange("markdown")}>
               Markdown
             </button>
             <button
               className={`dashboard-view-toggle ${editorMode === "richtext" ? "active" : ""}`}
-              onClick={() => handleModeChange("richtext")}
-            >
+              onClick={() => handleModeChange("richtext")}>
               Rich Text
             </button>
             <button
               className={`dashboard-view-toggle ${editorMode === "preview" ? "active" : ""}`}
-              onClick={() => handleModeChange("preview")}
-            >
+              onClick={() => handleModeChange("preview")}>
               Preview
             </button>
           </div>
         </div>
         <div className="dashboard-write-actions">
-          <button
-            onClick={handleClear}
-            className="dashboard-action-btn"
-            title="Clear content"
-          >
+          <button onClick={handleClear} className="dashboard-action-btn" title="Clear content">
             <Trash size={16} />
             <span>Clear</span>
           </button>
           <button
             onClick={handleCopy}
-            className={`dashboard-action-btn primary ${copied ? "copied" : ""}`}
-          >
-            {copied ? (
-              <Check size={16} weight="bold" />
-            ) : (
-              <CopySimple size={16} />
-            )}
+            className={`dashboard-action-btn primary ${copied ? "copied" : ""}`}>
+            {copied ? <Check size={16} weight="bold" /> : <CopySimple size={16} />}
             <span>{copied ? "Copied" : "Copy All"}</span>
           </button>
-          {siteConfig.media?.enabled && (
+          {siteConfig.media?.enabled && !isDemo && (
             <button
               onClick={() => setShowImageUpload(true)}
               className="dashboard-action-btn"
-              title={editorMode === "richtext" ? "Image insertion not available in Rich Text mode" : "Insert Image"}
-              disabled={editorMode === "richtext"}
-            >
+              title="Insert Image">
               <Image size={16} />
               <span>Image</span>
             </button>
@@ -3108,17 +3472,28 @@ published: false
           <button
             onClick={handleDownloadMarkdown}
             className="dashboard-action-btn primary"
-            title="Download Markdown"
-          >
+            title="Download Markdown">
             <Download size={16} />
             <span>Download .md</span>
           </button>
+          {contentType === "post" && !isDemo && xStatus?.connected && (
+            <label
+              className="write-share-x-toggle"
+              title="Post the title and link to X after publishing">
+              <input
+                type="checkbox"
+                checked={shareOnX}
+                onChange={(e) => setShareOnX(e.target.checked)}
+              />
+              <XLogo size={14} />
+              <span>Share on X</span>
+            </label>
+          )}
           <button
             onClick={handleSaveToDb}
             disabled={isSaving}
             className="dashboard-action-btn success"
-            title="Save to Database"
-          >
+            title="Save to Database">
             {isSaving ? (
               <SpinnerGap size={16} className="animate-spin" />
             ) : (
@@ -3129,8 +3504,7 @@ published: false
           <button
             onClick={toggleFocusMode}
             className={`dashboard-action-btn focus-toggle ${focusMode ? "active" : ""}`}
-            title={focusMode ? "Exit focus mode (Esc)" : "Enter focus mode"}
-          >
+            title={focusMode ? "Exit focus mode (Esc)" : "Enter focus mode"}>
             {focusMode ? (
               <ArrowsIn size={16} weight="regular" />
             ) : (
@@ -3146,23 +3520,85 @@ published: false
           {editorMode === "markdown" && (
             <textarea
               ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
               className="dashboard-write-textarea"
-              placeholder="Start writing your markdown..."
+              placeholder="Start writing your markdown body (frontmatter is managed in the form)..."
               spellCheck={true}
             />
           )}
 
           {editorMode === "richtext" && (
             <div className="dashboard-quill-container">
-              <ReactQuill
-                theme="snow"
-                value={richTextHtml}
-                onChange={setRichTextHtml}
-                modules={quillModules}
-                placeholder="Start writing..."
-              />
+              <div className="ql-toolbar dashboard-simple-toolbar">
+                <button
+                  type="button"
+                  className="dashboard-rich-btn"
+                  onClick={() => applyRichTextCommand("bold")}
+                  title="Bold">
+                  B
+                </button>
+                <button
+                  type="button"
+                  className="dashboard-rich-btn"
+                  onClick={() => applyRichTextCommand("italic")}
+                  title="Italic">
+                  I
+                </button>
+                <button
+                  type="button"
+                  className="dashboard-rich-btn"
+                  onClick={() => applyRichTextCommand("strikeThrough")}
+                  title="Strike">
+                  S
+                </button>
+                <button
+                  type="button"
+                  className="dashboard-rich-btn"
+                  onClick={() => applyRichTextCommand("formatBlock", "H2")}
+                  title="Heading 2">
+                  H2
+                </button>
+                <button
+                  type="button"
+                  className="dashboard-rich-btn"
+                  onClick={() => applyRichTextCommand("formatBlock", "H3")}
+                  title="Heading 3">
+                  H3
+                </button>
+                <button
+                  type="button"
+                  className="dashboard-rich-btn"
+                  onClick={() => applyRichTextCommand("insertUnorderedList")}
+                  title="Bullet list">
+                  List
+                </button>
+                <button
+                  type="button"
+                  className="dashboard-rich-btn"
+                  onClick={() => applyRichTextCommand("insertOrderedList")}
+                  title="Numbered list">
+                  1.
+                </button>
+                <button
+                  type="button"
+                  className="dashboard-rich-btn"
+                  onClick={() => applyRichTextCommand("formatBlock", "BLOCKQUOTE")}
+                  title="Quote">
+                  Quote
+                </button>
+              </div>
+              <div className="ql-container">
+                <div
+                  ref={richTextRef}
+                  className={`ql-editor ${richTextHtml.replace(/<[^>]*>/g, "").trim() ? "" : "ql-blank"}`}
+                  contentEditable
+                  suppressContentEditableWarning
+                  data-placeholder="Start writing..."
+                  onInput={handleRichTextInput}
+                  dangerouslySetInnerHTML={{ __html: richTextHtml }}
+                />
+              </div>
             </div>
           )}
 
@@ -3172,9 +3608,8 @@ published: false
                 <div className="blog-post-content">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkBreaks]}
-                    rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}
-                  >
-                    {getBodyContent(content)}
+                    rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}>
+                    {body}
                   </ReactMarkdown>
                 </div>
               </div>
@@ -3190,61 +3625,36 @@ published: false
               <span>{characters} chars</span>
             </div>
             <div className="dashboard-write-hint">
-              {editorMode === "richtext"
-                ? "Editing body content only (frontmatter preserved)"
-                : <>Save to{" "}<code>content/{contentType === "post" ? "blog" : "pages"}/</code>{" "}then <code>npm run sync</code></>
-              }
+              {editorMode === "richtext" ? (
+                "Editing body content only (frontmatter preserved)"
+              ) : (
+                <>
+                  Save to <code>content/{contentType === "post" ? "blog" : "pages"}/</code> then{" "}
+                  <code>npm run sync</code>
+                </>
+              )}
             </div>
           </div>
         </div>
 
         {/* Frontmatter Sidebar */}
-        <aside
-          className={`dashboard-write-sidebar ${frontmatterCollapsed ? "collapsed" : ""}`}
-        >
+        <aside className={`dashboard-write-sidebar ${frontmatterCollapsed ? "collapsed" : ""}`}>
           <div className="dashboard-write-sidebar-header">
             <span>Frontmatter</span>
             <button
               onClick={toggleFrontmatter}
               className="dashboard-write-sidebar-toggle"
-              title={frontmatterCollapsed ? "Expand" : "Collapse"}
-            >
+              title={frontmatterCollapsed ? "Expand" : "Collapse"}>
               <SidebarSimple size={16} weight="regular" />
             </button>
           </div>
-          <div className="dashboard-write-fields">
-            <div className="write-fields-section">
-              <span className="write-fields-label">
-                {contentType === "post" ? "Blog Post" : "Page"} Fields
-              </span>
-              {fields.map((field) => (
-                <div key={field.name} className="write-field-row">
-                  <div className="write-field-info">
-                    <code className="write-field-name">
-                      {field.name}
-                      {field.required && (
-                        <span className="write-field-required">*</span>
-                      )}
-                    </code>
-                    <span className="write-field-example">{field.example}</span>
-                  </div>
-                  <button
-                    onClick={() => handleCopyField(field.name, field.example)}
-                    className={`write-field-copy ${copiedField === field.name ? "copied" : ""}`}
-                    title={`Copy ${field.name}`}
-                  >
-                    {copiedField === field.name ? (
-                      <Check size={14} weight="bold" />
-                    ) : (
-                      <CopySimple size={14} />
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="write-fields-note">
-              <span className="write-field-required">*</span> Required fields
-            </div>
+          <div className="dashboard-write-fields fmf-panel">
+            <FrontmatterForm
+              kind={contentType}
+              value={frontmatter}
+              onChange={setFrontmatter}
+              hiddenFields={demoHiddenFields}
+            />
           </div>
         </aside>
       </div>
@@ -3253,13 +3663,12 @@ published: false
       <div className="dashboard-write-warning">
         <Warning size={14} />
         <span>
-          Content saved locally in this browser only. Copy before leaving to
-          avoid losing work.
+          Content saved locally in this browser only. Copy before leaving to avoid losing work.
         </span>
       </div>
 
-      {/* Image Upload Modal - only when media is enabled */}
-      {siteConfig.media?.enabled && (
+      {/* Image Upload Modal - only when media is enabled and not in demo mode */}
+      {siteConfig.media?.enabled && !isDemo && (
         <ImageUploadModal
           isOpen={showImageUpload}
           onClose={() => setShowImageUpload(false)}
@@ -3280,54 +3689,98 @@ function AIAgentSection() {
   );
   const [aspectRatio, setAspectRatio] = useState<"1:1" | "16:9" | "9:16" | "4:3" | "3:4">("1:1");
   const [imagePrompt, setImagePrompt] = useState("");
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState<{ url: string; prompt: string } | null>(null);
-  const [imageError, setImageError] = useState<string | null>(null);
+  const [isRequestingImage, setIsRequestingImage] = useState(false);
+  const [currentImageJobId, setCurrentImageJobId] = useState<Id<"aiImageGenerationJobs"> | null>(
+    null
+  );
+  const [imageRequestError, setImageRequestError] = useState<string | null>(null);
   const [showImageModelDropdown, setShowImageModelDropdown] = useState(false);
   const [showTextModelDropdown, setShowTextModelDropdown] = useState(false);
   const [copiedFormat, setCopiedFormat] = useState<"md" | "html" | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingImage, setIsDeletingImage] = useState(false);
 
-  const generateImage = useAction(api.aiImageGeneration.generateImage);
+  const requestImageGeneration = useMutation(api.aiImageJobs.requestImageGeneration);
+  const imageGenerationJob = useQuery(
+    api.aiImageJobs.getImageGenerationJob,
+    currentImageJobId ? { jobId: currentImageJobId } : "skip"
+  );
+  const deleteGeneratedImage = useMutation(api.aiChats.deleteGeneratedImage);
 
   const textModels = siteConfig.aiDashboard?.textModels || [
     { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", provider: "anthropic" as const },
   ];
   const imageModels = siteConfig.aiDashboard?.imageModels || [
-    { id: "gemini-2.0-flash-exp-image-generation", name: "Nano Banana", provider: "google" as const },
+    {
+      id: "gemini-2.0-flash-exp-image-generation",
+      name: "Nano Banana",
+      provider: "google" as const,
+    },
   ];
 
   const enableImageGeneration = siteConfig.aiDashboard?.enableImageGeneration ?? true;
+  const generatedImage =
+    imageGenerationJob &&
+    imageGenerationJob.status === "completed" &&
+    imageGenerationJob.url &&
+    imageGenerationJob.storageId
+      ? {
+          url: imageGenerationJob.url,
+          prompt: imageGenerationJob.prompt,
+          storageId: imageGenerationJob.storageId,
+        }
+      : null;
+  const imageError =
+    imageRequestError ||
+    (imageGenerationJob?.status === "failed"
+      ? imageGenerationJob.error || "Failed to generate image"
+      : null);
+  const isGeneratingImage = isRequestingImage || imageGenerationJob?.status === "pending";
 
   const handleGenerateImage = async () => {
     if (!imagePrompt.trim() || isGeneratingImage) return;
 
-    setIsGeneratingImage(true);
-    setImageError(null);
-    setGeneratedImage(null);
+    setIsRequestingImage(true);
+    setImageRequestError(null);
+    setCurrentImageJobId(null);
 
     try {
-      const result = await generateImage({
+      const result = await requestImageGeneration({
         sessionId: localStorage.getItem("ai_chat_session_id") || crypto.randomUUID(),
         prompt: imagePrompt,
-        model: selectedImageModel as "gemini-2.0-flash-exp-image-generation" | "imagen-3.0-generate-002",
+        model: selectedImageModel as
+          | "gemini-2.0-flash-exp-image-generation"
+          | "imagen-3.0-generate-002",
         aspectRatio,
       });
-
-      if (result.success && result.url) {
-        setGeneratedImage({ url: result.url, prompt: imagePrompt });
-        setImagePrompt("");
-      } else if (result.error) {
-        setImageError(result.error);
-      }
+      setCurrentImageJobId(result.jobId);
     } catch (error) {
-      setImageError(error instanceof Error ? error.message : "Failed to generate image");
+      setImageRequestError(error instanceof Error ? error.message : "Failed to generate image");
     } finally {
-      setIsGeneratingImage(false);
+      setIsRequestingImage(false);
     }
   };
 
-  const selectedTextModelName = textModels.find(m => m.id === selectedTextModel)?.name || "Claude Sonnet 4";
-  const selectedImageModelName = imageModels.find(m => m.id === selectedImageModel)?.name || "Nano Banana";
+  // Handle delete image from database
+  const handleDeleteImage = async () => {
+    if (!generatedImage) return;
+
+    setIsDeletingImage(true);
+    try {
+      await deleteGeneratedImage({ storageId: generatedImage.storageId });
+      setCurrentImageJobId(null);
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      console.error("Failed to delete image:", error);
+    } finally {
+      setIsDeletingImage(false);
+    }
+  };
+
+  const selectedTextModelName =
+    textModels.find((m) => m.id === selectedTextModel)?.name || "Claude Sonnet 4";
+  const selectedImageModelName =
+    imageModels.find((m) => m.id === selectedImageModel)?.name || "Nano Banana";
 
   // Generate markdown code for the image
   const getMarkdownCode = (url: string, prompt: string) => `![${prompt}](${url})`;
@@ -3338,9 +3791,10 @@ function AIAgentSection() {
   // Copy code to clipboard
   const handleCopyCode = async (format: "md" | "html") => {
     if (!generatedImage) return;
-    const code = format === "md"
-      ? getMarkdownCode(generatedImage.url, generatedImage.prompt)
-      : getHtmlCode(generatedImage.url, generatedImage.prompt);
+    const code =
+      format === "md"
+        ? getMarkdownCode(generatedImage.url, generatedImage.prompt)
+        : getHtmlCode(generatedImage.url, generatedImage.prompt);
     await navigator.clipboard.writeText(code);
     setCopiedFormat(format);
     setTimeout(() => setCopiedFormat(null), 2000);
@@ -3377,16 +3831,14 @@ function AIAgentSection() {
       <div className="ai-agent-tabs">
         <button
           className={`ai-agent-tab ${activeTab === "chat" ? "active" : ""}`}
-          onClick={() => setActiveTab("chat")}
-        >
+          onClick={() => setActiveTab("chat")}>
           <ChatText size={18} weight="bold" />
           <span>Chat</span>
         </button>
         {enableImageGeneration && (
           <button
             className={`ai-agent-tab ${activeTab === "image" ? "active" : ""}`}
-            onClick={() => setActiveTab("image")}
-          >
+            onClick={() => setActiveTab("image")}>
             <Image size={18} weight="bold" />
             <span>Image</span>
           </button>
@@ -3402,8 +3854,7 @@ function AIAgentSection() {
             <div className="ai-model-dropdown-container">
               <button
                 className="ai-model-dropdown-trigger"
-                onClick={() => setShowTextModelDropdown(!showTextModelDropdown)}
-              >
+                onClick={() => setShowTextModelDropdown(!showTextModelDropdown)}>
                 <span>{selectedTextModelName}</span>
                 <CaretDown size={14} weight="bold" />
               </button>
@@ -3416,8 +3867,7 @@ function AIAgentSection() {
                       onClick={() => {
                         setSelectedTextModel(model.id);
                         setShowTextModelDropdown(false);
-                      }}
-                    >
+                      }}>
                       <span className="ai-model-name">{model.name}</span>
                       <span className="ai-model-provider">{model.provider}</span>
                     </button>
@@ -3439,8 +3889,7 @@ function AIAgentSection() {
             <div className="ai-model-dropdown-container">
               <button
                 className="ai-model-dropdown-trigger"
-                onClick={() => setShowImageModelDropdown(!showImageModelDropdown)}
-              >
+                onClick={() => setShowImageModelDropdown(!showImageModelDropdown)}>
                 <span>{selectedImageModelName}</span>
                 <CaretDown size={14} weight="bold" />
               </button>
@@ -3453,8 +3902,7 @@ function AIAgentSection() {
                       onClick={() => {
                         setSelectedImageModel(model.id);
                         setShowImageModelDropdown(false);
-                      }}
-                    >
+                      }}>
                       <span className="ai-model-name">{model.name}</span>
                       <span className="ai-model-provider">{model.provider}</span>
                     </button>
@@ -3472,8 +3920,7 @@ function AIAgentSection() {
                 <button
                   key={ratio}
                   className={`ai-aspect-ratio-option ${aspectRatio === ratio ? "selected" : ""}`}
-                  onClick={() => setAspectRatio(ratio)}
-                >
+                  onClick={() => setAspectRatio(ratio)}>
                   {ratio}
                 </button>
               ))}
@@ -3491,36 +3938,63 @@ function AIAgentSection() {
                 <button
                   className="ai-image-action-btn download"
                   onClick={handleDownloadImage}
-                  title="Download image"
-                >
+                  title="Download image">
                   <Download size={16} />
                   <span>Download</span>
                 </button>
                 <button
                   className={`ai-image-action-btn ${copiedFormat === "md" ? "copied" : ""}`}
                   onClick={() => handleCopyCode("md")}
-                  title="Copy as Markdown"
-                >
+                  title="Copy as Markdown">
                   {copiedFormat === "md" ? <Check size={16} /> : <CopySimple size={16} />}
                   <span>{copiedFormat === "md" ? "Copied" : "MD"}</span>
                 </button>
                 <button
                   className={`ai-image-action-btn ${copiedFormat === "html" ? "copied" : ""}`}
                   onClick={() => handleCopyCode("html")}
-                  title="Copy as HTML"
-                >
+                  title="Copy as HTML">
                   {copiedFormat === "html" ? <Check size={16} /> : <CopySimple size={16} />}
                   <span>{copiedFormat === "html" ? "Copied" : "HTML"}</span>
                 </button>
                 <button
-                  className="ai-image-action-btn clear"
-                  onClick={() => setGeneratedImage(null)}
-                  title="Clear image"
-                >
+                  className="ai-image-action-btn delete"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  title="Delete image from database">
                   <Trash size={16} />
-                  <span>Clear</span>
+                  <span>Delete</span>
                 </button>
               </div>
+
+              {/* Delete Confirmation */}
+              {showDeleteConfirm && (
+                <div className="ai-image-delete-confirm">
+                  <p>Delete this image from the database?</p>
+                  <div className="ai-image-delete-actions">
+                    <button
+                      className="ai-image-confirm-btn cancel"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      disabled={isDeletingImage}>
+                      Cancel
+                    </button>
+                    <button
+                      className="ai-image-confirm-btn confirm"
+                      onClick={handleDeleteImage}
+                      disabled={isDeletingImage}>
+                      {isDeletingImage ? (
+                        <>
+                          <SpinnerGap size={14} className="animate-spin" />
+                          <span>Deleting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trash size={14} />
+                          <span>Delete</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Code Preview */}
               <div className="ai-image-code-preview">
@@ -3570,8 +4044,7 @@ function AIAgentSection() {
             <button
               className="ai-image-generate-button"
               onClick={handleGenerateImage}
-              disabled={!imagePrompt.trim() || isGeneratingImage}
-            >
+              disabled={!imagePrompt.trim() || isGeneratingImage}>
               {isGeneratingImage ? (
                 <SpinnerGap size={18} weight="bold" className="ai-image-spinner" />
               ) : (
@@ -3588,9 +4061,7 @@ function AIAgentSection() {
 
 function NewsletterSubscribersSection() {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "subscribed" | "unsubscribed">(
-    "all",
-  );
+  const [filter, setFilter] = useState<"all" | "subscribed" | "unsubscribed">("all");
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -3610,7 +4081,7 @@ function NewsletterSubscribersSection() {
         setDeleteConfirm(null);
       }
     },
-    [deleteSubscriber],
+    [deleteSubscriber]
   );
 
   const handleNextPage = useCallback(() => {
@@ -3684,8 +4155,7 @@ function NewsletterSubscribersSection() {
                 setFilter("all");
                 setCursor(undefined);
               }}
-              className={`dashboard-newsletter-filter-btn ${filter === "all" ? "active" : ""}`}
-            >
+              className={`dashboard-newsletter-filter-btn ${filter === "all" ? "active" : ""}`}>
               All
             </button>
             <button
@@ -3693,8 +4163,7 @@ function NewsletterSubscribersSection() {
                 setFilter("subscribed");
                 setCursor(undefined);
               }}
-              className={`dashboard-newsletter-filter-btn ${filter === "subscribed" ? "active" : ""}`}
-            >
+              className={`dashboard-newsletter-filter-btn ${filter === "subscribed" ? "active" : ""}`}>
               Active
             </button>
             <button
@@ -3702,8 +4171,7 @@ function NewsletterSubscribersSection() {
                 setFilter("unsubscribed");
                 setCursor(undefined);
               }}
-              className={`dashboard-newsletter-filter-btn ${filter === "unsubscribed" ? "active" : ""}`}
-            >
+              className={`dashboard-newsletter-filter-btn ${filter === "unsubscribed" ? "active" : ""}`}>
               Unsubscribed
             </button>
           </div>
@@ -3724,21 +4192,16 @@ function NewsletterSubscribersSection() {
           <div className="dashboard-list-empty">Loading subscribers...</div>
         ) : subscribersData.subscribers.length === 0 ? (
           <div className="dashboard-list-empty">
-            {search
-              ? "No subscribers match your search."
-              : "No subscribers yet."}
+            {search ? "No subscribers match your search." : "No subscribers yet."}
           </div>
         ) : (
           subscribersData.subscribers.map((sub) => (
             <div
               key={sub._id}
-              className={`dashboard-list-row ${!sub.subscribed ? "unsubscribed" : ""}`}
-            >
+              className={`dashboard-list-row ${!sub.subscribed ? "unsubscribed" : ""}`}>
               <div className="col-email">{sub.email}</div>
               <div className="col-status">
-                <span
-                  className={`status-badge ${!sub.subscribed ? "draft" : "published"}`}
-                >
+                <span className={`status-badge ${!sub.subscribed ? "draft" : "published"}`}>
                   {!sub.subscribed ? "Unsubscribed" : "Active"}
                 </span>
               </div>
@@ -3751,15 +4214,13 @@ function NewsletterSubscribersSection() {
                     <button
                       onClick={() => handleDelete(sub._id)}
                       className="dashboard-action-btn delete"
-                      title="Confirm delete"
-                    >
+                      title="Confirm delete">
                       <Check size={16} weight="bold" />
                     </button>
                     <button
                       onClick={() => setDeleteConfirm(null)}
                       className="dashboard-action-btn"
-                      title="Cancel"
-                    >
+                      title="Cancel">
                       <X size={16} weight="bold" />
                     </button>
                   </div>
@@ -3767,8 +4228,7 @@ function NewsletterSubscribersSection() {
                   <button
                     onClick={() => setDeleteConfirm(sub._id)}
                     className="dashboard-action-btn delete"
-                    title="Delete subscriber"
-                  >
+                    title="Delete subscriber">
                     <Trash size={16} />
                   </button>
                 )}
@@ -3781,19 +4241,14 @@ function NewsletterSubscribersSection() {
       {/* Pagination */}
       {subscribersData && subscribersData.subscribers.length > 0 && (
         <div className="dashboard-newsletter-pagination">
-          <button
-            onClick={handlePrevPage}
-            disabled={!cursor}
-            className="dashboard-action-btn"
-          >
+          <button onClick={handlePrevPage} disabled={!cursor} className="dashboard-action-btn">
             <CaretLeft size={16} />
             First
           </button>
           <button
             onClick={handleNextPage}
             disabled={!subscribersData.nextCursor}
-            className="dashboard-action-btn"
-          >
+            className="dashboard-action-btn">
             Next
             <CaretRight size={16} />
           </button>
@@ -3818,9 +4273,7 @@ function NewsletterSendSection({
   } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const scheduleSendPost = useMutation(
-    api.newsletter.scheduleSendPostNewsletter,
-  );
+  const scheduleSendPost = useMutation(api.newsletter.scheduleSendPostNewsletter);
 
   const handleSendPostNewsletter = useCallback(async () => {
     if (!selectedPost) return;
@@ -3901,8 +4354,7 @@ function NewsletterSendSection({
             value={selectedPost}
             onChange={(e) => setSelectedPost(e.target.value)}
             className="dashboard-newsletter-select"
-            disabled={sendingNewsletter}
-          >
+            disabled={sendingNewsletter}>
             <option value="">Choose a post...</option>
             {posts?.map((post) => (
               <option key={post.slug} value={post.slug} disabled={post.wasSent}>
@@ -3915,8 +4367,7 @@ function NewsletterSendSection({
         <button
           onClick={handleSendPostNewsletter}
           disabled={!selectedPost || sendingNewsletter}
-          className="dashboard-newsletter-send-btn"
-        >
+          className="dashboard-newsletter-send-btn">
           {sendingNewsletter ? (
             "Sending..."
           ) : (
@@ -3929,24 +4380,16 @@ function NewsletterSendSection({
 
         {sendResult && (
           <div
-            className={`dashboard-newsletter-result ${sendResult.success ? "success" : "error"}`}
-          >
+            className={`dashboard-newsletter-result ${sendResult.success ? "success" : "error"}`}>
             <span>{sendResult.message}</span>
             {sendResult.command && (
               <div className="dashboard-newsletter-command-row">
-                <code className="dashboard-newsletter-command">
-                  {sendResult.command}
-                </code>
+                <code className="dashboard-newsletter-command">{sendResult.command}</code>
                 <button
                   onClick={() => handleCopyCommand(sendResult.command!)}
                   className="dashboard-action-btn"
-                  title={copied ? "Copied!" : "Copy command"}
-                >
-                  {copied ? (
-                    <Check size={14} weight="bold" />
-                  ) : (
-                    <Copy size={14} />
-                  )}
+                  title={copied ? "Copied!" : "Copy command"}>
+                  {copied ? <Check size={14} weight="bold" /> : <Copy size={14} />}
                 </button>
               </div>
             )}
@@ -3970,9 +4413,7 @@ function NewsletterWriteEmailSection({
     message: string;
   } | null>(null);
 
-  const scheduleSendCustom = useMutation(
-    api.newsletter.scheduleSendCustomNewsletter,
-  );
+  const scheduleSendCustom = useMutation(api.newsletter.scheduleSendCustomNewsletter);
 
   const handleSendCustomNewsletter = useCallback(async () => {
     if (!customSubject.trim() || !customContent.trim()) {
@@ -4005,8 +4446,7 @@ function NewsletterWriteEmailSection({
         addToast(result.message, "error");
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to send newsletter";
+      const errorMessage = error instanceof Error ? error.message : "Failed to send newsletter";
       setSendResult({
         success: false,
         message: errorMessage,
@@ -4032,8 +4472,7 @@ function NewsletterWriteEmailSection({
       <div className="dashboard-newsletter-write">
         <h3>Write Custom Email</h3>
         <p className="dashboard-newsletter-form-desc">
-          Write a custom email to send to all active subscribers. Supports
-          markdown formatting.
+          Write a custom email to send to all active subscribers. Supports markdown formatting.
         </p>
 
         <div className="dashboard-newsletter-form-group">
@@ -4049,9 +4488,7 @@ function NewsletterWriteEmailSection({
         </div>
 
         <div className="dashboard-newsletter-form-group">
-          <label className="dashboard-newsletter-label">
-            Content (Markdown)
-          </label>
+          <label className="dashboard-newsletter-label">Content (Markdown)</label>
           <textarea
             value={customContent}
             onChange={(e) => setCustomContent(e.target.value)}
@@ -4070,11 +4507,8 @@ Supports markdown:
 
         <button
           onClick={handleSendCustomNewsletter}
-          disabled={
-            !customSubject.trim() || !customContent.trim() || sendingNewsletter
-          }
-          className="dashboard-newsletter-send-btn"
-        >
+          disabled={!customSubject.trim() || !customContent.trim() || sendingNewsletter}
+          className="dashboard-newsletter-send-btn">
           {sendingNewsletter ? (
             "Sending..."
           ) : (
@@ -4087,8 +4521,7 @@ Supports markdown:
 
         {sendResult && (
           <div
-            className={`dashboard-newsletter-result ${sendResult.success ? "success" : "error"}`}
-          >
+            className={`dashboard-newsletter-result ${sendResult.success ? "success" : "error"}`}>
             <span>{sendResult.message}</span>
           </div>
         )}
@@ -4131,8 +4564,7 @@ function NewsletterRecentSendsSection() {
           {stats.recentNewsletters.map((newsletter, index) => (
             <div
               key={`${newsletter.postSlug}-${index}`}
-              className="dashboard-newsletter-recent-item"
-            >
+              className="dashboard-newsletter-recent-item">
               <div className="dashboard-newsletter-recent-info">
                 <span className="dashboard-newsletter-recent-slug">
                   {newsletter.type === "custom"
@@ -4141,13 +4573,9 @@ function NewsletterRecentSendsSection() {
                 </span>
                 <span className="dashboard-newsletter-recent-meta">
                   {newsletter.type === "custom" ? (
-                    <span className="dashboard-newsletter-badge-type custom">
-                      Custom
-                    </span>
+                    <span className="dashboard-newsletter-badge-type custom">Custom</span>
                   ) : (
-                    <span className="dashboard-newsletter-badge-type post">
-                      Post
-                    </span>
+                    <span className="dashboard-newsletter-badge-type post">Post</span>
                   )}
                   Sent to {newsletter.sentCount} subscriber
                   {newsletter.sentCount !== 1 ? "s" : ""}
@@ -4193,9 +4621,7 @@ function NewsletterStatsSection() {
                 <span className="dashboard-newsletter-stat-card-value">
                   {stats.totalEmailsSent}
                 </span>
-                <span className="dashboard-newsletter-stat-card-label">
-                  Total Emails Sent
-                </span>
+                <span className="dashboard-newsletter-stat-card-label">Total Emails Sent</span>
               </div>
             </div>
             <div className="dashboard-newsletter-stat-card">
@@ -4206,9 +4632,7 @@ function NewsletterStatsSection() {
                 <span className="dashboard-newsletter-stat-card-value">
                   {stats.totalNewslettersSent}
                 </span>
-                <span className="dashboard-newsletter-stat-card-label">
-                  Newsletters Sent
-                </span>
+                <span className="dashboard-newsletter-stat-card-label">Newsletters Sent</span>
               </div>
             </div>
             <div className="dashboard-newsletter-stat-card">
@@ -4219,9 +4643,7 @@ function NewsletterStatsSection() {
                 <span className="dashboard-newsletter-stat-card-value">
                   {stats.activeSubscribers}
                 </span>
-                <span className="dashboard-newsletter-stat-card-label">
-                  Active Subscribers
-                </span>
+                <span className="dashboard-newsletter-stat-card-label">Active Subscribers</span>
               </div>
             </div>
             <div className="dashboard-newsletter-stat-card">
@@ -4231,16 +4653,11 @@ function NewsletterStatsSection() {
               <div className="dashboard-newsletter-stat-card-content">
                 <span className="dashboard-newsletter-stat-card-value">
                   {stats.totalSubscribers > 0
-                    ? Math.round(
-                        (stats.activeSubscribers / stats.totalSubscribers) *
-                          100,
-                      )
+                    ? Math.round((stats.activeSubscribers / stats.totalSubscribers) * 100)
                     : 0}
                   %
                 </span>
-                <span className="dashboard-newsletter-stat-card-label">
-                  Retention Rate
-                </span>
+                <span className="dashboard-newsletter-stat-card-label">Retention Rate</span>
               </div>
             </div>
           </div>
@@ -4275,45 +4692,65 @@ function NewsletterStatsSection() {
   );
 }
 
-function ImportURLSection({
-  addToast,
-}: {
-  addToast: (message: string, type?: ToastType) => void;
-}) {
+function ImportURLSection({ addToast }: { addToast: (message: string, type?: ToastType) => void }) {
   const [url, setUrl] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isRequestingImport, setIsRequestingImport] = useState(false);
   const [publishImmediately, setPublishImmediately] = useState(false);
   const [lastImported, setLastImported] = useState<{
     title: string;
     slug: string;
   } | null>(null);
-  const importAction = useAction(api.importAction.importFromUrl);
+  const [currentImportJobId, setCurrentImportJobId] = useState<Id<"importUrlJobs"> | null>(null);
+  const [importRequestError, setImportRequestError] = useState<string | null>(null);
+  const [handledImportJobId, setHandledImportJobId] = useState<Id<"importUrlJobs"> | null>(null);
+  const requestImportFromUrl = useMutation(api.importJobs.requestImportFromUrl);
+  const importJob = useQuery(
+    api.importJobs.getImportJob,
+    currentImportJobId ? { jobId: currentImportJobId } : "skip"
+  );
+
+  const isLoading = isRequestingImport || importJob?.status === "pending";
+
+  useEffect(() => {
+    if (!importJob || handledImportJobId === importJob._id) {
+      return;
+    }
+
+    if (importJob.status === "completed" && importJob.slug && importJob.title) {
+      setLastImported({ title: importJob.title, slug: importJob.slug });
+      addToast(`Imported "${importJob.title}" successfully`, "success");
+      setUrl("");
+      setHandledImportJobId(importJob._id);
+      return;
+    }
+
+    if (importJob.status === "failed") {
+      addToast(importJob.error || "Failed to import URL", "error");
+      setHandledImportJobId(importJob._id);
+    }
+  }, [addToast, handledImportJobId, importJob]);
 
   const handleImport = async () => {
     if (!url.trim()) return;
 
-    setIsLoading(true);
+    setIsRequestingImport(true);
     setLastImported(null);
+    setImportRequestError(null);
+    setHandledImportJobId(null);
+    setCurrentImportJobId(null);
 
     try {
-      const result = await importAction({
+      const result = await requestImportFromUrl({
         url: url.trim(),
         published: publishImmediately,
       });
-
-      if (result.success && result.slug && result.title) {
-        setLastImported({ title: result.title, slug: result.slug });
-        addToast(`Imported "${result.title}" successfully`, "success");
-        setUrl("");
-      } else {
-        addToast(result.error || "Failed to import URL", "error");
-      }
+      setCurrentImportJobId(result.jobId);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to import URL";
+      const message = error instanceof Error ? error.message : "Failed to import URL";
+      setImportRequestError(message);
       addToast(message, "error");
     } finally {
-      setIsLoading(false);
+      setIsRequestingImport(false);
     }
   };
 
@@ -4352,8 +4789,7 @@ function ImportURLSection({
         <button
           className="dashboard-import-btn"
           onClick={handleImport}
-          disabled={isLoading || !url.trim()}
-        >
+          disabled={isLoading || !url.trim()}>
           {isLoading ? (
             <>
               <SpinnerGap size={16} className="animate-spin" />
@@ -4381,6 +4817,13 @@ function ImportURLSection({
         </div>
       )}
 
+      {importRequestError && !lastImported && (
+        <div className="dashboard-import-error">
+          <WarningCircle size={20} weight="fill" />
+          <div>{importRequestError}</div>
+        </div>
+      )}
+
       <div className="dashboard-import-info">
         <h3>How it works</h3>
         <ol>
@@ -4389,9 +4832,7 @@ function ImportURLSection({
           <li>Post is saved directly to the database</li>
           <li>Edit and publish from the Posts section</li>
         </ol>
-        <p className="note">
-          Requires FIRECRAWL_API_KEY in Convex environment variables
-        </p>
+        <p className="note">Requires FIRECRAWL_API_KEY in Convex environment variables</p>
       </div>
     </div>
   );
@@ -4416,11 +4857,7 @@ function escapeJson(text: string): string {
     .replace(/\t/g, "\\t");
 }
 
-function IndexHtmlSection({
-  addToast,
-}: {
-  addToast: (message: string, type: ToastType) => void;
-}) {
+function IndexHtmlSection({ addToast }: { addToast: (message: string, type: ToastType) => void }) {
   // Pre-populate from siteConfig (since index.html should match)
   const [htmlConfig, setHtmlConfig] = useState({
     siteName: siteConfig.name,
@@ -4433,8 +4870,7 @@ function IndexHtmlSection({
     ogImage: "/images/og-default.png",
     favicon: "/favicon.svg",
     themeColor: "#faf8f5",
-    keywords:
-      "markdown site, Convex, Netlify, React, TypeScript, open source, real-time, sync",
+    keywords: "markdown site, Convex, Netlify, React, TypeScript, open source, real-time, sync",
     author: siteConfig.name,
   });
 
@@ -4600,20 +5036,14 @@ function IndexHtmlSection({
       <div className="dashboard-config-header">
         <div>
           <h2>Index HTML Generator</h2>
-          <p>
-            Generate index.html with SEO metadata, Open Graph, and Twitter Card
-            tags
-          </p>
+          <p>Generate index.html with SEO metadata, Open Graph, and Twitter Card tags</p>
         </div>
         <div className="dashboard-config-actions">
           <button className="dashboard-action-btn" onClick={handleCopy}>
             {copied ? <Check size={16} /> : <Copy size={16} />}
             <span>{copied ? "Copied" : "Copy HTML"}</span>
           </button>
-          <button
-            className="dashboard-action-btn primary"
-            onClick={handleDownload}
-          >
+          <button className="dashboard-action-btn primary" onClick={handleDownload}>
             <Download size={16} />
             <span>Download</span>
           </button>
@@ -4632,9 +5062,7 @@ function IndexHtmlSection({
               onChange={(e) => handleChange("siteName", e.target.value)}
               placeholder="Your Site Name"
             />
-            <span className="config-field-note">
-              Used in Open Graph site_name and JSON-LD
-            </span>
+            <span className="config-field-note">Used in Open Graph site_name and JSON-LD</span>
           </div>
           <div className="config-field">
             <label>Site Title</label>
@@ -4677,9 +5105,7 @@ function IndexHtmlSection({
               onChange={(e) => handleChange("keywords", e.target.value)}
               placeholder="keyword1, keyword2, keyword3"
             />
-            <span className="config-field-note">
-              Comma-separated keywords for SEO
-            </span>
+            <span className="config-field-note">Comma-separated keywords for SEO</span>
           </div>
         </div>
 
@@ -4694,9 +5120,7 @@ function IndexHtmlSection({
               onChange={(e) => handleChange("siteUrl", e.target.value)}
               placeholder="https://example.com"
             />
-            <span className="config-field-note">
-              Full URL including protocol (https://)
-            </span>
+            <span className="config-field-note">Full URL including protocol (https://)</span>
           </div>
           <div className="config-field">
             <label>Site Domain</label>
@@ -4706,9 +5130,7 @@ function IndexHtmlSection({
               onChange={(e) => handleChange("siteDomain", e.target.value)}
               placeholder="example.com"
             />
-            <span className="config-field-note">
-              Auto-updated from Site URL, or set manually
-            </span>
+            <span className="config-field-note">Auto-updated from Site URL, or set manually</span>
           </div>
           <div className="config-field">
             <label>Open Graph Image</label>
@@ -4730,9 +5152,7 @@ function IndexHtmlSection({
               onChange={(e) => handleChange("favicon", e.target.value)}
               placeholder="/favicon.svg"
             />
-            <span className="config-field-note">
-              Path to favicon (e.g., /favicon.svg)
-            </span>
+            <span className="config-field-note">Path to favicon (e.g., /favicon.svg)</span>
           </div>
           <div className="config-field">
             <label>Theme Color</label>
@@ -4784,6 +5204,7 @@ function ConfigSection({
     logo: siteConfig.logo || "",
     bio: siteConfig.bio,
     fontFamily: siteConfig.fontFamily,
+    defaultTheme: siteConfig.defaultTheme || "light",
     featuredViewMode: siteConfig.featuredViewMode,
     featuredTitle: siteConfig.featuredTitle,
     showViewToggle: siteConfig.showViewToggle,
@@ -4798,12 +5219,9 @@ function ConfigSection({
     showPostsOnHome: siteConfig.postsDisplay.showOnHome,
     showPostsOnBlogPage: siteConfig.postsDisplay.showOnBlogPage,
     homePostsLimit: siteConfig.postsDisplay.homePostsLimit || 0,
-    homePostsReadMoreEnabled:
-      siteConfig.postsDisplay.homePostsReadMore?.enabled || false,
-    homePostsReadMoreText:
-      siteConfig.postsDisplay.homePostsReadMore?.text || "",
-    homePostsReadMoreLink:
-      siteConfig.postsDisplay.homePostsReadMore?.link || "",
+    homePostsReadMoreEnabled: siteConfig.postsDisplay.homePostsReadMore?.enabled || false,
+    homePostsReadMoreText: siteConfig.postsDisplay.homePostsReadMore?.text || "",
+    homePostsReadMoreLink: siteConfig.postsDisplay.homePostsReadMore?.link || "",
     // Right sidebar
     rightSidebarEnabled: siteConfig.rightSidebar.enabled,
     rightSidebarMinWidth: siteConfig.rightSidebar.minWidth || 1135,
@@ -4819,15 +5237,16 @@ function ConfigSection({
     aiChatEnabledOnContent: siteConfig.aiChat.enabledOnContent,
     // Newsletter
     newsletterEnabled: siteConfig.newsletter?.enabled || false,
-    newsletterHomeEnabled:
-      siteConfig.newsletter?.signup?.home?.enabled || false,
-    newsletterBlogPageEnabled:
-      siteConfig.newsletter?.signup?.blogPage?.enabled || false,
-    newsletterPostsEnabled:
-      siteConfig.newsletter?.signup?.posts?.enabled || false,
+    newsletterHomeEnabled: siteConfig.newsletter?.signup?.home?.enabled || false,
+    newsletterBlogPageEnabled: siteConfig.newsletter?.signup?.blogPage?.enabled || false,
+    newsletterPostsEnabled: siteConfig.newsletter?.signup?.posts?.enabled || false,
     // Stats page
     statsPageEnabled: siteConfig.statsPage?.enabled || false,
     statsPageShowInNav: siteConfig.statsPage?.showInNav || false,
+    // Dashboard navigation
+    dashboardEnabled: siteConfig.dashboard?.enabled ?? true,
+    dashboardRequireAuth: siteConfig.dashboard?.requireAuth ?? true,
+    dashboardShowInNav: siteConfig.dashboard?.showInNav ?? true,
     // GitHub
     githubOwner: siteConfig.gitHubRepo.owner,
     githubRepo: siteConfig.gitHubRepo.repo,
@@ -4839,10 +5258,8 @@ function ConfigSection({
     // GitHub contributions
     githubContributionsEnabled: siteConfig.gitHubContributions.enabled,
     githubContributionsUsername: siteConfig.gitHubContributions.username,
-    githubContributionsShowYearNav:
-      siteConfig.gitHubContributions.showYearNavigation,
-    githubContributionsLinkToProfile:
-      siteConfig.gitHubContributions.linkToProfile,
+    githubContributionsShowYearNav: siteConfig.gitHubContributions.showYearNavigation,
+    githubContributionsLinkToProfile: siteConfig.gitHubContributions.linkToProfile,
     // Visitor map
     visitorMapEnabled: siteConfig.visitorMap.enabled,
     visitorMapTitle: siteConfig.visitorMap.title,
@@ -4857,16 +5274,12 @@ function ConfigSection({
     // Social footer
     socialFooterEnabled: siteConfig.socialFooter?.enabled || false,
     socialFooterShowInHeader: siteConfig.socialFooter?.showInHeader || false,
-    socialFooterShowOnHomepage:
-      siteConfig.socialFooter?.showOnHomepage || false,
+    socialFooterShowOnHomepage: siteConfig.socialFooter?.showOnHomepage || false,
     socialFooterShowOnPosts: siteConfig.socialFooter?.showOnPosts || false,
     socialFooterShowOnPages: siteConfig.socialFooter?.showOnPages || false,
-    socialFooterShowOnBlogPage:
-      siteConfig.socialFooter?.showOnBlogPage || false,
-    socialFooterCopyrightSiteName:
-      siteConfig.socialFooter?.copyright?.siteName || "",
-    socialFooterCopyrightShowYear:
-      siteConfig.socialFooter?.copyright?.showYear || false,
+    socialFooterShowOnBlogPage: siteConfig.socialFooter?.showOnBlogPage || false,
+    socialFooterCopyrightSiteName: siteConfig.socialFooter?.copyright?.siteName || "",
+    socialFooterCopyrightShowYear: siteConfig.socialFooter?.copyright?.showYear || false,
     // Logo gallery
     logoGalleryEnabled: siteConfig.logoGallery?.enabled || false,
     logoGalleryPosition: siteConfig.logoGallery?.position || "above-footer",
@@ -4921,6 +5334,7 @@ export const siteConfig: SiteConfig = {
   intro: null,
   bio: \`${config.bio}\`,
   fontFamily: "${config.fontFamily}",
+  defaultTheme: "${config.defaultTheme}",
   featuredViewMode: "${config.featuredViewMode}",
   featuredTitle: "${config.featuredTitle}",
   showViewToggle: ${config.showViewToggle},
@@ -4967,6 +5381,7 @@ export const siteConfig: SiteConfig = {
   hardcodedNavItems: [
     { slug: "stats", title: "Stats", order: 10, showInNav: ${config.statsPageShowInNav} },
     { slug: "write", title: "Write", order: 20, showInNav: true },
+    { slug: "dashboard", title: "Dashboard", order: 21, showInNav: ${config.dashboardShowInNav} },
   ],
   
   postsDisplay: {
@@ -5054,6 +5469,7 @@ export const siteConfig: SiteConfig = {
   newsletterNotifications: { enabled: true, newSubscriberAlert: true, weeklyStatsSummary: true },
   weeklyDigest: { enabled: true, dayOfWeek: 0, subject: "Weekly Digest" },
   mcpServer: { enabled: ${config.mcpServerEnabled}, endpoint: "${config.mcpServerEndpoint}", publicRateLimit: 50, authenticatedRateLimit: 1000, requireAuth: ${config.mcpServerRequireAuth} },
+  dashboard: { enabled: ${config.dashboardEnabled}, requireAuth: ${config.dashboardRequireAuth}, showInNav: ${config.dashboardShowInNav} },
   
   // Image lightbox configuration
   // Enables click-to-magnify functionality for images in blog posts and pages
@@ -5125,10 +5541,7 @@ export default siteConfig;
             {copied ? <Check size={16} /> : <Copy size={16} />}
             <span>{copied ? "Copied" : "Copy Code"}</span>
           </button>
-          <button
-            className="dashboard-action-btn primary"
-            onClick={handleDownloadConfig}
-          >
+          <button className="dashboard-action-btn primary" onClick={handleDownloadConfig}>
             <Download size={16} />
             <span>Download</span>
           </button>
@@ -5138,12 +5551,8 @@ export default siteConfig;
       <div className="dashboard-config-reminder">
         <Info size={16} />
         <span>
-          Don't forget to update <strong>index.html</strong> with matching
-          metadata!
-          <button
-            className="dashboard-link-button"
-            onClick={onNavigateToIndexHtml}
-          >
+          Don't forget to update <strong>index.html</strong> with matching metadata!
+          <button className="dashboard-link-button" onClick={onNavigateToIndexHtml}>
             Go to Index HTML Generator →
           </button>
         </span>
@@ -5186,20 +5595,33 @@ export default siteConfig;
               rows={2}
             />
             <span className="config-field-note">
-              Note: Bio is set in siteConfig.ts. Homepage content is separate
-              and comes from content/pages/home.md
+              Note: Bio is set in siteConfig.ts. Homepage content is separate and comes from
+              content/pages/home.md
             </span>
           </div>
           <div className="config-field">
             <label>Font Family</label>
             <select
               value={config.fontFamily}
-              onChange={(e) => handleChange("fontFamily", e.target.value)}
-            >
+              onChange={(e) => handleChange("fontFamily", e.target.value)}>
               <option value="serif">Serif (New York)</option>
               <option value="sans">Sans (System)</option>
               <option value="monospace">Monospace (IBM Plex Mono)</option>
             </select>
+          </div>
+          <div className="config-field">
+            <label>Default Theme</label>
+            <select
+              value={config.defaultTheme}
+              onChange={(e) => handleChange("defaultTheme", e.target.value)}>
+              <option value="light">Light (white canvas, geometric sans)</option>
+              <option value="dark">Dark (black canvas, editorial serif)</option>
+              <option value="tan">Tan</option>
+              <option value="cloud">Cloud</option>
+            </select>
+            <span className="config-hint">
+              Theme new visitors see before they pick their own
+            </span>
           </div>
         </div>
 
@@ -5211,9 +5633,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.blogPageEnabled}
-                onChange={(e) =>
-                  handleChange("blogPageEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("blogPageEnabled", e.target.checked)}
               />
               <span>Enable /blog route</span>
             </label>
@@ -5223,9 +5643,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.blogPageShowInNav}
-                onChange={(e) =>
-                  handleChange("blogPageShowInNav", e.target.checked)
-                }
+                onChange={(e) => handleChange("blogPageShowInNav", e.target.checked)}
               />
               <span>Show in navigation</span>
             </label>
@@ -5242,8 +5660,7 @@ export default siteConfig;
             <label>View Mode</label>
             <select
               value={config.blogPageViewMode}
-              onChange={(e) => handleChange("blogPageViewMode", e.target.value)}
-            >
+              onChange={(e) => handleChange("blogPageViewMode", e.target.value)}>
               <option value="list">List</option>
               <option value="cards">Cards</option>
             </select>
@@ -5258,9 +5675,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.showPostsOnHome}
-                onChange={(e) =>
-                  handleChange("showPostsOnHome", e.target.checked)
-                }
+                onChange={(e) => handleChange("showPostsOnHome", e.target.checked)}
               />
               <span>Show posts on homepage</span>
             </label>
@@ -5270,9 +5685,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.showPostsOnBlogPage}
-                onChange={(e) =>
-                  handleChange("showPostsOnBlogPage", e.target.checked)
-                }
+                onChange={(e) => handleChange("showPostsOnBlogPage", e.target.checked)}
               />
               <span>Show posts on blog page</span>
             </label>
@@ -5282,9 +5695,7 @@ export default siteConfig;
             <input
               type="number"
               value={config.homePostsLimit}
-              onChange={(e) =>
-                handleChange("homePostsLimit", parseInt(e.target.value) || 0)
-              }
+              onChange={(e) => handleChange("homePostsLimit", parseInt(e.target.value) || 0)}
               min={0}
             />
           </div>
@@ -5305,8 +5716,7 @@ export default siteConfig;
             <label>View Mode</label>
             <select
               value={config.featuredViewMode}
-              onChange={(e) => handleChange("featuredViewMode", e.target.value)}
-            >
+              onChange={(e) => handleChange("featuredViewMode", e.target.value)}>
               <option value="list">List</option>
               <option value="cards">Cards</option>
             </select>
@@ -5316,9 +5726,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.showViewToggle}
-                onChange={(e) =>
-                  handleChange("showViewToggle", e.target.checked)
-                }
+                onChange={(e) => handleChange("showViewToggle", e.target.checked)}
               />
               <span>Show view toggle</span>
             </label>
@@ -5333,9 +5741,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.footerEnabled}
-                onChange={(e) =>
-                  handleChange("footerEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("footerEnabled", e.target.checked)}
               />
               <span>Enable footer</span>
             </label>
@@ -5345,9 +5751,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.footerShowOnHomepage}
-                onChange={(e) =>
-                  handleChange("footerShowOnHomepage", e.target.checked)
-                }
+                onChange={(e) => handleChange("footerShowOnHomepage", e.target.checked)}
               />
               <span>Show on homepage</span>
             </label>
@@ -5357,9 +5761,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.footerShowOnPosts}
-                onChange={(e) =>
-                  handleChange("footerShowOnPosts", e.target.checked)
-                }
+                onChange={(e) => handleChange("footerShowOnPosts", e.target.checked)}
               />
               <span>Show on posts</span>
             </label>
@@ -5369,16 +5771,13 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.footerShowOnPages}
-                onChange={(e) =>
-                  handleChange("footerShowOnPages", e.target.checked)
-                }
+                onChange={(e) => handleChange("footerShowOnPages", e.target.checked)}
               />
               <span>Show on pages</span>
             </label>
           </div>
           <p className="config-field-note" style={{ marginTop: "0.75rem" }}>
-            Footer content is managed via{" "}
-            <code>content/pages/footer.md</code>. Run{" "}
+            Footer content is managed via <code>content/pages/footer.md</code>. Run{" "}
             <code>npm run sync</code> to update.
           </p>
         </div>
@@ -5391,9 +5790,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.aiChatEnabledOnWritePage}
-                onChange={(e) =>
-                  handleChange("aiChatEnabledOnWritePage", e.target.checked)
-                }
+                onChange={(e) => handleChange("aiChatEnabledOnWritePage", e.target.checked)}
               />
               <span>Enable on Write page</span>
             </label>
@@ -5403,9 +5800,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.aiChatEnabledOnContent}
-                onChange={(e) =>
-                  handleChange("aiChatEnabledOnContent", e.target.checked)
-                }
+                onChange={(e) => handleChange("aiChatEnabledOnContent", e.target.checked)}
               />
               <span>Enable on content pages</span>
             </label>
@@ -5420,9 +5815,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.rightSidebarEnabled}
-                onChange={(e) =>
-                  handleChange("rightSidebarEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("rightSidebarEnabled", e.target.checked)}
               />
               <span>Enable right sidebar</span>
             </label>
@@ -5433,10 +5826,7 @@ export default siteConfig;
               type="number"
               value={config.rightSidebarMinWidth}
               onChange={(e) =>
-                handleChange(
-                  "rightSidebarMinWidth",
-                  parseInt(e.target.value) || 1135,
-                )
+                handleChange("rightSidebarMinWidth", parseInt(e.target.value) || 1135)
               }
               min={768}
             />
@@ -5451,9 +5841,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.newsletterEnabled}
-                onChange={(e) =>
-                  handleChange("newsletterEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("newsletterEnabled", e.target.checked)}
               />
               <span>Enable newsletter</span>
             </label>
@@ -5463,9 +5851,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.statsPageEnabled}
-                onChange={(e) =>
-                  handleChange("statsPageEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("statsPageEnabled", e.target.checked)}
               />
               <span>Enable stats page</span>
             </label>
@@ -5475,9 +5861,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.statsPageShowInNav}
-                onChange={(e) =>
-                  handleChange("statsPageShowInNav", e.target.checked)
-                }
+                onChange={(e) => handleChange("statsPageShowInNav", e.target.checked)}
               />
               <span>Show stats in nav</span>
             </label>
@@ -5486,10 +5870,38 @@ export default siteConfig;
             <label>
               <input
                 type="checkbox"
+                checked={config.dashboardEnabled}
+                onChange={(e) => handleChange("dashboardEnabled", e.target.checked)}
+              />
+              <span>Enable dashboard page</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.dashboardRequireAuth}
+                onChange={(e) => handleChange("dashboardRequireAuth", e.target.checked)}
+              />
+              <span>Require dashboard auth</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.dashboardShowInNav}
+                onChange={(e) => handleChange("dashboardShowInNav", e.target.checked)}
+              />
+              <span>Show dashboard in nav (admins only)</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
                 checked={config.visitorMapEnabled}
-                onChange={(e) =>
-                  handleChange("visitorMapEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("visitorMapEnabled", e.target.checked)}
               />
               <span>Enable visitor map</span>
             </label>
@@ -5528,9 +5940,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.githubContributionsEnabled}
-                onChange={(e) =>
-                  handleChange("githubContributionsEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("githubContributionsEnabled", e.target.checked)}
               />
               <span>Enable contributions graph</span>
             </label>
@@ -5540,9 +5950,7 @@ export default siteConfig;
             <input
               type="text"
               value={config.githubContributionsUsername}
-              onChange={(e) =>
-                handleChange("githubContributionsUsername", e.target.value)
-              }
+              onChange={(e) => handleChange("githubContributionsUsername", e.target.value)}
             />
           </div>
         </div>
@@ -5555,9 +5963,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.innerPageLogoEnabled}
-                onChange={(e) =>
-                  handleChange("innerPageLogoEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("innerPageLogoEnabled", e.target.checked)}
               />
               <span>Enable inner page logo</span>
             </label>
@@ -5567,12 +5973,7 @@ export default siteConfig;
             <input
               type="number"
               value={config.innerPageLogoSize}
-              onChange={(e) =>
-                handleChange(
-                  "innerPageLogoSize",
-                  parseInt(e.target.value) || 28,
-                )
-              }
+              onChange={(e) => handleChange("innerPageLogoSize", parseInt(e.target.value) || 28)}
               min={16}
               max={64}
             />
@@ -5586,8 +5987,7 @@ export default siteConfig;
             <label>Type</label>
             <select
               value={config.homepageType}
-              onChange={(e) => handleChange("homepageType", e.target.value)}
-            >
+              onChange={(e) => handleChange("homepageType", e.target.value)}>
               <option value="default">Default</option>
               <option value="post">Post</option>
               <option value="page">Page</option>
@@ -5607,15 +6007,12 @@ export default siteConfig;
             <input
               type="text"
               value={config.homepageOriginalRoute}
-              onChange={(e) =>
-                handleChange("homepageOriginalRoute", e.target.value)
-              }
+              onChange={(e) => handleChange("homepageOriginalRoute", e.target.value)}
               placeholder="/home"
             />
           </div>
           <span className="config-field-note">
-            Homepage content comes from content/pages/home.md (not siteConfig
-            bio)
+            Homepage content comes from content/pages/home.md (not siteConfig bio)
           </span>
         </div>
 
@@ -5627,9 +6024,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.contactFormEnabled}
-                onChange={(e) =>
-                  handleChange("contactFormEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("contactFormEnabled", e.target.checked)}
               />
               <span>Enable contact form</span>
             </label>
@@ -5647,9 +6042,7 @@ export default siteConfig;
             <input
               type="text"
               value={config.contactFormDescription}
-              onChange={(e) =>
-                handleChange("contactFormDescription", e.target.value)
-              }
+              onChange={(e) => handleChange("contactFormDescription", e.target.value)}
             />
           </div>
         </div>
@@ -5662,9 +6055,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.socialFooterEnabled}
-                onChange={(e) =>
-                  handleChange("socialFooterEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("socialFooterEnabled", e.target.checked)}
               />
               <span>Enable social footer</span>
             </label>
@@ -5674,9 +6065,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.socialFooterShowInHeader}
-                onChange={(e) =>
-                  handleChange("socialFooterShowInHeader", e.target.checked)
-                }
+                onChange={(e) => handleChange("socialFooterShowInHeader", e.target.checked)}
               />
               <span>Show in header</span>
             </label>
@@ -5686,9 +6075,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.socialFooterShowOnHomepage}
-                onChange={(e) =>
-                  handleChange("socialFooterShowOnHomepage", e.target.checked)
-                }
+                onChange={(e) => handleChange("socialFooterShowOnHomepage", e.target.checked)}
               />
               <span>Show on homepage</span>
             </label>
@@ -5698,9 +6085,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.socialFooterShowOnPosts}
-                onChange={(e) =>
-                  handleChange("socialFooterShowOnPosts", e.target.checked)
-                }
+                onChange={(e) => handleChange("socialFooterShowOnPosts", e.target.checked)}
               />
               <span>Show on posts</span>
             </label>
@@ -5710,9 +6095,7 @@ export default siteConfig;
             <input
               type="text"
               value={config.socialFooterCopyrightSiteName}
-              onChange={(e) =>
-                handleChange("socialFooterCopyrightSiteName", e.target.value)
-              }
+              onChange={(e) => handleChange("socialFooterCopyrightSiteName", e.target.value)}
             />
           </div>
           <div className="config-field checkbox">
@@ -5720,12 +6103,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.socialFooterCopyrightShowYear}
-                onChange={(e) =>
-                  handleChange(
-                    "socialFooterCopyrightShowYear",
-                    e.target.checked,
-                  )
-                }
+                onChange={(e) => handleChange("socialFooterCopyrightShowYear", e.target.checked)}
               />
               <span>Show year in copyright</span>
             </label>
@@ -5740,9 +6118,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.logoGalleryEnabled}
-                onChange={(e) =>
-                  handleChange("logoGalleryEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("logoGalleryEnabled", e.target.checked)}
               />
               <span>Enable logo gallery</span>
             </label>
@@ -5751,10 +6127,7 @@ export default siteConfig;
             <label>Position</label>
             <select
               value={config.logoGalleryPosition}
-              onChange={(e) =>
-                handleChange("logoGalleryPosition", e.target.value)
-              }
-            >
+              onChange={(e) => handleChange("logoGalleryPosition", e.target.value)}>
               <option value="above-featured">Above Featured</option>
               <option value="above-footer">Above Footer</option>
             </select>
@@ -5772,9 +6145,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.logoGalleryScrolling}
-                onChange={(e) =>
-                  handleChange("logoGalleryScrolling", e.target.checked)
-                }
+                onChange={(e) => handleChange("logoGalleryScrolling", e.target.checked)}
               />
               <span>Enable scrolling marquee</span>
             </label>
@@ -5784,9 +6155,7 @@ export default siteConfig;
             <input
               type="number"
               value={config.logoGallerySpeed}
-              onChange={(e) =>
-                handleChange("logoGallerySpeed", parseInt(e.target.value) || 30)
-              }
+              onChange={(e) => handleChange("logoGallerySpeed", parseInt(e.target.value) || 30)}
               min={1}
               max={100}
             />
@@ -5796,19 +6165,13 @@ export default siteConfig;
             <input
               type="number"
               value={config.logoGalleryMaxItems}
-              onChange={(e) =>
-                handleChange(
-                  "logoGalleryMaxItems",
-                  parseInt(e.target.value) || 4,
-                )
-              }
+              onChange={(e) => handleChange("logoGalleryMaxItems", parseInt(e.target.value) || 4)}
               min={1}
               max={20}
             />
           </div>
           <span className="config-field-note">
-            Logo images are configured in the logoGallery.images array in
-            siteConfig.ts
+            Logo images are configured in the logoGallery.images array in siteConfig.ts
           </span>
         </div>
 
@@ -5820,9 +6183,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.newsletterHomeEnabled}
-                onChange={(e) =>
-                  handleChange("newsletterHomeEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("newsletterHomeEnabled", e.target.checked)}
               />
               <span>Show on homepage</span>
             </label>
@@ -5832,9 +6193,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.newsletterBlogPageEnabled}
-                onChange={(e) =>
-                  handleChange("newsletterBlogPageEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("newsletterBlogPageEnabled", e.target.checked)}
               />
               <span>Show on blog page</span>
             </label>
@@ -5844,9 +6203,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.newsletterPostsEnabled}
-                onChange={(e) =>
-                  handleChange("newsletterPostsEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("newsletterPostsEnabled", e.target.checked)}
               />
               <span>Show on posts</span>
             </label>
@@ -5861,9 +6218,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.mcpServerEnabled}
-                onChange={(e) =>
-                  handleChange("mcpServerEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("mcpServerEnabled", e.target.checked)}
               />
               <span>Enable MCP server</span>
             </label>
@@ -5873,9 +6228,7 @@ export default siteConfig;
             <input
               type="text"
               value={config.mcpServerEndpoint}
-              onChange={(e) =>
-                handleChange("mcpServerEndpoint", e.target.value)
-              }
+              onChange={(e) => handleChange("mcpServerEndpoint", e.target.value)}
               placeholder="/mcp"
             />
           </div>
@@ -5884,9 +6237,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.mcpServerRequireAuth}
-                onChange={(e) =>
-                  handleChange("mcpServerRequireAuth", e.target.checked)
-                }
+                onChange={(e) => handleChange("mcpServerRequireAuth", e.target.checked)}
               />
               <span>Require authentication</span>
             </label>
@@ -5901,9 +6252,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.imageLightboxEnabled}
-                onChange={(e) =>
-                  handleChange("imageLightboxEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("imageLightboxEnabled", e.target.checked)}
               />
               <span>Enable image lightbox (click images to magnify)</span>
             </label>
@@ -5918,15 +6267,14 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.semanticSearchEnabled}
-                onChange={(e) =>
-                  handleChange("semanticSearchEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("semanticSearchEnabled", e.target.checked)}
               />
               <span>Enable semantic search (requires OPENAI_API_KEY in Convex)</span>
             </label>
           </div>
           <p className="config-hint">
-            When enabled, search modal shows both Keyword and Semantic modes. Requires OpenAI API key for embeddings.
+            When enabled, search modal shows both Keyword and Semantic modes. Requires OpenAI API
+            key for embeddings.
           </p>
         </div>
 
@@ -5938,15 +6286,14 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.askAIEnabled}
-                onChange={(e) =>
-                  handleChange("askAIEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("askAIEnabled", e.target.checked)}
               />
               <span>Enable Ask AI header button</span>
             </label>
           </div>
           <p className="config-hint">
-            Shows a sparkle icon in header. Requires semantic search enabled and API keys (ANTHROPIC_API_KEY or OPENAI_API_KEY in Convex).
+            Shows a sparkle icon in header. Requires semantic search enabled and API keys
+            (ANTHROPIC_API_KEY or OPENAI_API_KEY in Convex).
           </p>
         </div>
 
@@ -5958,9 +6305,7 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.mediaEnabled}
-                onChange={(e) =>
-                  handleChange("mediaEnabled", e.target.checked)
-                }
+                onChange={(e) => handleChange("mediaEnabled", e.target.checked)}
               />
               <span>Enable media library</span>
             </label>
@@ -5976,7 +6321,8 @@ export default siteConfig;
             />
           </div>
           <p className="config-hint">
-            Upload and manage images via ConvexFS and Bunny.net CDN. Requires BUNNY_API_KEY, BUNNY_STORAGE_ZONE, and BUNNY_CDN_HOSTNAME in Convex dashboard.
+            Upload and manage images via ConvexFS and Bunny.net CDN. Requires BUNNY_API_KEY,
+            BUNNY_STORAGE_ZONE, and BUNNY_CDN_HOSTNAME in Convex dashboard.
           </p>
         </div>
 
@@ -5987,10 +6333,7 @@ export default siteConfig;
             <label>Default View Mode</label>
             <select
               value={config.relatedPostsDefaultViewMode}
-              onChange={(e) =>
-                handleChange("relatedPostsDefaultViewMode", e.target.value)
-              }
-            >
+              onChange={(e) => handleChange("relatedPostsDefaultViewMode", e.target.value)}>
               <option value="thumbnails">Thumbnails</option>
               <option value="list">List</option>
             </select>
@@ -6000,15 +6343,14 @@ export default siteConfig;
               <input
                 type="checkbox"
                 checked={config.relatedPostsShowViewToggle}
-                onChange={(e) =>
-                  handleChange("relatedPostsShowViewToggle", e.target.checked)
-                }
+                onChange={(e) => handleChange("relatedPostsShowViewToggle", e.target.checked)}
               />
               <span>Show view toggle button</span>
             </label>
           </div>
           <p className="config-hint">
-            Controls the display of related posts at the bottom of blog posts. Thumbnails view shows image, title, description and author.
+            Controls the display of related posts at the bottom of blog posts. Thumbnails view shows
+            image, title, description and author.
           </p>
         </div>
 
@@ -6050,9 +6392,8 @@ export default siteConfig;
 
       <div className="dashboard-config-note">
         <p>
-          After generating, copy this code and paste it into{" "}
-          <code>src/config/siteConfig.ts</code>. You may need to adjust the type
-          definitions and add your logo gallery images manually.
+          After generating, copy this code and paste it into <code>src/config/siteConfig.ts</code>.
+          You may need to adjust the type definitions and add your logo gallery images manually.
         </p>
       </div>
     </div>
@@ -6074,10 +6415,7 @@ function VersionControlCard({
     setIsToggling(true);
     try {
       await setVersionControlEnabled({ enabled: !versionControlEnabled });
-      addToast(
-        `Version control ${!versionControlEnabled ? "enabled" : "disabled"}`,
-        "success"
-      );
+      addToast(`Version control ${!versionControlEnabled ? "enabled" : "disabled"}`, "success");
     } catch {
       addToast("Failed to update version control setting", "error");
     } finally {
@@ -6101,32 +6439,30 @@ function VersionControlCard({
             onChange={handleToggle}
             disabled={isToggling}
           />
-          <span>
-            {isToggling ? "Updating..." : "Enable version history (3-day retention)"}
-          </span>
+          <span>{isToggling ? "Updating..." : "Enable version history (3-day retention)"}</span>
         </label>
       </div>
       <p className="config-hint">
-        When enabled, saves a snapshot before each edit. View and restore previous versions
-        from the editor toolbar.
+        When enabled, saves a snapshot before each edit. View and restore previous versions from the
+        editor toolbar.
       </p>
-      {versionStats && versionStats.totalVersions > 0 && (
+      {versionStats && (versionStats.totalVersions === null || versionStats.totalVersions > 0) && (
         <div className="version-stats">
           <div className="version-stat">
             <span className="version-stat-label">Total versions:</span>
-            <span className="version-stat-value">{versionStats.totalVersions}</span>
+            <span className="version-stat-value">
+              {versionStats.totalVersions === null
+                ? "Large dataset (count omitted)"
+                : versionStats.totalVersions}
+            </span>
           </div>
           <div className="version-stat">
             <span className="version-stat-label">Oldest:</span>
-            <span className="version-stat-value">
-              {formatDate(versionStats.oldestVersion)}
-            </span>
+            <span className="version-stat-value">{formatDate(versionStats.oldestVersion)}</span>
           </div>
           <div className="version-stat">
             <span className="version-stat-label">Newest:</span>
-            <span className="version-stat-value">
-              {formatDate(versionStats.newestVersion)}
-            </span>
+            <span className="version-stat-value">{formatDate(versionStats.newestVersion)}</span>
           </div>
         </div>
       )}
@@ -6135,7 +6471,12 @@ function VersionControlCard({
 }
 
 function StatsSection() {
-  const stats = useQuery(api.stats.getStats);
+  const [tick, setTick] = useState(() => Math.floor(Date.now() / 60_000));
+  useEffect(() => {
+    const id = setInterval(() => setTick(Math.floor(Date.now() / 60_000)), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const stats = useQuery(api.stats.getStats, { now: tick * 60_000 });
 
   return (
     <div className="dashboard-stats-section">
@@ -6234,11 +6575,7 @@ function SyncSection({
   syncOutputRef,
   setSyncOutput,
 }: {
-  showCommandModal: (
-    title: string,
-    command: string,
-    description?: string,
-  ) => void;
+  showCommandModal: (title: string, command: string, description?: string) => void;
   executeSync: (commandId: string, commandLabel: string) => Promise<void>;
   syncOutput: string;
   syncRunning: string | null;
@@ -6285,11 +6622,7 @@ function SyncSection({
     },
   ];
 
-  const handleCopyCommand = (
-    label: string,
-    command: string,
-    description: string,
-  ) => {
+  const handleCopyCommand = (label: string, command: string, description: string) => {
     showCommandModal(label, command, description);
   };
 
@@ -6310,7 +6643,7 @@ function SyncSection({
       showCommandModal(
         "Start Sync Server",
         "npm run sync-server",
-        "Start the local sync server to enable execute buttons",
+        "Start the local sync server to enable execute buttons"
       );
     }
   };
@@ -6324,13 +6657,9 @@ function SyncSection({
       </div>
 
       {/* Server Status */}
-      <div
-        className={`sync-server-status ${syncServerAvailable ? "online" : "offline"}`}
-      >
+      <div className={`sync-server-status ${syncServerAvailable ? "online" : "offline"}`}>
         <div className="status-indicator">
-          <span
-            className={`status-dot ${syncServerAvailable ? "online" : "offline"}`}
-          />
+          <span className={`status-dot ${syncServerAvailable ? "online" : "offline"}`} />
           <span className="status-text">
             Sync Server:{" "}
             {syncServerAvailable === null
@@ -6347,13 +6676,8 @@ function SyncSection({
             <button
               className="copy-sync-server-btn"
               onClick={handleCopySyncServer}
-              title="Copy command"
-            >
-              {copiedSyncServer ? (
-                <Check size={12} />
-              ) : (
-                <CopySimple size={12} />
-              )}
+              title="Copy command">
+              {copiedSyncServer ? <Check size={12} /> : <CopySimple size={12} />}
             </button>
             <span>to enable execute buttons</span>
           </div>
@@ -6365,9 +6689,7 @@ function SyncSection({
           <div key={cmd.id} className="dashboard-sync-card">
             <div className="sync-card-header">
               <h3>{cmd.label}</h3>
-              <span
-                className={`sync-status ${syncRunning === cmd.id ? "running" : "idle"}`}
-              >
+              <span className={`sync-status ${syncRunning === cmd.id ? "running" : "idle"}`}>
                 {syncRunning === cmd.id && "Running..."}
               </span>
             </div>
@@ -6376,11 +6698,8 @@ function SyncSection({
             <div className="sync-card-buttons">
               <button
                 className="dashboard-sync-card-btn copy"
-                onClick={() =>
-                  handleCopyCommand(cmd.label, cmd.command, cmd.description)
-                }
-                title="Copy command to clipboard"
-              >
+                onClick={() => handleCopyCommand(cmd.label, cmd.command, cmd.description)}
+                title="Copy command to clipboard">
                 <CopySimple size={16} />
                 <span>Copy</span>
               </button>
@@ -6388,16 +6707,8 @@ function SyncSection({
                 className={`dashboard-sync-card-btn execute ${!syncServerAvailable ? "disabled" : ""}`}
                 onClick={() => handleExecute(cmd.id, cmd.label)}
                 disabled={!syncServerAvailable || syncRunning !== null}
-                title={
-                  syncServerAvailable
-                    ? "Execute command"
-                    : "Start sync-server first"
-                }
-              >
-                <ArrowsClockwise
-                  size={16}
-                  className={syncRunning === cmd.id ? "spinning" : ""}
-                />
+                title={syncServerAvailable ? "Execute command" : "Start sync-server first"}>
+                <ArrowsClockwise size={16} className={syncRunning === cmd.id ? "spinning" : ""} />
                 <span>{syncRunning === cmd.id ? "Running..." : "Execute"}</span>
               </button>
             </div>
@@ -6415,8 +6726,7 @@ function SyncSection({
               <button
                 className="sync-terminal-clear"
                 onClick={() => setSyncOutput("")}
-                title="Clear output"
-              >
+                title="Clear output">
                 <X size={14} />
               </button>
             )}
@@ -6432,9 +6742,8 @@ function SyncSection({
         <p>
           {syncServerAvailable ? (
             <>
-              Click <strong>Execute</strong> to run commands directly from the
-              dashboard, or <strong>Copy</strong> to copy the command for your
-              terminal.
+              Click <strong>Execute</strong> to run commands directly from the dashboard, or{" "}
+              <strong>Copy</strong> to copy the command for your terminal.
             </>
           ) : (
             <>
@@ -6444,17 +6753,12 @@ function SyncSection({
                 <button
                   className="inline-copy-btn"
                   onClick={handleCopySyncServer}
-                  title="Copy command"
-                >
-                  {copiedSyncServer ? (
-                    <Check size={10} />
-                  ) : (
-                    <CopySimple size={10} />
-                  )}
+                  title="Copy command">
+                  {copiedSyncServer ? <Check size={10} /> : <CopySimple size={10} />}
                 </button>
               </code>{" "}
-              to enable execute buttons, or use <strong>Copy</strong> to run
-              commands manually in your terminal.
+              to enable execute buttons, or use <strong>Copy</strong> to run commands manually in
+              your terminal.
             </>
           )}
         </p>

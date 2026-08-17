@@ -46,7 +46,7 @@ export function useSearchHighlighting({
 
   // Perform the actual highlighting
   const performHighlighting = useCallback(
-    (container: HTMLElement, query: string): HTMLElement | null => {
+    (container: HTMLElement, query: string) => {
       // Escape special regex characters
       const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const regex = new RegExp(`(${escapedQuery})`, "gi");
@@ -141,8 +141,7 @@ export function useSearchHighlighting({
 
       // Scroll to first match with offset for fixed header
       if (firstMark) {
-        // Capture firstMark for use in setTimeout callback
-        const markElement = firstMark;
+        const markElement = firstMark as HTMLElement;
         // Small delay to ensure DOM has updated after highlighting
         setTimeout(() => {
           const headerOffset = 80;

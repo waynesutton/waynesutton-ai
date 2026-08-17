@@ -6,6 +6,10 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { requireDashboardAdmin } from "./dashboardAuth";
+import { rateLimiter } from "./rateLimits";
+
+const NEWSLETTER_ADMIN_QUERY_LIMIT = 2000;
 
 // Generate secure unsubscribe token
 // Uses random alphanumeric characters for URL-safe tokens
@@ -31,7 +35,10 @@ export const subscribe = mutation({
     message: v.string(),
   }),
   handler: async (ctx, args) => {
-    // Normalize email: lowercase and trim whitespace
+    await ctx.auth.getUserIdentity();
+
+    await rateLimiter.limit(ctx, "newsletterSubscribe", { throws: true });
+
     const email = args.email.toLowerCase().trim();
 
     // Validate email format
@@ -43,7 +50,7 @@ export const subscribe = mutation({
     const existing = await ctx.db
       .query("newsletterSubscribers")
       .withIndex("by_email", (q) => q.eq("email", email))
-      .first();
+      .unique();
 
     if (existing && existing.subscribed) {
       return { success: false, message: "You're already subscribed!" };
@@ -97,6 +104,8 @@ export const unsubscribe = mutation({
     message: v.string(),
   }),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
+
     // Normalize email
     const email = args.email.toLowerCase().trim();
 
@@ -104,7 +113,7 @@ export const unsubscribe = mutation({
     const subscriber = await ctx.db
       .query("newsletterSubscribers")
       .withIndex("by_email", (q) => q.eq("email", email))
-      .first();
+      .unique();
 
     if (!subscriber) {
       return { success: false, message: "Email not found." };
@@ -136,10 +145,11 @@ export const getSubscriberCount = query({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
+    await ctx.auth.getUserIdentity();
     const subscribers = await ctx.db
       .query("newsletterSubscribers")
       .withIndex("by_subscribed", (q) => q.eq("subscribed", true))
-      .collect();
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
     return subscribers.length;
   },
 });
@@ -158,12 +168,76 @@ export const getActiveSubscribers = internalQuery({
     const subscribers = await ctx.db
       .query("newsletterSubscribers")
       .withIndex("by_subscribed", (q) => q.eq("subscribed", true))
-      .collect();
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
 
     return subscribers.map((s) => ({
       email: s.email,
       unsubscribeToken: s.unsubscribeToken,
     }));
+  },
+});
+
+// Batched read for sendPostNewsletter: one transaction instead of three separate internal queries from the action.
+const postNewsletterSubscriberValidator = v.object({
+  email: v.string(),
+  unsubscribeToken: v.string(),
+});
+
+const postNewsletterPostValidator = v.object({
+  slug: v.string(),
+  title: v.string(),
+  description: v.string(),
+  excerpt: v.optional(v.string()),
+});
+
+export const getPostNewsletterSendContextInternal = internalQuery({
+  args: { postSlug: v.string() },
+  returns: v.object({
+    alreadySent: v.boolean(),
+    subscribers: v.array(postNewsletterSubscriberValidator),
+    post: v.union(postNewsletterPostValidator, v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const sent = await ctx.db
+      .query("newsletterSentPosts")
+      .withIndex("by_postslug", (q) => q.eq("postSlug", args.postSlug))
+      .unique();
+
+    const subscriberDocs = await ctx.db
+      .query("newsletterSubscribers")
+      .withIndex("by_subscribed", (q) => q.eq("subscribed", true))
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
+
+    const subscribers = subscriberDocs.map((s) => ({
+      email: s.email,
+      unsubscribeToken: s.unsubscribeToken,
+    }));
+
+    const postDoc = await ctx.db
+      .query("posts")
+      .withIndex("by_slug", (q) => q.eq("slug", args.postSlug))
+      .unique();
+
+    let post: {
+      slug: string;
+      title: string;
+      description: string;
+      excerpt?: string;
+    } | null = null;
+    if (postDoc && postDoc.published) {
+      post = {
+        slug: postDoc.slug,
+        title: postDoc.title,
+        description: postDoc.description,
+        excerpt: postDoc.excerpt,
+      };
+    }
+
+    return {
+      alreadySent: sent !== null,
+      subscribers,
+      post,
+    };
   },
 });
 
@@ -217,8 +291,8 @@ export const wasPostSent = internalQuery({
   handler: async (ctx, args) => {
     const sent = await ctx.db
       .query("newsletterSentPosts")
-      .withIndex("by_postSlug", (q) => q.eq("postSlug", args.postSlug))
-      .first();
+      .withIndex("by_postslug", (q) => q.eq("postSlug", args.postSlug))
+      .unique();
     return sent !== null;
   },
 });
@@ -254,21 +328,27 @@ export const getAllSubscribers = query({
     subscribedCount: v.number(),
   }),
   handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+
     const limit = args.limit ?? 50;
     const filter = args.filter ?? "all";
     const search = args.search?.toLowerCase().trim();
 
-    // Get all subscribers for counting
-    const allSubscribers = await ctx.db
-      .query("newsletterSubscribers")
-      .collect();
-
-    // Filter by subscription status
-    let filtered = allSubscribers;
+    let filtered;
     if (filter === "subscribed") {
-      filtered = allSubscribers.filter((s) => s.subscribed);
+      filtered = await ctx.db
+        .query("newsletterSubscribers")
+        .withIndex("by_subscribed", (q) => q.eq("subscribed", true))
+        .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
     } else if (filter === "unsubscribed") {
-      filtered = allSubscribers.filter((s) => !s.subscribed);
+      filtered = await ctx.db
+        .query("newsletterSubscribers")
+        .withIndex("by_subscribed", (q) => q.eq("subscribed", false))
+        .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
+    } else {
+      filtered = await ctx.db
+        .query("newsletterSubscribers")
+        .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
     }
 
     // Search by email
@@ -300,7 +380,11 @@ export const getAllSubscribers = query({
       source: s.source,
     }));
 
-    const subscribedCount = allSubscribers.filter((s) => s.subscribed).length;
+    const subscribedList = await ctx.db
+      .query("newsletterSubscribers")
+      .withIndex("by_subscribed", (q) => q.eq("subscribed", true))
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
+    const subscribedCount = subscribedList.length;
 
     return {
       subscribers,
@@ -322,6 +406,8 @@ export const deleteSubscriber = mutation({
     message: v.string(),
   }),
   handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+
     // Check if subscriber exists using direct get
     const subscriber = await ctx.db.get(args.subscriberId);
     if (!subscriber) {
@@ -355,13 +441,23 @@ export const getNewsletterStats = query({
     ),
   }),
   handler: async (ctx) => {
-    // Get all subscribers
-    const subscribers = await ctx.db.query("newsletterSubscribers").collect();
-    const activeSubscribers = subscribers.filter((s) => s.subscribed).length;
-    const unsubscribedCount = subscribers.length - activeSubscribers;
+    await requireDashboardAdmin(ctx);
 
-    // Get sent newsletters
-    const sentPosts = await ctx.db.query("newsletterSentPosts").collect();
+    const activeList = await ctx.db
+      .query("newsletterSubscribers")
+      .withIndex("by_subscribed", (q) => q.eq("subscribed", true))
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
+    const activeSubscribers = activeList.length;
+
+    const unsubscribedList = await ctx.db
+      .query("newsletterSubscribers")
+      .withIndex("by_subscribed", (q) => q.eq("subscribed", false))
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
+    const unsubscribedCount = unsubscribedList.length;
+
+    const sentPosts = await ctx.db
+      .query("newsletterSentPosts")
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
     
     // Calculate total emails sent (sum of all sentCount)
     const totalEmailsSent = sentPosts.reduce((sum, p) => sum + p.sentCount, 0);
@@ -379,7 +475,7 @@ export const getNewsletterStats = query({
       }));
 
     return {
-      totalSubscribers: subscribers.length,
+      totalSubscribers: activeSubscribers + unsubscribedCount,
       activeSubscribers,
       unsubscribedCount,
       totalNewslettersSent: sentPosts.length,
@@ -401,14 +497,18 @@ export const getPostsForNewsletter = query({
     })
   ),
   handler: async (ctx) => {
+    await requireDashboardAdmin(ctx);
+
     // Get all published posts
     const posts = await ctx.db
       .query("posts")
       .withIndex("by_published", (q) => q.eq("published", true))
-      .collect();
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
 
     // Get all sent post slugs
-    const sentPosts = await ctx.db.query("newsletterSentPosts").collect();
+    const sentPosts = await ctx.db
+      .query("newsletterSentPosts")
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
     const sentSlugs = new Set(sentPosts.map((p) => p.postSlug));
 
     // Map posts with sent status, sorted by date descending
@@ -425,7 +525,9 @@ export const getPostsForNewsletter = query({
 
 // Internal query to get stats for weekly summary email
 export const getStatsForSummary = internalQuery({
-  args: {},
+  args: {
+    now: v.number(),
+  },
   returns: v.object({
     activeSubscribers: v.number(),
     totalSubscribers: v.number(),
@@ -433,24 +535,33 @@ export const getStatsForSummary = internalQuery({
     unsubscribedCount: v.number(),
     totalNewslettersSent: v.number(),
   }),
-  handler: async (ctx) => {
-    // Get all subscribers
-    const subscribers = await ctx.db.query("newsletterSubscribers").collect();
-    const activeSubscribers = subscribers.filter((s) => s.subscribed).length;
-    const unsubscribedCount = subscribers.length - activeSubscribers;
+  handler: async (ctx, args) => {
+    const activeList = await ctx.db
+      .query("newsletterSubscribers")
+      .withIndex("by_subscribed", (q) => q.eq("subscribed", true))
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
+    const activeSubscribers = activeList.length;
 
-    // Calculate new subscribers this week
-    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const newThisWeek = subscribers.filter(
-      (s) => s.subscribedAt >= oneWeekAgo && s.subscribed
-    ).length;
+    const unsubscribedList = await ctx.db
+      .query("newsletterSubscribers")
+      .withIndex("by_subscribed", (q) => q.eq("subscribed", false))
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
+    const unsubscribedCount = unsubscribedList.length;
+    const totalSubscribers = activeSubscribers + unsubscribedCount;
 
-    // Get sent newsletters count
-    const sentPosts = await ctx.db.query("newsletterSentPosts").collect();
+    const oneWeekAgo = args.now - 7 * 24 * 60 * 60 * 1000;
+    let newThisWeek = 0;
+    for (const s of activeList) {
+      if (s.subscribedAt >= oneWeekAgo) newThisWeek++;
+    }
+
+    const sentPosts = await ctx.db
+      .query("newsletterSentPosts")
+      .take(NEWSLETTER_ADMIN_QUERY_LIMIT);
 
     return {
       activeSubscribers,
-      totalSubscribers: subscribers.length,
+      totalSubscribers,
       newThisWeek,
       unsubscribedCount,
       totalNewslettersSent: sentPosts.length,
@@ -475,11 +586,13 @@ export const scheduleSendPostNewsletter = mutation({
     message: v.string(),
   }),
   handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+
     // Check if post was already sent
     const sent = await ctx.db
       .query("newsletterSentPosts")
-      .withIndex("by_postSlug", (q) => q.eq("postSlug", args.postSlug))
-      .first();
+      .withIndex("by_postslug", (q) => q.eq("postSlug", args.postSlug))
+      .unique();
 
     if (sent) {
       return {
@@ -515,6 +628,8 @@ export const scheduleSendCustomNewsletter = mutation({
     message: v.string(),
   }),
   handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+
     // Validate inputs
     if (!args.subject.trim()) {
       return { success: false, message: "Subject is required." };
@@ -548,6 +663,8 @@ export const scheduleSendStatsSummary = mutation({
     message: v.string(),
   }),
   handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+
     // Schedule the action to run immediately
     await ctx.scheduler.runAfter(0, internal.newsletterActions.sendWeeklyStatsSummary, {
       siteName: args.siteName,

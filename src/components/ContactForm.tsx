@@ -165,7 +165,7 @@ export default function ContactForm({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
+                placeholder="Your email"
                 className="contact-form__input"
                 disabled={status === "loading"}
               />

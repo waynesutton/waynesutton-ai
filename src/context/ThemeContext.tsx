@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { siteConfig, Theme } from "../config/siteConfig";
 
-// Default theme for new users (reads from siteConfig, falls back to "tan")
-const DEFAULT_THEME: Theme = siteConfig.defaultTheme || "tan";
+// Default theme for new users (reads from siteConfig, falls back to "light")
+const DEFAULT_THEME: Theme = siteConfig.defaultTheme || "light";
 
 interface ThemeContextType {
   theme: Theme;
@@ -41,7 +41,7 @@ const getInitialTheme = (defaultTheme: Theme): Theme => {
 
 // Theme color values for meta tag
 const themeColors: Record<Theme, string> = {
-  dark: "#111111",
+  dark: "#000000",
   light: "#ffffff",
   tan: "#faf8f5",
   cloud: "#f5f5f5",

@@ -68,7 +68,7 @@ Every code block includes:
 
 ## Diff code blocks
 
-For showing code changes, use the `diff` or `patch` language identifier. These render with enhanced diff visualization powered by @pierre/diffs.
+For showing code changes, use the `diff` or `patch` language identifier. These render with enhanced diff visualization powered by [@pierre/diffs](https://diffs.com/).
 
 ### Basic diff example
 
@@ -207,7 +207,7 @@ output, or any text that isn't code.
 
 **Keep examples focused**: Show only the relevant code. Long blocks lose readers.
 
-**Use diffs for changes**: When explaining modifications to existing code, diff blocks clearly show what changed.
+**Use diffs for changes**: When explaining modifications to existing code, diff blocks clearly show what changed. The diff rendering is powered by [diffs.com](https://diffs.com/).
 
 **Test your blocks**: Preview your post to verify syntax highlighting works correctly.
 

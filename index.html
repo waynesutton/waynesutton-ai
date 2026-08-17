@@ -10,14 +10,24 @@
     <!-- Preconnect for Convex site endpoints -->
     <link rel="preconnect" href="https://convex.site" crossorigin />
     <link rel="dns-prefetch" href="https://convex.site" />
-    <!-- Preload critical LCP image -->
-    <link rel="preload" href="/images/logo.svg" as="image" type="image/svg+xml" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+
+    <!-- iOS Add to Home Screen / standalone web app -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Wayne Sutton" />
 
     <!-- SEO Meta Tags -->
     <meta
       name="description"
       content="Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider."
+
     />
     <meta name="author" content="Wayne Sutton" />
     <meta
@@ -27,38 +37,38 @@
     <meta name="robots" content="index, follow" />
 
     <!-- Canonical URL -->
-    <link rel="canonical" href="https://www.waynesutton.ai/" />
+    <link rel="canonical" href="https://waynesutton.ai/" />
 
     <!-- Hreflang for language/region targeting -->
-    <link rel="alternate" hreflang="en" href="https://www.waynesutton.ai/" />
-    <link rel="alternate" hreflang="x-default" href="https://www.waynesutton.ai/" />
+    <link rel="alternate" hreflang="en" href="https://waynesutton.ai/" />
+    <link rel="alternate" hreflang="x-default" href="https://waynesutton.ai/" />
 
     <!-- Theme -->
-    <meta name="theme-color" content="#faf8f5" />
+    <meta name="theme-color" content="#ffffff" />
 
     <!-- Critical CSS - inlined for fast first paint -->
     <style>
       /* Theme variables */
-      :root[data-theme="dark"]{--bg-primary:#111;--bg-secondary:#1a1a1a;--bg-hover:#252525;--text-primary:#fafafa;--text-secondary:#a1a1a1;--text-muted:#6b6b6b;--border-color:#2a2a2a;--accent:#fafafa}
-      :root[data-theme="light"]{--bg-primary:#fff;--bg-secondary:#fafafa;--bg-hover:#f5f5f5;--text-primary:#111;--text-secondary:#6b6b6b;--text-muted:#a1a1a1;--border-color:#e5e5e5;--accent:#111}
+      :root[data-theme="dark"]{--bg-primary:#000;--bg-secondary:#191b1e;--bg-hover:#232629;--text-primary:#f0f0f0;--text-secondary:#a1a4a5;--text-muted:#52595b;--border-color:rgba(214,235,253,0.19);--accent:#00a3ff}
+      :root[data-theme="light"]{--bg-primary:#fff;--bg-secondary:#f4f4f4;--bg-hover:#ececec;--text-primary:#000;--text-secondary:#393c41;--text-muted:#5c5e62;--border-color:#d0d0d0;--accent:#000}
       :root[data-theme="tan"]{--bg-primary:#faf8f5;--bg-secondary:#f5f3f0;--bg-hover:#ebe9e6;--text-primary:#1a1a1a;--text-secondary:#6b6b6b;--text-muted:#999;--border-color:#e6e4e1;--accent:#8b7355}
       :root[data-theme="cloud"]{--bg-primary:#f5f5f5;--bg-secondary:#ebebeb;--bg-hover:#e0e0e0;--text-primary:#171717;--text-secondary:#525252;--text-muted:#737373;--border-color:#d4d4d4;--accent:#171717}
       /* Reset and base */
       *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
       html{font-size:16px;-webkit-font-smoothing:antialiased}
       body{font-family:"New York",-apple-system-ui-serif,ui-serif,Georgia,serif;background-color:var(--bg-primary);color:var(--text-primary);line-height:1.6}
-      /* Layout skeleton */
-      .layout{min-height:100vh;display:flex;flex-direction:column;padding-top:60px}
+      /* Layout skeleton (safe-area insets keep standalone iOS content clear of the notch) */
+      .layout{min-height:100vh;display:flex;flex-direction:column;padding-top:calc(60px + env(safe-area-inset-top,0px))}
       .main-content{flex:1;max-width:800px;width:100%;margin:0 auto}
       /* Fixed nav */
-      .top-nav{position:fixed;top:0;left:13px;right:13px;z-index:100;display:flex;align-items:center;gap:16px;background-color:var(--bg-primary);padding:8px 12px;border-radius:8px}
-      @media(max-width:1024px){.layout{padding:60px 15px 15px}}
+      .top-nav{position:fixed;top:env(safe-area-inset-top,0px);left:13px;right:13px;z-index:100;display:flex;align-items:center;gap:16px;background-color:var(--bg-primary);padding:8px 12px;border-radius:8px}
+      @media(max-width:1024px){.layout{padding:calc(60px + env(safe-area-inset-top,0px)) 15px calc(15px + env(safe-area-inset-bottom,0px))}}
     </style>
 
     <!-- Theme initialization - runs before any rendering to prevent FOUC -->
     <script>
       (function() {
-        var theme = 'tan';
+        var theme = 'light';
         try {
           var saved = localStorage.getItem('blog-theme');
           if (saved && ['dark', 'light', 'tan', 'cloud'].includes(saved)) {
@@ -66,9 +76,9 @@
           }
         } catch(e) {}
         document.documentElement.setAttribute('data-theme', theme);
-        var colors = { dark: '#111111', light: '#ffffff', tan: '#faf8f5', cloud: '#f5f5f5' };
+        var colors = { dark: '#000000', light: '#ffffff', tan: '#faf8f5', cloud: '#f5f5f5' };
         var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', colors[theme] || colors.tan);
+        if (meta) meta.setAttribute('content', colors[theme] || colors.light);
       })();
     </script>
 
@@ -77,30 +87,32 @@
     <meta
       property="og:description"
       content="Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider."
+
     />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.waynesutton.ai/" />
+    <meta property="og:url" content="https://waynesutton.ai/" />
     <meta
       property="og:site_name"
       content="Wayne Sutton"
     />
     <meta
       property="og:image"
-      content="https://www.waynesutton.ai/images/og-default.png"
+      content="https://waynesutton.ai/images/og-default.png"
     />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="twitter:domain" content="waynesutton.ai" />
-    <meta property="twitter:url" content="https://www.waynesutton.ai/" />
+    <meta property="twitter:url" content="https://waynesutton.ai/" />
     <meta name="twitter:title" content="Wayne Sutton" />
     <meta
       name="twitter:description"
       content="Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider."
+
     />
     <meta
       name="twitter:image"
-      content="https://www.waynesutton.ai/images/og-default.png"
+      content="https://waynesutton.ai/images/og-default.png"
     />
 
     <!-- RSS Feeds -->
@@ -126,16 +138,17 @@
         "@context": "https://schema.org",
         "@type": "WebSite",
         "name": "Wayne Sutton",
-        "url": "https://www.waynesutton.ai",
+        "url": "https://waynesutton.ai",
         "description": "Wayne Sutton: Developer Community Builder at Convex, helping developers and startups build faster with AI: tech event and meetup organizer, startup ecosystem builder, adventure motorcycle rider.",
+
         "author": {
           "@type": "Person",
           "name": "Wayne Sutton",
-          "url": "https://www.waynesutton.ai"
+          "url": "https://waynesutton.ai"
         },
         "potentialAction": {
           "@type": "SearchAction",
-          "target": "https://www.waynesutton.ai/?q={search_term_string}",
+          "target": "https://waynesutton.ai/?q={search_term_string}",
           "query-input": "required name=search_term_string"
         }
       }
@@ -146,5 +159,11 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Rybbit Analytics -->
+    <script
+      src="https://app.rybbit.io/api/script.js"
+      data-site-id="24731ca420a4"
+      defer
+    ></script>
   </body>
 </html>

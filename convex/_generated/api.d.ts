@@ -8,30 +8,54 @@
  * @module
  */
 
+import type * as agentReady_analytics from "../agentReady/analytics.js";
+import type * as agentReady_content from "../agentReady/content.js";
+import type * as agentReady_settings from "../agentReady/settings.js";
 import type * as aiChatActions from "../aiChatActions.js";
 import type * as aiChats from "../aiChats.js";
 import type * as aiImageGeneration from "../aiImageGeneration.js";
+import type * as aiImageJobs from "../aiImageJobs.js";
 import type * as askAI from "../askAI.js";
+import type * as auth from "../auth.js";
+import type * as authAdmin from "../authAdmin.js";
 import type * as cms from "../cms.js";
 import type * as contact from "../contact.js";
 import type * as contactActions from "../contactActions.js";
 import type * as crons from "../crons.js";
+import type * as dashboardAuth from "../dashboardAuth.js";
+import type * as demo from "../demo.js";
+import type * as draftEmails from "../draftEmails.js";
+import type * as drafts from "../drafts.js";
 import type * as embeddings from "../embeddings.js";
+import type * as embeddingsAdmin from "../embeddingsAdmin.js";
 import type * as embeddingsQueries from "../embeddingsQueries.js";
 import type * as files from "../files.js";
 import type * as fs from "../fs.js";
+import type * as githubReview from "../githubReview.js";
 import type * as http from "../http.js";
 import type * as importAction from "../importAction.js";
+import type * as importJobs from "../importJobs.js";
+import type * as lib_vendorKeyResolver from "../lib/vendorKeyResolver.js";
+import type * as mcp from "../mcp.js";
+import type * as media from "../media.js";
 import type * as newsletter from "../newsletter.js";
 import type * as newsletterActions from "../newsletterActions.js";
 import type * as pages from "../pages.js";
+import type * as pipelineKeys from "../pipelineKeys.js";
 import type * as posts from "../posts.js";
+import type * as r2 from "../r2.js";
+import type * as rateLimits from "../rateLimits.js";
 import type * as rss from "../rss.js";
 import type * as search from "../search.js";
 import type * as semanticSearch from "../semanticSearch.js";
+import type * as semanticSearchJobs from "../semanticSearchJobs.js";
 import type * as semanticSearchQueries from "../semanticSearchQueries.js";
+import type * as staticHosting from "../staticHosting.js";
 import type * as stats from "../stats.js";
 import type * as versions from "../versions.js";
+import type * as virtualFs from "../virtualFs.js";
+import type * as voiceAgent from "../voiceAgent.js";
+import type * as xIntegration from "../xIntegration.js";
 
 import type {
   ApiFromModules,
@@ -40,30 +64,54 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "agentReady/analytics": typeof agentReady_analytics;
+  "agentReady/content": typeof agentReady_content;
+  "agentReady/settings": typeof agentReady_settings;
   aiChatActions: typeof aiChatActions;
   aiChats: typeof aiChats;
   aiImageGeneration: typeof aiImageGeneration;
+  aiImageJobs: typeof aiImageJobs;
   askAI: typeof askAI;
+  auth: typeof auth;
+  authAdmin: typeof authAdmin;
   cms: typeof cms;
   contact: typeof contact;
   contactActions: typeof contactActions;
   crons: typeof crons;
+  dashboardAuth: typeof dashboardAuth;
+  demo: typeof demo;
+  draftEmails: typeof draftEmails;
+  drafts: typeof drafts;
   embeddings: typeof embeddings;
+  embeddingsAdmin: typeof embeddingsAdmin;
   embeddingsQueries: typeof embeddingsQueries;
   files: typeof files;
   fs: typeof fs;
+  githubReview: typeof githubReview;
   http: typeof http;
   importAction: typeof importAction;
+  importJobs: typeof importJobs;
+  "lib/vendorKeyResolver": typeof lib_vendorKeyResolver;
+  mcp: typeof mcp;
+  media: typeof media;
   newsletter: typeof newsletter;
   newsletterActions: typeof newsletterActions;
   pages: typeof pages;
+  pipelineKeys: typeof pipelineKeys;
   posts: typeof posts;
+  r2: typeof r2;
+  rateLimits: typeof rateLimits;
   rss: typeof rss;
   search: typeof search;
   semanticSearch: typeof semanticSearch;
+  semanticSearchJobs: typeof semanticSearchJobs;
   semanticSearchQueries: typeof semanticSearchQueries;
+  staticHosting: typeof staticHosting;
   stats: typeof stats;
   versions: typeof versions;
+  virtualFs: typeof virtualFs;
+  voiceAgent: typeof voiceAgent;
+  xIntegration: typeof xIntegration;
 }>;
 
 /**
@@ -93,1161 +141,18 @@ export declare const internal: FilterApi<
 >;
 
 export declare const components: {
-  pageViewsByPath: {
-    btree: {
-      aggregateBetween: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; k2?: any; namespace?: any },
-        { count: number; sum: number }
-      >;
-      aggregateBetweenBatch: FunctionReference<
-        "query",
-        "internal",
-        { queries: Array<{ k1?: any; k2?: any; namespace?: any }> },
-        Array<{ count: number; sum: number }>
-      >;
-      atNegativeOffset: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; k2?: any; namespace?: any; offset: number },
-        { k: any; s: number; v: any }
-      >;
-      atOffset: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; k2?: any; namespace?: any; offset: number },
-        { k: any; s: number; v: any }
-      >;
-      atOffsetBatch: FunctionReference<
-        "query",
-        "internal",
-        {
-          queries: Array<{
-            k1?: any;
-            k2?: any;
-            namespace?: any;
-            offset: number;
-          }>;
-        },
-        Array<{ k: any; s: number; v: any }>
-      >;
-      get: FunctionReference<
-        "query",
-        "internal",
-        { key: any; namespace?: any },
-        null | { k: any; s: number; v: any }
-      >;
-      offset: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; key: any; namespace?: any },
-        number
-      >;
-      offsetUntil: FunctionReference<
-        "query",
-        "internal",
-        { k2?: any; key: any; namespace?: any },
-        number
-      >;
-      paginate: FunctionReference<
-        "query",
-        "internal",
-        {
-          cursor?: string;
-          k1?: any;
-          k2?: any;
-          limit: number;
-          namespace?: any;
-          order: "asc" | "desc";
-        },
-        {
-          cursor: string;
-          isDone: boolean;
-          page: Array<{ k: any; s: number; v: any }>;
-        }
-      >;
-      paginateNamespaces: FunctionReference<
-        "query",
-        "internal",
-        { cursor?: string; limit: number },
-        { cursor: string; isDone: boolean; page: Array<any> }
-      >;
-      validate: FunctionReference<
-        "query",
-        "internal",
-        { namespace?: any },
-        any
-      >;
-    };
-    inspect: {
-      display: FunctionReference<"query", "internal", { namespace?: any }, any>;
-      dump: FunctionReference<"query", "internal", { namespace?: any }, string>;
-      inspectNode: FunctionReference<
-        "query",
-        "internal",
-        { namespace?: any; node?: string },
-        null
-      >;
-      listTreeNodes: FunctionReference<
-        "query",
-        "internal",
-        { take?: number },
-        Array<{
-          _creationTime: number;
-          _id: string;
-          aggregate?: { count: number; sum: number };
-          items: Array<{ k: any; s: number; v: any }>;
-          subtrees: Array<string>;
-        }>
-      >;
-      listTrees: FunctionReference<
-        "query",
-        "internal",
-        { take?: number },
-        Array<{
-          _creationTime: number;
-          _id: string;
-          maxNodeSize: number;
-          namespace?: any;
-          root: string;
-        }>
-      >;
-    };
-    public: {
-      clear: FunctionReference<
-        "mutation",
-        "internal",
-        { maxNodeSize?: number; namespace?: any; rootLazy?: boolean },
-        null
-      >;
-      delete_: FunctionReference<
-        "mutation",
-        "internal",
-        { key: any; namespace?: any },
-        null
-      >;
-      deleteIfExists: FunctionReference<
-        "mutation",
-        "internal",
-        { key: any; namespace?: any },
-        any
-      >;
-      init: FunctionReference<
-        "mutation",
-        "internal",
-        { maxNodeSize?: number; namespace?: any; rootLazy?: boolean },
-        null
-      >;
-      insert: FunctionReference<
-        "mutation",
-        "internal",
-        { key: any; namespace?: any; summand?: number; value: any },
-        null
-      >;
-      makeRootLazy: FunctionReference<
-        "mutation",
-        "internal",
-        { namespace?: any },
-        null
-      >;
-      replace: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          currentKey: any;
-          namespace?: any;
-          newKey: any;
-          newNamespace?: any;
-          summand?: number;
-          value: any;
-        },
-        null
-      >;
-      replaceOrInsert: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          currentKey: any;
-          namespace?: any;
-          newKey: any;
-          newNamespace?: any;
-          summand?: number;
-          value: any;
-        },
-        any
-      >;
-    };
-  };
-  totalPageViews: {
-    btree: {
-      aggregateBetween: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; k2?: any; namespace?: any },
-        { count: number; sum: number }
-      >;
-      aggregateBetweenBatch: FunctionReference<
-        "query",
-        "internal",
-        { queries: Array<{ k1?: any; k2?: any; namespace?: any }> },
-        Array<{ count: number; sum: number }>
-      >;
-      atNegativeOffset: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; k2?: any; namespace?: any; offset: number },
-        { k: any; s: number; v: any }
-      >;
-      atOffset: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; k2?: any; namespace?: any; offset: number },
-        { k: any; s: number; v: any }
-      >;
-      atOffsetBatch: FunctionReference<
-        "query",
-        "internal",
-        {
-          queries: Array<{
-            k1?: any;
-            k2?: any;
-            namespace?: any;
-            offset: number;
-          }>;
-        },
-        Array<{ k: any; s: number; v: any }>
-      >;
-      get: FunctionReference<
-        "query",
-        "internal",
-        { key: any; namespace?: any },
-        null | { k: any; s: number; v: any }
-      >;
-      offset: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; key: any; namespace?: any },
-        number
-      >;
-      offsetUntil: FunctionReference<
-        "query",
-        "internal",
-        { k2?: any; key: any; namespace?: any },
-        number
-      >;
-      paginate: FunctionReference<
-        "query",
-        "internal",
-        {
-          cursor?: string;
-          k1?: any;
-          k2?: any;
-          limit: number;
-          namespace?: any;
-          order: "asc" | "desc";
-        },
-        {
-          cursor: string;
-          isDone: boolean;
-          page: Array<{ k: any; s: number; v: any }>;
-        }
-      >;
-      paginateNamespaces: FunctionReference<
-        "query",
-        "internal",
-        { cursor?: string; limit: number },
-        { cursor: string; isDone: boolean; page: Array<any> }
-      >;
-      validate: FunctionReference<
-        "query",
-        "internal",
-        { namespace?: any },
-        any
-      >;
-    };
-    inspect: {
-      display: FunctionReference<"query", "internal", { namespace?: any }, any>;
-      dump: FunctionReference<"query", "internal", { namespace?: any }, string>;
-      inspectNode: FunctionReference<
-        "query",
-        "internal",
-        { namespace?: any; node?: string },
-        null
-      >;
-      listTreeNodes: FunctionReference<
-        "query",
-        "internal",
-        { take?: number },
-        Array<{
-          _creationTime: number;
-          _id: string;
-          aggregate?: { count: number; sum: number };
-          items: Array<{ k: any; s: number; v: any }>;
-          subtrees: Array<string>;
-        }>
-      >;
-      listTrees: FunctionReference<
-        "query",
-        "internal",
-        { take?: number },
-        Array<{
-          _creationTime: number;
-          _id: string;
-          maxNodeSize: number;
-          namespace?: any;
-          root: string;
-        }>
-      >;
-    };
-    public: {
-      clear: FunctionReference<
-        "mutation",
-        "internal",
-        { maxNodeSize?: number; namespace?: any; rootLazy?: boolean },
-        null
-      >;
-      delete_: FunctionReference<
-        "mutation",
-        "internal",
-        { key: any; namespace?: any },
-        null
-      >;
-      deleteIfExists: FunctionReference<
-        "mutation",
-        "internal",
-        { key: any; namespace?: any },
-        any
-      >;
-      init: FunctionReference<
-        "mutation",
-        "internal",
-        { maxNodeSize?: number; namespace?: any; rootLazy?: boolean },
-        null
-      >;
-      insert: FunctionReference<
-        "mutation",
-        "internal",
-        { key: any; namespace?: any; summand?: number; value: any },
-        null
-      >;
-      makeRootLazy: FunctionReference<
-        "mutation",
-        "internal",
-        { namespace?: any },
-        null
-      >;
-      replace: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          currentKey: any;
-          namespace?: any;
-          newKey: any;
-          newNamespace?: any;
-          summand?: number;
-          value: any;
-        },
-        null
-      >;
-      replaceOrInsert: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          currentKey: any;
-          namespace?: any;
-          newKey: any;
-          newNamespace?: any;
-          summand?: number;
-          value: any;
-        },
-        any
-      >;
-    };
-  };
-  uniqueVisitors: {
-    btree: {
-      aggregateBetween: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; k2?: any; namespace?: any },
-        { count: number; sum: number }
-      >;
-      aggregateBetweenBatch: FunctionReference<
-        "query",
-        "internal",
-        { queries: Array<{ k1?: any; k2?: any; namespace?: any }> },
-        Array<{ count: number; sum: number }>
-      >;
-      atNegativeOffset: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; k2?: any; namespace?: any; offset: number },
-        { k: any; s: number; v: any }
-      >;
-      atOffset: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; k2?: any; namespace?: any; offset: number },
-        { k: any; s: number; v: any }
-      >;
-      atOffsetBatch: FunctionReference<
-        "query",
-        "internal",
-        {
-          queries: Array<{
-            k1?: any;
-            k2?: any;
-            namespace?: any;
-            offset: number;
-          }>;
-        },
-        Array<{ k: any; s: number; v: any }>
-      >;
-      get: FunctionReference<
-        "query",
-        "internal",
-        { key: any; namespace?: any },
-        null | { k: any; s: number; v: any }
-      >;
-      offset: FunctionReference<
-        "query",
-        "internal",
-        { k1?: any; key: any; namespace?: any },
-        number
-      >;
-      offsetUntil: FunctionReference<
-        "query",
-        "internal",
-        { k2?: any; key: any; namespace?: any },
-        number
-      >;
-      paginate: FunctionReference<
-        "query",
-        "internal",
-        {
-          cursor?: string;
-          k1?: any;
-          k2?: any;
-          limit: number;
-          namespace?: any;
-          order: "asc" | "desc";
-        },
-        {
-          cursor: string;
-          isDone: boolean;
-          page: Array<{ k: any; s: number; v: any }>;
-        }
-      >;
-      paginateNamespaces: FunctionReference<
-        "query",
-        "internal",
-        { cursor?: string; limit: number },
-        { cursor: string; isDone: boolean; page: Array<any> }
-      >;
-      validate: FunctionReference<
-        "query",
-        "internal",
-        { namespace?: any },
-        any
-      >;
-    };
-    inspect: {
-      display: FunctionReference<"query", "internal", { namespace?: any }, any>;
-      dump: FunctionReference<"query", "internal", { namespace?: any }, string>;
-      inspectNode: FunctionReference<
-        "query",
-        "internal",
-        { namespace?: any; node?: string },
-        null
-      >;
-      listTreeNodes: FunctionReference<
-        "query",
-        "internal",
-        { take?: number },
-        Array<{
-          _creationTime: number;
-          _id: string;
-          aggregate?: { count: number; sum: number };
-          items: Array<{ k: any; s: number; v: any }>;
-          subtrees: Array<string>;
-        }>
-      >;
-      listTrees: FunctionReference<
-        "query",
-        "internal",
-        { take?: number },
-        Array<{
-          _creationTime: number;
-          _id: string;
-          maxNodeSize: number;
-          namespace?: any;
-          root: string;
-        }>
-      >;
-    };
-    public: {
-      clear: FunctionReference<
-        "mutation",
-        "internal",
-        { maxNodeSize?: number; namespace?: any; rootLazy?: boolean },
-        null
-      >;
-      delete_: FunctionReference<
-        "mutation",
-        "internal",
-        { key: any; namespace?: any },
-        null
-      >;
-      deleteIfExists: FunctionReference<
-        "mutation",
-        "internal",
-        { key: any; namespace?: any },
-        any
-      >;
-      init: FunctionReference<
-        "mutation",
-        "internal",
-        { maxNodeSize?: number; namespace?: any; rootLazy?: boolean },
-        null
-      >;
-      insert: FunctionReference<
-        "mutation",
-        "internal",
-        { key: any; namespace?: any; summand?: number; value: any },
-        null
-      >;
-      makeRootLazy: FunctionReference<
-        "mutation",
-        "internal",
-        { namespace?: any },
-        null
-      >;
-      replace: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          currentKey: any;
-          namespace?: any;
-          newKey: any;
-          newNamespace?: any;
-          summand?: number;
-          value: any;
-        },
-        null
-      >;
-      replaceOrInsert: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          currentKey: any;
-          namespace?: any;
-          newKey: any;
-          newNamespace?: any;
-          summand?: number;
-          value: any;
-        },
-        any
-      >;
-    };
-  };
-  persistentTextStreaming: {
-    lib: {
-      addChunk: FunctionReference<
-        "mutation",
-        "internal",
-        { final: boolean; streamId: string; text: string },
-        any
-      >;
-      createStream: FunctionReference<"mutation", "internal", {}, any>;
-      getStreamStatus: FunctionReference<
-        "query",
-        "internal",
-        { streamId: string },
-        "pending" | "streaming" | "done" | "error" | "timeout"
-      >;
-      getStreamText: FunctionReference<
-        "query",
-        "internal",
-        { streamId: string },
-        {
-          status: "pending" | "streaming" | "done" | "error" | "timeout";
-          text: string;
-        }
-      >;
-      setStreamStatus: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          status: "pending" | "streaming" | "done" | "error" | "timeout";
-          streamId: string;
-        },
-        any
-      >;
-    };
-  };
-  fs: {
-    lib: {
-      commitFiles: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          files: Array<{
-            attributes?: { expiresAt?: number };
-            basis?: null | string;
-            blobId: string;
-            path: string;
-          }>;
-        },
-        null
-      >;
-      copyByPath: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          destPath: string;
-          sourcePath: string;
-        },
-        null
-      >;
-      deleteByPath: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          path: string;
-        },
-        null
-      >;
-      getDownloadUrl: FunctionReference<
-        "action",
-        "internal",
-        {
-          blobId: string;
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          extraParams?: Record<string, string>;
-        },
-        string
-      >;
-      list: FunctionReference<
-        "query",
-        "internal",
-        {
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          paginationOpts: {
-            cursor: string | null;
-            endCursor?: string | null;
-            id?: number;
-            maximumBytesRead?: number;
-            maximumRowsRead?: number;
-            numItems: number;
-          };
-          prefix?: string;
-        },
-        {
-          continueCursor: string;
-          isDone: boolean;
-          page: Array<{
-            attributes?: { expiresAt?: number };
-            blobId: string;
-            contentType: string;
-            path: string;
-            size: number;
-          }>;
-        }
-      >;
-      moveByPath: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          destPath: string;
-          sourcePath: string;
-        },
-        null
-      >;
-      registerPendingUpload: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          blobId: string;
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          contentType: string;
-          size: number;
-        },
-        null
-      >;
-      stat: FunctionReference<
-        "query",
-        "internal",
-        {
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          path: string;
-        },
-        null | {
-          attributes?: { expiresAt?: number };
-          blobId: string;
-          contentType: string;
-          path: string;
-          size: number;
-        }
-      >;
-      transact: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          ops: Array<
-            | {
-                dest: { basis?: null | string; path: string };
-                op: "move";
-                source: {
-                  attributes?: { expiresAt?: number };
-                  blobId: string;
-                  contentType: string;
-                  path: string;
-                  size: number;
-                };
-              }
-            | {
-                dest: { basis?: null | string; path: string };
-                op: "copy";
-                source: {
-                  attributes?: { expiresAt?: number };
-                  blobId: string;
-                  contentType: string;
-                  path: string;
-                  size: number;
-                };
-              }
-            | {
-                op: "delete";
-                source: {
-                  attributes?: { expiresAt?: number };
-                  blobId: string;
-                  contentType: string;
-                  path: string;
-                  size: number;
-                };
-              }
-            | {
-                attributes: { expiresAt?: null | number };
-                op: "setAttributes";
-                source: {
-                  attributes?: { expiresAt?: number };
-                  blobId: string;
-                  contentType: string;
-                  path: string;
-                  size: number;
-                };
-              }
-          >;
-        },
-        null
-      >;
-    };
-    ops: {
-      basics: {
-        copyByPath: FunctionReference<
-          "mutation",
-          "internal",
-          {
-            config: {
-              blobGracePeriod?: number;
-              downloadUrlTtl?: number;
-              storage:
-                | {
-                    apiKey: string;
-                    cdnHostname: string;
-                    region?: string;
-                    storageZoneName: string;
-                    tokenKey?: string;
-                    type: "bunny";
-                  }
-                | { type: "test" };
-            };
-            destPath: string;
-            sourcePath: string;
-          },
-          null
-        >;
-        deleteByPath: FunctionReference<
-          "mutation",
-          "internal",
-          {
-            config: {
-              blobGracePeriod?: number;
-              downloadUrlTtl?: number;
-              storage:
-                | {
-                    apiKey: string;
-                    cdnHostname: string;
-                    region?: string;
-                    storageZoneName: string;
-                    tokenKey?: string;
-                    type: "bunny";
-                  }
-                | { type: "test" };
-            };
-            path: string;
-          },
-          null
-        >;
-        list: FunctionReference<
-          "query",
-          "internal",
-          {
-            config: {
-              blobGracePeriod?: number;
-              downloadUrlTtl?: number;
-              storage:
-                | {
-                    apiKey: string;
-                    cdnHostname: string;
-                    region?: string;
-                    storageZoneName: string;
-                    tokenKey?: string;
-                    type: "bunny";
-                  }
-                | { type: "test" };
-            };
-            paginationOpts: {
-              cursor: string | null;
-              endCursor?: string | null;
-              id?: number;
-              maximumBytesRead?: number;
-              maximumRowsRead?: number;
-              numItems: number;
-            };
-            prefix?: string;
-          },
-          {
-            continueCursor: string;
-            isDone: boolean;
-            page: Array<{
-              attributes?: { expiresAt?: number };
-              blobId: string;
-              contentType: string;
-              path: string;
-              size: number;
-            }>;
-          }
-        >;
-        moveByPath: FunctionReference<
-          "mutation",
-          "internal",
-          {
-            config: {
-              blobGracePeriod?: number;
-              downloadUrlTtl?: number;
-              storage:
-                | {
-                    apiKey: string;
-                    cdnHostname: string;
-                    region?: string;
-                    storageZoneName: string;
-                    tokenKey?: string;
-                    type: "bunny";
-                  }
-                | { type: "test" };
-            };
-            destPath: string;
-            sourcePath: string;
-          },
-          null
-        >;
-        stat: FunctionReference<
-          "query",
-          "internal",
-          {
-            config: {
-              blobGracePeriod?: number;
-              downloadUrlTtl?: number;
-              storage:
-                | {
-                    apiKey: string;
-                    cdnHostname: string;
-                    region?: string;
-                    storageZoneName: string;
-                    tokenKey?: string;
-                    type: "bunny";
-                  }
-                | { type: "test" };
-            };
-            path: string;
-          },
-          null | {
-            attributes?: { expiresAt?: number };
-            blobId: string;
-            contentType: string;
-            path: string;
-            size: number;
-          }
-        >;
-      };
-      transact: {
-        commitFiles: FunctionReference<
-          "mutation",
-          "internal",
-          {
-            config: {
-              blobGracePeriod?: number;
-              downloadUrlTtl?: number;
-              storage:
-                | {
-                    apiKey: string;
-                    cdnHostname: string;
-                    region?: string;
-                    storageZoneName: string;
-                    tokenKey?: string;
-                    type: "bunny";
-                  }
-                | { type: "test" };
-            };
-            files: Array<{
-              attributes?: { expiresAt?: number };
-              basis?: null | string;
-              blobId: string;
-              path: string;
-            }>;
-          },
-          null
-        >;
-        transact: FunctionReference<
-          "mutation",
-          "internal",
-          {
-            config: {
-              blobGracePeriod?: number;
-              downloadUrlTtl?: number;
-              storage:
-                | {
-                    apiKey: string;
-                    cdnHostname: string;
-                    region?: string;
-                    storageZoneName: string;
-                    tokenKey?: string;
-                    type: "bunny";
-                  }
-                | { type: "test" };
-            };
-            ops: Array<
-              | {
-                  dest: { basis?: null | string; path: string };
-                  op: "move";
-                  source: {
-                    attributes?: { expiresAt?: number };
-                    blobId: string;
-                    contentType: string;
-                    path: string;
-                    size: number;
-                  };
-                }
-              | {
-                  dest: { basis?: null | string; path: string };
-                  op: "copy";
-                  source: {
-                    attributes?: { expiresAt?: number };
-                    blobId: string;
-                    contentType: string;
-                    path: string;
-                    size: number;
-                  };
-                }
-              | {
-                  op: "delete";
-                  source: {
-                    attributes?: { expiresAt?: number };
-                    blobId: string;
-                    contentType: string;
-                    path: string;
-                    size: number;
-                  };
-                }
-              | {
-                  attributes: { expiresAt?: null | number };
-                  op: "setAttributes";
-                  source: {
-                    attributes?: { expiresAt?: number };
-                    blobId: string;
-                    contentType: string;
-                    path: string;
-                    size: number;
-                  };
-                }
-            >;
-          },
-          null
-        >;
-      };
-    };
-    transfer: {
-      getDownloadUrl: FunctionReference<
-        "action",
-        "internal",
-        {
-          blobId: string;
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          extraParams?: Record<string, string>;
-        },
-        string
-      >;
-      registerPendingUpload: FunctionReference<
-        "mutation",
-        "internal",
-        {
-          blobId: string;
-          config: {
-            blobGracePeriod?: number;
-            downloadUrlTtl?: number;
-            storage:
-              | {
-                  apiKey: string;
-                  cdnHostname: string;
-                  region?: string;
-                  storageZoneName: string;
-                  tokenKey?: string;
-                  type: "bunny";
-                }
-              | { type: "test" };
-          };
-          contentType: string;
-          size: number;
-        },
-        null
-      >;
-    };
-  };
+  pageViewsByPath: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"pageViewsByPath">;
+  totalPageViews: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"totalPageViews">;
+  uniqueVisitors: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"uniqueVisitors">;
+  uniquePaths: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"uniquePaths">;
+  persistentTextStreaming: import("@convex-dev/persistent-text-streaming/_generated/component.js").ComponentApi<"persistentTextStreaming">;
+  selfHosting: import("@convex-dev/self-hosting/_generated/component.js").ComponentApi<"selfHosting">;
+  r2: import("@convex-dev/r2/_generated/component.js").ComponentApi<"r2">;
+  fs: import("convex-fs/_generated/component.js").ComponentApi<"fs">;
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+  crons: import("@convex-dev/crons/_generated/component.js").ComponentApi<"crons">;
+  workpool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"workpool">;
+  agentReady: import("@waynesutton/agent-ready/_generated/component.js").ComponentApi<"agentReady">;
+  agent: import("@convex-dev/agent/_generated/component.js").ComponentApi<"agent">;
+  rag: import("@convex-dev/rag/_generated/component.js").ComponentApi<"rag">;
 };

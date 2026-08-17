@@ -18,7 +18,6 @@ const BLOG_VIEW_MODE_KEY = "blog-view-mode";
 // 3. Regular posts: non-featured posts (3 columns)
 // Controlled by siteConfig.blogPage and siteConfig.postsDisplay settings
 export default function Blog() {
-
   // Fetch all published posts from Convex
   const posts = useQuery(api.posts.getAllPosts);
 
@@ -221,8 +220,9 @@ export default function Blog() {
       {showFooter && <Footer content={footerPage?.content} />}
 
       {/* Social footer section */}
-      {siteConfig.socialFooter?.enabled &&
-        siteConfig.socialFooter.showOnBlogPage && <SocialFooter />}
+      {siteConfig.socialFooter?.enabled && siteConfig.socialFooter.showOnBlogPage && (
+        <SocialFooter />
+      )}
     </div>
   );
 }

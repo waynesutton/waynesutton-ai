@@ -97,17 +97,6 @@ export default function NewsletterAdmin() {
   } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Check if admin is enabled
-  if (!siteConfig.newsletterAdmin?.enabled) {
-    return (
-      <div className="newsletter-admin-disabled">
-        <h1>Newsletter Admin</h1>
-        <p>Newsletter admin is disabled in site configuration.</p>
-        <Link to="/">Back to Home</Link>
-      </div>
-    );
-  }
-
   // Queries
   const subscribersData = useQuery(api.newsletter.getAllSubscribers, {
     limit: 20,
@@ -666,6 +655,17 @@ Supports markdown:
       </div>
     );
   };
+
+  // Check if admin is enabled
+  if (!siteConfig.newsletterAdmin?.enabled) {
+    return (
+      <div className="newsletter-admin-disabled">
+        <h1>Newsletter Admin</h1>
+        <p>Newsletter admin is disabled in site configuration.</p>
+        <Link to="/">Back to Home</Link>
+      </div>
+    );
+  }
 
   return (
     <div className="newsletter-admin-layout two-column">

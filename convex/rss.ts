@@ -1,11 +1,12 @@
-import { httpAction } from "./_generated/server";
-import { api } from "./_generated/api";
+import type { GenericActionCtx } from "convex/server";
+import { internal } from "./_generated/api";
+import type { DataModel } from "./_generated/dataModel";
 
 // Site configuration for RSS feed - update these for your site (or run npm run configure)
-const SITE_URL = process.env.SITE_URL || "https://www.markdown.fast";
-const SITE_TITLE = "markdown sync framework";
+const SITE_URL = process.env.SITE_URL || "https://waynesutton.ai";
+const SITE_TITLE = "Wayne Sutton";
 const SITE_DESCRIPTION =
-  "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.";
+  "Wayne Sutton writes about developer community, Convex, AI, startups, and the craft of building useful software.";
 
 // Escape XML special characters
 function escapeXml(text: string): string {
@@ -101,24 +102,21 @@ function generateFullRssXml(
 </rss>`;
 }
 
-// HTTP action to serve RSS feed (descriptions only)
-export const rssFeed = httpAction(async (ctx) => {
-  const posts = await ctx.runQuery(api.posts.getAllPosts);
+// RSS feed handler (descriptions only)
+export async function handleRssFeed(ctx: {
+  auth: GenericActionCtx<DataModel>["auth"];
+  runQuery: GenericActionCtx<DataModel>["runQuery"];
+}): Promise<Response> {
+  await ctx.auth.getUserIdentity();
+  const posts = await ctx.runQuery(internal.posts.getAllPostsInternal);
 
   const xml = generateRssXml(
-    posts.map(
-      (post: {
-        title: string;
-        description: string;
-        slug: string;
-        date: string;
-      }) => ({
-        title: post.title,
-        description: post.description,
-        slug: post.slug,
-        date: post.date,
-      }),
-    ),
+    posts.map((post: { title: string; description: string; slug: string; date: string }) => ({
+      title: post.title,
+      description: post.description,
+      slug: post.slug,
+      date: post.date,
+    })),
   );
 
   return new Response(xml, {
@@ -127,38 +125,16 @@ export const rssFeed = httpAction(async (ctx) => {
       "Cache-Control": "public, max-age=3600, s-maxage=7200",
     },
   });
-});
+}
 
-// HTTP action to serve full RSS feed (with complete content)
-export const rssFullFeed = httpAction(async (ctx) => {
-  const posts = await ctx.runQuery(api.posts.getAllPosts);
-
-  // Fetch full content for each post
-  const fullPosts = await Promise.all(
-    posts.map(
-      async (post: {
-        title: string;
-        description: string;
-        slug: string;
-        date: string;
-        readTime?: string;
-        tags: string[];
-      }) => {
-        const fullPost = await ctx.runQuery(api.posts.getPostBySlug, {
-          slug: post.slug,
-        });
-        return {
-          title: post.title,
-          description: post.description,
-          slug: post.slug,
-          date: post.date,
-          content: fullPost?.content || "",
-          readTime: post.readTime,
-          tags: post.tags,
-        };
-      },
-    ),
-  );
+// Full RSS feed handler (with complete content)
+export async function handleRssFullFeed(ctx: {
+  auth: GenericActionCtx<DataModel>["auth"];
+  runQuery: GenericActionCtx<DataModel>["runQuery"];
+}): Promise<Response> {
+  await ctx.auth.getUserIdentity();
+  // Single batch query instead of N+1 per-post fetches
+  const fullPosts = await ctx.runQuery(internal.posts.getAllPostsWithContentInternal);
 
   const xml = generateFullRssXml(fullPosts);
 
@@ -168,4 +144,4 @@ export const rssFullFeed = httpAction(async (ctx) => {
       "Cache-Control": "public, max-age=3600, s-maxage=7200",
     },
   });
-});
+}

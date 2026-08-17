@@ -1,7 +1,7 @@
 import { useSearchParams, Link } from "react-router-dom";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 // Unsubscribe page component
 // Handles newsletter unsubscription via email and token from URL params
@@ -20,15 +20,7 @@ export default function Unsubscribe() {
   // Track if we've already attempted unsubscribe to prevent double calls
   const hasAttempted = useRef(false);
 
-  // Auto-unsubscribe when page loads with valid params
-  useEffect(() => {
-    if (email && token && !hasAttempted.current) {
-      hasAttempted.current = true;
-      handleUnsubscribe();
-    }
-  }, [email, token]);
-
-  const handleUnsubscribe = async () => {
+  const handleUnsubscribe = useCallback(async () => {
     if (!email || !token) {
       setStatus("error");
       setMessage("Invalid unsubscribe link.");
@@ -45,7 +37,15 @@ export default function Unsubscribe() {
       setStatus("error");
       setMessage("Something went wrong. Please try again.");
     }
-  };
+  }, [email, token, unsubscribeMutation]);
+
+  // Auto-unsubscribe when page loads with valid params
+  useEffect(() => {
+    if (email && token && !hasAttempted.current) {
+      hasAttempted.current = true;
+      handleUnsubscribe();
+    }
+  }, [email, token, handleUnsubscribe]);
 
   return (
     <div className="unsubscribe-page">

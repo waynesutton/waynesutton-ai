@@ -44,5 +44,14 @@ crons.cron(
   {}
 );
 
+// Clean up anonymous demo content every 30 minutes
+// Deletes all posts and pages with source="demo" created by anonymous dashboard visitors
+crons.interval(
+  "cleanup demo content",
+  { minutes: 30 },
+  internal.demo.cleanupDemoContent,
+  {}
+);
+
 export default crons;
 

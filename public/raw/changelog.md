@@ -2,10 +2,581 @@
 
 ---
 Type: page
-Date: 2026-02-16
+Date: 2026-08-16
 ---
 
 All notable changes to this project.
+
+---
+
+## v2.35.0
+
+Released April 26, 2026
+
+**Agent-ready component: full config, widget URL fix, and production deploy**
+
+- Populated `agent-ready.config.json` with 28 pages and 16 API endpoints so llms.txt and agents.md reflect the full site content
+- All generated URLs now use `https://www.markdown.fast` instead of the raw Convex deployment URL
+- Enabled `fullTxtEnabled: true` for richer llms-full.txt output
+- Fixed the widget URL resolver so production builds use `VITE_SITE_URL` or the live browser origin instead of baking in the dev Convex site URL
+- Deployed updated static bundle to production with the widget URL fix
+
+---
+
+## v2.34.0
+
+Released April 26, 2026
+
+**Agent-ready component integration**
+
+- Installed `@waynesutton/agent-ready@0.1.7` with peer deps `@convex-dev/crons` and `@convex-dev/workpool`
+- Auto-generates, caches, and serves llms.txt, agents.md, and llms-full.txt from the Convex backend
+- Registered `agentReady`, `crons`, and `workpool` components in `convex/convex.config.ts`
+- Mounted agent-ready HTTP routes with `skipRoutes: ["/sitemap.xml"]` to avoid conflict with the existing dynamic sitemap
+- Added `AgentReadyWidget` and `UpdateBanner` to the frontend (floating bottom-right, dark theme)
+- Scaffolded `convex/agentReady/content.ts` and `convex/agentReady/analytics.ts` wrapper files
+- Fixed Convex push failure caused by duplicate `/sitemap.xml` route registration between the app and agent-ready
+
+---
+
+## v2.33.0
+
+Released April 26, 2026
+
+**Setup and fork install audit**
+
+- Updated `scripts/configure-fork.ts` to support all fork-config.json fields: `statsPage`, `imageLightbox`, `semanticSearch`, `dashboard`, `mcpServer`, `newsletter`, `contactForm`, `newsletterAdmin`, `aiChat`, `askAI`
+- Changed configure script "Next steps" from Netlify deploy to Convex self-hosted deploy
+- Updated all site description strings from "Built on Convex and Netlify" to "Built on Convex" across `index.html`, `convex/http.ts`, `convex/rss.ts`, and `sync-discovery-files.ts`
+- Moved `vite` from runtime to devDependencies in `packages/create-markdown-sync`
+
+---
+
+## v2.32.0
+
+Released April 26, 2026
+
+**Robel auth preview.30 upgrade and admin email lockdown**
+
+- Upgraded `@robelest/convex-auth` to `^0.0.4-preview.30` with first-party `github()` provider. Removed direct `arctic` dependency
+- Rewrote `convex/auth.ts` to use lowercase factory functions: `password()` and `github({ clientId, clientSecret })`
+- `isDashboardAdmin()` now treats `DASHBOARD_PRIMARY_ADMIN_EMAIL` as the sole admin gate when set. The `dashboardAdmins` table is bypassed entirely in strict mode
+- Non-admin authenticated users see a demo view with a denied-state banner showing the signed-in email, expected admin email, and a "Sign out and retry" button
+- Frontend auth uses a singleton `getConvexAuthClient()` from `@robelest/convex-auth/browser` to prevent duplicate OAuth callback verification
+- OAuth callback cleanup is owned by the auth library during normal login. The app only cleans stale params after a five-second unauthenticated grace period
+- Fixed blank page on load caused by the auth client throwing during SPA init with a stale refresh token
+- Fixed repeated `Invalid verification code` logs from multiple auth client instances consuming the same callback
+- Fixed strict admin mode falling into first-admin bootstrap when no `dashboardAdmins` rows existed
+
+---
+
+## v2.31.0
+
+Released April 14, 2026
+
+**Convex auth upgrade to 0.0.4-preview.25**
+
+- Upgraded `@robelest/convex-auth` to the latest preview with `createAuth` factory API
+- Migrated `convex/auth.ts` off the deprecated `Auth` class and `Portal` helper
+- GitHub OAuth continues to use `arctic`'s `GitHub` wrapped in `OAuth()` since the preview package does not ship a first-party `github()` provider yet
+- SPA client now requires `api: api.auth` when calling `createConvexAuthClient`. Added the argument to all four call sites so sign in, sign out, and refresh token flows work
+- Fixed blank page on load caused by the auth client rejecting during SPA init when localStorage held a stale refresh token
+- Documented the drift between `auth.estifanos.com` docs and the published preview in the `robel-auth` skill so future updates inspect `node_modules` exports first
+
+---
+
+## v2.30.0
+
+Released April 14, 2026
+
+**Demo mode frontmatter hardening**
+
+- Demo users now see a trimmed frontmatter field picker that only shows fields the demo mutation actually accepts
+- Hidden fields include `showInNav`, `featured`, `featuredOrder`, `blogFeatured`, `order`, and `docsSection` so demo content cannot be forced into the navbar or featured sections
+- Demo Write tab template now opens with a shorter frontmatter block and a note that demo content resets every 30 minutes
+
+---
+
+## v2.29.0
+
+Released April 14, 2026
+
+**Markdown slide presentations**
+
+- Added `slides: true` frontmatter option for posts and pages to enable presentation mode
+- New `SlidePresentation` component renders fullscreen slide decks from markdown content
+- Content splits on `---` horizontal rules into individual slides (code blocks are safely skipped)
+- Keyboard navigation: arrow keys, space, escape, home, end
+- Progress bar, slide counter, and arrow button navigation
+- Present button appears in post header when slides are enabled
+- Full markdown rendering on slides including syntax-highlighted code blocks, tables, images, and blockquotes
+- New blog post: "Markdown slides" documenting the feature
+- New blog post: "Slide template example" with a working slide deck you can present
+- Added `slides` field to posts and pages tables in schema, sync mutations, and sync script
+
+---
+
+## v2.28.0
+
+Released April 14, 2026
+
+**Application-level rate limiting across all endpoints**
+
+- Added `@convex-dev/rate-limiter` component with 4-tier protection covering every public endpoint
+- Tier 1: LLM cost protection on Ask AI, source ingest, wiki compilation, AI image gen, AI chat
+- Tier 2: Compute protection on VFS exec/tree, API export, full-content RSS
+- Tier 3: Abuse prevention on heartbeat, page views, newsletter subscribe
+- Tier 4: Standard protection on API posts/post, sitemap, KB endpoints, RSS, raw markdown
+- Centralized rate limit definitions in `convex/rateLimits.ts` with HTTP action bridge mutation
+- All rate-limited endpoints return HTTP 429 with `Retry-After` headers
+- Rate limiting docs and patterns added to `convex-virtual-fs/` README
+
+---
+
+## v2.27.0
+
+Released April 14, 2026
+
+**Footer AI discovery links and sync wiki integration**
+
+- Added `llms.txt` and `AGENTS.md` links to site footer with Robot and FileText icons
+- Sync discovery script now fetches wiki pages and includes wiki knowledge base section in both `llms.txt` and `AGENTS.md`
+- `AGENTS.md` copied to `public/` during sync for web access at `/AGENTS.md`
+
+---
+
+## v2.26.0
+
+Released April 13, 2026
+
+**Pre-deploy: docs, model migration, blog post, homepage**
+
+- Migrated all OpenAI model references from deprecated `gpt-4o` to `gpt-4.1-mini` across backend, frontend, config, and docs
+- New blog post: "Wiki, knowledge bases, and virtual filesystem"
+- "Accessing wiki data" section added to docs, dashboard docs, and AGENTS.md documenting auth vs. unauthenticated access
+- README features section rewritten to match homepage, "Recent updates" refreshed
+- AGENTS.md key features list expanded with all current capabilities
+- Homepage tagline rewritten to include wikis and knowledge bases
+- Fixed stale "Hourly" references in demo mode docs
+
+---
+
+## v2.25.0
+
+Released April 13, 2026
+
+**Demo mode, wiki UI, and sidebar polish**
+
+- Demo content cleanup cron changed from hourly to every 30 minutes
+- Demo banner now says "your content resets every 30 minutes" with fork repo link
+- Added `demo` boolean field to schema for explicit frontmatter labeling of demo content
+- Wiki long names now wrap properly instead of overflowing cards and nav items
+- Dashboard config gets a "Show wiki in nav" toggle
+- Wiki left sidebar restyled to match docs sidebar pattern (uppercase header, left border active state, group dividers)
+- Wiki right sidebar TOC restyled to match docs TOC pattern (label border, left border accent items)
+
+---
+
+## v2.24.0
+
+Released April 5, 2026
+
+**Knowledge bases and LLM knowledge base projects**
+
+Added a full knowledge base management system. Admins can create multiple KB projects, upload markdown files or Obsidian vaults, control visibility and API access per KB, and share them on the public wiki page. Each KB gets its own knowledge graph and searchable index. convex-doctor score stays at 100/100.
+
+**New features:**
+
+- Knowledge base CRUD: create, update, delete KBs with visibility and API settings
+- Markdown file upload: drag and drop `.md` files into any KB from the dashboard
+- Per-KB API endpoints: `/api/kb`, `/api/kb/pages?slug=<kb>`, `/api/kb/page?kb=<kb>&slug=<page>`
+- KB switcher on the public Wiki page for browsing between site wiki and uploaded KBs
+- Full-text search scoped by knowledge base
+- Knowledge graph visualization per KB
+- `--kb=<id>` flag for `npm run sync:wiki` CLI command
+- New tables: `knowledgeBases`, `kbUploadJobs`
+- `kbId` foreign key on `wikiPages`, `wikiIndex`, `wikiCompilationJobs`
+
+**Files added:**
+
+- `convex/knowledgeBases.ts`
+- `convex/kbUpload.ts`
+- `prds/knowledge-bases.md`
+
+**Files changed:**
+
+- `convex/schema.ts` (new tables, kbId fields, indexes)
+- `convex/wiki.ts` (kbId scoping on all queries, search, sync)
+- `convex/http.ts` (KB API endpoints)
+- `src/pages/Dashboard.tsx` (KB management section)
+- `src/pages/Wiki.tsx` (KB switcher)
+- `src/styles/global.css` (KB switcher styles)
+- `scripts/sync-wiki.ts` (--kb flag)
+
+---
+
+## v2.23.0
+
+Released April 4, 2026
+
+**Virtual filesystem, source ingest pipeline, and LLM wiki**
+
+Added a shell-like virtual filesystem HTTP interface, a Firecrawl powered source ingestion pipeline with OpenAI embeddings, and an LLM driven wiki compilation system. All new code passes convex-doctor at 100/100 with 0 errors and 0 warnings.
+
+**New features:**
+
+- `/vfs/tree` and `/vfs/exec` HTTP endpoints for shell command emulation (ls, cat, grep, find, tree, head, wc, pwd, cd)
+- Source ingest with queued job pattern: submit a URL, Firecrawl scrapes it, OpenAI generates embeddings
+- LLM wiki compilation: GPT-4.1 mini synthesizes interlinked wiki pages from all site content
+- Wiki linting: automated checks for backlinks, content length, and title presence
+- Daily wiki compilation cron job at 4:00 AM UTC
+- Five new database tables: `sources`, `sourceIngestJobs`, `wikiPages`, `wikiIndex`, `wikiCompilationJobs`
+- Wiki resources page with reference links
+
+**Performance:**
+
+- Virtual filesystem uses shared helper functions to avoid `ctx.runQuery` within the same module
+- Wiki compilation batches all page upserts, index regeneration, and job finalization into single mutations
+- Source processing batches mark-processed and job finalization into one mutation
+
+**Dashboard:**
+
+- New "Knowledge" sidebar section with Sources and Wiki tabs
+- Sources tab: ingest form (URL + title + type selector), source list with processing status, content preview panel
+- Wiki tab: compile/lint buttons with real-time job polling, latest job status bar, lint report viewer, wiki pages list with rendered markdown detail, backlink navigation, wiki index display
+
+**Files added:**
+
+- `convex/virtualFs.ts`, `convex/sources.ts`, `convex/sourceActions.ts`
+- `convex/wiki.ts`, `convex/wikiCompiler.ts`, `convex/wikiJobs.ts`
+- `content/pages/wiki-resources.md`, `prds/virtual-filesystem.md`
+
+**Files changed:**
+
+- `convex/schema.ts` (5 new tables with indexes)
+- `convex/http.ts` (2 new routes + OPTIONS handlers)
+- `convex/crons.ts` (daily wiki compilation cron)
+- `src/pages/Dashboard.tsx` (SourcesSection + WikiSection components, Knowledge nav section)
+
+---
+
+## v2.22.0
+
+Released March 20, 2026
+
+**convex-doctor 100/100 and blog post**
+
+Reached a perfect convex-doctor score across 17 remediation passes. Added a featured blog post documenting the full journey from 42/100 to 100/100.
+
+**Changes:**
+
+- 17 passes of convex-doctor remediation: security hardening, performance fixes, schema cleanup, architecture refactors
+- New blog post: "How convex-doctor took markdown.fast from 42 to 100"
+- Generated before/after comparison image and added benchmark screenshots
+- Added convex-doctor skill and always-on Cursor rule
+- Reverted `.unique()` to `.first()` in `authAdmin.ts` and `dashboardAuth.ts` (fix for duplicate row runtime errors)
+- Added `convex-doctor.toml` with documented suppressions for by-design patterns
+
+**Files changed:**
+
+- `content/blog/convex-doctor-score-42-to-100.md` (new featured blog post)
+- `public/images/convex-doctor-*.png` (3 new images)
+- `convex-doctor.toml` (new config)
+- `.cursor/skills/convex-doctor/SKILL.md` (new skill)
+- `.cursor/rules/convex-doctor.mdc` (new rule)
+- `convex/authAdmin.ts`, `convex/dashboardAuth.ts` (reverted .unique() to .first())
+- 30+ Convex function files modified for security, performance, and architecture improvements
+
+---
+
+## v2.21.6
+
+Released March 1, 2026
+
+**Rybbit analytics integration**
+
+Adds Rybbit analytics for site tracking.
+
+**Changes:**
+
+- Added Rybbit analytics script to `index.html` with site ID `24731ca420a4`
+- Script loads with `defer` attribute to avoid blocking page rendering
+
+**Files changed:**
+
+- `index.html` (added Rybbit analytics script)
+
+---
+
+## v2.21.5
+
+Released February 27, 2026
+
+**TypeScript error fixes**
+
+Fixes TypeScript compilation errors for cleaner builds with zero errors.
+
+**Changes:**
+
+- Removed unused variables `pathsWithCounts` and `allPathsFromAggregate` in `convex/stats.ts`
+- Fixed `fetchpriority` to `fetchPriority` (React camelCase) in logo and header images
+
+**Files changed:**
+
+- `convex/stats.ts` (removed unused variables)
+- `src/components/Layout.tsx` (fetchPriority fix)
+- `src/pages/Home.tsx` (fetchPriority fix)
+- `src/pages/Post.tsx` (4 fetchPriority fixes)
+
+---
+
+## v2.21.4
+
+Released February 22, 2026
+
+**Button border radius consistency fix**
+
+Fixes inconsistent button border radius across Write page and Dashboard.
+
+**CSS changes:**
+
+- Added missing CSS variables to `:root`: `--border-radius-sm: 4px`, `--border-radius-md: 6px`, `--border-radius-lg: 8px`
+- Dashboard mode toggles (Markdown/Rich Text/Preview) now have consistent 6px border radius
+- All action buttons (Copy All, Clear, Image, Download .md, Save to DB) match
+
+**Files changed:**
+
+- `src/styles/global.css` (added border-radius CSS variables)
+
+---
+
+## v2.21.3
+
+Released February 22, 2026
+
+**Media Library and router fixes**
+
+Fixes Media Library upload and preview for all media providers, image clipping, React Router warnings, and dynamic usage text.
+
+**Media Library:**
+
+- Upload with `convex` or `r2` providers now shows image preview with MD/HTML/URL copy buttons
+- Recent uploads persist to `sessionStorage` so they survive page refreshes
+- Image previews use real Convex storage URLs instead of ephemeral blob URLs
+- Usage text dynamically reflects the active media provider (Bunny CDN, ConvexFS, R2, or Convex storage)
+- Fixed image clipping in grid: changed from square crop to 4:3 aspect ratio with full image visible
+
+**ImageUploadModal:**
+
+- Media Library tab no longer requires Bunny CDN configuration (only needs `convexfs` provider)
+
+**Other fixes:**
+
+- Added React Router v7 future flags (`v7_startTransition`, `v7_relativeSplatPath`) to eliminate deprecation warnings
+- Removed unused logo preload from `index.html` that caused console warnings
+
+**Files changed:**
+
+- `src/components/MediaLibrary.tsx` (recent uploads tracking, dynamic usage text, sessionStorage persistence)
+- `src/components/ImageUploadModal.tsx` (removed Bunny CDN gate from Media Library tab)
+- `src/styles/global.css` (image preview aspect ratio fix, recent uploads CSS)
+- `src/main.tsx` (React Router v7 future flags)
+- `index.html` (removed logo preload)
+
+---
+
+## v2.21.2
+
+Released February 22, 2026
+
+**Heartbeat write conflict elimination**
+
+This release eliminates write conflicts in the `activeSessions` table from rapid heartbeat mutations.
+
+**Backend changes:**
+
+- Increased `HEARTBEAT_DEDUP_MS` from 20s to 45s in `convex/stats.ts`
+- Backend now rejects duplicate heartbeats within 45 seconds regardless of path changes
+
+**Frontend changes:**
+
+- Increased `HEARTBEAT_INTERVAL_MS` from 30s to 45s
+- Increased `HEARTBEAT_DEBOUNCE_MS` from 20s to 45s
+- Added BroadcastChannel cross-tab coordination so only leader tab sends heartbeats
+- Tab leadership election with automatic handoff when tabs close
+- Heartbeat completely disabled when `statsPage.enabled: false` in siteConfig
+
+**Files changed:**
+
+- `convex/stats.ts` (increased dedup window)
+- `src/hooks/usePageTracking.ts` (BroadcastChannel coordination, timing increases)
+- `.cursor/rules/convex-write-conflicts.mdc` (updated app-specific patterns)
+- `prds/fix-heartbeat-write-conflicts.md` (new PRD)
+
+---
+
+## v2.21.1
+
+Released February 21, 2026
+
+**Stats performance optimizations**
+
+This release significantly improves stats page loading performance and reduces Convex database usage.
+
+**Performance improvements:**
+
+- Stats tracking now respects `statsPage.enabled` config. When disabled, no page views or heartbeats are recorded, eliminating all stats-related DB writes.
+- Removed the expensive full table scan fallback in `getStats` query. The query now trusts aggregate counts directly, improving from O(n) to O(log n) complexity.
+- Added `uniquePaths` aggregate component for efficient tracking of distinct pages viewed.
+- Paginated `pageStats` to return only the top 50 pages by views instead of all paths.
+
+**UI updates:**
+
+- Stats page now shows "Top Pages by Views" section title
+- Displays "(showing X of Y)" count indicator when more paths exist than displayed
+
+**Files changed:**
+
+- `src/hooks/usePageTracking.ts` (stats enabled check)
+- `convex/stats.ts` (removed table scan, added pagination, added uniquePaths)
+- `convex/convex.config.ts` (uniquePaths aggregate registration)
+- `src/pages/Stats.tsx` (updated section title and count display)
+- `src/styles/global.css` (stats-section-subtitle class)
+
+**After deploying**, run the backfill to populate the new aggregate:
+
+```bash
+npx convex run stats:backfillAggregates
+```
+
+---
+
+## v2.21.0
+
+Released February 21, 2026
+
+**Convex self hosting and @robelest/convex-auth integration**
+
+Major architecture update establishing Convex self hosting and `@robelest/convex-auth` as the default deployment and authentication stack while preserving full backwards compatibility with WorkOS and Netlify.
+
+**Default architecture:**
+
+- `auth.mode: "convex-auth"` with GitHub OAuth via `@robelest/convex-auth`
+- `hosting.mode: "convex-self-hosted"` with `@convex-dev/self-hosting`
+- `media.provider: "convex"` for direct Convex storage
+
+**Legacy compatibility:**
+
+- `auth.mode: "workos"` for WorkOS AuthKit
+- `hosting.mode: "netlify"` for Netlify deployment
+- `media.provider: "convexfs"` or `"r2"` for alternate storage
+
+**New backend wiring:**
+
+- `convex/auth.ts` exports Convex Auth helpers
+- `convex/staticHosting.ts` provides static asset deployment APIs
+- `convex/http.ts` registers auth routes and static file routes
+- `convex/convex.config.ts` registers Auth, Self Hosting, and R2 components
+- `convex/r2.ts` for optional Cloudflare R2 uploads
+- `convex/media.ts` for provider resolution
+
+**Frontend auth refactor:**
+
+- `src/main.tsx` uses centralized auth wrapper
+- `src/AppWithWorkOS.tsx` handles all auth modes with proper `ConvexAuthWrapper`
+- Custom domain support via `VITE_CONVEX_SITE_URL` and `VITE_SITE_URL`
+
+**Dashboard admin system:**
+
+- Server-side admin authorization with `dashboardAdmins` table
+- Admin APIs in `convex/authAdmin.ts` for grant/revoke/list
+- Bootstrap command: `npx convex run authAdmin:bootstrapDashboardAdmin`
+- Optional strict email gate via `DASHBOARD_PRIMARY_ADMIN_EMAIL`
+- Auth setup status query for first-admin guidance UI
+
+**One click deploy improvements:**
+
+- GitHub template flow: Use this template, clone, run `npm install && npx convex dev --once && npm run sync && npm run deploy`
+- CLI flow: `npx create-markdown-sync my-site`
+- Updated `FORK_CONFIG.md` with admin setup instructions
+- Updated `fork-config.json.example` with default mode config
+- Validation scripts: `scripts/validate-env.ts`, `scripts/verify-deploy.ts`
+
+**Rich text editor replacement:**
+
+- Replaced Quill with lightweight `contentEditable` editor
+- Simple formatting toolbar (bold, italic, strike, headings, lists, quote)
+- Preserved Markdown, Rich Text, Preview modes
+- Image insertion support
+- Zero vulnerabilities: `npm audit --omit=dev` passes
+
+**Files changed:**
+
+- `convex/auth.ts`, `convex/authAdmin.ts`, `convex/dashboardAuth.ts`
+- `convex/staticHosting.ts`, `convex/media.ts`, `convex/r2.ts`
+- `convex/http.ts`, `convex/convex.config.ts`, `convex/schema.ts`
+- `src/main.tsx`, `src/AppWithWorkOS.tsx`, `src/utils/workos.ts`
+- `src/pages/Dashboard.tsx`, `src/config/siteConfig.ts`
+- `README.md`, `FORK_CONFIG.md`, `fork-config.json.example`
+- `scripts/validate-env.ts`, `scripts/verify-deploy.ts`
+- `.cursor/skills/robel-auth/SKILL.md`
+- `.cursor/skills/convex-self-hosting/SKILL.md`
+
+---
+
+## v2.20.1
+
+Released January 11, 2026
+
+**True delete for AI generated images**
+
+Added proper delete functionality for AI generated images in the Dashboard AI Agent section. The clear button has been replaced with a delete button that shows a confirmation dialog before permanently removing the image from both the database and Convex Storage.
+
+**Changes:**
+
+- Delete button with confirmation dialog in AI Agent image generation
+- Removes image from `aiGeneratedImages` table and Convex Storage
+- Added `by_storageId` index for efficient image lookup
+- Added `deleteGeneratedImage` mutation to aiChats.ts
+- Removed Save to Media Library feature (users can download and re-upload instead)
+
+**Files changed:**
+
+- `convex/schema.ts` - Added by_storageId index to aiGeneratedImages table
+- `convex/aiChats.ts` - Added deleteGeneratedImage mutation
+- `src/pages/Dashboard.tsx` - Updated AIAgentSection with delete button and confirmation modal
+- `src/styles/global.css` - Added delete button and confirmation dialog styles
+
+---
+
+## v2.20.0
+
+Released January 11, 2026
+
+**Dashboard frontmatter synchronization**
+
+All 30+ frontmatter fields now sync between the Dashboard UI and the database schema. Posts and pages editors support every available frontmatter option including docs section fields, layout options, and feature toggles.
+
+**Sync warning modal for synced content**
+
+Added a warning modal when editing content that was created via `npm run sync`. The modal explains that local file changes will overwrite dashboard edits on the next sync. Users can download or copy the markdown before editing, or choose "Save Anyway" for intentional edits. Dashboard-created content bypasses this warning.
+
+**Changes:**
+
+- Updated ContentItem interface with 19 new frontmatter fields
+- Updated postFrontmatterFields and pageFrontmatterFields arrays to match schema
+- Added SyncWarningModal component with download/copy options
+- Fixed missing `unlisted` field in sync-posts.ts PostFrontmatter interface
+- Created RC1 release blog post documenting major features
+
+**Files changed:**
+
+- `src/pages/Dashboard.tsx` - ContentItem interface, frontmatter arrays, SyncWarningModal, save handlers
+- `src/styles/global.css` - Sync warning modal styles
+- `scripts/sync-posts.ts` - Added unlisted field to PostFrontmatter interface
+- `content/blog/version-rc1.md` - RC1 release announcement
+
+---
 
 ## v2.19.0
 
@@ -551,7 +1122,7 @@ New header button that opens a chat modal for asking questions about site conten
 - Header button with sparkle icon (before search button)
 - Keyboard shortcuts: Cmd+J or Cmd+/ (Mac), Ctrl+J or Ctrl+/ (Windows/Linux)
 - Real-time streaming responses via Convex Persistent Text Streaming
-- Model selector: Claude Sonnet 4 (default) or GPT-4o
+- Model selector: Claude Sonnet 4 (default) or GPT-4.1 mini
 - Markdown rendering with syntax highlighting
 - Internal links use React Router for seamless navigation
 - Source citations with links to referenced content
@@ -577,7 +1148,7 @@ askAI: {
   defaultModel: "claude-sonnet-4-20250514",
   models: [
     { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", provider: "anthropic" },
-    { id: "gpt-4o", name: "GPT-4o", provider: "openai" },
+    { id: "gpt-4.1-mini", name: "GPT-4.1 mini", provider: "openai" },
   ],
 },
 ```
@@ -979,7 +1550,7 @@ Released January 1, 2026
 - AI Agent section with tab-based UI (Chat and Image Generation tabs)
 - Multi-model selector for text chat
   - Claude Sonnet 4 (Anthropic)
-  - GPT-4o (OpenAI)
+  - GPT-4.1 mini (OpenAI)
   - Gemini 2.0 Flash (Google)
 - Lazy API key validation: errors only shown when user tries to use a specific model
 - Each provider has friendly setup instructions with links to get API keys
@@ -1017,7 +1588,7 @@ Released January 1, 2026
 **Environment Variables:**
 
 - `ANTHROPIC_API_KEY`: Required for Claude models
-- `OPENAI_API_KEY`: Required for GPT-4o
+- `OPENAI_API_KEY`: Required for GPT-4.1 mini
 - `GOOGLE_AI_API_KEY`: Required for Gemini text chat and image generation
 
 Updated files: `convex/aiImageGeneration.ts`, `convex/aiChatActions.ts`, `convex/aiChats.ts`, `convex/schema.ts`, `src/components/AIChatView.tsx`, `src/pages/Dashboard.tsx`, `src/config/siteConfig.ts`, `src/styles/global.css`, `files.md`, `TASK.md`, `changelog.md`, `content/pages/changelog-page.md`

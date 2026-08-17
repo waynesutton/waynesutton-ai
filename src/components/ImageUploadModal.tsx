@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useAction, usePaginatedQuery, useQuery } from "convex/react";
+import { useConvex, useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
   X,
@@ -14,6 +14,12 @@ import {
 
 // Derive the .site URL from Convex URL for uploads
 const getSiteUrl = () => {
+  const explicitSiteUrl =
+    (import.meta.env.VITE_CONVEX_SITE_URL as string | undefined) ||
+    (import.meta.env.VITE_SITE_URL as string | undefined);
+  if (explicitSiteUrl) {
+    return explicitSiteUrl;
+  }
   const convexUrl = import.meta.env.VITE_CONVEX_URL ?? "";
   return convexUrl.replace(/\.cloud$/, ".site");
 };
@@ -56,10 +62,15 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
   const [customHeight, setCustomHeight] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const convex = useConvex();
 
-  const commitFile = useAction(api.files.commitFile);
-  const configStatus = useQuery(api.files.isConfigured);
-  const isBunnyConfigured = configStatus?.configured ?? false;
+  const uploadSettings = useQuery(api.media.getUploadSettings);
+  const mediaProvider = uploadSettings?.provider ?? "convex";
+  const commitFile = useMutation(api.files.commitFile);
+  const generateDirectUploadUrl = useMutation(api.media.generateDirectUploadUrl);
+  const generateR2UploadUrl = useMutation(api.r2.generateUploadUrl);
+  const syncR2Metadata = useMutation(api.r2.syncMetadata);
+  // Note: api.files.isConfigured checks Bunny CDN status but browsing only requires convexfs provider
 
   const { results: mediaFiles, status: mediaStatus, loadMore } = usePaginatedQuery(
     api.files.listFiles,
@@ -84,12 +95,15 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
   };
 
   // Get CDN URL for a file
-  const getCdnUrl = (path: string, blobId: string) => {
-    if (cdnHostname) {
-      return `https://${cdnHostname}${path}`;
-    }
-    return `${siteUrl}/fs/blobs/${blobId}`;
-  };
+  const getCdnUrl = useCallback(
+    (path: string, blobId: string) => {
+      if (cdnHostname) {
+        return `https://${cdnHostname}${path}`;
+      }
+      return `${siteUrl}/fs/blobs/${blobId}`;
+    },
+    [cdnHostname, siteUrl],
+  );
 
   // Get image dimensions from URL
   const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
@@ -122,7 +136,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
   };
 
   // Calculate display dimensions based on preset
-  const getDisplayDimensions = () => {
+  const getDisplayDimensions = useCallback(() => {
     if (!selectedImage) return { width: 0, height: 0 };
 
     const { width: origWidth, height: origHeight } = selectedImage;
@@ -152,7 +166,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
     }
 
     return { width: origWidth, height: origHeight };
-  };
+  }, [selectedImage, sizePreset, customWidth, customHeight]);
 
   // Handle file upload
   const handleUpload = useCallback(async (file: File) => {
@@ -179,32 +193,68 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
       // Get image dimensions
       const dimensions = await getImageDimensions(file);
 
-      // Upload blob to ConvexFS endpoint
-      const res = await fetch(`${siteUrl}/fs/upload`, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
+      let url = "";
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || `Upload failed: ${res.status}`);
+      if (mediaProvider === "convexfs") {
+        // Upload blob to ConvexFS endpoint
+        const res = await fetch(`${siteUrl}/fs/upload`, {
+          method: "POST",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText || `Upload failed: ${res.status}`);
+        }
+
+        const { blobId } = await res.json();
+
+        // Commit file to storage path
+        const result = await commitFile({
+          blobId,
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+          width: dimensions.width,
+          height: dimensions.height,
+        });
+        url = getCdnUrl(result.path, blobId);
+      } else if (mediaProvider === "r2") {
+        // Upload file to R2 using signed URL flow.
+        const { key, url: signedUploadUrl } = await generateR2UploadUrl({});
+        const uploadRes = await fetch(signedUploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!uploadRes.ok) {
+          throw new Error(`R2 upload failed: ${uploadRes.status}`);
+        }
+        await syncR2Metadata({ key });
+        const metadata = await convex.query(api.r2.getMetadata, { key });
+        if (!metadata?.url) {
+          throw new Error("R2 upload succeeded but URL is unavailable");
+        }
+        url = metadata.url;
+      } else {
+        // Default direct Convex storage upload path.
+        const uploadUrl = await generateDirectUploadUrl({});
+        const uploadRes = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!uploadRes.ok) {
+          throw new Error(`Upload failed: ${uploadRes.status}`);
+        }
+        const { storageId } = await uploadRes.json();
+        const storageUrl = await convex.query(api.media.getDirectStorageUrl, { storageId });
+        if (!storageUrl) {
+          throw new Error("Upload succeeded but URL is unavailable");
+        }
+        url = storageUrl;
       }
-
-      const { blobId } = await res.json();
-
-      // Commit file to storage path
-      const result = await commitFile({
-        blobId,
-        filename: file.name,
-        contentType: file.type,
-        size: file.size,
-        width: dimensions.width,
-        height: dimensions.height,
-      });
-
-      // Get CDN URL
-      const url = getCdnUrl(result.path, blobId);
 
       setSelectedImage({
         url,
@@ -214,13 +264,23 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
       });
       setUploadProgress(null);
     } catch (err) {
+      console.error("[ImageUploadModal] Upload error:", err);
       setError((err as Error).message);
       setPreview(null);
     } finally {
       setUploading(false);
       setUploadProgress(null);
     }
-  }, [commitFile, siteUrl, cdnHostname]);
+  }, [
+    commitFile,
+    convex,
+    generateDirectUploadUrl,
+    generateR2UploadUrl,
+    getCdnUrl,
+    mediaProvider,
+    siteUrl,
+    syncR2Metadata,
+  ]);
 
   // Handle file input change
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -300,7 +360,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
       setCustomWidth(dims.width);
       setCustomHeight(dims.height);
     }
-  }, [sizePreset, selectedImage]);
+  }, [sizePreset, selectedImage, getDisplayDimensions]);
 
   if (!isOpen) return null;
 
@@ -334,7 +394,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
           <button
             className={`image-upload-tab ${activeTab === "library" ? "active" : ""}`}
             onClick={() => setActiveTab("library")}
-            disabled={!isBunnyConfigured}
+            disabled={mediaProvider !== "convexfs"}
           >
             <Images size={16} />
             Media Library
@@ -384,10 +444,10 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
 
           {activeTab === "library" && !selectedImage && (
             <div className="image-upload-library">
-              {!isBunnyConfigured ? (
+              {mediaProvider !== "convexfs" ? (
                 <div className="image-upload-library-empty">
                   <Warning size={32} />
-                  <p>Media library not configured</p>
+                  <p>Media library browsing requires convexfs provider</p>
                 </div>
               ) : mediaFiles.length === 0 ? (
                 <div className="image-upload-library-empty">

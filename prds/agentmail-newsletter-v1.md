@@ -61,7 +61,7 @@ Email-only newsletter system integrated with AgentMail. All features are optiona
 | Variable | Description |
 |----------|-------------|
 | `AGENTMAIL_API_KEY` | Your AgentMail API key |
-| `AGENTMAIL_INBOX` | Your inbox address (e.g., `newsletter@mail.agentmail.to`) |
+| `AGENTMAIL_INBOX` | Your inbox address (e.g., `email-address`) |
 
 ### Site Config Example
 
@@ -69,7 +69,7 @@ Email-only newsletter system integrated with AgentMail. All features are optiona
 newsletter: {
   enabled: true,
   agentmail: {
-    inbox: "newsletter@mail.agentmail.to",
+    inbox: "email-address",
   },
   signup: {
     home: {

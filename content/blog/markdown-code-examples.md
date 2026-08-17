@@ -278,7 +278,7 @@ URLs and email addresses in angle brackets become clickable:
 
 ```markdown
 <https://www.waynesutton.ai>
-<hello@example.com>
+<email-address>
 ```
 
 ### Linking to headings

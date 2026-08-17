@@ -518,7 +518,7 @@ function getTextContent(children: React.ReactNode): string {
 
 // Anchor link component for headings
 function HeadingAnchor({ id }: { id: string }) {
-  const handleClick = (_e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleClick = () => {
     // Copy URL to clipboard, but allow default scroll behavior
     const url = `${window.location.origin}${window.location.pathname}#${id}`;
     navigator.clipboard.writeText(url).catch(() => {
@@ -583,7 +583,7 @@ export default function BlogPost({
       rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
       components={{
         code(codeProps) {
-          const { className, children, node, style, ...restProps } =
+          const { className, children, style, ...restProps } =
             codeProps as {
               className?: string;
               children?: React.ReactNode;
@@ -881,7 +881,7 @@ export default function BlogPost({
           rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
           components={{
             code(codeProps) {
-              const { className, children, node, style, ...restProps } =
+              const { className, children, style, ...restProps } =
                 codeProps as {
                   className?: string;
                   children?: React.ReactNode;

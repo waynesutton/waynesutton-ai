@@ -26,7 +26,6 @@ export default defineConfig(({ mode }) => {
               "rehype-sanitize",
             ],
             "vendor-syntax": ["react-syntax-highlighter"],
-            "vendor-diffs": ["@pierre/diffs"],
           },
         },
       },
@@ -55,6 +54,10 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
         "/meta/post": {
+          target: convexSiteUrl,
+          changeOrigin: true,
+        },
+        "/raw/": {
           target: convexSiteUrl,
           changeOrigin: true,
         },

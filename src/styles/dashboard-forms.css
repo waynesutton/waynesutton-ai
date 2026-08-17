@@ -1,0 +1,459 @@
+/* Dashboard frontmatter form styles (FrontmatterForm + editor panels).
+   Uses site CSS variables so all four themes work. Do not move these rules
+   into global.css; that file is owned by another workstream. */
+
+.fmf {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  font-family: var(--font-family);
+  color: var(--text-primary);
+}
+
+.fmf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.fmf-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.fmf-required {
+  color: var(--accent);
+}
+
+.fmf-input,
+.fmf-textarea,
+.fmf-select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 0.65rem;
+  min-height: 38px;
+  font-size: 0.85rem;
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.fmf-input:focus,
+.fmf-textarea:focus,
+.fmf-select:focus {
+  border-color: var(--accent);
+}
+
+.fmf-input::placeholder,
+.fmf-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.fmf-textarea {
+  resize: vertical;
+  min-height: 60px;
+  line-height: 1.45;
+}
+
+.fmf-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}
+
+.fmf-input-error {
+  border-color: #d64545;
+}
+
+.fmf-error {
+  font-size: 0.72rem;
+  color: #d64545;
+}
+
+.fmf-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Toggle switches */
+
+.fmf-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.fmf-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  min-height: 32px;
+}
+
+.fmf-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.fmf-switch-track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  transition: background-color 0.15s ease;
+}
+
+.fmf-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.fmf-switch input:checked + .fmf-switch-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.fmf-switch input:checked + .fmf-switch-track .fmf-switch-thumb {
+  transform: translateX(14px);
+  background: var(--bg-primary);
+}
+
+.fmf-switch input:focus-visible + .fmf-switch-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.fmf-switch-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Tag chips */
+
+.fmf-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.fmf-tags:focus-within {
+  border-color: var(--accent);
+}
+
+.fmf-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.fmf-tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.fmf-tag-remove:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.fmf-tag-input {
+  flex: 1;
+  min-width: 110px;
+  padding: 0.25rem 0.35rem;
+  font-size: 0.8rem;
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.fmf-tag-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Collapsible sections (more options, raw frontmatter, additional fields) */
+
+.fmf-section {
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.5rem;
+}
+
+.fmf-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.4rem 0.2rem;
+  min-height: 32px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--font-family);
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.fmf-section-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.fmf-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding-top: 0.5rem;
+}
+
+.fmf-raw {
+  margin: 0.5rem 0 0;
+  padding: 0.65rem 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Panel chrome shared by the write and edit sidebars */
+
+.fmf-panel {
+  flex: 1;
+  padding: 0.9rem 1rem 1.25rem;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.fmf-panel-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Additional fields panel (edit flows only) */
+
+.fmf-additional {
+  margin-top: 1rem;
+}
+
+/* Put the frontmatter panel above the body editor when the write layout
+   stacks into a single column. Higher specificity than the global.css
+   mobile rules so import order does not matter. */
+@media (max-width: 768px) {
+  .dashboard-write-section .dashboard-write-container {
+    flex-direction: column;
+  }
+
+  .dashboard-write-section .dashboard-write-container .dashboard-write-sidebar {
+    order: -1;
+    width: 100%;
+    border-left: none;
+    border-top: none;
+    border-bottom: 1px solid var(--border-color);
+    max-height: 45vh;
+    overflow-y: auto;
+  }
+}
+
+/* Mobile: comfortable touch targets, full-width single-column controls */
+@media (max-width: 700px) {
+  .fmf-input,
+  .fmf-textarea,
+  .fmf-select {
+    min-height: 44px;
+    font-size: 0.95rem;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .fmf-textarea {
+    min-height: 72px;
+  }
+
+  .fmf-switch {
+    min-height: 44px;
+  }
+
+  .fmf-section-toggle {
+    min-height: 44px;
+  }
+
+  .fmf-tag {
+    min-height: 32px;
+  }
+
+  .fmf-tag-input {
+    min-height: 36px;
+    font-size: 0.95rem;
+  }
+
+  .fmf-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+/* Dashboard header font size cycle button (S / M / L / XL) */
+.dashboard-font-scale-btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.dashboard-font-scale-btn > span:first-child {
+  font-size: 0.95rem;
+}
+
+.dashboard-font-scale-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+}
+
+/* Vendor key override controls (API Keys section) */
+.pipeline-vendor-row {
+  flex-wrap: wrap;
+}
+
+.pipeline-vendor-row > .pipeline-vendor-actions {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.pipeline-vendor-row > .pipeline-vendor-edit {
+  flex: 1 1 100%;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pipeline-vendor-edit .dashboard-import-input {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 700px) {
+  .pipeline-vendor-row > .pipeline-vendor-edit {
+    flex-wrap: wrap;
+  }
+
+  .pipeline-vendor-edit .dashboard-import-input {
+    flex-basis: 100%;
+  }
+}
+
+/* X section: compose box and share list */
+.x-compose-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 96px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.x-compose-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.x-compose-counter {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.x-compose-counter.warn {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.x-share-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.dashboard-import-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
+}
+
+/* Write section: share on X after publish toggle */
+.write-share-x-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.write-share-x-toggle input {
+  accent-color: var(--accent);
+}

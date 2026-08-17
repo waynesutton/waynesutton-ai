@@ -276,7 +276,7 @@ function updateAgentsMd(
 ): string {
   // Update Project overview section
   const projectOverviewRegex = /## Project overview\n\n([^\n]+)/;
-  const newOverview = `## Project overview\n\n${siteConfig.description || siteConfig.bio}. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.`;
+  const newOverview = `## Project overview\n\n${siteConfig.description || siteConfig.bio}. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex.`;
 
   content = content.replace(projectOverviewRegex, newOverview);
 
@@ -326,8 +326,8 @@ function generateLlmsTxt(
 # Site Information
 - Name: ${siteConfig.name}
 - URL: ${siteUrl}
-- Description: ${siteConfig.description || siteConfig.bio} Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex and Netlify.
-- Topics: Markdown, Convex, React, TypeScript, Netlify, Open Source, AI, LLM, AEO, GEO
+- Description: ${siteConfig.description || siteConfig.bio} Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex.
+- Topics: Markdown, Convex, React, TypeScript, Open Source, AI, LLM, AEO, GEO
 - Total Posts: ${postCount}
 ${latestPostDate ? `- Latest Post: ${latestPostDate}\n` : ""}- GitHub: ${githubUrl}
 
@@ -356,6 +356,15 @@ Standard RSS feed with post descriptions.
 GET /rss-full.xml
 Full content RSS feed with complete markdown for each post.
 
+## Virtual Filesystem
+GET /vfs/tree
+Returns JSON tree of all content paths (blog, pages, docs).
+
+POST /vfs/exec
+Execute shell-like commands against all site content.
+Send JSON body: {"command": "ls /blog"} or {"command": "grep convex /blog"}
+Supported commands: ls, cat, grep, find, tree, head, wc, pwd, cd
+
 ## Other
 GET /sitemap.xml
 Dynamic XML sitemap for search engines.
@@ -371,6 +380,8 @@ AI plugin manifest for tool integration.
 1. Fetch /api/export for all posts with full content in one request
 2. Or fetch /api/posts for the list, then /api/post?slug={slug}&format=md for each
 3. Subscribe to /rss-full.xml for updates with complete content
+4. Use /vfs/tree to browse the full content tree
+5. Use /vfs/exec with shell commands to search and read specific content
 
 # Response Schema
 
@@ -394,6 +405,10 @@ Each post contains:
 - Frontend: React, TypeScript, Vite
 - Hosting: Netlify with edge functions
 - Content: Markdown with frontmatter
+
+# Discovery Files
+- /llms.txt - This file (LLM discovery)
+- /AGENTS.md - AI agent instructions and codebase overview
 
 # Links
 - GitHub: ${githubUrl}
@@ -489,11 +504,16 @@ async function syncDiscoveryFiles() {
   fs.writeFileSync(agentsPath, updatedAgentsContent, "utf-8");
   console.log(`  Updated: ${agentsPath}`);
 
+  // Copy AGENTS.md to public/ so it's web-accessible at /AGENTS.md
+  const publicAgentsPath = path.join(PUBLIC_DIR, "AGENTS.md");
+  fs.writeFileSync(publicAgentsPath, updatedAgentsContent, "utf-8");
+  console.log(`  Copied:  ${publicAgentsPath}`);
+
   // Read and update CLAUDE.md
   const claudePath = path.join(ROOT_DIR, "CLAUDE.md");
   if (fs.existsSync(claudePath)) {
     console.log("Updating CLAUDE.md with current status...");
-    let claudeContent = fs.readFileSync(claudePath, "utf-8");
+    const claudeContent = fs.readFileSync(claudePath, "utf-8");
     const updatedClaudeContent = updateClaudeMd(
       claudeContent,
       siteConfig,
@@ -520,6 +540,7 @@ async function syncDiscoveryFiles() {
 
   console.log("\nDiscovery files sync complete!");
   console.log(`  Updated AGENTS.md with app-specific context`);
+  console.log(`  Copied AGENTS.md to public/ for web access`);
   console.log(`  Updated CLAUDE.md with current status`);
   console.log(`  Updated llms.txt with ${postCount} posts`);
 }

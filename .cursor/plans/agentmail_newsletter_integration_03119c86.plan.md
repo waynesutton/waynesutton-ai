@@ -99,6 +99,7 @@ todos:
   - id: p3-save-prd
     content: Save final plan as prds/agentmail-newsletter-v1.md
     status: completed
+isProject: false
 ---
 
 # AgentMail Newsletter Integration Plan (Phased)
@@ -121,7 +122,7 @@ AgentMail uses a REST API to send emails. Each inbox has a unique address:
 {username}@{domain}
 ```
 
-For example: `newsletter@mail.agentmail.to` or `newsletter@yourdomain.com`
+For example: `<agentmail-inbox>` or `<newsletter-inbox>`
 
 ### API Endpoint for Sending
 
@@ -135,10 +136,10 @@ const response = await fetch("https://api.agentmail.to/v1/emails", {
   },
   body: JSON.stringify({
     from: {
-      email: "newsletter@mail.agentmail.to", // Your AgentMail inbox
+      email: "<agentmail-inbox>", // Your AgentMail inbox
       name: "Your Site Name",
     },
-    to: [{ email: "subscriber@example.com" }],
+    to: [{ email: "<subscriber-email>" }],
     subject: "New Post: Title Here",
     html: "<h1>New post published!</h1><p>Read more...</p>",
     text: "New post published! Read more...", // Plain text fallback
@@ -154,7 +155,7 @@ const response = await fetch("https://api.agentmail.to/v1/emails", {
 
 | `AGENTMAIL_API_KEY` | Your AgentMail API key (already in Convex) |
 
-| `AGENTMAIL_INBOX` | Your inbox address (e.g., `newsletter@mail.agentmail.to`) |
+| `AGENTMAIL_INBOX` | Your inbox address (for example, `<agentmail-inbox>`) |
 
 ---
 
@@ -177,7 +178,7 @@ export interface NewsletterConfig {
 
   // AgentMail settings
   agentmail: {
-    inbox: string; // Full inbox address (e.g., "newsletter@mail.agentmail.to")
+    inbox: string; // Full inbox address
   };
 
   // Signup form placement
@@ -215,7 +216,7 @@ newsletter: NewsletterConfig;
 newsletter: {
   enabled: false,
   agentmail: {
-    inbox: "newsletter@mail.agentmail.to",
+    inbox: "<agentmail-inbox>",
   },
   signup: {
     home: {
@@ -403,7 +404,7 @@ export const getActiveSubscribers = internalQuery({
     v.object({
       email: v.string(),
       unsubscribeToken: v.string(),
-    }),
+    })
   ),
   handler: async (ctx) => {
     const subscribers = await ctx.db
@@ -514,7 +515,7 @@ export default function NewsletterSignup({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
+              placeholder="Your email"
               className="newsletter-signup__input"
               disabled={status === "loading"}
               aria-label="Email address"
@@ -845,9 +846,7 @@ export const sendPostNewsletter = internalAction({
   }),
   handler: async (ctx, args) => {
     // Get subscribers
-    const subscribers = await ctx.runQuery(
-      internal.newsletter.getActiveSubscribers,
-    );
+    const subscribers = await ctx.runQuery(internal.newsletter.getActiveSubscribers);
 
     if (subscribers.length === 0) {
       return { success: false, sentCount: 0, message: "No subscribers." };
@@ -981,7 +980,7 @@ Will use a separate inbox and include:
 - Name field (required)
 - Email field (required)
 - Message textarea (required)
-- Sends to: `contact@mail.agentmail.to`
+- Sends to: `<contact-inbox>`
 
 ---
 
@@ -1011,7 +1010,7 @@ Phase 1A (Config + Schema) ─┬─► Phase 1B (Backend) ─┬─► Phase 1D
 
 | `AGENTMAIL_API_KEY` | Convex Dashboard | Your AgentMail API key |
 
-| `AGENTMAIL_INBOX` | Convex Dashboard | Your inbox (e.g., `newsletter@mail.agentmail.to`) |
+| `AGENTMAIL_INBOX` | Convex Dashboard | Your inbox |
 
 | `SITE_URL` | .env.local | Your site URL for unsubscribe links |
 

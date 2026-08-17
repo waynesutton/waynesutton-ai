@@ -9,7 +9,7 @@ layout: "sidebar"
 featuredOrder: 4
 tags: ["images", "tutorial", "markdown", "open-graph"]
 readTime: "4 min read"
-blogFeatured: true
+blogFeatured: false
 showImageAtTop: true
 authorName: "Markdown"
 authorImage: "/images/authors/markdown.png"

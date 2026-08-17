@@ -28,7 +28,7 @@ function removeCodeBlocks(content: string): string {
   let prevLineBlank = true;
 
   for (const line of lines) {
-    const isIndented = /^(    |\t)/.test(line) && !line.trim().startsWith("-");
+    const isIndented = /^( {4}|\t)/.test(line) && !line.trim().startsWith("-");
     const isBlank = line.trim() === "";
 
     if (isBlank) {

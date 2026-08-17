@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -268,7 +269,7 @@ function getTextContent(children: React.ReactNode): string {
 
 // Anchor link component for headings
 function HeadingAnchor({ id }: { id: string }) {
-  const handleClick = (_e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleClick = () => {
     // Copy URL to clipboard, but allow default scroll behavior
     const url = `${window.location.origin}${window.location.pathname}#${id}`;
     navigator.clipboard.writeText(url).catch(() => {
@@ -291,6 +292,10 @@ function HeadingAnchor({ id }: { id: string }) {
 
 export default function Home() {
   const { theme } = useTheme();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuthActions();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Fetch published posts from Convex (only if showing on home)
   const posts = useQuery(
@@ -378,9 +383,60 @@ export default function Home() {
 
   // Check if posts should be shown on homepage
   const showPostsOnHome = siteConfig.postsDisplay.showOnHome;
+  const dashboardNotice = new URLSearchParams(location.search).get("dashboardNotice");
+  const showNotAdminNotice = dashboardNotice === "not-admin";
+  const isAuthenticated = useQuery(api.authAdmin.isCurrentUserAuthenticated);
+  const dismissDashboardNotice = () => {
+    const params = new URLSearchParams(location.search);
+    params.delete("dashboardNotice");
+    const nextSearch = params.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch ? `?${nextSearch}` : "",
+      },
+      { replace: true },
+    );
+  };
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      dismissDashboardNotice();
+      navigate("/dashboard", { replace: true });
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   return (
     <div className="home">
+      {showNotAdminNotice && (
+        <div className="home-dashboard-notice" role="status">
+          <span>You are not an admin and cannot access dashboard features.</span>
+          <div className="home-dashboard-notice-actions">
+            {isAuthenticated && (
+              <button
+                type="button"
+                className="home-dashboard-notice-dismiss"
+                onClick={handleSignOut}
+                aria-label="Sign out"
+                disabled={isSigningOut}
+              >
+                {isSigningOut ? "Signing out..." : "Sign out"}
+              </button>
+            )}
+            <button
+              type="button"
+              className="home-dashboard-notice-dismiss"
+              onClick={dismissDashboardNotice}
+              aria-label="Dismiss dashboard access notice"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header section with intro */}
       <header className="home-header">
         {/* Optional site logo */}
@@ -391,7 +447,6 @@ export default function Home() {
             className="home-logo"
             width={48}
             height={48}
-            fetchPriority="high"
           />
         )}
         <h1 className="home-name">{siteConfig.name}</h1>

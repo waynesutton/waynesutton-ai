@@ -11,7 +11,7 @@ import siteConfig from "../config/siteConfig";
 import { ArrowRight } from "lucide-react";
 
 // Site URL for CopyPageDropdown - update when forking
-const SITE_URL = "https://www.markdown.fast";
+const SITE_URL = "https://waynesutton.ai";
 
 export default function DocsPage() {
   // Fetch landing page content (checks pages first, then posts)
@@ -37,9 +37,6 @@ export default function DocsPage() {
     const orderB = b.docsSectionOrder ?? 999;
     return orderA - orderB;
   });
-  // First doc slug available for potential future use
-  void (allDocsItems.length > 0 ? allDocsItems[0].slug : null);
-
   // Update page title
   useEffect(() => {
     const title = landingContent?.title || siteConfig.docsSection?.title || "Documentation";

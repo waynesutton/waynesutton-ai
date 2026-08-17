@@ -128,7 +128,7 @@ export default function NewsletterSignup({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
+              placeholder="Your email"
               className="newsletter-signup__input"
               disabled={status === "loading"}
               aria-label="Email address"

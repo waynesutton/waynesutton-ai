@@ -5,7 +5,7 @@ User-agent: *
 Allow: /
 
 # Sitemaps
-Sitemap: https://www.waynesutton.ai/sitemap.xml
+Sitemap: https://waynesutton.ai/sitemap.xml
 
 # AI and LLM crawlers
 User-agent: GPTBot

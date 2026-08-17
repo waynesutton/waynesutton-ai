@@ -4,10 +4,15 @@ import siteConfig, { FontFamily } from "../config/siteConfig";
 // Default font from siteConfig
 const DEFAULT_FONT: FontFamily = siteConfig.fontFamily;
 
+// Font scale steps for the dashboard font size control
+export type FontScale = "small" | "default" | "large" | "xlarge";
+
 interface FontContextType {
   fontFamily: FontFamily;
   setFontFamily: (fontFamily: FontFamily) => void;
   toggleFontFamily: () => void;
+  fontScale: FontScale;
+  setFontScale: (scale: FontScale) => void;
 }
 
 const FontContext = createContext<FontContextType | undefined>(undefined);
@@ -65,6 +70,31 @@ const updateFontFamily = (fontFamily: FontFamily) => {
   );
 };
 
+// Multipliers applied to the root font size (rem-based sizes scale with it)
+const fontScaleValues: Record<FontScale, string> = {
+  small: "93.75%", // 15px base
+  default: "100%", // 16px base
+  large: "112.5%", // 18px base
+  xlarge: "125%", // 20px base
+};
+
+const getInitialFontScale = (): FontScale => {
+  try {
+    const saved = localStorage.getItem("blog-font-scale") as FontScale;
+    if (saved && ["small", "default", "large", "xlarge"].includes(saved)) {
+      return saved;
+    }
+  } catch {
+    // localStorage not available
+  }
+  return "default";
+};
+
+// Scale the root font size so all rem-based typography follows
+const updateFontScale = (scale: FontScale) => {
+  document.documentElement.style.fontSize = fontScaleValues[scale];
+};
+
 export function FontProvider({
   children,
   defaultFont = DEFAULT_FONT,
@@ -76,12 +106,23 @@ export function FontProvider({
   updateFontFamily(initialFont);
 
   const [fontFamily, setFontFamilyState] = useState<FontFamily>(initialFont);
+  const [fontScale, setFontScaleState] = useState<FontScale>(() => getInitialFontScale());
 
   // Apply font to DOM and persist to localStorage
   useEffect(() => {
     updateFontFamily(fontFamily);
     localStorage.setItem("blog-font-family", fontFamily);
   }, [fontFamily]);
+
+  // Apply font scale to DOM and persist to localStorage
+  useEffect(() => {
+    updateFontScale(fontScale);
+    try {
+      localStorage.setItem("blog-font-scale", fontScale);
+    } catch {
+      // localStorage not available
+    }
+  }, [fontScale]);
 
   // Set font directly
   const setFontFamily = (newFont: FontFamily) => {
@@ -96,9 +137,13 @@ export function FontProvider({
     setFontFamilyState(fonts[nextIndex]);
   };
 
+  const setFontScale = (scale: FontScale) => {
+    setFontScaleState(scale);
+  };
+
   return (
     <FontContext.Provider
-      value={{ fontFamily, setFontFamily, toggleFontFamily }}
+      value={{ fontFamily, setFontFamily, toggleFontFamily, fontScale, setFontScale }}
     >
       {children}
     </FontContext.Provider>

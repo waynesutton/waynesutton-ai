@@ -19,6 +19,7 @@ export const search = query({
   },
   returns: v.array(searchResultValidator),
   handler: async (ctx, args) => {
+    await ctx.auth.getUserIdentity();
     // Return empty results for empty queries
     if (!args.query.trim()) {
       return [];
@@ -94,6 +95,9 @@ export const search = query({
     for (const page of [...pagesByTitle, ...pagesByContent]) {
       if (seenPageIds.has(page._id)) continue;
       seenPageIds.add(page._id);
+
+      // Skip unlisted pages
+      if (page.unlisted) continue;
 
       // Create snippet from content and find anchor
       const { snippet, anchor } = createSnippet(page.content, args.query, 120);

@@ -1,0 +1,20 @@
+{
+  "name": "Wayne Sutton",
+  "short_name": "Wayne Sutton",
+  "description": "Developer Community Builder at Convex, helping developers and startups build faster with AI.",
+  "display": "standalone",
+  "background_color": "#faf8f5",
+  "theme_color": "#faf8f5",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
