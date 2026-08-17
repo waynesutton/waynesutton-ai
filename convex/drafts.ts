@@ -317,6 +317,24 @@ export const rejectDraft = mutation({
   },
 });
 
+/**
+ * Hard delete a draft. Idempotent. Published posts and publishLog history
+ * created from the draft are intentionally left in place.
+ */
+export const deleteDraft = mutation({
+  args: { draftId: v.id("drafts") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+    const draft = await ctx.db.get(args.draftId);
+    if (!draft) {
+      return null;
+    }
+    await ctx.db.delete(args.draftId);
+    return null;
+  },
+});
+
 /** Re-run the voice agent on a draft, optionally with editor notes. */
 export const requestRewrite = mutation({
   args: {

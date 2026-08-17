@@ -8,8 +8,33 @@
 - [ ] Optional: add www.waynesutton.ai as a Convex custom domain (or DNS redirect to apex) so www stops failing TLS
 - [ ] Publish blogskill/SKILL.md to the waynesutton/blogskill repo
 - [ ] Revoke the dev verify-test API key and delete the dev pipeline-verification-draft test post
+- [ ] Wire voice agent, embeddings, Ask AI, newsletter, and contact actions through resolveVendorKey so dashboard key overrides cover them (currently they read process.env only, so the API Keys panel green check is misleading for those features); until then set OPENAI_API_KEY as a prod env var with npx convex env set
 
 ## Completed
+
+- [x] Delete drafts in the Drafts Inbox (2026-08-17 08:58 UTC) (PRD: prds/drafts-inbox-delete.md)
+  - [x] New deleteDraft mutation in convex/drafts.ts: dashboard admin only, idempotent hard delete; publishLog and published posts untouched
+  - [x] DraftsInbox.tsx: trash button with inline confirm (Confirm delete / Cancel) on every list row and in the detail panel; hidden while agentStatus is pending or running; deleting the selected draft clears the selection
+  - [x] Verified: npx tsc -p convex --noEmit and npx tsc --noEmit pass
+
+- [x] AgentMail prod cutover to the waynesuttonai account (2026-08-17 08:55 UTC)
+  - [x] New AGENTMAIL_API_KEY and AGENTMAIL_INBOX (waynesuttonai@agentmail.to) set as prod env vars; AGENTMAIL_WEBHOOK_SECRET set from the new endpoint's Svix signing secret
+  - [x] Webhook endpoint created in the AgentMail console pointing at https://helpful-ptarmigan-118.convex.site/api/hooks/agentmail, subscribed to message.received only (handler skips all other event types)
+  - [x] OPENAI_API_KEY, ANTHROPIC_API_KEY, and CONTEXT_DEV_API_KEY set as prod dashboard overrides (vendorKeys table); note these overrides only reach AI chat, image generation, and X. Voice agent, embeddings, Ask AI, and AgentMail sending read the env var directly (see To Do)
+  - [x] Verified with npx convex env list --prod and npx convex data vendorKeys --prod
+
+- [x] Dashboard internal docs command reference expanded (2026-08-17 08:55 UTC)
+  - [x] DashboardDocsSection.tsx now covers content vs discovery vs combined sync, export:db, static hosting deploys (deploy:dev, deploy:static), and a Verify block (validate:env, verify:deploy) for dev and prod
+  - [x] Supporting styles added to dashboard-forms.css
+
+- [x] Image weight pass (2026-08-17 08:55 UTC)
+  - [x] Compressed blogging-trap, cafevibes, openclaw-coding PNGs and waynesutton-3.jpeg to roughly a third of their size
+  - [x] Removed unused fork leftovers: convex-doctor screenshots, convex-first, debouncer-2, rc1, markdown-slides and slide-template SVGs, sample logos, workos logo
+
+- [x] Fix Agent ready dashboard section server error (2026-08-17 08:35 UTC)
+  - [x] Root cause: agent-ready package update expanded the component's getCacheStatus return shape (widget*, robotsTxtEnabled, sitemapEnabled, rssEnabled, agentSkillsEnabled, discoveryHeaders, markdownNegotiation, readinessEndpointEnabled) and added optional section to page docs; the wrappers in convex/agentReady/content.ts kept the old validators, and extra fields fail Convex return validation
+  - [x] Updated cacheStatusValidator to all 30 fields and added section to pageValidator
+  - [x] Verified: npx tsc -p convex --noEmit passes, pushed to dev (notable-loris-927) and deployed to prod (helpful-ptarmigan-118)
 
 - [x] Clickable titles in dashboard Posts and Pages lists (2026-08-17 08:08 UTC)
   - [x] Post and page titles are now buttons that open the editor, same gating as the edit icon (demo mode can only open demo content)

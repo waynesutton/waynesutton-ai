@@ -14,6 +14,7 @@ import {
   SpinnerGap,
   CaretDown,
   CaretRight,
+  Trash,
 } from "@phosphor-icons/react";
 
 type ToastType = "success" | "error" | "info" | "warning";
@@ -49,6 +50,7 @@ export function DraftsInbox({
   const [pasteMode, setPasteMode] = useState<"rewrite" | "as-is">("rewrite");
   const [voiceRules, setVoiceRules] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Id<"drafts"> | null>(null);
 
   const drafts = useQuery(
     api.drafts.listDrafts,
@@ -63,6 +65,7 @@ export function DraftsInbox({
 
   const publishDraft = useMutation(api.drafts.publishDraft);
   const rejectDraft = useMutation(api.drafts.rejectDraft);
+  const deleteDraft = useMutation(api.drafts.deleteDraft);
   const updateDraft = useMutation(api.drafts.updateDraft);
   const requestRewrite = useMutation(api.drafts.requestRewrite);
   const createDraft = useMutation(api.drafts.createDraftFromDashboard);
@@ -92,6 +95,17 @@ export function DraftsInbox({
     run(async () => {
       await rejectDraft({ draftId });
       addToast("Draft rejected", "info");
+    });
+
+  const handleDelete = (draftId: Id<"drafts">) =>
+    run(async () => {
+      await deleteDraft({ draftId });
+      setConfirmDelete(null);
+      if (selectedId === draftId) {
+        setSelectedId(null);
+        setEditing(false);
+      }
+      addToast("Draft deleted", "info");
     });
 
   const handleRewrite = (draftId: Id<"drafts">) =>
@@ -195,6 +209,7 @@ export function DraftsInbox({
               onClick={() => {
                 setTab(t.id);
                 setSelectedId(null);
+                setConfirmDelete(null);
               }}>
               {t.label}
             </button>
@@ -349,6 +364,32 @@ export function DraftsInbox({
                   /{draft.publishedSlug}
                 </a>
               )}
+              {/* Hard delete; hidden while the voice agent is working on the draft */}
+              {draft.agentStatus !== "pending" &&
+                draft.agentStatus !== "running" &&
+                (confirmDelete === draft._id ? (
+                  <>
+                    <button
+                      className="dashboard-action-btn"
+                      disabled={busy}
+                      onClick={() => void handleDelete(draft._id)}>
+                      Confirm delete
+                    </button>
+                    <button
+                      className="dashboard-action-btn"
+                      onClick={() => setConfirmDelete(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="action-btn delete"
+                    title="Delete draft"
+                    disabled={busy}
+                    onClick={() => setConfirmDelete(draft._id)}>
+                    <Trash size={16} />
+                  </button>
+                ))}
             </span>
           </div>
         ))}
@@ -416,6 +457,32 @@ export function DraftsInbox({
                   </button>
                 </>
               )}
+              {!editing &&
+                selected.agentStatus !== "pending" &&
+                selected.agentStatus !== "running" &&
+                (confirmDelete === selected._id ? (
+                  <>
+                    <button
+                      className="dashboard-action-btn"
+                      disabled={busy}
+                      onClick={() => void handleDelete(selected._id)}>
+                      Confirm delete
+                    </button>
+                    <button
+                      className="dashboard-action-btn"
+                      onClick={() => setConfirmDelete(null)}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="dashboard-action-btn"
+                    disabled={busy}
+                    title="Delete draft"
+                    onClick={() => setConfirmDelete(selected._id)}>
+                    <Trash size={14} /> Delete
+                  </button>
+                ))}
             </div>
           </div>
 

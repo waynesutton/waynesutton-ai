@@ -1,6 +1,6 @@
 # llms.txt - Information for AI assistants and LLMs
 # Learn more: https://llmstxt.org/
-# Last updated: 2026-08-17T07:08:17.590Z
+# Last updated: 2026-08-17T08:32:22.721Z
 
 > Developer Community Lead at Convex, tech event organizer, startup ecosystem builder, and adventure motorcycle rider—helping developers and startups build faster with Convex and AI.
 
@@ -9,8 +9,8 @@
 - URL: https://waynesutton.ai
 - Description: Developer Community Lead at Convex, tech event organizer, startup ecosystem builder, and adventure motorcycle rider—helping developers and startups build faster with Convex and AI. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex.
 - Topics: Markdown, Convex, React, TypeScript, Open Source, AI, LLM, AEO, GEO
-- Total Posts: 5
-- Latest Post: 2026-08-16
+- Total Posts: 4
+- Latest Post: 2026-02-15
 - GitHub: https://github.com/waynesutton/waynesutton-ai
 
 # API Endpoints

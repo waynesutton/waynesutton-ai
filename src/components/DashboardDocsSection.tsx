@@ -81,12 +81,34 @@ Useful optional fields:
 Markdown lives in \`content/blog/\` and \`content/pages/\`. Sync commands push to Convex:
 
 \`\`\`bash
-npm run sync        # dev deployment
-npm run sync:prod   # prod deployment
-npm run import <url>  # import an external URL as a draft post (needs FIRECRAWL_API_KEY)
+# Content
+npm run sync                # markdown content to dev
+npm run sync:prod           # markdown content to prod
+
+# Discovery files (AGENTS.md, CLAUDE.md, llms.txt)
+npm run sync:discovery
+npm run sync:discovery:prod
+
+# Content + discovery in one command
+npm run sync:all
+npm run sync:all:prod
+
+# Pull dashboard-written posts and pages back into content folders
+npm run export:db
+npm run export:db:prod
+
+# Import an external URL as a draft post (needs FIRECRAWL_API_KEY)
+npm run import <url>
 \`\`\`
 
-Content syncs instantly. No build step for markdown changes.
+Content syncs instantly. No build step for markdown changes. Static assets (the React app itself) are a separate step:
+
+\`\`\`bash
+npm run deploy:dev   # build and upload static assets to the dev deployment
+npm run deploy       # full static hosting deploy to prod
+\`\`\`
+
+You only need a static deploy when app code changes, never for markdown.
 
 ### Version history
 
@@ -379,15 +401,30 @@ npm run dev      # Vite dev server at localhost:5173
 
 Use these for all development. The dev deployment is isolated from prod.
 
+To preview the built static app on the dev deployment's Convex hosting:
+
+\`\`\`bash
+npm run deploy:dev   # build + upload static assets to dev
+\`\`\`
+
 ### Production
 
 \`\`\`bash
 npm run sync:all:prod  # content + discovery files to prod
 npx convex deploy      # Convex functions to prod
-npm run deploy         # static assets via Convex self hosting
+npm run deploy         # static assets via Convex self hosting (full flow)
 \`\`\`
 
-Run the three in that order when shipping a release. For content only changes, \`npm run sync:prod\` is enough and needs no deploy.
+Run the three in that order when shipping a release. \`npm run deploy:static\` uploads a fresh build to prod without the full flow. For content only changes, \`npm run sync:prod\` is enough and needs no deploy.
+
+### Verify
+
+\`\`\`bash
+npm run validate:env       # check dev env vars
+npm run validate:env:prod  # check prod env vars
+npm run verify:deploy      # hit deployed dev endpoints
+npm run verify:deploy:prod # hit deployed prod endpoints
+\`\`\`
 
 ### Checks before shipping
 

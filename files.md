@@ -110,12 +110,12 @@ A brief description of each file in the codebase.
 
 ### Agent blog pipeline and Convex Auth cutover (2026-08-16)
 
-- **New file** `convex/drafts.ts`: Draft lifecycle for the agent blog pipeline: create from API/email/paste box, list, edit, publish, reject, rewrite requests, voice profile storage, email approval commands, and PR-merge publishing.
+- **New file** `convex/drafts.ts`: Draft lifecycle for the agent blog pipeline: create from API/email/paste box, list, edit, publish, reject, delete, rewrite requests, voice profile storage, email approval commands, and PR-merge publishing.
 - **New file** `convex/pipelineKeys.ts`: Pipeline API key management: generate (SHA-256 hashed, plaintext shown once), list, revoke, verify by hash, and vendor env var status reporting.
 - **New file** `convex/voiceAgent.ts`: Voice agent on `@convex-dev/agent` that rewrites drafts using voice rules, RAG retrieval over published content, and X oEmbed link context; includes RAG reindex actions.
 - **New file** `convex/draftEmails.ts`: Node action that emails draft previews via AgentMail with reply commands (publish, reject, edit).
 - **New file** `convex/githubReview.ts`: Opens GitHub review PRs for drafts and publishes or rejects them when the PR closes.
-- **New file** `src/components/dashboard/DraftsInbox.tsx`: Dashboard Drafts Inbox: status tabs, markdown preview, edit mode, rewrite notes, paste box, voice profile editor, reindex button, publish log.
+- **New file** `src/components/dashboard/DraftsInbox.tsx`: Dashboard Drafts Inbox: status tabs, markdown preview, edit mode, rewrite notes, paste box, voice profile editor, reindex button, publish log, and draft delete with inline confirm.
 - **New file** `src/components/dashboard/ApiKeysSection.tsx`: Dashboard API Keys section: key generation with one-time display, revoke with inline confirm, vendor key status panel.
 - **New file** `blogskill/SKILL.md`: Installable agent skill teaching the drafts API payload and trigger phrases; publish to waynesutton/blogskill.
 - **New file** `prds/setup-guide-new-features.md`: What was built, the draft lifecycle, and how each surface works.
@@ -1208,13 +1208,15 @@ Files include a metadata header with type (post/page), date, reading time, and t
 
 ### Logo Gallery (`public/images/logos/`)
 
-| File                | Description                         |
-| ------------------- | ----------------------------------- |
-| `sample-logo-1.svg` | Sample logo (replace with your own) |
-| `sample-logo-2.svg` | Sample logo (replace with your own) |
-| `sample-logo-3.svg` | Sample logo (replace with your own) |
-| `sample-logo-4.svg` | Sample logo (replace with your own) |
-| `sample-logo-5.svg` | Sample logo (replace with your own) |
+| File                        | Description               |
+| --------------------------- | ------------------------- |
+| `agentmail.svg`             | AgentMail logo            |
+| `convex-wordmark-black.svg` | Convex wordmark           |
+| `firecrawl.svg`             | Firecrawl logo            |
+| `markdown.svg`              | Markdown logo             |
+| `mcp.svg`                   | Model Context Protocol logo |
+| `netlify.svg`               | Netlify logo              |
+| `react.svg`                 | React logo                |
 
 ## Claude Skills (`.claude/skills/`)
 

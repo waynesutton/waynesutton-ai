@@ -28,10 +28,13 @@ const pageValidator = v.object({
   status: pageStatusValidator,
   isOptional: v.optional(v.boolean()),
   order: v.optional(v.number()),
+  section: v.optional(v.string()),
   descriptionGeneratedByAi: v.optional(v.boolean()),
   deletedAt: v.optional(v.number()),
 });
 
+// Must match the return shape of components.agentReady.content.getCacheStatus.
+// Extra fields returned by the component fail this validator with a server error.
 const cacheStatusValidator = v.object({
   testMode: v.boolean(),
   appName: v.union(v.string(), v.null()),
@@ -41,6 +44,28 @@ const cacheStatusValidator = v.object({
   generationInProgress: v.boolean(),
   hasDrafts: v.boolean(),
   fullTxtEnabled: v.boolean(),
+  widgetVisible: v.boolean(),
+  widgetStatusVisible: v.boolean(),
+  widgetShowFiles: v.boolean(),
+  widgetShowAppName: v.boolean(),
+  widgetShowDescription: v.boolean(),
+  widgetShowMeta: v.boolean(),
+  widgetShowScoreTab: v.boolean(),
+  widgetDesktopCollapse: v.boolean(),
+  widgetCleanMode: v.boolean(),
+  widgetShowHumanTab: v.boolean(),
+  widgetShowMachineTab: v.boolean(),
+  widgetShowChatLinks: v.boolean(),
+  widgetShowChatGPT: v.boolean(),
+  widgetShowClaude: v.boolean(),
+  widgetShowPerplexity: v.boolean(),
+  readinessEndpointEnabled: v.boolean(),
+  robotsTxtEnabled: v.boolean(),
+  sitemapEnabled: v.boolean(),
+  rssEnabled: v.boolean(),
+  agentSkillsEnabled: v.boolean(),
+  discoveryHeaders: v.boolean(),
+  markdownNegotiation: v.boolean(),
 });
 
 export const getCacheStatus = query({
