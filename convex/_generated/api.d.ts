@@ -50,6 +50,7 @@ import type * as search from "../search.js";
 import type * as semanticSearch from "../semanticSearch.js";
 import type * as semanticSearchJobs from "../semanticSearchJobs.js";
 import type * as semanticSearchQueries from "../semanticSearchQueries.js";
+import type * as siteConfigData from "../siteConfigData.js";
 import type * as staticHosting from "../staticHosting.js";
 import type * as stats from "../stats.js";
 import type * as versions from "../versions.js";
@@ -106,6 +107,7 @@ declare const fullApi: ApiFromModules<{
   semanticSearch: typeof semanticSearch;
   semanticSearchJobs: typeof semanticSearchJobs;
   semanticSearchQueries: typeof semanticSearchQueries;
+  siteConfigData: typeof siteConfigData;
   staticHosting: typeof staticHosting;
   stats: typeof stats;
   versions: typeof versions;

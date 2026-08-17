@@ -76,6 +76,7 @@ import { XSection } from "../components/dashboard/XSection";
 import AgentReadySection from "../components/AgentReadySection";
 import DashboardDocsSection from "../components/DashboardDocsSection";
 import siteConfig from "../config/siteConfig";
+import type { SiteConfigOverrides } from "../config/runtimeConfig";
 import AIChatView from "../components/AIChatView";
 import VersionHistoryModal from "../components/VersionHistoryModal";
 import { MediaLibrary } from "../components/MediaLibrary";
@@ -5310,9 +5311,166 @@ function ConfigSection({
   });
 
   const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const saveOverridesMutation = useMutation(api.siteConfigData.saveOverrides);
 
   const handleChange = (key: string, value: string | number | boolean) => {
     setConfig({ ...config, [key]: value });
+  };
+
+  // Builds the runtime overrides object saved to Convex. Mirrors generateConfigCode()
+  // field mapping, but omits arrays the dashboard cannot edit (logoGallery.images,
+  // socialFooter.socialLinks, hardcodedNavItems) so the merge never clobbers file values.
+  const buildOverrides = (): SiteConfigOverrides => {
+    return {
+      name: config.name,
+      title: config.title,
+      logo: config.logo || null,
+      bio: config.bio,
+      fontFamily: config.fontFamily,
+      defaultTheme: config.defaultTheme,
+      featuredViewMode: config.featuredViewMode,
+      featuredTitle: config.featuredTitle,
+      showViewToggle: config.showViewToggle,
+      logoGallery: {
+        enabled: config.logoGalleryEnabled,
+        position: config.logoGalleryPosition,
+        speed: config.logoGallerySpeed,
+        title: config.logoGalleryTitle,
+        scrolling: config.logoGalleryScrolling,
+        maxItems: config.logoGalleryMaxItems,
+      },
+      gitHubContributions: {
+        enabled: config.githubContributionsEnabled,
+        username: config.githubContributionsUsername,
+        showYearNavigation: config.githubContributionsShowYearNav,
+        linkToProfile: config.githubContributionsLinkToProfile,
+      },
+      visitorMap: {
+        enabled: config.visitorMapEnabled,
+        title: config.visitorMapTitle,
+      },
+      innerPageLogo: {
+        enabled: config.innerPageLogoEnabled,
+        size: config.innerPageLogoSize,
+      },
+      blogPage: {
+        enabled: config.blogPageEnabled,
+        showInNav: config.blogPageShowInNav,
+        title: config.blogPageTitle,
+        description: config.blogPageDescription,
+        order: config.blogPageOrder,
+        viewMode: config.blogPageViewMode,
+      },
+      postsDisplay: {
+        showOnHome: config.showPostsOnHome,
+        showOnBlogPage: config.showPostsOnBlogPage,
+        ...(config.homePostsLimit ? { homePostsLimit: config.homePostsLimit } : {}),
+        homePostsReadMore: {
+          enabled: config.homePostsReadMoreEnabled,
+          text: config.homePostsReadMoreText,
+          link: config.homePostsReadMoreLink,
+        },
+      },
+      links: {
+        docs: config.linksDocs,
+        convex: config.linksConvex,
+        netlify: config.linksNetlify,
+      },
+      gitHubRepo: {
+        owner: config.githubOwner,
+        repo: config.githubRepo,
+        branch: config.githubBranch,
+        contentPath: config.githubContentPath,
+      },
+      rightSidebar: {
+        enabled: config.rightSidebarEnabled,
+        minWidth: config.rightSidebarMinWidth,
+      },
+      footer: {
+        enabled: config.footerEnabled,
+        showOnHomepage: config.footerShowOnHomepage,
+        showOnPosts: config.footerShowOnPosts,
+        showOnPages: config.footerShowOnPages,
+        showOnBlogPage: config.footerShowOnBlogPage,
+        defaultContent: config.footerDefaultContent,
+      },
+      homepage: {
+        type: config.homepageType,
+        ...(config.homepageSlug ? { slug: config.homepageSlug } : {}),
+        ...(config.homepageOriginalRoute
+          ? { originalHomeRoute: config.homepageOriginalRoute }
+          : {}),
+      },
+      aiChat: {
+        enabledOnWritePage: config.aiChatEnabledOnWritePage,
+        enabledOnContent: config.aiChatEnabledOnContent,
+      },
+      newsletter: {
+        enabled: config.newsletterEnabled,
+        signup: {
+          home: { enabled: config.newsletterHomeEnabled },
+          blogPage: { enabled: config.newsletterBlogPageEnabled },
+          posts: { enabled: config.newsletterPostsEnabled },
+        },
+      },
+      contactForm: {
+        enabled: config.contactFormEnabled,
+        title: config.contactFormTitle,
+        description: config.contactFormDescription,
+      },
+      socialFooter: {
+        enabled: config.socialFooterEnabled,
+        showInHeader: config.socialFooterShowInHeader,
+        showOnHomepage: config.socialFooterShowOnHomepage,
+        showOnPosts: config.socialFooterShowOnPosts,
+        showOnPages: config.socialFooterShowOnPages,
+        showOnBlogPage: config.socialFooterShowOnBlogPage,
+        copyright: {
+          siteName: config.socialFooterCopyrightSiteName,
+          showYear: config.socialFooterCopyrightShowYear,
+        },
+      },
+      statsPage: {
+        enabled: config.statsPageEnabled,
+        showInNav: config.statsPageShowInNav,
+      },
+      mcpServer: {
+        enabled: config.mcpServerEnabled,
+        endpoint: config.mcpServerEndpoint,
+        requireAuth: config.mcpServerRequireAuth,
+      },
+      dashboard: {
+        enabled: config.dashboardEnabled,
+        requireAuth: config.dashboardRequireAuth,
+        showInNav: config.dashboardShowInNav,
+      },
+      imageLightbox: { enabled: config.imageLightboxEnabled },
+      semanticSearch: { enabled: config.semanticSearchEnabled },
+      askAI: { enabled: config.askAIEnabled },
+      media: {
+        enabled: config.mediaEnabled,
+        maxFileSize: config.mediaMaxFileSize,
+      },
+      relatedPosts: {
+        defaultViewMode: config.relatedPostsDefaultViewMode,
+        showViewToggle: config.relatedPostsShowViewToggle,
+      },
+    };
+  };
+
+  // Saves overrides to Convex so they go live without editing siteConfig.ts
+  const handleSaveConfig = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await saveOverridesMutation({ overrides: buildOverrides() });
+      addToast("Config saved. Changes go live on next page load.", "success");
+    } catch {
+      addToast("Failed to save config", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const generateConfigCode = () => {
@@ -5533,17 +5691,25 @@ export default siteConfig;
     <div className="dashboard-config-section">
       <div className="dashboard-config-header">
         <div>
-          <h2>Site Configuration Generator</h2>
-          <p>Customize your site settings and generate siteConfig.ts</p>
+          <h2>Site Configuration</h2>
+          <p>Save changes live to the site, or generate siteConfig.ts for your repo</p>
         </div>
         <div className="dashboard-config-actions">
           <button className="dashboard-action-btn" onClick={handleCopyConfig}>
             {copied ? <Check size={16} /> : <Copy size={16} />}
             <span>{copied ? "Copied" : "Copy Code"}</span>
           </button>
-          <button className="dashboard-action-btn primary" onClick={handleDownloadConfig}>
+          <button className="dashboard-action-btn" onClick={handleDownloadConfig}>
             <Download size={16} />
             <span>Download</span>
+          </button>
+          <button
+            className="dashboard-action-btn primary"
+            onClick={handleSaveConfig}
+            disabled={saving}
+          >
+            <FloppyDisk size={16} />
+            <span>{saving ? "Saving..." : "Save"}</span>
           </button>
         </div>
       </div>
@@ -6392,8 +6558,11 @@ export default siteConfig;
 
       <div className="dashboard-config-note">
         <p>
-          After generating, copy this code and paste it into <code>src/config/siteConfig.ts</code>.
-          You may need to adjust the type definitions and add your logo gallery images manually.
+          <strong>Save</strong> stores these settings in Convex and applies them live on the next
+          page load. No rebuild needed. <strong>Copy Code</strong> or <strong>Download</strong>{" "}
+          generates <code>src/config/siteConfig.ts</code> if you want the changes in your repo as
+          the build-time default. Logo gallery images, social links, and custom nav items are
+          managed in the file only.
         </p>
       </div>
     </div>

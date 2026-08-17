@@ -2,7 +2,7 @@
 
 ---
 Type: page
-Date: 2026-08-16
+Date: 2026-08-17
 ---
 
 ## Frontmatter Options
@@ -36,7 +36,7 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 | `blogFeatured`          | No       | Show as featured on blog page (first becomes hero, rest in 2-column row)                                                                                                                               |
 | `newsletter`            | No       | Override newsletter signup display (`true` to show, `false` to hide)                                                                                                                                   |
 | `contactForm`           | No       | Enable contact form on this post                                                                                                                                                                       |
-| `unlisted`              | No       | Hide from listings but allow direct access via slug. Set `true` to hide from blog listings, featured sections, tag pages, search results, and related posts. Post remains accessible via direct link.  |
+| `unlisted`              | No       | Hide from listings but allow direct access via slug. Set `true` to hide from blog listings, featured sections, tag pages, search results, related posts, sitemap, RSS, and API listings. The post remains accessible via direct link and serves a `noindex, nofollow` robots meta tag so search engines skip it. |
 | `docsSection`           | No       | Include in docs sidebar. Set `true` to show in the docs section navigation.                                                                                                                            |
 | `docsSectionGroup`      | No       | Group name for docs sidebar. Posts with the same group name appear together.                                                                                                                           |
 | `docsSectionOrder`      | No       | Order within docs group. Lower numbers appear first within the group.                                                                                                                                  |
@@ -69,6 +69,7 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 | `aiChat`                | No       | Enable AI chat in right sidebar. Set `true` to enable (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`). Set `false` to explicitly hide even if global config is enabled. |
 | `newsletter`            | No       | Override newsletter signup display (`true` to show, `false` to hide)                                                                                                                                   |
 | `contactForm`           | No       | Enable contact form on this page                                                                                                                                                                       |
+| `unlisted`              | No       | Hide from listings but allow direct access via slug. Set `true` to hide from navigation, featured sections, search results, sitemap, and API listings. The page remains accessible via direct link and serves a `noindex, nofollow` robots meta tag so search engines skip it. |
 | `textAlign`             | No       | Text alignment: "left" (default), "center", or "right". Used by `home.md` for home intro alignment                                                                                                     |
 | `docsSection`           | No       | Include in docs sidebar. Set `true` to show in the docs section navigation.                                                                                                                            |
 | `docsSectionGroup`      | No       | Group name for docs sidebar. Pages with the same group name appear together.                                                                                                                           |
@@ -84,9 +85,9 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 
 Set `showInNav: false` to keep a page published and accessible via direct URL, but hidden from the navigation menu. Pages with `showInNav: false` remain searchable and available via API endpoints. Useful for pages you want to link directly but not show in the main nav.
 
-### Unlisted posts
+### Unlisted posts and pages
 
-Set `unlisted: true` to hide a blog post from all listings while keeping it accessible via direct link. Unlisted posts are excluded from: blog listings (`/blog` page), featured sections (homepage), tag pages (`/tags/[tag]`), search results (Command+K), and related posts. The post remains accessible via direct URL (e.g., `/blog/post-slug`). Useful for draft posts, private content, or posts you want to share via direct link only. Note: `unlisted` only works for blog posts, not pages.
+Set `unlisted: true` to hide a post or page from all listings while keeping it live at its direct URL. Unlisted content is excluded from: blog listings (`/blog` page), navigation, featured sections, tag pages (`/tags/[tag]`), search results (Command+K), related posts, the sitemap, RSS feeds, and API listings. It also serves a `noindex, nofollow` robots meta tag and an `X-Robots-Tag: noindex` header on API and raw markdown responses so Google will not index it. Anyone with the link can still view and share it. Your unlisted URLs are listed in the dashboard under Posts and Pages using the Unlisted filter tab, with a copy link button on each row. Unpublished (`published: false`) remains the only truly private state.
 
 ### Show image at top
 

@@ -4,6 +4,9 @@
 # convex/authComponent.ts: thin helpers that forward to @robelest/convex-auth component queries.
 # convex/agentReady/**: thin wrapper functions generated for @waynesutton/agent-ready component APIs.
 # convex/demo.ts: intentionally unauthenticated public mutations for anonymous dashboard demo mode.
+# convex/siteConfigData.ts: getOverrides is intentionally public (site config is public data,
+#   every visitor needs it at app bootstrap, same class as RSS/sitemap). saveOverrides is
+#   admin-checked via requireDashboardAdmin.
 #
 # Rule tuning rationale:
 #   generated-code-modified  OFF  working tree is always dirty right after `npx convex codegen`
@@ -34,4 +37,5 @@ files = [
   "convex/authComponent.ts",
   "convex/agentReady/**",
   "convex/demo.ts",
+  "convex/siteConfigData.ts",
 ]

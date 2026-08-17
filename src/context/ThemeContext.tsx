@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { siteConfig, Theme } from "../config/siteConfig";
 
-// Default theme for new users (reads from siteConfig, falls back to "light")
-const DEFAULT_THEME: Theme = siteConfig.defaultTheme || "light";
+// Default theme for new users (reads from siteConfig, falls back to "light").
+// Read lazily (at call time) so runtime config overrides applied at bootstrap are seen.
+const getDefaultTheme = (): Theme => siteConfig.defaultTheme || "light";
 
 interface ThemeContextType {
   theme: Theme;
@@ -55,7 +56,7 @@ const updateMetaThemeColor = (theme: Theme) => {
   }
 };
 
-export function ThemeProvider({ children, defaultTheme = DEFAULT_THEME }: ThemeProviderProps) {
+export function ThemeProvider({ children, defaultTheme = getDefaultTheme() }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>(() => getInitialTheme(defaultTheme));
 
   // Apply theme to DOM and persist to localStorage

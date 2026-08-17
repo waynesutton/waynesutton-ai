@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import siteConfig, { FontFamily } from "../config/siteConfig";
 
-// Default font from siteConfig
-const DEFAULT_FONT: FontFamily = siteConfig.fontFamily;
+// Default font from siteConfig.
+// Read lazily (at call time) so runtime config overrides applied at bootstrap are seen.
+const getDefaultFont = (): FontFamily => siteConfig.fontFamily;
 
 // Font scale steps for the dashboard font size control
 export type FontScale = "small" | "default" | "large" | "xlarge";
@@ -97,7 +98,7 @@ const updateFontScale = (scale: FontScale) => {
 
 export function FontProvider({
   children,
-  defaultFont = DEFAULT_FONT,
+  defaultFont = getDefaultFont(),
 }: FontProviderProps) {
   // Initialize font and set CSS variable immediately (synchronously)
   const initialFont = getInitialFont(defaultFont);

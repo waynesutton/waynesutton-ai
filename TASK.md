@@ -11,6 +11,27 @@
 
 ## Completed
 
+- [x] Security review of dashboard config save (2026-08-17 07:06 UTC)
+  - [x] Verified saveOverrides is admin-gated (requireDashboardAdmin first statement, generic errors), getOverrides is intentionally public and scoped to the runtimeOverrides key so future siteConfig table rows cannot leak
+  - [x] Verified merge safety: prototype pollution keys blocked, plain-object gate before recursion, depth bounded by Convex 16-level nesting limit, bootstrap catch falls back to static config on any query failure
+  - [x] Verified render paths: config strings render as auto-escaped React text; footer.defaultContent markdown goes through rehypeSanitize
+  - [x] Accepted risks documented: admin can save arbitrary JSON (same trust as editing siteConfig.ts, server auth unaffected); no rate limit on the admin-only mutation (rejects unauthenticated calls before any read/write)
+  - [x] Result: pass, no code changes needed
+
+- [x] Dashboard config Save button with live runtime overrides (2026-08-17 07:00 UTC) (PRD: prds/dashboard-config-save.md)
+  - [x] New convex/siteConfigData.ts: public getOverrides query (intentionally unauthenticated, config is public data) and admin-checked saveOverrides mutation upserting into the existing siteConfig table by key runtimeOverrides
+  - [x] New src/config/runtimeConfig.ts: SiteConfigOverrides deep partial type and applyRuntimeConfigOverrides in-place deep merge (skips undefined and prototype pollution keys, arrays replaced whole)
+  - [x] src/main.tsx: fetches overrides before first render with a 3s timeout race, merges into the exported siteConfig object so all static imports see saved values; falls back to file values on timeout or error
+  - [x] ThemeContext and FontContext defaults now read siteConfig lazily (call-time default params) so merged defaults apply
+  - [x] ConfigSection: Save button (primary, FloppyDisk icon, pending state) persists overrides; buildOverrides mirrors generateConfigCode but omits file-managed arrays (logoGallery.images, socialFooter.socialLinks, hardcodedNavItems); header and footer copy updated
+  - [x] convex-doctor.toml: siteConfigData.ts ignored with rationale (same class as demo.ts)
+  - [x] Verified: npx tsc --noEmit passes, npm run build passes, convex dev push succeeded, npx convex run siteConfigData:getOverrides returns null, convex-doctor back at pre-change baseline (95, remaining warnings are pre-existing drafts/review-PR items)
+
+- [x] README rewrite for waynesutton.ai (2026-08-17 06:50 UTC)
+  - [x] Repositioned the README as the personal blog and publishing framework behind waynesutton.ai with fork credit to markdown-site
+  - [x] Removed the old markdown sync framework H1, wiki/KB sections, deployment URL table, and admin bootstrap commands with emails
+  - [x] Updated feature list (agent pipeline, X integration, dashboard, Ask AI, agent access) and stack table; cut length from ~340 to ~90 lines
+
 - [x] Pre-commit security scrub (2026-08-17 06:40 UTC)
   - [x] Scanned every committable file for emails, inbox addresses, keys, and webhook secrets: no actual secrets found anywhere
   - [x] Gitignored the three PRDs with sensitive setup detail (deployments, finish guide, setup guide); all three were untracked so nothing needs history rewriting

@@ -4,6 +4,20 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### Dashboard config save with runtime overrides (2026-08-16)
+
+- **New file** `prds/dashboard-config-save.md`: PRD for saving dashboard config edits as live runtime overrides.
+- **New file** `convex/siteConfigData.ts`: Public `getOverrides` query (intentionally unauthenticated, config is public data) and admin-checked `saveOverrides` mutation upserting overrides into the existing `siteConfig` table.
+- **New file** `src/config/runtimeConfig.ts`: `SiteConfigOverrides` deep partial type and `applyRuntimeConfigOverrides` in-place deep merge into the exported siteConfig object.
+- **Modified** `src/main.tsx`: Fetches saved overrides before first render (3s timeout race, static file fallback) and merges them into siteConfig.
+- **Modified** `src/context/ThemeContext.tsx`, `src/context/FontContext.tsx`: Default theme/font read siteConfig lazily so runtime overrides apply.
+- **Modified** `src/pages/Dashboard.tsx`: ConfigSection Save button persists overrides via `buildOverrides()` (mirrors the generator, omits file-managed arrays); header and note copy updated.
+- **Modified** `convex-doctor.toml`: `convex/siteConfigData.ts` ignored with rationale.
+
+### README rewrite (2026-08-16)
+
+- **Modified** `README.md`: Rewritten as the README for waynesutton.ai, the personal blog and publishing framework, with fork credit to markdown-site, a current stack table, updated features (agent pipeline, X integration, dashboard, Ask AI, agent access), and no deployment URLs, emails, or wiki/KB sections.
+
 ### Dashboard nav link visibility fix (2026-08-16)
 
 - **Modified** `src/components/Layout.tsx`: The fallback Dashboard icon link (mobile and desktop control areas) now also checks `dashboard.showInNav`, so setting it to false hides every dashboard entry from the navbar instead of swapping the text link for an icon.
