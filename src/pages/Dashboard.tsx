@@ -580,6 +580,8 @@ interface ContentItem {
   featuredOrder?: number;
   excerpt?: string;
   image?: string;
+  ogImage?: string;
+  noOgImage?: boolean;
   showImageAtTop?: boolean;
   authorName?: string;
   authorImage?: string;
@@ -633,6 +635,8 @@ const postFrontmatterFields: FrontmatterFieldDef[] = [
   // Content options
   { key: "excerpt", label: "Excerpt", type: "textarea", required: false },
   { key: "image", label: "Image URL", type: "text", required: false },
+  { key: "ogImage", label: "OG Image URL", type: "text", required: false },
+  { key: "noOgImage", label: "No OG Image", type: "checkbox", required: false },
   { key: "showImageAtTop", label: "Show Image at Top", type: "checkbox", required: false },
   { key: "readTime", label: "Read Time", type: "text", required: false },
   // Author
@@ -674,6 +678,8 @@ const pageFrontmatterFields: FrontmatterFieldDef[] = [
   // Content options
   { key: "excerpt", label: "Excerpt", type: "textarea", required: false },
   { key: "image", label: "Image URL", type: "text", required: false },
+  { key: "ogImage", label: "OG Image URL", type: "text", required: false },
+  { key: "noOgImage", label: "No OG Image", type: "checkbox", required: false },
   { key: "showImageAtTop", label: "Show Image at Top", type: "checkbox", required: false },
   {
     key: "textAlign",
@@ -720,6 +726,8 @@ const FORM_MANAGED_KEYS: ReadonlySet<string> = new Set([
   "showInNav",
   "excerpt",
   "image",
+  "ogImage",
+  "noOgImage",
   "readTime",
   "authorName",
   "authorImage",
@@ -740,6 +748,8 @@ function itemToFrontmatter(item: ContentItem): FrontmatterValues {
     showInNav: item.showInNav ?? false,
     excerpt: item.excerpt ?? "",
     image: item.image ?? "",
+    ogImage: item.ogImage ?? "",
+    noOgImage: item.noOgImage ?? false,
     readTime: item.readTime ?? "",
     authorName: item.authorName ?? "",
     authorImage: item.authorImage ?? "",
@@ -765,6 +775,8 @@ function applyFrontmatterToItem(
     featuredOrder: fm.featuredOrder,
     excerpt: optionalString(fm.excerpt),
     image: optionalString(fm.image),
+    ogImage: optionalString(fm.ogImage),
+    noOgImage: fm.noOgImage ? true : undefined,
     authorName: optionalString(fm.authorName),
     authorImage: optionalString(fm.authorImage),
   };
@@ -1456,6 +1468,8 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               tags: item.tags,
               excerpt: item.excerpt,
               image: item.image,
+              ogImage: item.ogImage,
+              noOgImage: item.noOgImage,
               showImageAtTop: item.showImageAtTop,
               readTime: item.readTime,
               featured: item.featured,
@@ -1516,6 +1530,8 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               showInNav: item.showInNav,
               excerpt: item.excerpt,
               image: item.image,
+              ogImage: item.ogImage,
+              noOgImage: item.noOgImage,
               showImageAtTop: item.showImageAtTop,
               featured: item.featured,
               featuredOrder: item.featuredOrder,
@@ -2899,6 +2915,8 @@ function EditorView({
   const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  // Which frontmatter image field the upload modal fills (null when closed)
+  const [fmImageField, setFmImageField] = useState<"image" | "ogImage" | null>(null);
   const versionControlEnabled = useQuery(api.versions.isEnabled);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem("dashboard-sidebar-width");
@@ -3074,11 +3092,25 @@ function EditorView({
               kind={type}
               value={itemToFrontmatter(item)}
               onChange={(next) => setItem(applyFrontmatterToItem(item, type, next))}
+              onRequestImage={
+                siteConfig.media?.enabled ? (field) => setFmImageField(field) : undefined
+              }
             />
             <AdditionalFieldsPanel item={item} type={type} setItem={setItem} />
           </div>
         </div>
       </div>
+
+      {fmImageField !== null && (
+        <ImageUploadModal
+          isOpen={fmImageField !== null}
+          onClose={() => setFmImageField(null)}
+          onSelectUrl={(url) => {
+            setItem({ ...item, [fmImageField]: url });
+            setFmImageField(null);
+          }}
+        />
+      )}
 
       {showVersionHistory && (
         <VersionHistoryModal
@@ -3304,6 +3336,8 @@ function WriteSection({
   const [prevSidebarState, setPrevSidebarState] = useState<boolean | null>(null);
   // Image upload modal state
   const [showImageUpload, setShowImageUpload] = useState(false);
+  // Which frontmatter image field the upload modal fills (null when closed)
+  const [fmImageField, setFmImageField] = useState<"image" | "ogImage" | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const richTextRef = useRef<HTMLDivElement>(null);
 
@@ -3609,6 +3643,8 @@ function WriteSection({
               tags: frontmatter.tags,
               readTime: optionalString(frontmatter.readTime),
               image: optionalString(frontmatter.image),
+              ogImage: optionalString(frontmatter.ogImage),
+              noOgImage: frontmatter.noOgImage ? true : undefined,
               excerpt: optionalString(frontmatter.excerpt),
               featured: frontmatter.featured ? true : undefined,
               featuredOrder: frontmatter.featuredOrder,
@@ -3656,6 +3692,8 @@ function WriteSection({
               showInNav: frontmatter.showInNav ? true : undefined,
               excerpt: optionalString(frontmatter.excerpt),
               image: optionalString(frontmatter.image),
+              ogImage: optionalString(frontmatter.ogImage),
+              noOgImage: frontmatter.noOgImage ? true : undefined,
               featured: frontmatter.featured ? true : undefined,
               featuredOrder: frontmatter.featuredOrder,
               authorName: optionalString(frontmatter.authorName),
@@ -3937,6 +3975,11 @@ function WriteSection({
               value={frontmatter}
               onChange={setFrontmatter}
               hiddenFields={demoHiddenFields}
+              onRequestImage={
+                siteConfig.media?.enabled && !isDemo
+                  ? (field) => setFmImageField(field)
+                  : undefined
+              }
             />
           </div>
         </aside>
@@ -3956,6 +3999,18 @@ function WriteSection({
           isOpen={showImageUpload}
           onClose={() => setShowImageUpload(false)}
           onInsert={handleInsertImage}
+        />
+      )}
+
+      {/* Frontmatter image picker (returns URL only) */}
+      {siteConfig.media?.enabled && !isDemo && fmImageField !== null && (
+        <ImageUploadModal
+          isOpen={fmImageField !== null}
+          onClose={() => setFmImageField(null)}
+          onSelectUrl={(url) => {
+            setFrontmatter({ ...frontmatter, [fmImageField]: url });
+            setFmImageField(null);
+          }}
         />
       )}
     </div>

@@ -177,11 +177,15 @@ export default function Post({
     if (!post || page) return; // Skip if it's a page
 
     const postUrl = `${SITE_URL}/${post.slug}`;
-    const ogImage = post.image
-      ? post.image.startsWith("http")
-        ? post.image
-        : `${SITE_URL}${post.image}`
+    // ogImage frontmatter overrides the header image for share previews;
+    // noOgImage disables the share image entirely (text-only preview)
+    const ogImageSource = post.ogImage || post.image;
+    const ogImage = ogImageSource
+      ? ogImageSource.startsWith("http")
+        ? ogImageSource
+        : `${SITE_URL}${ogImageSource}`
       : `${SITE_URL}${DEFAULT_OG_IMAGE}`;
+    const hideOgImage = post.noOgImage === true;
 
     // Create JSON-LD script element
     const jsonLd = {
@@ -248,18 +252,33 @@ export default function Post({
       post.unlisted ? "noindex, nofollow" : "index, follow",
     );
 
+    // Helper to remove a meta tag when the share image is disabled
+    const removeMeta = (selector: string) => {
+      const meta = document.querySelector(selector);
+      if (meta) meta.remove();
+    };
+
     // Update Open Graph meta tags
     updateMeta('meta[property="og:title"]', "content", post.title);
     updateMeta('meta[property="og:description"]', "content", post.description);
     updateMeta('meta[property="og:url"]', "content", postUrl);
-    updateMeta('meta[property="og:image"]', "content", ogImage);
+    if (hideOgImage) {
+      removeMeta('meta[property="og:image"]');
+    } else {
+      updateMeta('meta[property="og:image"]', "content", ogImage);
+    }
     updateMeta('meta[property="og:type"]', "content", "article");
 
     // Update Twitter Card meta tags
     updateMeta('meta[name="twitter:title"]', "content", post.title);
     updateMeta('meta[name="twitter:description"]', "content", post.description);
-    updateMeta('meta[name="twitter:image"]', "content", ogImage);
-    updateMeta('meta[name="twitter:card"]', "content", "summary_large_image");
+    if (hideOgImage) {
+      removeMeta('meta[name="twitter:image"]');
+      updateMeta('meta[name="twitter:card"]', "content", "summary");
+    } else {
+      updateMeta('meta[name="twitter:image"]', "content", ogImage);
+      updateMeta('meta[name="twitter:card"]', "content", "summary_large_image");
+    }
 
     // Update twitter:site and twitter:creator if configured
     const postAuthorTwitter = (post as { authorTwitter?: string }).authorTwitter;
@@ -324,11 +343,15 @@ export default function Post({
     if (!page || post) return; // Only run for pages, not posts
 
     const pageUrl = `${SITE_URL}/${page.slug}`;
-    const ogImage = page.image
-      ? page.image.startsWith("http")
-        ? page.image
-        : `${SITE_URL}${page.image}`
+    // ogImage frontmatter overrides the page image for share previews;
+    // noOgImage disables the share image entirely (text-only preview)
+    const ogImageSource = page.ogImage || page.image;
+    const ogImage = ogImageSource
+      ? ogImageSource.startsWith("http")
+        ? ogImageSource
+        : `${SITE_URL}${ogImageSource}`
       : `${SITE_URL}${DEFAULT_OG_IMAGE}`;
+    const hideOgImage = page.noOgImage === true;
 
     // Helper to update or create meta tag
     const updateMeta = (selector: string, attr: string, value: string) => {
@@ -354,18 +377,33 @@ export default function Post({
       page.unlisted ? "noindex, nofollow" : "index, follow",
     );
 
+    // Helper to remove a meta tag when the share image is disabled
+    const removeMeta = (selector: string) => {
+      const meta = document.querySelector(selector);
+      if (meta) meta.remove();
+    };
+
     // Update Open Graph meta tags
     updateMeta('meta[property="og:title"]', "content", page.title);
     updateMeta('meta[property="og:description"]', "content", description);
     updateMeta('meta[property="og:url"]', "content", pageUrl);
-    updateMeta('meta[property="og:image"]', "content", ogImage);
+    if (hideOgImage) {
+      removeMeta('meta[property="og:image"]');
+    } else {
+      updateMeta('meta[property="og:image"]', "content", ogImage);
+    }
     updateMeta('meta[property="og:type"]', "content", "website");
 
     // Update Twitter Card meta tags
     updateMeta('meta[name="twitter:title"]', "content", page.title);
     updateMeta('meta[name="twitter:description"]', "content", description);
-    updateMeta('meta[name="twitter:image"]', "content", ogImage);
-    updateMeta('meta[name="twitter:card"]', "content", "summary_large_image");
+    if (hideOgImage) {
+      removeMeta('meta[name="twitter:image"]');
+      updateMeta('meta[name="twitter:card"]', "content", "summary");
+    } else {
+      updateMeta('meta[name="twitter:image"]', "content", ogImage);
+      updateMeta('meta[name="twitter:card"]', "content", "summary_large_image");
+    }
 
     // Update twitter:site and twitter:creator if configured
     if (siteConfig.twitter?.site) {

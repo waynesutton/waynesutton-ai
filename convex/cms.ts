@@ -16,6 +16,8 @@ const postDataValidator = v.object({
   tags: v.array(v.string()),
   readTime: v.optional(v.string()),
   image: v.optional(v.string()),
+  ogImage: v.optional(v.string()),
+  noOgImage: v.optional(v.boolean()),
   showImageAtTop: v.optional(v.boolean()),
   excerpt: v.optional(v.string()),
   featured: v.optional(v.boolean()),
@@ -50,6 +52,8 @@ const pageDataValidator = v.object({
   showInNav: v.optional(v.boolean()),
   excerpt: v.optional(v.string()),
   image: v.optional(v.string()),
+  ogImage: v.optional(v.string()),
+  noOgImage: v.optional(v.boolean()),
   showImageAtTop: v.optional(v.boolean()),
   featured: v.optional(v.boolean()),
   featuredOrder: v.optional(v.number()),
@@ -97,6 +101,8 @@ function buildPostFrontmatter(post: Doc<"posts">): Array<string> {
 
   if (post.readTime) frontmatter.push(`readTime: "${post.readTime}"`);
   if (post.image) frontmatter.push(`image: "${post.image}"`);
+  if (post.ogImage) frontmatter.push(`ogImage: "${post.ogImage}"`);
+  if (post.noOgImage) frontmatter.push(`noOgImage: true`);
   if (post.showImageAtTop !== undefined)
     frontmatter.push(`showImageAtTop: ${post.showImageAtTop}`);
   if (post.excerpt)
@@ -154,6 +160,8 @@ function buildPageFrontmatter(page: Doc<"pages">): Array<string> {
   if (page.excerpt)
     frontmatter.push(`excerpt: "${escapeFrontmatterString(page.excerpt)}"`);
   if (page.image) frontmatter.push(`image: "${page.image}"`);
+  if (page.ogImage) frontmatter.push(`ogImage: "${page.ogImage}"`);
+  if (page.noOgImage) frontmatter.push(`noOgImage: true`);
   if (page.showImageAtTop !== undefined)
     frontmatter.push(`showImageAtTop: ${page.showImageAtTop}`);
   if (page.featured !== undefined)
@@ -284,6 +292,8 @@ export const updatePost = mutation({
       tags: v.optional(v.array(v.string())),
       readTime: v.optional(v.string()),
       image: v.optional(v.string()),
+      ogImage: v.optional(v.string()),
+      noOgImage: v.optional(v.boolean()),
       showImageAtTop: v.optional(v.boolean()),
       excerpt: v.optional(v.string()),
       featured: v.optional(v.boolean()),
@@ -433,6 +443,8 @@ export const updatePage = mutation({
       showInNav: v.optional(v.boolean()),
       excerpt: v.optional(v.string()),
       image: v.optional(v.string()),
+      ogImage: v.optional(v.string()),
+      noOgImage: v.optional(v.boolean()),
       showImageAtTop: v.optional(v.boolean()),
       featured: v.optional(v.boolean()),
       featuredOrder: v.optional(v.number()),

@@ -39,7 +39,10 @@ type SizePreset = typeof SIZE_PRESETS[number]["id"];
 interface ImageUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onInsert: (markdown: string) => void;
+  onInsert?: (markdown: string) => void;
+  // URL select mode: when set, returns just the image URL (no markdown, no
+  // alt/size options). Used by frontmatter image fields.
+  onSelectUrl?: (url: string) => void;
 }
 
 interface ImageInfo {
@@ -49,7 +52,8 @@ interface ImageInfo {
   filename: string;
 }
 
-export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModalProps) {
+export function ImageUploadModal({ isOpen, onClose, onInsert, onSelectUrl }: ImageUploadModalProps) {
+  const urlMode = onSelectUrl !== undefined;
   const [activeTab, setActiveTab] = useState<"upload" | "library">("upload");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
@@ -344,13 +348,15 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
     return `<img src="${selectedImage.url}" alt="${alt}" width="${dims.width}" height="${dims.height}" />`;
   };
 
-  // Insert markdown
+  // Insert markdown or return the raw URL depending on mode
   const handleInsert = () => {
-    if (selectedImage) {
-      const markdown = generateMarkdown();
-      onInsert(markdown);
-      handleClose();
+    if (!selectedImage) return;
+    if (onSelectUrl) {
+      onSelectUrl(selectedImage.url);
+    } else if (onInsert) {
+      onInsert(generateMarkdown());
     }
+    handleClose();
   };
 
   // Update custom dimensions when preset changes
@@ -375,7 +381,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
         <div className="image-upload-modal-header">
           <h3>
             <ImageIcon size={20} />
-            Insert Image
+            {urlMode ? "Select Image" : "Insert Image"}
           </h3>
           <button className="image-upload-modal-close" onClick={handleClose}>
             <X size={20} />
@@ -510,7 +516,8 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
               </div>
 
               <div className="image-upload-settings">
-                {/* Alt text input */}
+                {/* Alt text input (markdown insert mode only) */}
+                {!urlMode && (
                 <div className="image-upload-field">
                   <label htmlFor="alt-text">Alt text</label>
                   <input
@@ -521,8 +528,10 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
                     placeholder="Describe the image..."
                   />
                 </div>
+                )}
 
-                {/* Size presets */}
+                {/* Size presets (markdown insert mode only) */}
+                {!urlMode && (
                 <div className="image-upload-field">
                   <label>Size</label>
                   <div className="image-upload-size-presets">
@@ -539,9 +548,10 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
                     ))}
                   </div>
                 </div>
+                )}
 
                 {/* Custom dimensions */}
-                {sizePreset === "custom" && (
+                {!urlMode && sizePreset === "custom" && (
                   <div className="image-upload-custom-size">
                     <div className="image-upload-field-inline">
                       <label>Width</label>
@@ -604,7 +614,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert }: ImageUploadModal
             onClick={handleInsert}
             disabled={!selectedImage || uploading}
           >
-            {uploading ? "Uploading..." : "Insert"}
+            {uploading ? "Uploading..." : urlMode ? "Use Image" : "Insert"}
           </button>
         </div>
       </div>

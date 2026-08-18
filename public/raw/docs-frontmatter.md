@@ -2,7 +2,7 @@
 
 ---
 Type: page
-Date: 2026-08-17
+Date: 2026-08-18
 ---
 
 ## Frontmatter Options
@@ -21,6 +21,8 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 | `tags`                  | Yes      | Array of strings                                                                                                                                                                                       |
 | `readTime`              | No       | Display time estimate                                                                                                                                                                                  |
 | `image`                 | No       | OG image and featured card thumbnail. See [Using Images in Blog Posts](/using-images-in-posts) for markdown and HTML syntax                                                                            |
+| `ogImage`               | No       | Social share image override. Only changes the Open Graph and Twitter preview image; cards and headers keep using `image`. Set `ogImage: false` to disable the share image entirely.                    |
+| `noOgImage`             | No       | Set `true` for a text-only share preview (no image). Social previews show just the title and description. Same effect as `ogImage: false`.                                                             |
 | `showImageAtTop`        | No       | Set `true` to display the image at the top of the post above the header (default: `false`)                                                                                                             |
 | `excerpt`               | No       | Short text for card view                                                                                                                                                                               |
 | `featured`              | No       | `true` to show in featured section                                                                                                                                                                     |
@@ -56,6 +58,8 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 | `showInNav`             | No       | Show in navigation menu (default: `true`)                                                                                                                                                              |
 | `excerpt`               | No       | Short text for card view                                                                                                                                                                               |
 | `image`                 | No       | Thumbnail for featured card view                                                                                                                                                                       |
+| `ogImage`               | No       | Social share image override. Only changes the Open Graph and Twitter preview image; cards keep using `image`. Set `ogImage: false` to disable the share image entirely.                                |
+| `noOgImage`             | No       | Set `true` for a text-only share preview (no image). Social previews show just the title and description. Same effect as `ogImage: false`.                                                             |
 | `showImageAtTop`        | No       | Set `true` to display the image at the top of the page above the header (default: `false`)                                                                                                             |
 | `featured`              | No       | `true` to show in featured section                                                                                                                                                                     |
 | `featuredOrder`         | No       | Order in featured (lower = first)                                                                                                                                                                      |
@@ -88,6 +92,24 @@ Set `showInNav: false` to keep a page published and accessible via direct URL, b
 ### Unlisted posts and pages
 
 Set `unlisted: true` to hide a post or page from all listings while keeping it live at its direct URL. Unlisted content is excluded from: blog listings (`/blog` page), navigation, featured sections, tag pages (`/tags/[tag]`), search results (Command+K), related posts, the sitemap, RSS feeds, and API listings. It also serves a `noindex, nofollow` robots meta tag and an `X-Robots-Tag: noindex` header on API and raw markdown responses so Google will not index it. Anyone with the link can still view and share it. Your unlisted URLs are listed in the dashboard under Posts and Pages using the Unlisted filter tab, with a copy link button on each row. Unpublished (`published: false`) remains the only truly private state.
+
+### Control the social share image
+
+Three ways to control what social previews show, without touching cards or headers:
+
+```yaml
+# Use a different image for social previews only
+image: "/images/card-thumbnail.png"
+ogImage: "/images/share-wide.png"
+
+# Text-only preview (title and description, no image)
+noOgImage: true
+
+# Shorthand for the same text-only behavior
+ogImage: false
+```
+
+When the share image is disabled, the Twitter card switches from `summary_large_image` to `summary` so the preview renders cleanly as text. If neither `ogImage` nor `image` is set, the site default OG image is used. You can also set these from the dashboard editor under More options, which includes upload buttons for both the featured image and the share image.
 
 ### Show image at top
 

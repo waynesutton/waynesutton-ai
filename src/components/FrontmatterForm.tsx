@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { CaretDown, CaretRight, X } from "@phosphor-icons/react";
+import { CaretDown, CaretRight, UploadSimple, X } from "@phosphor-icons/react";
 
 // Frontmatter form for dashboard write and edit flows.
 // Styles live in src/styles/dashboard-forms.css (imported by Dashboard.tsx).
@@ -21,6 +21,8 @@ export interface FrontmatterValues {
   showInNav: boolean;
   excerpt: string;
   image: string;
+  ogImage: string;
+  noOgImage: boolean;
   readTime: string;
   authorName: string;
   authorImage: string;
@@ -50,6 +52,8 @@ export function createDefaultFrontmatter(kind: FrontmatterKind): FrontmatterValu
     showInNav: false,
     excerpt: "",
     image: "",
+    ogImage: "",
+    noOgImage: false,
     readTime: "",
     authorName: "",
     authorImage: "",
@@ -96,6 +100,12 @@ export function serializeFrontmatter(kind: FrontmatterKind, values: FrontmatterV
   }
   if (values.image.trim() !== "") {
     lines.push(`image: ${yamlQuote(values.image)}`);
+  }
+  if (values.ogImage.trim() !== "") {
+    lines.push(`ogImage: ${yamlQuote(values.ogImage)}`);
+  }
+  if (values.noOgImage) {
+    lines.push("noOgImage: true");
   }
   if (kind === "post" && values.readTime.trim() !== "") {
     lines.push(`readTime: ${yamlQuote(values.readTime)}`);
@@ -175,12 +185,13 @@ const STRING_KEYS = [
   "date",
   "excerpt",
   "image",
+  "ogImage",
   "readTime",
   "authorName",
   "authorImage",
 ] as const;
 
-const BOOLEAN_KEYS = ["published", "featured", "showInNav"] as const;
+const BOOLEAN_KEYS = ["published", "featured", "showInNav", "noOgImage"] as const;
 
 const NUMBER_KEYS = ["featuredOrder", "order"] as const;
 
@@ -284,11 +295,15 @@ export function FrontmatterForm({
   value,
   onChange,
   hiddenFields,
+  onRequestImage,
 }: {
   kind: FrontmatterKind;
   value: FrontmatterValues;
   onChange: (next: FrontmatterValues) => void;
   hiddenFields?: ReadonlyArray<keyof FrontmatterValues>;
+  // When provided, renders Upload buttons next to image URL fields.
+  // The dashboard opens the image picker and patches the field with the URL.
+  onRequestImage?: (field: "image" | "ogImage") => void;
 }) {
   const [tagDraft, setTagDraft] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
@@ -516,17 +531,76 @@ export function FrontmatterForm({
 
             <div className="fmf-field">
               <label className="fmf-label" htmlFor={`fmf-image-${kind}`}>
-                Image URL
+                Featured image URL
               </label>
-              <input
-                id={`fmf-image-${kind}`}
-                type="text"
-                className="fmf-input"
-                value={value.image}
-                onChange={(e) => patch({ image: e.target.value })}
-                placeholder="/images/my-image.png"
-              />
+              <div className="fmf-input-row">
+                <input
+                  id={`fmf-image-${kind}`}
+                  type="text"
+                  className="fmf-input"
+                  value={value.image}
+                  onChange={(e) => patch({ image: e.target.value })}
+                  placeholder="/images/my-image.png"
+                />
+                {onRequestImage && (
+                  <button
+                    type="button"
+                    className="fmf-upload-button"
+                    onClick={() => onRequestImage("image")}>
+                    <UploadSimple size={14} />
+                    Upload
+                  </button>
+                )}
+              </div>
+              <span className="fmf-hint">
+                Used for cards, headers, and as the default share image
+              </span>
             </div>
+
+            {!isHidden("ogImage") && (
+              <div className="fmf-field">
+                <label className="fmf-label" htmlFor={`fmf-og-image-${kind}`}>
+                  Social share image (OG)
+                </label>
+                <div className="fmf-input-row">
+                  <input
+                    id={`fmf-og-image-${kind}`}
+                    type="text"
+                    className="fmf-input"
+                    value={value.ogImage}
+                    onChange={(e) => patch({ ogImage: e.target.value })}
+                    placeholder="/images/og/my-share-image.png"
+                    disabled={value.noOgImage}
+                  />
+                  {onRequestImage && (
+                    <button
+                      type="button"
+                      className="fmf-upload-button"
+                      onClick={() => onRequestImage("ogImage")}
+                      disabled={value.noOgImage}>
+                      <UploadSimple size={14} />
+                      Upload
+                    </button>
+                  )}
+                </div>
+                <span className="fmf-hint">
+                  Overrides the featured image for social previews only
+                </span>
+              </div>
+            )}
+
+            {!isHidden("noOgImage") && (
+              <div className="fmf-field">
+                <ToggleSwitch
+                  label="No share image (text-only preview)"
+                  checked={value.noOgImage}
+                  onChange={(checked) => patch({ noOgImage: checked })}
+                />
+                <span className="fmf-hint">
+                  Social previews show only the title and description
+                </span>
+              </div>
+            )}
 
             {kind === "post" && !isHidden("readTime") && (
               <div className="fmf-field">

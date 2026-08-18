@@ -4,6 +4,20 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### OG image frontmatter controls (2026-08-17)
+
+- **New file** `prds/og-image-frontmatter-controls.md`: PRD for the `ogImage` override and `noOgImage` text-only share preview fields on posts and pages.
+- **Modified** `convex/schema.ts`: optional `ogImage` string and `noOgImage` boolean on `posts` and `pages`.
+- **Modified** `scripts/sync-posts.ts`: parses the new fields and normalizes `ogImage: false` into `noOgImage: true`.
+- **Modified** `convex/posts.ts`, `convex/pages.ts`, `convex/cms.ts`, `convex/demo.ts`: the new fields flow through sync mutations, slug queries, list queries, create/update mutations, and the markdown frontmatter export.
+- **Modified** `convex/http.ts`: `generateMetaHtml` uses `ogImage` over `image`, and `noOgImage` drops the og:image and twitter:image tags and flips the Twitter card to `summary`.
+- **Modified** `src/pages/Post.tsx`: client-side meta effects honor the override and remove image tags when disabled.
+- **Modified** `src/components/FrontmatterForm.tsx`: Social share image field with Upload button, No share image toggle, and an Upload button on the Featured image field.
+- **Modified** `src/components/ImageUploadModal.tsx`: URL-select mode (`onSelectUrl`) that returns the image URL without alt text or size options.
+- **Modified** `src/pages/Dashboard.tsx`: new fields in the content item shape, save paths, and the frontmatter image upload wiring.
+- **Modified** `src/styles/dashboard-forms.css`: input-row and upload-button styles.
+- **Modified** `content/pages/docs-frontmatter.md`, `.claude/skills/frontmatter.md`: field tables and share image patterns.
+
 ### Auto discovery sync on publish (2026-08-17)
 
 - **New file** `prds/auto-discovery-sync-on-publish.md`: PRD for the dashboard toggle that refreshes the live discovery files whenever a post goes public, including why the local Sync All (Prod) command cannot run from Convex and what actually serves `/llms.txt` at runtime.

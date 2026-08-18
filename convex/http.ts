@@ -528,6 +528,8 @@ function generateMetaHtml(content: {
   date?: string;
   readTime?: string;
   image?: string;
+  ogImage?: string;
+  noOgImage?: boolean;
   type?: "post" | "page";
 }): string {
   const siteUrl = process.env.SITE_URL || "https://waynesutton.ai";
@@ -535,14 +537,17 @@ function generateMetaHtml(content: {
   const defaultImage = `${siteUrl}/images/og-default.svg`;
   const canonicalUrl = `${siteUrl}/${content.slug}`;
 
-  // Resolve image URL: use post image if available, otherwise default
+  // Resolve image URL: ogImage override wins, then content image, then default.
+  // noOgImage disables the share image entirely (text-only preview).
+  const resolveImageUrl = (value: string): string =>
+    value.startsWith("http") ? value : `${siteUrl}${value}`;
   let ogImage = defaultImage;
-  if (content.image) {
-    // Handle both absolute URLs and relative paths
-    ogImage = content.image.startsWith("http")
-      ? content.image
-      : `${siteUrl}${content.image}`;
+  if (content.ogImage) {
+    ogImage = resolveImageUrl(content.ogImage);
+  } else if (content.image) {
+    ogImage = resolveImageUrl(content.image);
   }
+  const hideImage = content.noOgImage === true;
 
   const safeTitle = escapeHtml(content.title);
   const safeDescription = escapeHtml(content.description);
@@ -562,8 +567,12 @@ function generateMetaHtml(content: {
   
   <!-- Open Graph -->
   <meta property="og:title" content="${safeTitle}">
-  <meta property="og:description" content="${safeDescription}">
-  <meta property="og:image" content="${ogImage}">
+  <meta property="og:description" content="${safeDescription}">${
+    hideImage
+      ? ""
+      : `
+  <meta property="og:image" content="${ogImage}">`
+  }
   <meta property="og:url" content="${canonicalUrl}">
   <meta property="og:type" content="${ogType}">
   <meta property="og:site_name" content="${siteName}">${
@@ -578,10 +587,14 @@ function generateMetaHtml(content: {
   <link rel="alternate" hreflang="x-default" href="${canonicalUrl}">
 
   <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:card" content="${hideImage ? "summary" : "summary_large_image"}">
   <meta name="twitter:title" content="${safeTitle}">
-  <meta name="twitter:description" content="${safeDescription}">
-  <meta name="twitter:image" content="${ogImage}">
+  <meta name="twitter:description" content="${safeDescription}">${
+    hideImage
+      ? ""
+      : `
+  <meta name="twitter:image" content="${ogImage}">`
+  }
   <meta name="twitter:site" content="">
   <meta name="twitter:creator" content="">
 
@@ -629,6 +642,8 @@ http.route({
           date: post.date,
           readTime: post.readTime,
           image: post.image,
+          ogImage: post.ogImage,
+          noOgImage: post.noOgImage,
           type: "post",
         });
 
@@ -650,6 +665,8 @@ http.route({
           description: page.excerpt || `${page.title} - ${SITE_NAME}`,
           slug: page.slug,
           image: page.image,
+          ogImage: page.ogImage,
+          noOgImage: page.noOgImage,
           type: "page",
         });
 

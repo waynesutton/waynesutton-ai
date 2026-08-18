@@ -32,6 +32,8 @@ interface PostFrontmatter {
   tags: string[];
   readTime?: string;
   image?: string; // Header/OG image URL
+  ogImage?: string | false; // OG image override (string) or false to disable OG image
+  noOgImage?: boolean; // Disable OG image (text-only share preview)
   showImageAtTop?: boolean; // Display image at top of post (default: false)
   excerpt?: string; // Short excerpt for card view
   featured?: boolean; // Show in featured section
@@ -67,6 +69,8 @@ interface ParsedPost {
   tags: string[];
   readTime?: string;
   image?: string; // Header/OG image URL
+  ogImage?: string; // OG image override URL (never boolean after parsing)
+  noOgImage?: boolean; // Disable OG image (text-only share preview)
   showImageAtTop?: boolean; // Display image at top of post (default: false)
   excerpt?: string; // Short excerpt for card view
   featured?: boolean; // Show in featured section
@@ -101,6 +105,8 @@ interface PageFrontmatter {
   showInNav?: boolean; // Show in navigation menu (default: true)
   excerpt?: string; // Short excerpt for card view
   image?: string; // Thumbnail/OG image URL for featured cards
+  ogImage?: string | false; // OG image override (string) or false to disable OG image
+  noOgImage?: boolean; // Disable OG image (text-only share preview)
   showImageAtTop?: boolean; // Display image at top of page (default: false)
   featured?: boolean; // Show in featured section
   featuredOrder?: number; // Order in featured section (lower = first)
@@ -134,6 +140,8 @@ interface ParsedPage {
   showInNav?: boolean; // Show in navigation menu (default: true)
   excerpt?: string; // Short excerpt for card view
   image?: string; // Thumbnail/OG image URL for featured cards
+  ogImage?: string; // OG image override URL (never boolean after parsing)
+  noOgImage?: boolean; // Disable OG image (text-only share preview)
   showImageAtTop?: boolean; // Display image at top of page (default: false)
   featured?: boolean; // Show in featured section
   featuredOrder?: number; // Order in featured section (lower = first)
@@ -156,6 +164,21 @@ interface ParsedPage {
   docsSectionGroupIcon?: string; // Phosphor icon name for sidebar group
   docsLanding?: boolean; // Use as /docs landing page
   slides?: boolean; // Enable slide presentation mode (--- separates slides)
+}
+
+// Resolve OG image frontmatter: a string overrides the share image,
+// `ogImage: false` or `noOgImage: true` disables it (text-only preview)
+function resolveOgImageFields(frontmatter: {
+  ogImage?: string | false;
+  noOgImage?: boolean;
+}): { ogImage?: string; noOgImage?: boolean } {
+  const disabled =
+    frontmatter.noOgImage === true || frontmatter.ogImage === false;
+  return {
+    ogImage:
+      typeof frontmatter.ogImage === "string" ? frontmatter.ogImage : undefined,
+    noOgImage: disabled ? true : undefined,
+  };
 }
 
 // Calculate reading time based on word count
@@ -190,6 +213,7 @@ function parseMarkdownFile(filePath: string): ParsedPost | null {
       tags: frontmatter.tags || [],
       readTime: frontmatter.readTime || calculateReadTime(content),
       image: frontmatter.image, // Header/OG image URL
+      ...resolveOgImageFields(frontmatter), // ogImage override / noOgImage disable
       showImageAtTop: frontmatter.showImageAtTop, // Display image at top of post
       excerpt: frontmatter.excerpt, // Short excerpt for card view
       featured: frontmatter.featured, // Show in featured section
@@ -259,6 +283,7 @@ function parsePageFile(filePath: string): ParsedPage | null {
       showInNav: frontmatter.showInNav, // Show in navigation menu (default: true)
       excerpt: frontmatter.excerpt, // Short excerpt for card view
       image: frontmatter.image, // Thumbnail/OG image URL for featured cards
+      ...resolveOgImageFields(frontmatter), // ogImage override / noOgImage disable
       showImageAtTop: frontmatter.showImageAtTop, // Display image at top of page
       featured: frontmatter.featured, // Show in featured section
       featuredOrder: frontmatter.featuredOrder, // Order in featured section

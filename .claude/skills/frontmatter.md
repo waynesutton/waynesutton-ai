@@ -24,6 +24,8 @@ Location: `content/blog/*.md`
 | featured | boolean | false | Show in featured section |
 | featuredOrder | number | - | Display order (lower = first) |
 | image | string | - | OG/header image path |
+| ogImage | string or false | - | Share image override (OG/Twitter only). `false` disables the share image |
+| noOgImage | boolean | false | Text-only share preview (no OG/Twitter image) |
 | showImageAtTop | boolean | false | Display image at top of post |
 | excerpt | string | - | Short text for card view |
 | readTime | string | auto | Reading time (auto-calculated if omitted) |
@@ -82,6 +84,8 @@ Location: `content/pages/*.md`
 | featured | boolean | false | Show in featured section |
 | featuredOrder | number | - | Display order (lower = first) |
 | image | string | - | Thumbnail/OG image for cards |
+| ogImage | string or false | - | Share image override (OG/Twitter only). `false` disables the share image |
+| noOgImage | boolean | false | Text-only share preview (no OG/Twitter image) |
 | showImageAtTop | boolean | false | Display image at top |
 | excerpt | string | - | Short text for card view |
 | authorName | string | - | Author display name |
@@ -150,6 +154,22 @@ unlisted: true
 ```
 
 Post remains accessible via direct link but hidden from all listings, search, and related posts.
+
+### Custom or disabled share image
+
+```yaml
+# Different image for social previews only (cards keep using image)
+image: "/images/card-thumbnail.png"
+ogImage: "/images/share-wide.png"
+
+# Text-only share preview
+noOgImage: true
+
+# Shorthand for text-only
+ogImage: false
+```
+
+When disabled, the Twitter card switches to `summary` and previews show only title and description.
 
 ### Enable contact form
 

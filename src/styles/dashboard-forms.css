@@ -83,6 +83,55 @@
   color: var(--text-muted);
 }
 
+/* Input with a trailing action button (image upload) */
+
+.fmf-input-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.fmf-input-row .fmf-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.fmf-upload-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0 0.7rem;
+  min-height: 38px;
+  font-size: 0.78rem;
+  font-family: var(--font-family);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.fmf-upload-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.fmf-upload-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fmf-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* Toggle switches */
 
 .fmf-row {

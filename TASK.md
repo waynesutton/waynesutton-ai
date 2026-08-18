@@ -26,6 +26,12 @@
 
 ## Completed
 
+- [x] OG image frontmatter controls: override or disable the share image per post and page (2026-08-18 06:45 UTC) (PRD: prds/og-image-frontmatter-controls.md)
+  - [x] New frontmatter fields on posts and pages: `ogImage` (share image override, OG/Twitter only, cards and headers keep using `image`) and `noOgImage: true` (text-only share preview). `ogImage: false` is accepted as shorthand and normalized to `noOgImage: true` by the sync script
+  - [x] Threaded through schema, sync script, posts/pages sync mutations and slug queries, cms create/update/export, demo queries, `/meta/post` server-rendered crawler HTML, and the client-side meta effects in Post.tsx. Disabling removes `og:image` and `twitter:image` and flips `twitter:card` from `summary_large_image` to `summary`
+  - [x] Dashboard editor: the More options panel gained a Social share image field with an Upload button, a No share image toggle that disables the field, and an Upload button on the existing Featured image field. ImageUploadModal gained a URL-select mode (no alt text or size options) that returns the uploaded image URL into the frontmatter field
+  - [x] Docs updated: frontmatter tables and a "Control the social share image" pattern in content/pages/docs-frontmatter.md, plus .claude/skills/frontmatter.md
+  - [x] Verified: typecheck clean (app + convex), convex dev push clean, npm run sync clean, and a live dev end-to-end test on the demo post: `noOgImage: true` served meta HTML with no og:image and `twitter:card=summary`, `ogImage` override served the override URL while `image` stayed on the card thumbnail, and default output for existing posts is byte-identical. Test post restored after
 - [x] Drafts Inbox slug link overlay fix (2026-08-18 06:08 UTC)
   - [x] The published-slug link in the detail pane result line reuses the `action-btn view` class, which dashboard.css fixes at 32px for icon-only row buttons, so a long slug wrapped one character per line into a vertical column overlaying the pane
   - [x] global.css: scoped override for `.dashboard-layout .drafts-result-line .action-btn` sizes the link to its content (inline-flex, auto width, 13px, nowrap with ellipsis at max-width) while the icon-only 32px buttons in the Posts and Pages lists keep their style
