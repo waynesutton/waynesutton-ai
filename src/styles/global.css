@@ -8952,6 +8952,17 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.dashboard-auth-card .dashboard-auth-notice {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  text-align: left;
+}
+
 .dashboard-sign-in-button {
   background: var(--accent);
   color: var(--bg-primary);
@@ -17015,6 +17026,13 @@ body:has(.docs-layout) {
   flex-wrap: wrap;
 }
 
+.drafts-panel-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .drafts-textarea {
   width: 100%;
   font-family: var(--font-mono, monospace);
@@ -17073,6 +17091,18 @@ body:has(.docs-layout) {
   padding: 8px 12px;
 }
 
+/* Where a draft ended up: status sentence plus the link to open it */
+.drafts-result-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  background: var(--bg-secondary);
+}
+
 .drafts-rewrite-row {
   display: flex;
   align-items: center;
@@ -17122,6 +17152,11 @@ body:has(.docs-layout) {
   }
 
   .drafts-panel-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .drafts-panel-buttons {
     flex-direction: column;
     align-items: stretch;
   }

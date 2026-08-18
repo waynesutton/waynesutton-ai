@@ -62,6 +62,7 @@ import {
   CaretDown,
   ArrowsOut,
   ArrowsIn,
+  ArrowSquareOut,
   FloppyDisk,
   Globe,
   Lock,
@@ -814,17 +815,36 @@ function DashboardDisabled() {
   );
 }
 
-function LoginPrompt() {
+// Marks that the browser left for GitHub. A failed OAuth callback returns to
+// /dashboard with no code, so a marker that survives the round trip means the
+// previous attempt never completed.
+const SIGN_IN_PENDING_KEY = "dashboard-github-signin-pending";
+
+type SignInAction = ReturnType<typeof useAuthActions>["signIn"];
+
+// Convex Auth's signIn navigates the browser to the OAuth redirect itself.
+// Navigating again here would send a second request to /api/auth/signin/github
+// with the same verifier, and each request overwrites that verifier's PKCE
+// signature, so the callback can fail with "Invalid state" and bounce back
+// unauthenticated.
+async function startGithubSignIn(signIn: SignInAction): Promise<void> {
+  sessionStorage.setItem(SIGN_IN_PENDING_KEY, Date.now().toString());
+  try {
+    await signIn("github", { redirectTo: "/dashboard" });
+  } catch (error) {
+    sessionStorage.removeItem(SIGN_IN_PENDING_KEY);
+    throw error;
+  }
+}
+
+function LoginPrompt({ signInFailed = false }: { signInFailed?: boolean }) {
   const { signIn } = useAuthActions();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleGithubSignIn = async () => {
     setIsSubmitting(true);
     try {
-      const result = await signIn("github", { redirectTo: "/dashboard" });
-      if (result.redirect) {
-        window.location.assign(result.redirect.toString());
-      }
+      await startGithubSignIn(signIn);
     } catch {
       setIsSubmitting(false);
     }
@@ -835,6 +855,11 @@ function LoginPrompt() {
       <div className="dashboard-auth-card">
         <h1>WayneSutton.ai Dashboard</h1>
         <p>Restricted access to WayneSutton.ai team members only.</p>
+        {signInFailed && !isSubmitting && (
+          <p className="dashboard-auth-notice" role="status">
+            That sign-in did not complete. Try again.
+          </p>
+        )}
         <button
           onClick={() => {
             void handleGithubSignIn();
@@ -871,10 +896,7 @@ function DemoSignInButton() {
   const handleGithubSignIn = async () => {
     setIsSubmitting(true);
     try {
-      const result = await signIn("github", { redirectTo: "/dashboard" });
-      if (result.redirect) {
-        window.location.assign(result.redirect.toString());
-      }
+      await startGithubSignIn(signIn);
     } catch {
       setIsSubmitting(false);
     }
@@ -983,6 +1005,19 @@ export default function Dashboard() {
   const isDashboardAdmin = useQuery(api.authAdmin.isCurrentUserDashboardAdmin);
   const isAuthenticated = useQuery(api.authAdmin.isCurrentUserAuthenticated);
   const authSetupStatus = useQuery(api.authAdmin.getAuthSetupStatus);
+  const [signInFailed, setSignInFailed] = useState(false);
+
+  // Consume the pending marker once auth settles. Still unauthenticated means
+  // the OAuth callback returned without a code, so tell the user to retry
+  // instead of showing a bare sign-in screen.
+  useEffect(() => {
+    if (isAuthenticated === undefined) return;
+    if (sessionStorage.getItem(SIGN_IN_PENDING_KEY) === null) return;
+    sessionStorage.removeItem(SIGN_IN_PENDING_KEY);
+    if (!isAuthenticated) {
+      setSignInFailed(true);
+    }
+  }, [isAuthenticated]);
 
   // If dashboard is disabled, show disabled message
   if (!dashboardEnabled) {
@@ -1004,7 +1039,7 @@ export default function Dashboard() {
       return <LoadingState />;
     }
     if (!isAuthenticated) {
-      return <LoginPrompt />;
+      return <LoginPrompt signInFailed={signInFailed} />;
     }
     if (!isDashboardAdmin) {
       // Bootstrap path remains for forks without DASHBOARD_PRIMARY_ADMIN_EMAIL set.
@@ -1301,6 +1336,19 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
     setEditingType("post");
     setActiveSection("post-editor");
   }, []);
+
+  // Open a post created from a draft (Drafts Inbox) in the post editor
+  const handleOpenPostBySlug = useCallback(
+    (slug: string) => {
+      const post = posts?.find((p) => p.slug === slug);
+      if (!post) {
+        addToast(`Post /${slug} was not found`, "error");
+        return;
+      }
+      handleEditPost(post);
+    },
+    [posts, handleEditPost, addToast],
+  );
 
   // Handle editing a page
   const handleEditPage = useCallback((page: ContentItem) => {
@@ -2200,7 +2248,10 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
             (isDemo ? (
               <DemoSectionGate section="Drafts Inbox" />
             ) : (
-              <DraftsInbox addToast={addToast} />
+              <DraftsInbox
+                addToast={addToast}
+                onOpenPost={handleOpenPostBySlug}
+              />
             ))}
 
           {/* Pipeline API Keys */}
@@ -2538,9 +2589,17 @@ function PostsListView({
                     <PencilSimple size={16} />
                   </button>
                 )}
-                <Link to={`/${post.slug}`} className="action-btn view" title="View" target="_blank">
-                  <Eye size={16} />
-                </Link>
+                {/* Published content is live even when unlisted, so link straight to it */}
+                {post.published && (
+                  <Link
+                    to={`/${post.slug}`}
+                    className="action-btn view"
+                    title="Open live page"
+                    target="_blank"
+                    rel="noopener noreferrer">
+                    <ArrowSquareOut size={16} />
+                  </Link>
+                )}
                 {/* Unlisted posts are shared by direct URL, so offer a quick copy */}
                 {post.unlisted && (
                   <button
@@ -2757,9 +2816,17 @@ function PagesListView({
                     <PencilSimple size={16} />
                   </button>
                 )}
-                <Link to={`/${page.slug}`} className="action-btn view" title="View" target="_blank">
-                  <Eye size={16} />
-                </Link>
+                {/* Published content is live even when unlisted, so link straight to it */}
+                {page.published && (
+                  <Link
+                    to={`/${page.slug}`}
+                    className="action-btn view"
+                    title="Open live page"
+                    target="_blank"
+                    rel="noopener noreferrer">
+                    <ArrowSquareOut size={16} />
+                  </Link>
+                )}
                 {/* Unlisted pages are shared by direct URL, so offer a quick copy */}
                 {page.unlisted && (
                   <button
@@ -2923,6 +2990,18 @@ function EditorView({
             {copied ? <Check size={16} /> : <Copy size={16} />}
             <span>{copied ? "Copied" : "Copy"}</span>
           </button>
+          {/* Published content is live even when unlisted, so link straight to it */}
+          {item.published && item.slug && (
+            <a
+              className="dashboard-action-btn"
+              href={`/${item.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open live page">
+              <ArrowSquareOut size={16} />
+              <span>Open</span>
+            </a>
+          )}
           {versionControlEnabled && (
             <button
               className="dashboard-action-btn"

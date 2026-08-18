@@ -11,6 +11,18 @@ import { auth } from "./auth";
 import { handleMcpRequest, mcpPreflightResponse } from "./mcp";
 import { processXCallback } from "./xIntegration";
 import type { Id } from "./_generated/dataModel";
+import {
+  extractBody,
+  extractInboxId,
+  extractMessageId,
+  extractSender,
+  extractSubject,
+  isAllowedSender,
+  isInboundEventType,
+  normalizeEmailAddress,
+  cleanEmailBody,
+} from "./lib/agentMailMessage";
+import type { EmailDoorConfig } from "./lib/agentMailMessage";
 
 function rateLimitedResponse(retryAfter?: number): Response {
   return new Response(
@@ -892,21 +904,6 @@ async function verifySvixSignature(
   return false;
 }
 
-// Strip quoted replies and signatures from an email body
-function cleanEmailBody(text: string): string {
-  const lines = text.split("\n");
-  const kept: Array<string> = [];
-  for (const line of lines) {
-    // Stop at quoted reply markers
-    if (/^On .+ wrote:\s*$/.test(line.trim())) break;
-    if (/^-{2,}\s*Original Message\s*-{2,}/i.test(line.trim())) break;
-    if (line.trim() === "--") break; // signature delimiter
-    if (line.trimStart().startsWith(">")) continue; // quoted lines
-    kept.push(line);
-  }
-  return kept.join("\n").trim();
-}
-
 // POST /api/v1/drafts: agents submit drafts with an x-api-key header.
 // Payload: { title?, rawInput, type, mode, source, links?, tags? }
 http.route({
@@ -1044,15 +1041,14 @@ http.route({
       });
     }
 
-    // Only inbound mail creates drafts. Without this guard, subscribing the
-    // webhook to all events would echo our own message.sent previews back
-    // through the email door.
-    if (
-      typeof body.event_type === "string" &&
-      body.event_type !== "message.received"
-    ) {
+    // Gmail and other personal mail is labeled unauthenticated and is no
+    // longer delivered as message.received. Accept that event. Skip sent,
+    // delivered, spam, and blocked.
+    const eventType =
+      typeof body.event_type === "string" ? body.event_type : "";
+    if (!isInboundEventType(eventType)) {
       return new Response(
-        JSON.stringify({ ok: true, skipped: body.event_type }),
+        JSON.stringify({ ok: true, skipped: eventType }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
@@ -1061,14 +1057,69 @@ http.route({
     const message = (body.message ??
       (body.data as Record<string, unknown> | undefined)?.message ??
       body) as Record<string, unknown>;
-    const subject = typeof message.subject === "string" ? message.subject : "";
-    const text =
-      typeof message.text === "string"
-        ? message.text
-        : typeof message.body === "string"
-          ? message.body
-          : "";
+
+    // Never treat our own outbound mail as a submission. Subscriber alerts,
+    // stats summaries, and draft previews are all sent from this inbox, so if
+    // AgentMail ever delivers one back they would file themselves as drafts.
+    const emailDoor: EmailDoorConfig = await ctx.runQuery(
+      internal.pipelineKeys.emailDoorConfig,
+      {},
+    );
+    const ownInbox = emailDoor.inbox;
+    const sender = extractSender(message);
+    if (
+      ownInbox &&
+      normalizeEmailAddress(sender) === normalizeEmailAddress(ownInbox)
+    ) {
+      return new Response(
+        JSON.stringify({ ok: true, skipped: "self-sent" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // A valid signature proves AgentMail sent this webhook, not that the mail
+    // came from someone allowed to publish. Authorize the sender before any
+    // side effect: below this line a message can create a draft, spend OpenAI
+    // tokens, or run publish/reject/edit against an existing draft.
+    const allowedSenders = emailDoor.allowedSenders;
+    if (allowedSenders.length === 0) {
+      console.warn(
+        "Email door refused inbound mail: set AGENTMAIL_ALLOWED_SENDERS (or AGENTMAIL_CONTACT_EMAIL) to the addresses allowed to submit drafts and reply with publish, reject, or edit.",
+      );
+      return new Response(
+        JSON.stringify({ ok: true, skipped: "allowlist-not-configured" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    if (!isAllowedSender(sender, allowedSenders)) {
+      return new Response(
+        JSON.stringify({ ok: true, skipped: "unauthorized-sender" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    const subject = extractSubject(message);
+    const sourceMessageId = extractMessageId(message);
+    const text = extractBody(message);
+
+    // Webhook payloads omit text/html when they exceed 1 MB. Fetch the full
+    // message from the AgentMail API instead of dropping the mail.
     if (!text.trim()) {
+      const inboxId = extractInboxId(message) || ownInbox;
+      if (inboxId && sourceMessageId) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.draftEmails.ingestAgentMailMessage,
+          {
+            inboxId,
+            messageId: sourceMessageId,
+          },
+        );
+        return new Response(
+          JSON.stringify({ ok: true, scheduled: true }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
       return new Response(JSON.stringify({ ok: true, skipped: "empty body" }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -1119,6 +1170,7 @@ http.route({
       title,
       rawInput: cleaned.slice(0, MAX_DRAFT_INPUT_CHARS),
       mode: asIs ? "as-is" : "rewrite",
+      sourceMessageId: sourceMessageId || undefined,
     });
 
     return new Response(JSON.stringify({ ok: true, draftId }), {

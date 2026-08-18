@@ -391,14 +391,22 @@ export default defineSchema({
       ),
     ),
     agentError: v.optional(v.string()),
-    publishedSlug: v.optional(v.string()),
+    publishedSlug: v.optional(v.string()), // Slug of the post created from this draft
+    // How the post was created: listed (live), unlisted (live, hidden from
+    // listings and search), or draft (post exists but is not published)
+    postVisibility: v.optional(
+      v.union(v.literal("listed"), v.literal("unlisted"), v.literal("draft")),
+    ),
     prNumber: v.optional(v.number()), // GitHub PR review surface
     prUrl: v.optional(v.string()),
+    // AgentMail message_id so email ingest is idempotent
+    sourceMessageId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_status", ["status"])
-    .index("by_pr_number", ["prNumber"]),
+    .index("by_pr_number", ["prNumber"])
+    .index("by_source_message_id", ["sourceMessageId"]),
 
   // Agent blog pipeline: hashed API keys for POST /api/v1/drafts
   apiKeys: defineTable({

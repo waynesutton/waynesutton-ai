@@ -35,6 +35,7 @@ import type * as githubReview from "../githubReview.js";
 import type * as http from "../http.js";
 import type * as importAction from "../importAction.js";
 import type * as importJobs from "../importJobs.js";
+import type * as lib_agentMailMessage from "../lib/agentMailMessage.js";
 import type * as lib_vendorKeyResolver from "../lib/vendorKeyResolver.js";
 import type * as mcp from "../mcp.js";
 import type * as media from "../media.js";
@@ -92,6 +93,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   importAction: typeof importAction;
   importJobs: typeof importJobs;
+  "lib/agentMailMessage": typeof lib_agentMailMessage;
   "lib/vendorKeyResolver": typeof lib_vendorKeyResolver;
   mcp: typeof mcp;
   media: typeof media;

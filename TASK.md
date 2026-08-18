@@ -2,6 +2,7 @@
 
 ## To Do
 
+- [ ] Browser pass on the open live link: confirm the open icon shows on published post and page rows (including published unlisted), is absent on drafts, and that the editor toolbar Open button loads the live URL (PRD: prds/dashboard-open-live-link.md)
 - [ ] X integration manual setup: create an X developer app (OAuth 2.0, confidential client), set callback URL to https://<deployment>.convex.site/x/callback, then set X_CLIENT_ID and X_CLIENT_SECRET in the API Keys dashboard section or Convex env vars (dev + prod)
 - [ ] Manual setup from prds/finish-updating-guide.md: GitHub OAuth apps (dev + prod), OPENAI_API_KEY, pipeline keys, optional webhooks
 - [ ] Finish prod cutover manual steps: prod JWT keys, GitHub OAuth creds, OPENAI_API_KEY, seed dashboard admins, delete Netlify site (finish guide section 8 steps 1 to 3)
@@ -9,8 +10,73 @@
 - [ ] Publish blogskill/SKILL.md to the waynesutton/blogskill repo
 - [ ] Revoke the dev verify-test API key and delete the dev pipeline-verification-draft test post
 - [ ] Wire voice agent, embeddings, Ask AI, newsletter, and contact actions through resolveVendorKey so dashboard key overrides cover them (currently they read process.env only, so the API Keys panel green check is misleading for those features); until then set OPENAI_API_KEY as a prod env var with npx convex env set
+- [ ] Generate a prod pipeline key in the dashboard API Keys section and export it as BLOG_POST_KEY so blogskill and the MCP door can submit drafts (the prod pipelineKeys table is empty, so POST /api/v1/drafts currently returns 401 for every agent)
+- [ ] Install blogskill/SKILL.md into the global skills directory for each agent you use (~/.claude/skills/blog-post/SKILL.md, ~/.codex/skills/blog-post/SKILL.md, ~/.cursor/skills-cursor/blog-post/SKILL.md) so "blog this" works from any repo, not just this one
+- [ ] Fill in the voice profile rules in the Drafts Inbox and click Reindex voice context; the prod rules row is still empty (the save bug that blanked it is fixed, so a save will stick now)
+- [ ] Delete both prod test drafts ("webhook probe draft" and "webhook probe post") after confirming the preview email arrived at the contact address. Ids are in prds/email-setup-finish.md, which is gitignored: a draft id is a publish token for anyone who can reach the email door, so it does not belong in a public repo
+- [ ] Step by step guide for the four remaining manual steps: prds/email-setup-finish.md (gitignored, local only)
+- [ ] Delete the dev probe left by the materializeDraft test: draft "Materialize reuse probe" and its post /materialize-reuse-probe (both dev only; delete from the Drafts Inbox and Posts list, there is no internal delete to do it from the CLI)
+- [ ] After the next deploy, confirm the GitHub double login fix on production: sign out, then sign in three times in a row and land on the dashboard each first try, check the network panel shows one request to /api/auth/signin/github per click, and confirm `npx convex data authVerifiers --prod` gains no rows (the 8 existing orphaned rows are dead PKCE state and can be left alone)
+- [ ] After the next deploy, verify the email door allowlist on production: send one message to the AgentMail inbox from an address that is not on the allowlist and confirm the Convex logs for /api/hooks/agentmail show {"ok":true,"skipped":"unauthorized-sender"} with no new drafts row, then send from wayne@socialwayne.com and confirm a draft appears. Optionally set AGENTMAIL_ALLOWED_SENDERS if you want more than that one address
+- [ ] Browser pass on the new Drafts Inbox actions: save an inbox draft to draft, confirm it appears unpublished in Posts and that Open loads it in the editor, then publish it and confirm no second post is created; publish another draft unlisted and confirm the slug loads while the post stays out of the homepage, /blog, Cmd+K, /rss.xml, and /sitemap.xml
 
 ## Completed
+
+- [x] Open live link for published posts and pages in the dashboard (2026-08-17 21:45 UTC) (PRD: prds/dashboard-open-live-link.md)
+  - [x] Problem: list rows rendered an eye link to `/{slug}` on every row including drafts, but `getPostBySlug` and `getPageBySlug` return null unless published and there is no draft preview route, so the draft link landed on the not found page. The editor had no live link at all
+  - [x] Dashboard.tsx: `PostsListView` and `PagesListView` swap the always-on eye link for an `ArrowSquareOut` "Open live page" link gated on `published`, and `EditorView` gained an Open button next to Copy gated on `item.published && item.slug`
+  - [x] Published plus unlisted keeps the link, since unlisted content is live at its slug and only hidden from listings. The unlisted copy-URL button is untouched
+  - [x] Verified: npx tsc --noEmit and eslint on Dashboard.tsx both pass. Browser pass still open (see To Do)
+
+- [x] Email door sender allowlist so a stranger cannot file drafts or publish by reply (2026-08-17 21:35 UTC) (PRD: prds/email-door-sender-allowlist.md)
+  - [x] Problem: the door had no sender check. A Svix signature proves AgentMail delivered the webhook, not that the mail came from someone allowed to publish. Anyone who knew the inbox address could file drafts at 30/min and burn OpenAI tokens on the rewrite each time, and because `handleEmailCommand` verified nothing about the sender, a `[draft <id>]` message with `publish` on the first line published that draft to the live site
+  - [x] convex/lib/agentMailMessage.ts: `normalizeEmailAddress` (handles `Display Name <addr>`), `parseAllowedSenders` (comma, semicolon, or newline separated; `@domain` entries allowed), `isAllowedSender` (exact address or domain suffix, empty list authorizes nothing)
+  - [x] convex/http.ts: `resolvePipelineValue` and `resolveEmailDoorSenders` (AGENTMAIL_ALLOWED_SENDERS, then AGENTMAIL_CONTACT_EMAIL, dashboard override before env var). The gate sits after the self-sent guard and before body extraction, so it covers the command branch, draft creation, and the no-body AgentMail hydration fetch. Refusals return 200 with `unauthorized-sender` or `allowlist-not-configured` so AgentMail does not retry. Self-sent detection changed from a substring test to a normalized equality check
+  - [x] convex/draftEmails.ts: same allowlist enforced inside `ingestFetchedMessage`, resolved once per batch in `ingestRecentInboxEmails`, so the API backfill is not a way around the webhook gate
+  - [x] convex/pipelineKeys.ts: AGENTMAIL_ALLOWED_SENDERS added to VENDOR_ENV_VARS so the API Keys panel shows whether it is set and a dashboard override can change it without a redeploy
+  - [x] Fails closed: with neither variable set the door refuses everything and warns. Verified `AGENTMAIL_CONTACT_EMAIL` is `wayne@socialwayne.com` on prod and dev, so the fallback keeps the reply loop working with no new configuration
+  - [x] Scrubbed three draft ids out of TASK.md and prds/drafts-inbox-save-and-unlisted.md. The repo is public and a draft id is the second factor for an email publish command. Ids now live only in the gitignored prds/email-setup-finish.md
+  - [x] Batched rather than chained: the inbox and allowlist resolve through one new internal query `pipelineKeys.emailDoorConfig` (three settings read with Promise.all in a single transaction) instead of three sequential ctx.runQuery calls per webhook. Because that query is reached from modules the generated api also reaches, the runQuery results need an explicit `EmailDoorConfig` annotation and `ingestAgentMailMessage` an explicit handler return type; without them TypeScript infers `any` for the whole api object and 49 implicit-any errors appear across the frontend
+  - [x] Verified: npx tsc --noEmit reports 0 errors, eslint clean on all five touched files, and convex-doctor reports the same 14 warnings and 29 infos as before the change (nothing new introduced). Needs a deploy, then a probe from a non-allowlisted address returning `{"skipped":"unauthorized-sender"}` with no new drafts row
+
+- [x] AgentMail unauthenticated inbound never reached the Drafts Inbox (2026-08-17 19:50 UTC) (PRD: prds/agentmail-unauthenticated-inbound.md)
+  - [x] Root cause: AgentMail labels Gmail as `unauthenticated` and fires `message.received.unauthenticated`, which is no longer delivered as `message.received`. The prod webhook subscribed to `message.received` only, and the handler skipped every other event type. Four real test emails were in AgentMail; prod `drafts` only had the two earlier probes
+  - [x] convex/http.ts: accept unauthenticated inbound, parse `from`/`from_` and HTML-only bodies, hydrate via AgentMail API when the webhook payload has no text
+  - [x] convex/schema.ts and drafts.ts: `sourceMessageId` plus `by_source_message_id` so ingest is idempotent
+  - [x] convex/draftEmails.ts: ingest one message, backfill recent inbox mail, and subscribe the webhook to both inbound event types
+  - [x] Verified on prod: webhook `event_types` is `message.received` + `message.received.unauthenticated`, backfill created four inbox drafts (Monday test, Test 3, Working, Testing subjects) with `source: email`, a second backfill added zero rows, voice agent finished on all four
+
+- [x] Fixed having to sign in with GitHub twice on production (2026-08-17 18:52 UTC) (PRD: prds/dashboard-double-github-login.md)
+  - [x] Root cause: `LoginPrompt` and `DemoSignInButton` in Dashboard.tsx ran `window.location.assign(result.redirect)` after `signIn`, but `@convex-dev/auth@0.0.95` already does `window.location.href = url` inside `signIn` (dist/react/client.js lines 144 to 154). The duplicate navigation sends a second GET to `/api/auth/signin/github?code=<verifierId>`, and each hit generates a new PKCE state and overwrites the same `authVerifiers` row via `ctx.db.patch(verifierDoc._id, { signature })`. The browser follows only one of the two redirects, so when the surviving signature is the other one, `userOAuthImpl` finds no verifier, throws `Invalid state`, and the callback catch does `Response.redirect(destinationUrl)` back to `/dashboard` with no `code`. No code means no token exchange, so the sign-in screen renders again
+  - [x] Evidence: prod `authVerifiers` held 8 orphaned rows against 6 `authSessions` rows for the one admin user. A successful callback deletes the verifier row, so each leftover is an attempt that never completed; five were created inside one two minute window
+  - [x] Dashboard.tsx: new shared `startGithubSignIn` helper used by both sign-in entry points, no manual navigation, and a `sessionStorage` pending marker consumed in the `Dashboard` gate once auth resolves so a failed callback shows "That sign-in did not complete. Try again." on the sign-in card instead of a bare screen
+  - [x] global.css: `.dashboard-auth-notice` styling for that message, themed through existing variables
+  - [x] Verified: npx tsc --noEmit and eslint on Dashboard.tsx both pass. Needs a build and deploy to reach production, then confirm one `/api/auth/signin/github` request per click and no new `authVerifiers` rows after a successful sign-in
+
+- [x] Save to draft and publish unlisted from the Drafts Inbox (2026-08-17 18:35 UTC) (PRD: prds/drafts-inbox-save-and-unlisted.md)
+  - [x] convex/drafts.ts: `publishDraftHelper` became `materializeDraft(ctx, draftId, visibility, overrides?)` with visibility `listed | unlisted | draft`. It reuses the post already created from the draft (looked up by `publishedSlug`), so save-then-publish flips the same post instead of inserting a second one, a repeated click writes nothing, and `publishLog` gets one row per publish transition. Reuse changes visibility only, never content, so a Publish click from the inbox cannot overwrite post editor edits
+  - [x] convex/drafts.ts: `publishDraft` gained an optional `unlisted` flag, new `saveDraftAsPost` mutation for the unpublished case; both admin-only, both return the slug
+  - [x] convex/schema.ts: `drafts.postVisibility` optional union so the UI can label rows and pick the right link
+  - [x] DraftsInbox.tsx: row and detail actions for Publish unlisted (EyeSlash) and Save to draft (FileArrowDown), new Saved tab for `approved`, an unlisted badge, and a result line that links to the slug for published posts or opens a saved post in the editor
+  - [x] Dashboard.tsx: `handleOpenPostBySlug` finds the post in the existing `posts` query and reuses `handleEditPost`, passed to DraftsInbox as `onOpenPost`
+  - [x] Verified: npx tsc -p convex --noEmit and npx tsc --noEmit pass, convex dev pushed the schema and new mutation, convex-doctor 95/100 with 0 errors (all 13 warnings pre-existing), and on dev a probe draft published twice through the internal PR path produced one post and one publishLog row with postVisibility "listed"
+
+- [x] Voice profile save wiped rules instead of storing them (2026-08-17 18:05 UTC) (PRD: prds/voice-profile-save-fix.md)
+  - [x] Root cause: DraftsInbox.tsx rendered the textarea from `voiceRules ?? voiceProfile?.rules ?? ""` but saved `voiceRules ?? ""`, so any Save while local state was still null wrote an empty string over the stored rules. That happens on a Save without editing, after switching dashboard sections and back, and while the query is still loading. Prod had one row with `rules: ""` written twice; dev had no row at all
+  - [x] DraftsInbox.tsx: one resolved `voiceRulesValue` feeds both the textarea and the mutation, the local override clears after a save so the textarea renders from the query as proof of round-trip, Save is disabled while loading and when unchanged, clearing non-empty rules requires an inline Confirm clear step, and the panel shows the saved timestamp and character count
+  - [x] convex/drafts.ts: `saveVoiceProfile` takes `allowEmpty` and throws a ConvexError on blank rules without it, so no caller can silently blank the profile
+  - [x] global.css: `.drafts-panel-buttons` wrapper keeps the hint left and the actions right, stacking on mobile
+  - [x] Verified: npx tsc -p convex --noEmit and npx tsc --noEmit pass, convex dev pushed the new signature (a CLI call with `allowEmpty` reaches the auth check instead of failing arg validation), convex-doctor reports 0 errors
+
+- [x] AgentMail draft inbox audit and fix (2026-08-17 16:52 UTC) (PRD: prds/agentmail-draft-inbox-audit.md)
+  - [x] Root cause: AGENTMAIL_CONTACT_EMAIL was unset on dev and prod, so every outbound email (contact, subscriber alerts, weekly stats, draft previews) was addressed back to the AgentMail inbox itself; nothing reached a real mailbox and the reply-driven approval loop had no reply target
+  - [x] convex/pipelineKeys.ts: added AGENTMAIL_CONTACT_EMAIL to VENDOR_ENV_VARS so a missing value is visible in the dashboard API Keys section
+  - [x] convex/draftEmails.ts: sendDraftPreview now resolves AGENTMAIL_API_KEY, AGENTMAIL_INBOX, and AGENTMAIL_CONTACT_EMAIL through resolveVendorKey, and skips with a console warning when the recipient is unset or equals the sending inbox
+  - [x] convex/http.ts: the AgentMail webhook ignores inbound mail whose sender contains our own inbox address, so self-sent notifications can never file themselves as drafts
+  - [x] convex/voiceAgent.ts: always schedule sendDraftPreview and let it decide, instead of gating on process.env, which skipped previews when keys were set as dashboard overrides
+  - [x] Env fixes: AGENTMAIL_CONTACT_EMAIL set on prod and dev; dev AGENTMAIL_INBOX repointed off a stale address that does not exist in the account onto the live inbox (addresses live in the gitignored PRD)
+  - [x] DashboardDocsSection.tsx: rewrote the drafts and AgentMail docs (five doors, correct x-api-key header, Drafts Inbox control table, voice profile and reindex, per-variable AgentMail explanations, email approval commands)
+  - [x] Verified: npx tsc --noEmit passes, npx convex deploy succeeded, a signed message.received probe from an external sender created a draft and the voice agent finished (agentStatus done), and the same probe from the inbox address returned {"skipped":"self-sent"}
 
 - [x] Delete drafts in the Drafts Inbox (2026-08-17 08:58 UTC) (PRD: prds/drafts-inbox-delete.md)
   - [x] New deleteDraft mutation in convex/drafts.ts: dashboard admin only, idempotent hard delete; publishLog and published posts untouched

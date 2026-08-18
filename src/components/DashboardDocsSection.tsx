@@ -36,7 +36,7 @@ The dashboard is the admin surface for this site. Everything behind this login w
 |---------|--------------|
 | Posts and Pages | List, filter, edit, and publish content |
 | Write | Create new posts and pages with markdown, preview, and frontmatter fields |
-| Drafts Inbox | Review drafts submitted by agents, email, or paste |
+| Drafts Inbox | Review drafts from agents, email, or paste, plus the voice profile |
 | AI Agent | Multi model chat and image generation |
 | Newsletter | Subscribers, sends, and signup stats |
 | Media | Upload and manage images |
@@ -208,32 +208,56 @@ Pipeline keys authenticate agents that submit drafts to \`POST /api/v1/drafts\`.
     icon: <EnvelopeSimple size={16} />,
     content: `## Newsletter and AgentMail
 
-Email runs through AgentMail. Three environment variables control it:
+Email runs through AgentMail. Five variables control it. Each one can be set as a Convex env var or as a dashboard override in the API Keys section:
 
-| Variable | Purpose |
-|----------|---------|
-| AGENTMAIL_API_KEY | API access for sending |
-| AGENTMAIL_INBOX | The from inbox id |
-| AGENTMAIL_CONTACT_EMAIL | Contact form recipient, falls back to the inbox |
+| Variable | Purpose | Needed for |
+|----------|---------|------------|
+| AGENTMAIL_API_KEY | API access for sending | All email |
+| AGENTMAIL_INBOX | The from-inbox id, also the address people email | All email |
+| AGENTMAIL_CONTACT_EMAIL | Where owner-facing mail is delivered | Contact form, subscriber alerts, draft previews, email approvals |
+| AGENTMAIL_WEBHOOK_SECRET | Svix signing secret for inbound mail | Email door and email approvals |
+| AGENTMAIL_ALLOWED_SENDERS | Who may submit drafts by email | Email door and email approvals |
+
+### Set AGENTMAIL_CONTACT_EMAIL or owner mail goes nowhere
+
+Without it, the code falls back to the inbox, so the app emails itself. Those messages sit in the AgentMail console as **sent** and never reach a real mailbox. Contact submissions, new subscriber alerts, weekly stats, and draft previews are all affected.
+
+It also disables the email approval loop. The loop needs the preview to land in a real mailbox so your reply travels back into the AgentMail inbox as inbound mail. A self-addressed preview never leaves, so draft previews are now skipped when the recipient resolves to the inbox itself. Check the status in API Keys.
+
+### Who is allowed to email the door
+
+The inbox address is public by nature: it is the address you hand out. A webhook signature only proves AgentMail delivered the message, not that you sent it. So the email door authorizes the sender before it does anything, and that check covers both filing a draft and running publish, reject, or edit on an existing one.
+
+| AGENTMAIL_ALLOWED_SENDERS | Behavior |
+|---------------------------|----------|
+| Set | Only those addresses can submit drafts or run email commands |
+| Unset | Falls back to AGENTMAIL_CONTACT_EMAIL, so replies to your own previews work |
+| Both unset | The door refuses everything and logs a warning |
+
+Separate entries with commas, semicolons, or newlines. An entry starting with @ matches a whole domain. Refused mail returns 200 with \`{"skipped":"unauthorized-sender"}\`, since a 4xx would only make AgentMail retry.
+
+Two things this does not do. Plus addresses are not implied, so \`you+blog@example.com\` needs its own entry or a domain entry. And a From header can be forged, which is why draft ids matter: an email command needs both an allowed sender and a live draft id, and that id only exists in the preview email sent to you. Keep draft ids out of public repos, issues, and screenshots.
 
 ### Setup
 
 1. Create an AgentMail account and an inbox
 2. Copy the API key and inbox id
-3. Set both env vars on dev and prod deployments
+3. Set all five values on both dev and prod deployments
 4. Turn on \`newsletter.enabled\` in siteConfig and pick signup placements
 
 ### How sends work
 
 The Newsletter section lists subscribers and past sends. Compose a send from a published post or custom content. Sends go out through AgentMail with unsubscribe links handled per subscriber.
 
-### Email door for drafts
-
-Emails to your AgentMail inbox can create drafts in the Drafts Inbox. The webhook is verified with a Svix signature using AGENTMAIL_WEBHOOK_SECRET. Reply flows let you approve or reject a draft from your inbox without opening the dashboard.
-
 ### Contact form
 
-Pages and posts can embed a contact form with frontmatter \`contactForm: true\`. Submissions send to AGENTMAIL_CONTACT_EMAIL.`,
+Pages and posts can embed a contact form with frontmatter \`contactForm: true\`. Submissions send to AGENTMAIL_CONTACT_EMAIL.
+
+### Reading the AgentMail console
+
+Labels matter when you are debugging. **sent** means the app sent it, so it will never create a draft. **received** is inbound mail. **unauthenticated** is also inbound: Gmail and other personal mail often lands with that extra label because AgentMail could not verify SPF or DKIM. Those messages used to be dropped. The email door now accepts both \`message.received\` and \`message.received.unauthenticated\`. Spam and blocked stay out.
+
+The webhook only fires for mail that arrives after it was created, so anything older than the webhook was never delivered to the endpoint. Use the inbox backfill if you need those older messages imported.`,
   },
   {
     id: "agents",
@@ -241,20 +265,75 @@ Pages and posts can embed a contact form with frontmatter \`contactForm: true\`.
     icon: <Robot size={16} />,
     content: `## Agent drafts and GitHub review
 
-Agents submit drafts, you review, then publish. Four doors lead to the same Drafts Inbox:
+Agents submit drafts, you review, then publish. Five doors lead to the same Drafts Inbox:
 
-1. **HTTP**: \`POST /api/v1/drafts\` with an Authorization bearer pipeline key
-2. **MCP**: the create_draft tool on the site MCP server
+1. **HTTP**: \`POST /api/v1/drafts\` with the pipeline key in an \`x-api-key\` header
+2. **MCP**: the create_draft tool on the site MCP server, which uses BLOG_POST_KEY server side
 3. **Email**: send to your AgentMail inbox
 4. **Paste**: the paste box in the Drafts Inbox
+5. **X**: paste an X post URL in the X section
+
+\`\`\`bash
+curl -X POST https://waynesutton.ai/api/v1/drafts \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: $BLOG_POST_KEY" \\
+  -d '{"type":"article","mode":"as-is","title":"test","rawInput":"hello","source":"curl"}'
+\`\`\`
+
+A 201 returns \`{ "draftId": "...", "status": "inbox" }\`. A 401 means the key is missing, wrong, or revoked.
+
+### The blogskill file
+
+\`blogskill/SKILL.md\` in the repo is a portable agent skill, not app code. It teaches any coding agent to call the HTTP door when you say "blog this", so a session summary becomes a draft without you leaving the terminal.
+
+Two steps make it work:
+
+1. Generate a pipeline key in API Keys and export it as \`BLOG_POST_KEY\` in your shell profile
+2. Copy the file into the global skills folder for each agent you use, for example \`~/.claude/skills/blog-post/SKILL.md\` or \`~/.codex/skills/blog-post/SKILL.md\`
+
+Leaving it only in this repo means the skill loads only while you are working in this repo, which defeats the point. Copy it out to use it anywhere.
 
 ### Draft flow
 
 A draft carries rawInput plus optional title, type (session-summary, link-commentary, article), mode, source, and links. Mode rewrite runs the voice agent so the draft reads like you. Mode as-is keeps the text unchanged. X links get their post text pulled in through oEmbed.
 
-### Review
+### The Drafts Inbox controls
 
-The Drafts Inbox shows pending drafts with the rewrite beside the original. Approve to publish, or approve as draft to keep working on it in the editor. Pipeline keys created with auto publish skip review.
+Tabs filter by status: Inbox, Saved, Published, Rejected, All. Click any row to open the detail panel with the rendered markdown.
+
+| Control | What it does |
+|---------|--------------|
+| Publish | Creates the post live and listed, flips status to published, writes the publish log |
+| Publish unlisted | Creates the post live at its slug but hidden from the homepage, /blog, Cmd+K search, RSS, the sitemap, and the VFS, and served noindex |
+| Save to draft | Creates the post unpublished so you can finish it in the post editor, and moves the draft to the Saved tab |
+| Edit | Opens title and body in a textarea, saves without publishing |
+| Rewrite | Reruns the voice agent, optionally with notes like "tighten the intro" |
+| Reject | Marks the draft rejected and leaves it in the list |
+| Delete | Hard removes the draft after an inline confirm, hidden while the agent runs |
+| Review PR | Opens a GitHub pull request for the draft |
+| Paste box | Creates a draft from pasted text, with an as-is checkbox |
+
+Once a draft becomes a post, the row and detail panel link to it: the slug for anything published, or an Open button that loads a saved draft in the post editor. Saving then publishing flips the same post, so you never end up with duplicates. From that point content edits belong in the post editor; Publish from the inbox only changes visibility.
+
+An **agent pending** or **agent running** badge means the voice agent is working. **agent failed** puts the reason above the preview, usually a missing OPENAI_API_KEY.
+
+### Voice profile and reindex
+
+Two controls in the Drafts Inbox toolbar decide how rewrites sound.
+
+**Voice profile** stores your writing rules server side: sentence length, headings style, words to avoid, anything that makes a post sound like you. The rewrite agent reads it on every run. An empty voice profile means rewrites fall back to generic base instructions, so fill it in once. Paste the contents of your write skill.
+
+**Reindex voice context** embeds every published post and page into a retrieval index. The agent pulls the three closest matches into each rewrite so new posts match the voice of existing ones. Click it after the first setup and again after publishing a batch of posts. It needs OPENAI_API_KEY, and reports how many items it indexed.
+
+### Approving from email
+
+Set AGENTMAIL_CONTACT_EMAIL and each finished rewrite emails you a preview with the draft id in the subject, like \`[draft abc123] post title\`. Reply with one of these as the first line of the body:
+
+- \`publish\` publishes it
+- \`reject\` closes it
+- \`edit: tighten the intro\` sends notes back to the voice agent and mails a fresh preview
+
+Quoted replies and signatures are stripped before parsing. Mail sent from the inbox itself is ignored, so app notifications can never become drafts.
 
 ### GitHub review PRs
 

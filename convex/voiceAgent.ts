@@ -182,12 +182,11 @@ export const rewriteDraft = internalAction({
         autoPublish: args.autoPublish ?? false,
       });
 
-      // Email a preview when AgentMail is configured
-      if (isConfigured("AGENTMAIL_API_KEY") && isConfigured("AGENTMAIL_INBOX")) {
-        await ctx.scheduler.runAfter(0, internal.draftEmails.sendDraftPreview, {
-          draftId: args.draftId,
-        });
-      }
+      // sendDraftPreview resolves dashboard overrides before env vars and
+      // exits quietly when AgentMail is not configured, so schedule it always.
+      await ctx.scheduler.runAfter(0, internal.draftEmails.sendDraftPreview, {
+        draftId: args.draftId,
+      });
     } catch (error) {
       await ctx.runMutation(internal.drafts.markAgentResult, {
         draftId: args.draftId,

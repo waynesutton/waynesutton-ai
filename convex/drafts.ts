@@ -23,6 +23,14 @@ const draftStatusValidator = v.union(
   v.literal("published"),
   v.literal("rejected"),
 );
+const postVisibilityValidator = v.union(
+  v.literal("listed"),
+  v.literal("unlisted"),
+  v.literal("draft"),
+);
+
+/** Where a draft ends up once it becomes a post. */
+type PostVisibility = "listed" | "unlisted" | "draft";
 
 const draftSummaryValidator = v.object({
   _id: v.id("drafts"),
@@ -46,8 +54,10 @@ const draftSummaryValidator = v.object({
   ),
   agentError: v.optional(v.string()),
   publishedSlug: v.optional(v.string()),
+  postVisibility: v.optional(postVisibilityValidator),
   prNumber: v.optional(v.number()),
   prUrl: v.optional(v.string()),
+  sourceMessageId: v.optional(v.string()),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
@@ -104,28 +114,76 @@ function todayIsoDate(): string {
 }
 
 /**
- * Publish a draft as a post. Shared by the dashboard mutation, the email
- * approval loop, and the GitHub PR merge flow. Idempotent.
+ * Turn a draft into a post at the requested visibility. Shared by the
+ * dashboard mutations, the email approval loop, and the GitHub PR merge flow.
+ *
+ * Idempotent and reuses the post already created from this draft, so saving to
+ * draft and then publishing flips the same post instead of inserting a second
+ * one. When an existing post is reused only its visibility changes: content,
+ * title, and tags stay put unless overrides are passed, so a Publish click
+ * from the inbox never overwrites edits made in the post editor.
  */
-async function publishDraftHelper(
+async function materializeDraft(
   ctx: MutationCtx,
   draftId: Id<"drafts">,
+  visibility: PostVisibility,
   overrides?: { content?: string; title?: string; tags?: Array<string> },
 ): Promise<string | null> {
   const draft = await ctx.db.get(draftId);
   if (!draft) {
     return null;
   }
-  if (draft.status === "published") {
-    return draft.publishedSlug ?? null;
-  }
   const body = overrides?.content ?? draft.postBody ?? draft.rawInput;
   if (!body || body.trim().length === 0) {
     throw new ConvexError("Draft has no content to publish");
   }
+  const published = visibility !== "draft";
+  const unlisted = visibility === "unlisted";
+  const now = Date.now();
+
+  // Reuse the post this draft already created, if it still exists
+  const priorSlug = draft.publishedSlug;
+  const existingPost = priorSlug
+    ? await ctx.db
+        .query("posts")
+        .withIndex("by_slug", (q) => q.eq("slug", priorSlug))
+        .first()
+    : null;
+
+  if (existingPost) {
+    const visibilityMatches =
+      existingPost.published === published &&
+      (existingPost.unlisted ?? false) === unlisted;
+    if (visibilityMatches && !overrides) {
+      return existingPost.slug;
+    }
+    await ctx.db.patch(existingPost._id, {
+      published,
+      unlisted: unlisted ? true : undefined,
+      lastSyncedAt: now,
+      ...(overrides?.content ? { content: overrides.content } : {}),
+      ...(overrides?.title ? { title: overrides.title } : {}),
+      ...(overrides?.tags ? { tags: overrides.tags } : {}),
+    });
+    // Log only the transition into published so the log stays one row per publish
+    if (published && !existingPost.published) {
+      await ctx.db.insert("publishLog", {
+        draftId,
+        publishedAt: now,
+        slug: existingPost.slug,
+      });
+    }
+    await ctx.db.patch(draftId, {
+      status: published ? "published" : "approved",
+      publishedSlug: existingPost.slug,
+      postVisibility: visibility,
+      updatedAt: now,
+    });
+    return existingPost.slug;
+  }
+
   const title = overrides?.title ?? deriveTitle(draft, body);
   const slug = await uniqueSlug(ctx, slugify(title));
-  const now = Date.now();
 
   await ctx.db.insert("posts", {
     slug,
@@ -133,21 +191,25 @@ async function publishDraftHelper(
     description: deriveDescription(body),
     content: body,
     date: todayIsoDate(),
-    published: true,
+    published,
+    unlisted: unlisted ? true : undefined,
     tags: overrides?.tags ?? draft.tags ?? [],
     source: "dashboard",
     lastSyncedAt: now,
   });
 
-  await ctx.db.insert("publishLog", {
-    draftId,
-    publishedAt: now,
-    slug,
-  });
+  if (published) {
+    await ctx.db.insert("publishLog", {
+      draftId,
+      publishedAt: now,
+      slug,
+    });
+  }
 
   await ctx.db.patch(draftId, {
-    status: "published",
+    status: published ? "published" : "approved",
     publishedSlug: slug,
+    postVisibility: visibility,
     updatedAt: now,
   });
 
@@ -166,8 +228,22 @@ export async function insertDraftHelper(
     links?: Array<string>;
     tags?: Array<string>;
     autoPublish?: boolean;
+    sourceMessageId?: string;
   },
 ): Promise<Id<"drafts">> {
+  // Email ingest is idempotent on AgentMail message_id
+  if (args.sourceMessageId) {
+    const existing = await ctx.db
+      .query("drafts")
+      .withIndex("by_source_message_id", (q) =>
+        q.eq("sourceMessageId", args.sourceMessageId),
+      )
+      .first();
+    if (existing) {
+      return existing._id;
+    }
+  }
+
   const now = Date.now();
   const needsAgent = args.mode === "rewrite";
   const draftId = await ctx.db.insert("drafts", {
@@ -180,6 +256,7 @@ export async function insertDraftHelper(
     tags: args.tags,
     status: "inbox",
     agentStatus: needsAgent ? "pending" : undefined,
+    sourceMessageId: args.sourceMessageId,
     createdAt: now,
     updatedAt: now,
   });
@@ -191,7 +268,7 @@ export async function insertDraftHelper(
     });
   } else if (args.autoPublish) {
     // As-is drafts with an auto-publish key go straight to the site
-    await publishDraftHelper(ctx, draftId);
+    await materializeDraft(ctx, draftId, "listed");
   }
 
   return draftId;
@@ -291,12 +368,33 @@ export const updateDraft = mutation({
   },
 });
 
+/**
+ * Publish a draft as a live post. Pass unlisted to keep it out of listings,
+ * search, RSS, the sitemap, and the VFS while staying reachable at its slug.
+ */
 export const publishDraft = mutation({
+  args: { draftId: v.id("drafts"), unlisted: v.optional(v.boolean()) },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+    return await materializeDraft(
+      ctx,
+      args.draftId,
+      args.unlisted ? "unlisted" : "listed",
+    );
+  },
+});
+
+/**
+ * Save a draft as an unpublished post so it can be finished in the post
+ * editor. The draft moves to approved and keeps a pointer to the post.
+ */
+export const saveDraftAsPost = mutation({
   args: { draftId: v.id("drafts") },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
     await requireDashboardAdmin(ctx);
-    return await publishDraftHelper(ctx, args.draftId);
+    return await materializeDraft(ctx, args.draftId, "draft");
   },
 });
 
@@ -381,11 +479,22 @@ export const getVoiceProfile = query({
   },
 });
 
+/**
+ * Save the voice rules used by the rewrite agent.
+ * Blank rules are refused unless allowEmpty is set, so a stale or unloaded
+ * editor can never silently wipe the stored profile.
+ */
 export const saveVoiceProfile = mutation({
-  args: { rules: v.string() },
+  args: { rules: v.string(), allowEmpty: v.optional(v.boolean()) },
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireDashboardAdmin(ctx);
+    const isBlank = args.rules.trim().length === 0;
+    if (isBlank && args.allowEmpty !== true) {
+      throw new ConvexError(
+        "Voice rules are empty. Clear the profile explicitly to remove them.",
+      );
+    }
     const existing = await ctx.db.query("voiceProfile").first();
     if (existing) {
       await ctx.db.patch(existing._id, {
@@ -467,6 +576,7 @@ export const insertDraftFromEmail = internalMutation({
     title: v.optional(v.string()),
     rawInput: v.string(),
     mode: draftModeValidator,
+    sourceMessageId: v.optional(v.string()),
   },
   returns: v.id("drafts"),
   handler: async (ctx, args) => {
@@ -476,6 +586,7 @@ export const insertDraftFromEmail = internalMutation({
       type: "article",
       mode: args.mode,
       source: "email",
+      sourceMessageId: args.sourceMessageId,
     });
   },
 });
@@ -498,7 +609,7 @@ export const handleEmailCommand = internalMutation({
     }
     const command = args.command.toLowerCase();
     if (command === "publish") {
-      await publishDraftHelper(ctx, args.draftId);
+      await materializeDraft(ctx, args.draftId, "listed");
       return "published";
     }
     if (command === "reject") {
@@ -536,7 +647,7 @@ export const publishDraftFromPr = internalMutation({
   },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
-    return await publishDraftHelper(ctx, args.draftId, {
+    return await materializeDraft(ctx, args.draftId, "listed", {
       content: args.content,
       title: args.title,
     });
@@ -600,7 +711,7 @@ export const markAgentResult = internalMutation({
     await ctx.db.patch(args.draftId, updates);
 
     if (args.autoPublish) {
-      await publishDraftHelper(ctx, args.draftId);
+      await materializeDraft(ctx, args.draftId, "listed");
     }
     return null;
   },

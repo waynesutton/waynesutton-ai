@@ -4,6 +4,54 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### Open live link for published content (2026-08-17)
+
+- **New file** `prds/dashboard-open-live-link.md`: PRD for the missing live link in the dashboard, why the old eye icon was a dead link on drafts, and why the published gate ignores unlisted.
+- **Modified** `src/pages/Dashboard.tsx`: `PostsListView` and `PagesListView` render an `ArrowSquareOut` open link only when the item is published, and `EditorView` gained a matching Open button in the toolbar.
+
+### Email door sender allowlist (2026-08-17)
+
+- **New file** `prds/email-door-sender-allowlist.md`: PRD for the missing sender check on the email door, covering the publish-by-reply hole, the fail-closed allowlist design, and the spoofable From header risk that is accepted rather than solved.
+- **Modified** `convex/lib/agentMailMessage.ts`: `normalizeEmailAddress`, `parseAllowedSenders`, and `isAllowedSender` for address and domain matching (an empty allowlist authorizes nothing), plus the `EmailDoorConfig` type that callers use to annotate `ctx.runQuery` results.
+- **Modified** `convex/http.ts`: the AgentMail webhook refuses unauthorized senders before the command branch, draft creation, and the AgentMail hydration fetch, and compares self-sent mail by normalized address instead of substring.
+- **Modified** `convex/draftEmails.ts`: the same gate inside `ingestFetchedMessage`, so the API backfill cannot bypass the webhook check.
+- **Modified** `convex/pipelineKeys.ts`: new internal query `emailDoorConfig` returns the inbox and resolved allowlist in one transaction, and `AGENTMAIL_ALLOWED_SENDERS` is listed in `VENDOR_ENV_VARS` for dashboard visibility and overrides.
+- **Modified** `src/components/DashboardDocsSection.tsx`: AgentMail docs cover the fifth variable, the allowlist behavior table, and why draft ids should stay private.
+
+### AgentMail unauthenticated inbound (2026-08-17)
+
+- **New file** `prds/agentmail-unauthenticated-inbound.md`: PRD for Gmail tests that landed in AgentMail with the `unauthenticated` label and never reached the Drafts Inbox.
+- **New file** `convex/lib/agentMailMessage.ts`: Shared sender, body, event-type, and reply-cleaning helpers for webhook payloads and AgentMail API messages.
+- **Modified** `convex/http.ts`: Email door accepts `message.received.unauthenticated`, parses `from`/`from_` and HTML-only bodies, and schedules an AgentMail API fetch when the webhook payload has no text.
+- **Modified** `convex/schema.ts`: `drafts.sourceMessageId` plus `by_source_message_id` so email ingest is idempotent.
+- **Modified** `convex/drafts.ts`: `insertDraftFromEmail` stores and reuses `sourceMessageId`.
+- **Modified** `convex/draftEmails.ts`: `ingestAgentMailMessage` and `ingestRecentInboxEmails` pull received mail (including unauthenticated) into drafts. `subscribeInboundWebhookEvents` sets the AgentMail webhook to `message.received` and `message.received.unauthenticated`.
+- **Modified** `src/components/DashboardDocsSection.tsx`: AgentMail console docs now explain the `unauthenticated` label and the two inbound webhook events.
+
+### GitHub double login fix (2026-08-17)
+
+- **New file** `prds/dashboard-double-github-login.md`: PRD tracing the intermittent double GitHub sign-in on production to a duplicate navigation that overwrote the OAuth verifier signature, with the orphaned `authVerifiers` evidence and verification steps.
+- **Modified** `src/pages/Dashboard.tsx`: new shared `startGithubSignIn` helper for `LoginPrompt` and `DemoSignInButton` that lets Convex Auth own the redirect instead of calling `window.location.assign` a second time, plus a `sessionStorage` pending marker consumed in the `Dashboard` auth gate so a failed OAuth callback shows a retry notice rather than a silent sign-in screen.
+- **Modified** `src/styles/global.css`: `.dashboard-auth-notice` style for the sign-in retry message inside the auth card.
+
+### Drafts Inbox save to draft and publish unlisted (2026-08-17)
+
+- **New file** `prds/drafts-inbox-save-and-unlisted.md`: PRD for the two new draft exits, the shared post-reuse helper, and the link-to-view behavior.
+- **Modified** `convex/drafts.ts`: `publishDraftHelper` replaced by `materializeDraft(ctx, draftId, visibility, overrides?)` with visibility `listed | unlisted | draft`. It reuses the post a draft already created (found via `publishedSlug`) so save-then-publish flips one post instead of inserting a second, repeat clicks are no-ops, and `publishLog` records one row per publish transition; reuse touches visibility only so post editor edits survive. `publishDraft` gained an optional `unlisted` flag, and the new `saveDraftAsPost` mutation creates the post unpublished.
+- **Modified** `convex/schema.ts`: `drafts.postVisibility` optional union (`listed | unlisted | draft`) recording how the post was created.
+- **Modified** `src/components/dashboard/DraftsInbox.tsx`: Publish unlisted and Save to draft actions on rows and in the detail panel, a Saved tab for `approved` drafts, an unlisted badge, and a result line linking to the post slug or opening a saved post in the editor via the new `onOpenPost` prop.
+- **Modified** `src/pages/Dashboard.tsx`: `handleOpenPostBySlug` resolves a slug against the existing posts query and reuses `handleEditPost`, wired into DraftsInbox.
+- **Modified** `src/styles/global.css`: `.drafts-result-line` for the detail panel result row.
+
+### AgentMail draft inbox audit and fix (2026-08-17)
+
+- **New file** `prds/agentmail-draft-inbox-audit.md` (gitignored, local only, contains inbox and admin addresses): PRD for the email door audit. Root cause was an unset `AGENTMAIL_CONTACT_EMAIL` on dev and prod, so all outbound mail addressed itself back to the AgentMail inbox and the reply-driven approval loop had no reply target. Includes the verification probe results and the remaining manual env steps.
+- **Modified** `convex/draftEmails.ts`: `sendDraftPreview` resolves `AGENTMAIL_API_KEY`, `AGENTMAIL_INBOX`, and `AGENTMAIL_CONTACT_EMAIL` through `resolveVendorKey` so dashboard overrides apply, and skips with a console warning when the recipient is missing or equal to the sending inbox instead of mailing the inbox itself.
+- **Modified** `convex/http.ts`: The AgentMail webhook drops inbound messages whose sender contains our own `AGENTMAIL_INBOX` address (returns `{"skipped":"self-sent"}`), so subscriber alerts, stats summaries, and draft previews can never file themselves as drafts.
+- **Modified** `convex/pipelineKeys.ts`: `AGENTMAIL_CONTACT_EMAIL` added to `VENDOR_ENV_VARS` so the dashboard API Keys section shows when the delivery address is unset.
+- **Modified** `convex/voiceAgent.ts`: `rewriteDraft` always schedules `sendDraftPreview` instead of gating on `process.env`, which previously skipped previews when AgentMail keys were stored as dashboard overrides.
+- **Modified** `src/components/DashboardDocsSection.tsx`: Drafts and AgentMail docs rewritten. Five doors into the Drafts Inbox, the correct `x-api-key` header and curl example for `POST /api/v1/drafts`, a table for every Drafts Inbox control, what the voice profile and Reindex buttons feed the agent, per-variable AgentMail setup notes, and the email reply commands (`publish`, `reject`, `edit: <notes>`).
+
 ### Dashboard UI redesign (2026-08-17)
 
 - **New file** `prds/dashboard-ui-redesign.md`: PRD for the dashboard visual overhaul, overview section, and mobile drawer.
@@ -110,12 +158,12 @@ A brief description of each file in the codebase.
 
 ### Agent blog pipeline and Convex Auth cutover (2026-08-16)
 
-- **New file** `convex/drafts.ts`: Draft lifecycle for the agent blog pipeline: create from API/email/paste box, list, edit, publish, reject, delete, rewrite requests, voice profile storage, email approval commands, and PR-merge publishing.
+- **New file** `convex/drafts.ts`: Draft lifecycle for the agent blog pipeline: create from API/email/paste box, list, edit, publish (listed or unlisted), save as an unpublished post, reject, delete, rewrite requests, voice profile storage, email approval commands, and PR-merge publishing.
 - **New file** `convex/pipelineKeys.ts`: Pipeline API key management: generate (SHA-256 hashed, plaintext shown once), list, revoke, verify by hash, and vendor env var status reporting.
 - **New file** `convex/voiceAgent.ts`: Voice agent on `@convex-dev/agent` that rewrites drafts using voice rules, RAG retrieval over published content, and X oEmbed link context; includes RAG reindex actions.
 - **New file** `convex/draftEmails.ts`: Node action that emails draft previews via AgentMail with reply commands (publish, reject, edit).
 - **New file** `convex/githubReview.ts`: Opens GitHub review PRs for drafts and publishes or rejects them when the PR closes.
-- **New file** `src/components/dashboard/DraftsInbox.tsx`: Dashboard Drafts Inbox: status tabs, markdown preview, edit mode, rewrite notes, paste box, voice profile editor, reindex button, publish log, and draft delete with inline confirm.
+- **New file** `src/components/dashboard/DraftsInbox.tsx`: Dashboard Drafts Inbox: status tabs (Inbox, Saved, Published, Rejected, All), markdown preview, edit mode, rewrite notes, paste box, voice profile editor, reindex button, publish log, draft delete with inline confirm, and three draft exits (Publish, Publish unlisted, Save to draft) each linking to the resulting post.
 - **New file** `src/components/dashboard/ApiKeysSection.tsx`: Dashboard API Keys section: key generation with one-time display, revoke with inline confirm, vendor key status panel.
 - **New file** `blogskill/SKILL.md`: Installable agent skill teaching the drafts API payload and trigger phrases; publish to waynesutton/blogskill.
 - **New file** `prds/setup-guide-new-features.md`: What was built, the draft lifecycle, and how each surface works.

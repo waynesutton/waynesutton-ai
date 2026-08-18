@@ -15,6 +15,9 @@ import {
   CaretDown,
   CaretRight,
   Trash,
+  EyeSlash,
+  FileArrowDown,
+  ArrowSquareOut,
 } from "@phosphor-icons/react";
 
 type ToastType = "success" | "error" | "info" | "warning";
@@ -22,6 +25,7 @@ type DraftStatus = "inbox" | "approved" | "published" | "rejected";
 
 const STATUS_TABS: Array<{ id: DraftStatus | "all"; label: string }> = [
   { id: "inbox", label: "Inbox" },
+  { id: "approved", label: "Saved" },
   { id: "published", label: "Published" },
   { id: "rejected", label: "Rejected" },
   { id: "all", label: "All" },
@@ -34,8 +38,11 @@ const STATUS_TABS: Array<{ id: DraftStatus | "all"; label: string }> = [
  */
 export function DraftsInbox({
   addToast,
+  onOpenPost,
 }: {
   addToast: (message: string, type?: ToastType) => void;
+  /** Opens a post created from a draft in the dashboard post editor. */
+  onOpenPost?: (slug: string) => void;
 }) {
   const [tab, setTab] = useState<DraftStatus | "all">("inbox");
   const [selectedId, setSelectedId] = useState<Id<"drafts"> | null>(null);
@@ -49,6 +56,7 @@ export function DraftsInbox({
   const [pasteBody, setPasteBody] = useState("");
   const [pasteMode, setPasteMode] = useState<"rewrite" | "as-is">("rewrite");
   const [voiceRules, setVoiceRules] = useState<string | null>(null);
+  const [confirmClearVoice, setConfirmClearVoice] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Id<"drafts"> | null>(null);
 
@@ -64,6 +72,7 @@ export function DraftsInbox({
   const publishLog = useQuery(api.drafts.listPublishLog);
 
   const publishDraft = useMutation(api.drafts.publishDraft);
+  const saveDraftAsPost = useMutation(api.drafts.saveDraftAsPost);
   const rejectDraft = useMutation(api.drafts.rejectDraft);
   const deleteDraft = useMutation(api.drafts.deleteDraft);
   const updateDraft = useMutation(api.drafts.updateDraft);
@@ -85,10 +94,30 @@ export function DraftsInbox({
     }
   };
 
-  const handlePublish = (draftId: Id<"drafts">) =>
+  const handlePublish = (draftId: Id<"drafts">, unlisted?: boolean) =>
     run(async () => {
-      const slug = await publishDraft({ draftId });
-      addToast(slug ? `Published as /${slug}` : "Publish failed", slug ? "success" : "error");
+      const slug = await publishDraft({ draftId, unlisted });
+      if (!slug) {
+        addToast("Publish failed", "error");
+        return;
+      }
+      addToast(
+        unlisted
+          ? `Published unlisted at /${slug}, hidden from listings and search`
+          : `Published as /${slug}`,
+        "success",
+      );
+    });
+
+  const handleSaveAsPost = (draftId: Id<"drafts">) =>
+    run(async () => {
+      const slug = await saveDraftAsPost({ draftId });
+      addToast(
+        slug
+          ? `Saved as an unpublished post: /${slug}`
+          : "Save to draft failed",
+        slug ? "success" : "error",
+      );
     });
 
   const handleReject = (draftId: Id<"drafts">) =>
@@ -154,10 +183,26 @@ export function DraftsInbox({
       );
     });
 
-  const handleSaveVoice = () =>
+  // Single source of truth for the editor: local edits win, otherwise the
+  // stored rules. Saving writes exactly what is on screen.
+  const storedVoiceRules = voiceProfile?.rules ?? "";
+  const voiceRulesValue = voiceRules ?? storedVoiceRules;
+  const voiceLoading = voiceProfile === undefined;
+  const voiceUnchanged = voiceRulesValue === storedVoiceRules;
+  const voiceWouldClear =
+    voiceRulesValue.trim().length === 0 && storedVoiceRules.trim().length > 0;
+
+  const handleSaveVoice = (allowEmpty?: boolean) =>
     run(async () => {
-      await saveVoiceProfile({ rules: voiceRules ?? "" });
-      addToast("Voice profile saved", "success");
+      await saveVoiceProfile({ rules: voiceRulesValue, allowEmpty });
+      // Drop the local override so the textarea renders from the query,
+      // which proves the value round-tripped through the database.
+      setVoiceRules(null);
+      setConfirmClearVoice(false);
+      addToast(
+        allowEmpty ? "Voice profile cleared" : "Voice profile saved",
+        "success",
+      );
     });
 
   const handleReindex = () =>
@@ -186,6 +231,45 @@ export function DraftsInbox({
       return <span className="status-badge draft">agent failed</span>;
     }
     return null;
+  };
+
+  /**
+   * Link to whatever the draft became. Published posts (listed or unlisted)
+   * open at their slug; a saved draft has no public URL, so it opens in the
+   * dashboard post editor instead.
+   */
+  const resultLink = (draft: {
+    status: DraftStatus;
+    publishedSlug?: string;
+    postVisibility?: "listed" | "unlisted" | "draft";
+  }) => {
+    const slug = draft.publishedSlug;
+    if (!slug) return null;
+    if (draft.status === "published") {
+      return (
+        <a
+          href={`/${slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="action-btn view"
+          title={
+            draft.postVisibility === "unlisted"
+              ? "View unlisted post (hidden from listings and search)"
+              : "View post"
+          }>
+          /{slug} <ArrowSquareOut size={12} />
+        </a>
+      );
+    }
+    if (!onOpenPost) return null;
+    return (
+      <button
+        className="action-btn view"
+        title="Open the saved post in the editor"
+        onClick={() => onOpenPost(slug)}>
+        Open /{slug}
+      </button>
+    );
   };
 
   return (
@@ -282,17 +366,59 @@ export function DraftsInbox({
           <textarea
             className="dashboard-field-textarea drafts-textarea"
             rows={8}
-            value={voiceRules ?? voiceProfile?.rules ?? ""}
-            onChange={(e) => setVoiceRules(e.target.value)}
+            value={voiceRulesValue}
+            onChange={(e) => {
+              setVoiceRules(e.target.value);
+              setConfirmClearVoice(false);
+            }}
             placeholder="Short sentences. No emojis. Sentence case headings. Lead with why it matters..."
           />
           <div className="drafts-panel-actions">
-            <button
-              className="dashboard-action-btn primary"
-              onClick={() => void handleSaveVoice()}
-              disabled={busy}>
-              <FloppyDisk size={14} /> Save voice profile
-            </button>
+            <span className="drafts-panel-hint">
+              {voiceLoading
+                ? "Loading saved rules..."
+                : voiceProfile
+                  ? `Saved ${new Date(voiceProfile.updatedAt).toLocaleString()} (${storedVoiceRules.length} characters)`
+                  : "No voice profile saved yet"}
+            </span>
+            <div className="drafts-panel-buttons">
+              {confirmClearVoice ? (
+                <>
+                  <span className="drafts-panel-hint">
+                    Clear the saved voice rules?
+                  </span>
+                  <button
+                    className="dashboard-action-btn"
+                    disabled={busy}
+                    onClick={() => void handleSaveVoice(true)}>
+                    Confirm clear
+                  </button>
+                  <button
+                    className="dashboard-action-btn"
+                    onClick={() => setConfirmClearVoice(false)}>
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="dashboard-action-btn primary"
+                  onClick={() => {
+                    if (voiceWouldClear) {
+                      setConfirmClearVoice(true);
+                      return;
+                    }
+                    void handleSaveVoice();
+                  }}
+                  disabled={busy || voiceLoading || voiceUnchanged}
+                  title={
+                    voiceUnchanged
+                      ? "No changes to save"
+                      : "Save voice rules for the rewrite agent"
+                  }>
+                  <FloppyDisk size={14} /> Save voice profile
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -332,11 +458,14 @@ export function DraftsInbox({
             <span className="col-status">
               <span
                 className={`status-badge ${draft.status === "published" ? "published" : "draft"}`}>
-                {draft.status}
-              </span>
+                {draft.status === "approved" ? "saved" : draft.status}
+              </span>{" "}
+              {draft.postVisibility === "unlisted" && (
+                <span className="status-badge draft">unlisted</span>
+              )}
             </span>
             <span className="col-actions" onClick={(e) => e.stopPropagation()}>
-              {draft.status === "inbox" && (
+              {(draft.status === "inbox" || draft.status === "approved") && (
                 <>
                   <button
                     className="action-btn edit"
@@ -346,6 +475,22 @@ export function DraftsInbox({
                     <Check size={16} />
                   </button>
                   <button
+                    className="action-btn edit"
+                    title="Publish unlisted: live at its slug, hidden from listings, search, RSS, and the sitemap"
+                    disabled={busy}
+                    onClick={() => void handlePublish(draft._id, true)}>
+                    <EyeSlash size={16} />
+                  </button>
+                  {draft.status === "inbox" && (
+                    <button
+                      className="action-btn edit"
+                      title="Save to draft: create the post unpublished so you can finish it in the editor"
+                      disabled={busy}
+                      onClick={() => void handleSaveAsPost(draft._id)}>
+                      <FileArrowDown size={16} />
+                    </button>
+                  )}
+                  <button
                     className="action-btn delete"
                     title="Reject"
                     disabled={busy}
@@ -354,16 +499,7 @@ export function DraftsInbox({
                   </button>
                 </>
               )}
-              {draft.status === "published" && draft.publishedSlug && (
-                <a
-                  href={`/${draft.publishedSlug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="action-btn view"
-                  title="View post">
-                  /{draft.publishedSlug}
-                </a>
-              )}
+              {resultLink(draft)}
               {/* Hard delete; hidden while the voice agent is working on the draft */}
               {draft.agentStatus !== "pending" &&
                 draft.agentStatus !== "running" &&
@@ -410,38 +546,56 @@ export function DraftsInbox({
               <h3>{selected.title ?? "Untitled"}</h3>
             )}
             <div className="drafts-detail-actions">
-              {selected.status === "inbox" && !editing && (
-                <>
-                  <button
-                    className="dashboard-action-btn primary"
-                    disabled={busy}
-                    onClick={() => void handlePublish(selected._id)}>
-                    <Check size={14} /> Publish
-                  </button>
-                  <button
-                    className="dashboard-action-btn"
-                    onClick={() => {
-                      setEditing(true);
-                      setEditTitle(selected.title ?? "");
-                      setEditBody(selected.postBody ?? selected.rawInput);
-                    }}>
-                    <PencilSimple size={14} /> Edit
-                  </button>
-                  <button
-                    className="dashboard-action-btn"
-                    disabled={busy}
-                    title="Open a GitHub review PR (requires GITHUB_TOKEN and GITHUB_REVIEW_REPO)"
-                    onClick={() => void handleOpenPr(selected._id)}>
-                    <GitPullRequest size={14} /> Review PR
-                  </button>
-                  <button
-                    className="dashboard-action-btn"
-                    disabled={busy}
-                    onClick={() => void handleReject(selected._id)}>
-                    <X size={14} /> Reject
-                  </button>
-                </>
-              )}
+              {(selected.status === "inbox" ||
+                selected.status === "approved") &&
+                !editing && (
+                  <>
+                    <button
+                      className="dashboard-action-btn primary"
+                      disabled={busy}
+                      onClick={() => void handlePublish(selected._id)}>
+                      <Check size={14} /> Publish
+                    </button>
+                    <button
+                      className="dashboard-action-btn"
+                      disabled={busy}
+                      title="Live at its slug but hidden from listings, search, RSS, the sitemap, and the VFS, and served noindex"
+                      onClick={() => void handlePublish(selected._id, true)}>
+                      <EyeSlash size={14} /> Publish unlisted
+                    </button>
+                    {selected.status === "inbox" && (
+                      <button
+                        className="dashboard-action-btn"
+                        disabled={busy}
+                        title="Create the post unpublished so you can finish it in the post editor"
+                        onClick={() => void handleSaveAsPost(selected._id)}>
+                        <FileArrowDown size={14} /> Save to draft
+                      </button>
+                    )}
+                    <button
+                      className="dashboard-action-btn"
+                      onClick={() => {
+                        setEditing(true);
+                        setEditTitle(selected.title ?? "");
+                        setEditBody(selected.postBody ?? selected.rawInput);
+                      }}>
+                      <PencilSimple size={14} /> Edit
+                    </button>
+                    <button
+                      className="dashboard-action-btn"
+                      disabled={busy}
+                      title="Open a GitHub review PR (requires GITHUB_TOKEN and GITHUB_REVIEW_REPO)"
+                      onClick={() => void handleOpenPr(selected._id)}>
+                      <GitPullRequest size={14} /> Review PR
+                    </button>
+                    <button
+                      className="dashboard-action-btn"
+                      disabled={busy}
+                      onClick={() => void handleReject(selected._id)}>
+                      <X size={14} /> Reject
+                    </button>
+                  </>
+                )}
               {editing && (
                 <>
                   <button
@@ -496,6 +650,19 @@ export function DraftsInbox({
                 {selected.prUrl}
               </a>
             </p>
+          )}
+          {/* Where this draft went, and how to get to it */}
+          {selected.publishedSlug && (
+            <div className="drafts-result-line">
+              <span className="drafts-panel-hint">
+                {selected.status === "published"
+                  ? selected.postVisibility === "unlisted"
+                    ? "Live but unlisted. Reachable at its slug, kept out of listings, search, RSS, and the sitemap."
+                    : "Live and listed."
+                  : "Saved as an unpublished post. Content edits belong in the post editor from here; Publish only flips it live."}
+              </span>
+              {resultLink(selected)}
+            </div>
           )}
 
           {editing ? (

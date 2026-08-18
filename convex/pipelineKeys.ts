@@ -5,12 +5,14 @@ import {
   internalMutation,
   internalQuery,
 } from "./_generated/server";
+import type { QueryCtx } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import {
   requireDashboardAdmin,
   requireDashboardAdminAction,
 } from "./dashboardAuth";
+import { parseAllowedSenders } from "./lib/agentMailMessage";
 
 // SHA-256 hex digest using Web Crypto (available in actions and httpActions)
 export async function sha256Hex(value: string): Promise<string> {
@@ -34,6 +36,15 @@ const VENDOR_ENV_VARS: Array<{ name: string; purpose: string }> = [
   { name: "AGENTMAIL_API_KEY", purpose: "Newsletter, contact, draft emails" },
   { name: "AGENTMAIL_INBOX", purpose: "AgentMail from-inbox id" },
   { name: "AGENTMAIL_WEBHOOK_SECRET", purpose: "Email door webhook auth" },
+  {
+    name: "AGENTMAIL_CONTACT_EMAIL",
+    purpose: "Where contact, alert, and draft preview mail is delivered",
+  },
+  {
+    name: "AGENTMAIL_ALLOWED_SENDERS",
+    purpose:
+      "Addresses allowed to submit drafts by email (falls back to the contact address)",
+  },
   { name: "GITHUB_TOKEN", purpose: "PR review surface (fine-grained PAT)" },
   { name: "GITHUB_REVIEW_REPO", purpose: "owner/repo for review PRs" },
   { name: "GITHUB_WEBHOOK_SECRET", purpose: "GitHub webhook signature check" },
@@ -264,6 +275,51 @@ export const removeVendorKey = mutation({
       await ctx.db.delete(existing._id);
     }
     return null;
+  },
+});
+
+/** Dashboard override first, then the deployment environment variable. */
+async function resolveConfigValue(
+  ctx: QueryCtx,
+  name: string,
+): Promise<string | null> {
+  const row = await ctx.db
+    .query("vendorKeys")
+    .withIndex("by_name", (q) => q.eq("name", name))
+    .unique();
+  const override = row?.value.trim();
+  if (override) {
+    return override;
+  }
+  return isConfigured(name) ? (process.env[name] as string).trim() : null;
+}
+
+/**
+ * Everything the email door needs to authorize an inbound message, in one
+ * transaction: the inbox we send from, and the senders allowed to file drafts
+ * or reply with publish, reject, and edit.
+ *
+ * AGENTMAIL_ALLOWED_SENDERS wins. Without it the list falls back to the
+ * contact address that draft previews are sent to, so the reply approval loop
+ * works with no extra configuration. An empty list means refuse everything:
+ * an unconfigured door must never be an open one.
+ */
+export const emailDoorConfig = internalQuery({
+  args: {},
+  returns: v.object({
+    inbox: v.union(v.string(), v.null()),
+    allowedSenders: v.array(v.string()),
+  }),
+  handler: async (ctx) => {
+    const [inbox, configured, contact] = await Promise.all([
+      resolveConfigValue(ctx, "AGENTMAIL_INBOX"),
+      resolveConfigValue(ctx, "AGENTMAIL_ALLOWED_SENDERS"),
+      resolveConfigValue(ctx, "AGENTMAIL_CONTACT_EMAIL"),
+    ]);
+    return {
+      inbox,
+      allowedSenders: parseAllowedSenders(configured ?? contact),
+    };
   },
 });
 
