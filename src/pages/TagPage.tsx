@@ -111,6 +111,7 @@ export default function TagPage() {
               className="view-toggle-button"
               onClick={toggleViewMode}
               aria-label={`Switch to ${viewMode === "list" ? "card" : "list"} view`}
+              data-tooltip={`Switch to ${viewMode === "list" ? "card" : "list"} view`}
             >
               {viewMode === "list" ? (
                 <svg

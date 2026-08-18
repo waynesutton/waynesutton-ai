@@ -4,6 +4,34 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### Blog list view fix, blog toggle config, and icon tooltips (2026-08-18)
+
+- **New file** `prds/blog-list-view-toggle-fix.md`: PRD for the empty blog list view, the missing dashboard toggle option, and the icon tooltips.
+- **Modified** `src/pages/Blog.tsx`: list view shows all published posts (featured included) since the hero and featured sections only render in cards view; localStorage view preference only applies when the toggle is shown; tooltip on the toggle button.
+- **Modified** `src/pages/Home.tsx`: same localStorage guard for the featured section toggle and tooltip on its button.
+- **Modified** `src/pages/Dashboard.tsx`: Blog Page config card gained a Show view toggle icons checkbox and a Default View Mode hint; `blogPageShowViewToggle` wired through state, live preview, and the generated siteConfig code.
+- **Modified** `src/pages/Post.tsx`, `src/pages/TagPage.tsx`, `src/pages/AuthorPage.tsx`: tooltips on their view toggle buttons.
+- **Modified** `src/styles/global.css`: design-system tooltip via `[data-tooltip]::after` next to the view toggle styles, with a left-anchored variant inside the 768px stacked-header breakpoint.
+
+### Blank prod pages after failed deploy: cache-safe 404s and asset URL bust (2026-08-18)
+
+- **Modified** `convex/http.ts`: static handler 404 and 500 responses send `Cache-Control: no-store` so Cloudflare and browsers never cache a transiently missing chunk as a persistent failure.
+- **Modified** `vite.config.ts`: build output renamed to `assets/v2/[name]-[hash]` to bypass browser and edge caches that held 404s for the old chunk URLs.
+
+### Server-rendered per-content meta on static hosting (2026-08-18)
+
+- **New file** `prds/static-hosting-meta-injection.md`: PRD for injecting post and page meta tags into the served index.html on Convex static hosting.
+- **New file** `convex/seo.ts`: `getContentMetaBySlug` internal query that resolves a slug to published post-then-page meta (title, description, date, image, ogImage, noOgImage, unlisted, author) in one transaction.
+- **Modified** `convex/http.ts`: replaced the self-hosting `registerStaticRoutes` with a custom catch-all (`serveStaticWithMeta`) that keeps ETag and immutable-asset caching plus the SPA fallback, and for `/{slug}` routes strips the generic head tags and injects content-specific title, description, robots, canonical, og, twitter, article dates, and BlogPosting JSON-LD; also strips trailing slashes from `SITE_URL`.
+
+### Newsletter send to selected recipients (2026-08-18)
+
+- **New file** `prds/newsletter-selected-recipients.md`: PRD for sending a newsletter to a chosen subset of subscribers.
+- **Modified** `convex/newsletter.ts`: `scheduleSendPostNewsletter` and `scheduleSendCustomNewsletter` accept optional `recipientEmails`; targeted post sends bypass the already-sent guard and skip `recordPostSent`.
+- **Modified** `convex/newsletterActions.ts`: `filterSubscribersByEmails` helper; both send actions filter active subscribers by the requested emails.
+- **Modified** `src/pages/Dashboard.tsx`: shared `NewsletterRecipientPicker` (All subscribers or Select recipients with search and checkboxes) wired into the Send post and Write email sections.
+- **Modified** `src/styles/global.css`: recipient picker styles.
+
 ### Drag and drop sort order for dashboard sidebars (2026-08-18)
 
 - **New file** `prds/dashboard-drag-sort.md`: PRD for drag-and-drop ordering of the main Dashboard sidebar nav items and the Frontmatter sidebar field blocks, with the last sort persisted per browser.

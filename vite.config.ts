@@ -14,6 +14,11 @@ export default defineConfig(({ mode }) => {
       outDir: "dist",
       rollupOptions: {
         output: {
+          // v2 path segment: one-time cache bust after a bad deploy window let
+          // Cloudflare cache 404s for the old /assets/ chunk URLs
+          entryFileNames: "assets/v2/[name]-[hash].js",
+          chunkFileNames: "assets/v2/[name]-[hash].js",
+          assetFileNames: "assets/v2/[name]-[hash][extname]",
           manualChunks: {
             // Vendor chunks for better caching
             "vendor-react": ["react", "react-dom", "react-router-dom"],

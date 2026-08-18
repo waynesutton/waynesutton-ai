@@ -574,12 +574,16 @@ export const getStatsForSummary = internalQuery({
 // These schedule internal actions to send newsletters
 // ============================================================================
 
-// Schedule sending a post as newsletter from admin UI
+// Schedule sending a post as newsletter from admin UI.
+// When recipientEmails is provided, the send targets only those active
+// subscribers and skips the one-time "already sent" guard so a post can be
+// shared with a couple of people without burning its full-send flag.
 export const scheduleSendPostNewsletter = mutation({
   args: {
     postSlug: v.string(),
     siteUrl: v.string(),
     siteName: v.optional(v.string()),
+    recipientEmails: v.optional(v.array(v.string())),
   },
   returns: v.object({
     success: v.boolean(),
@@ -588,17 +592,22 @@ export const scheduleSendPostNewsletter = mutation({
   handler: async (ctx, args) => {
     await requireDashboardAdmin(ctx);
 
-    // Check if post was already sent
-    const sent = await ctx.db
-      .query("newsletterSentPosts")
-      .withIndex("by_postslug", (q) => q.eq("postSlug", args.postSlug))
-      .unique();
+    const isTargetedSend =
+      args.recipientEmails !== undefined && args.recipientEmails.length > 0;
 
-    if (sent) {
-      return {
-        success: false,
-        message: "This post has already been sent as a newsletter.",
-      };
+    // Check if post was already sent (full sends only)
+    if (!isTargetedSend) {
+      const sent = await ctx.db
+        .query("newsletterSentPosts")
+        .withIndex("by_postslug", (q) => q.eq("postSlug", args.postSlug))
+        .unique();
+
+      if (sent) {
+        return {
+          success: false,
+          message: "This post has already been sent as a newsletter.",
+        };
+      }
     }
 
     // Schedule the action to run immediately
@@ -606,6 +615,7 @@ export const scheduleSendPostNewsletter = mutation({
       postSlug: args.postSlug,
       siteUrl: args.siteUrl,
       siteName: args.siteName,
+      recipientEmails: isTargetedSend ? args.recipientEmails : undefined,
     });
 
     return {
@@ -615,13 +625,16 @@ export const scheduleSendPostNewsletter = mutation({
   },
 });
 
-// Schedule sending a custom newsletter from admin UI
+// Schedule sending a custom newsletter from admin UI.
+// When recipientEmails is provided, only those active subscribers get the
+// email (one person, two people, or any selected set).
 export const scheduleSendCustomNewsletter = mutation({
   args: {
     subject: v.string(),
     content: v.string(),
     siteUrl: v.string(),
     siteName: v.optional(v.string()),
+    recipientEmails: v.optional(v.array(v.string())),
   },
   returns: v.object({
     success: v.boolean(),
@@ -638,12 +651,16 @@ export const scheduleSendCustomNewsletter = mutation({
       return { success: false, message: "Content is required." };
     }
 
+    const isTargetedSend =
+      args.recipientEmails !== undefined && args.recipientEmails.length > 0;
+
     // Schedule the action to run immediately
     await ctx.scheduler.runAfter(0, internal.newsletterActions.sendCustomNewsletter, {
       subject: args.subject,
       content: args.content,
       siteUrl: args.siteUrl,
       siteName: args.siteName,
+      recipientEmails: isTargetedSend ? args.recipientEmails : undefined,
     });
 
     return {

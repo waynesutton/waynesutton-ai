@@ -1024,6 +1024,7 @@ export default function Post({
                       className="view-toggle-button"
                       onClick={toggleRelatedPostsViewMode}
                       aria-label={`Switch to ${relatedPostsViewMode === "list" ? "thumbnail" : "list"} view`}
+                      data-tooltip={`Switch to ${relatedPostsViewMode === "list" ? "thumbnail" : "list"} view`}
                     >
                       {relatedPostsViewMode === "thumbnails" ? (
                         <svg

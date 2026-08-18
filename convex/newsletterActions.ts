@@ -56,6 +56,22 @@ function markdownToText(markdown: string): string {
 // Environment variable error message for production
 const ENV_VAR_ERROR_MESSAGE = "AgentMail Environment Variables are not configured in production. Please set AGENTMAIL_API_KEY and AGENTMAIL_INBOX.";
 
+// Narrow the active subscriber list to a selected set of emails when the
+// admin picked specific recipients. Only active subscribers can ever be
+// emailed; unknown addresses in the selection are silently dropped.
+function filterSubscribersByEmails(
+  subscribers: Array<{ email: string; unsubscribeToken: string }>,
+  recipientEmails: Array<string> | undefined,
+): Array<{ email: string; unsubscribeToken: string }> {
+  if (!recipientEmails || recipientEmails.length === 0) {
+    return subscribers;
+  }
+  const selected = new Set(
+    recipientEmails.map((email) => email.toLowerCase().trim()),
+  );
+  return subscribers.filter((s) => selected.has(s.email.toLowerCase()));
+}
+
 // Send newsletter for a specific post to all active subscribers
 // Uses AgentMail SDK to send emails
 // https://docs.agentmail.to/sending-receiving-email
@@ -64,6 +80,7 @@ export const sendPostNewsletter = internalAction({
     postSlug: v.string(),
     siteUrl: v.string(),
     siteName: v.optional(v.string()),
+    recipientEmails: v.optional(v.array(v.string())),
   },
   returns: v.object({
     success: v.boolean(),
@@ -76,7 +93,12 @@ export const sendPostNewsletter = internalAction({
       { postSlug: args.postSlug },
     );
 
-    if (context.alreadySent) {
+    // Targeted sends (specific recipients) bypass the one-time full-send
+    // guard and are never recorded as the post's full newsletter send.
+    const isTargetedSend =
+      args.recipientEmails !== undefined && args.recipientEmails.length > 0;
+
+    if (context.alreadySent && !isTargetedSend) {
       return {
         success: false,
         sentCount: 0,
@@ -84,16 +106,25 @@ export const sendPostNewsletter = internalAction({
       };
     }
 
-    if (context.subscribers.length === 0) {
-      return { success: false, sentCount: 0, message: "No subscribers." };
-    }
-
     if (!context.post) {
       return { success: false, sentCount: 0, message: "Post not found." };
     }
 
     const post = context.post;
-    const subscribers = context.subscribers;
+    const subscribers = filterSubscribersByEmails(
+      context.subscribers,
+      args.recipientEmails,
+    );
+
+    if (subscribers.length === 0) {
+      return {
+        success: false,
+        sentCount: 0,
+        message: isTargetedSend
+          ? "No matching active subscribers for the selected recipients."
+          : "No subscribers.",
+      };
+    }
 
     // Get API key and inbox from environment
     const apiKey = process.env.AGENTMAIL_API_KEY;
@@ -155,8 +186,9 @@ export const sendPostNewsletter = internalAction({
       }
     }
 
-    // Record sent if at least one email was sent
-    if (sentCount > 0) {
+    // Record sent if at least one email was sent (full sends only; targeted
+    // sends keep the post available for a future full send)
+    if (sentCount > 0 && !isTargetedSend) {
       await ctx.runMutation(internal.newsletter.recordPostSent, {
         postSlug: args.postSlug,
         sentCount,
@@ -458,6 +490,7 @@ export const sendCustomNewsletter = internalAction({
     content: v.string(), // Markdown content
     siteUrl: v.string(),
     siteName: v.optional(v.string()),
+    recipientEmails: v.optional(v.array(v.string())),
   },
   returns: v.object({
     success: v.boolean(),
@@ -465,12 +498,24 @@ export const sendCustomNewsletter = internalAction({
     message: v.string(),
   }),
   handler: async (ctx, args) => {
-    // Get subscribers
-    const subscribers: Array<{ email: string; unsubscribeToken: string }> =
+    // Get subscribers, narrowed to the selected recipients when provided
+    const activeSubscribers: Array<{ email: string; unsubscribeToken: string }> =
       await ctx.runQuery(internal.newsletter.getActiveSubscribers);
+    const isTargetedSend =
+      args.recipientEmails !== undefined && args.recipientEmails.length > 0;
+    const subscribers = filterSubscribersByEmails(
+      activeSubscribers,
+      args.recipientEmails,
+    );
 
     if (subscribers.length === 0) {
-      return { success: false, sentCount: 0, message: "No subscribers." };
+      return {
+        success: false,
+        sentCount: 0,
+        message: isTargetedSend
+          ? "No matching active subscribers for the selected recipients."
+          : "No subscribers.",
+      };
     }
 
     // Get API key and inbox from environment

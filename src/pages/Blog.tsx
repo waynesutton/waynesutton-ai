@@ -33,7 +33,9 @@ export default function Blog() {
   );
 
   // Load saved view mode preference from localStorage
+  // Only when the toggle is shown; with icons hidden the config default always wins
   useEffect(() => {
+    if (!siteConfig.blogPage.showViewToggle) return;
     const saved = localStorage.getItem(BLOG_VIEW_MODE_KEY);
     if (saved === "list" || saved === "cards") {
       setViewMode(saved);
@@ -67,8 +69,13 @@ export default function Blog() {
   // Get slugs of all featured posts for filtering
   const featuredSlugs = new Set(blogFeaturedPosts?.map((p) => p.slug) || []);
 
-  // Filter out all featured posts from regular posts list
-  const regularPosts = posts?.filter((post) => !featuredSlugs.has(post.slug));
+  // Cards view: featured posts render in the hero/featured sections, so exclude
+  // them from the grid. List view: hero/featured sections are hidden, so show
+  // every post in the year-grouped list
+  const regularPosts =
+    viewMode === "cards"
+      ? posts?.filter((post) => !featuredSlugs.has(post.slug))
+      : posts;
 
   // Determine if we have featured content to show
   const hasFeaturedContent = heroPost !== null;
@@ -109,6 +116,7 @@ export default function Blog() {
                 className="view-toggle-button"
                 onClick={toggleViewMode}
                 aria-label={`Switch to ${viewMode === "list" ? "card" : "list"} view`}
+                data-tooltip={`Switch to ${viewMode === "list" ? "card" : "list"} view`}
               >
                 {viewMode === "list" ? (
                   <svg

@@ -333,7 +333,9 @@ export default function Home() {
   };
 
   // Load saved view mode preference from localStorage
+  // Only when the toggle is shown; with icons hidden the config default always wins
   useEffect(() => {
+    if (!siteConfig.showViewToggle) return;
     const saved = localStorage.getItem(VIEW_MODE_KEY);
     if (saved === "list" || saved === "cards") {
       setViewMode(saved);
@@ -666,6 +668,7 @@ export default function Home() {
                   className="view-toggle-button"
                   onClick={toggleViewMode}
                   aria-label={`Switch to ${viewMode === "list" ? "card" : "list"} view`}
+                  data-tooltip={`Switch to ${viewMode === "list" ? "card" : "list"} view`}
                 >
                   {viewMode === "list" ? (
                     <svg

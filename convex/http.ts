@@ -1,5 +1,4 @@
 import { httpRouter } from "convex/server";
-import { registerStaticRoutes } from "@convex-dev/self-hosting";
 import { httpAction } from "./_generated/server";
 import { internal, components } from "./_generated/api";
 import { handleRssFeed, handleRssFullFeed } from "./rss";
@@ -1339,9 +1338,253 @@ if (fs) {
   });
 }
 
-// Static file serving for self-hosted deployments. Registered last so every
-// explicit route above takes precedence; this is the catch-all that serves
-// the built frontend (dist/) with SPA fallback to index.html.
-registerStaticRoutes(http, components.selfHosting);
+// ---------------------------------------------------------------------------
+// Static file serving with per-content meta injection.
+// Replaces @convex-dev/self-hosting registerStaticRoutes so that /{slug}
+// routes matching a published post or page get their own title, description,
+// robots, canonical, Open Graph, and Twitter tags server-rendered into
+// index.html. Crawlers never execute JavaScript, so the client-side meta
+// effects in Post.tsx are invisible to them; this catch-all is what makes
+// share previews work on Convex static hosting (Netlify edge functions did
+// this job in the legacy hosting mode).
+
+type ContentMeta = {
+  type: "post" | "page";
+  slug: string;
+  title: string;
+  description: string;
+  date?: string;
+  image?: string;
+  ogImage?: string;
+  noOgImage?: boolean;
+  unlisted?: boolean;
+  authorName?: string;
+};
+
+function hasFileExtension(path: string): boolean {
+  const lastSegment = path.split("/").pop() || "";
+  return lastSegment.includes(".") && !lastSegment.startsWith(".");
+}
+
+// Vite hashed assets (index-lj_vq_aF.js) can be cached forever.
+function isHashedAsset(path: string): boolean {
+  return /[-.][\dA-Za-z_]{6,12}\.[a-z]+$/.test(path);
+}
+
+// Build the head tags for a post or page. ogImage frontmatter wins over the
+// featured image, which wins over the site default; noOgImage removes the
+// share image entirely and drops the Twitter card to text-only summary.
+function buildContentMetaTags(meta: ContentMeta): string {
+  const siteUrl = (process.env.SITE_URL || "https://waynesutton.ai").replace(
+    /\/+$/,
+    "",
+  );
+  const canonicalUrl = `${siteUrl}/${meta.slug}`;
+  const defaultImage = `${siteUrl}/images/og-default.png`;
+
+  const resolveImageUrl = (value: string): string =>
+    value.startsWith("http")
+      ? value
+      : `${siteUrl}${value.startsWith("/") ? "" : "/"}${value}`;
+  let ogImage = defaultImage;
+  if (meta.ogImage) {
+    ogImage = resolveImageUrl(meta.ogImage);
+  } else if (meta.image) {
+    ogImage = resolveImageUrl(meta.image);
+  }
+  const hideImage = meta.noOgImage === true;
+
+  const safeTitle = escapeHtml(meta.title);
+  const safeDescription = escapeHtml(meta.description);
+  const ogType = meta.type === "post" ? "article" : "website";
+  const robots = meta.unlisted ? "noindex, nofollow" : "index, follow";
+
+  const lines: Array<string> = [
+    `<title>${safeTitle} | ${SITE_NAME}</title>`,
+    `<meta name="description" content="${safeDescription}">`,
+    `<meta name="robots" content="${robots}">`,
+    `<link rel="canonical" href="${canonicalUrl}">`,
+    `<link rel="alternate" hreflang="en" href="${canonicalUrl}">`,
+    `<link rel="alternate" hreflang="x-default" href="${canonicalUrl}">`,
+    `<meta property="og:title" content="${safeTitle}">`,
+    `<meta property="og:description" content="${safeDescription}">`,
+    `<meta property="og:url" content="${canonicalUrl}">`,
+    `<meta property="og:type" content="${ogType}">`,
+    `<meta property="og:site_name" content="${SITE_NAME}">`,
+  ];
+  if (!hideImage) {
+    lines.push(`<meta property="og:image" content="${ogImage}">`);
+  }
+  if (meta.date) {
+    lines.push(`<meta property="article:published_time" content="${meta.date}">`);
+  }
+  lines.push(
+    `<meta name="twitter:card" content="${hideImage ? "summary" : "summary_large_image"}">`,
+    `<meta name="twitter:title" content="${safeTitle}">`,
+    `<meta name="twitter:description" content="${safeDescription}">`,
+  );
+  if (!hideImage) {
+    lines.push(`<meta name="twitter:image" content="${ogImage}">`);
+  }
+
+  // Article structured data for posts helps search engines show rich results.
+  if (meta.type === "post") {
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      headline: meta.title,
+      description: meta.description,
+      url: canonicalUrl,
+      ...(meta.date ? { datePublished: meta.date } : {}),
+      ...(hideImage ? {} : { image: ogImage }),
+      author: { "@type": "Person", name: meta.authorName || SITE_NAME },
+    };
+    lines.push(
+      `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`,
+    );
+  }
+
+  return lines.join("\n    ");
+}
+
+// Strip the generic site-wide tags from the built index.html head and insert
+// the content-specific block. Regexes tolerate multi-line tags and any
+// attribute order from the Vite build ([^>]* cannot cross a closing bracket,
+// so each match stays within a single tag).
+function injectContentMeta(html: string, meta: ContentMeta): string {
+  const stripped = html
+    .replace(/<title>[\s\S]*?<\/title>/i, "")
+    .replace(
+      /<meta[^>]*(?:name|property)=["'](?:description|robots|og:[^"']*|twitter:[^"']*)["'][^>]*>/gi,
+      "",
+    )
+    .replace(/<link[^>]*rel=["']canonical["'][^>]*>/gi, "")
+    .replace(/<link[^>]*hreflang=["'][^"']*["'][^>]*>/gi, "");
+  return stripped.replace(
+    /<\/head>/i,
+    `${buildContentMetaTags(meta)}\n  </head>`,
+  );
+}
+
+const serveStaticWithMeta = httpAction(async (ctx, request) => {
+  const url = new URL(request.url);
+  let path = url.pathname;
+  if (path === "" || path === "/") {
+    path = "/index.html";
+  }
+
+  type StaticAsset = {
+    path: string;
+    storageId?: string;
+    blobId?: string;
+    contentType: string;
+  } | null;
+
+  let asset: StaticAsset = await ctx.runQuery(
+    components.selfHosting.lib.getByPath,
+    { path },
+  );
+
+  // SPA fallback: unknown extension-less paths serve index.html. Single
+  // segment routes additionally get per-content meta when a published post
+  // or page matches the slug (unknown slugs serve index.html untouched).
+  let contentMeta: ContentMeta | null = null;
+  if (!asset && !hasFileExtension(path)) {
+    const slugMatch = /^\/([A-Za-z0-9-]+)\/?$/.exec(path);
+    if (slugMatch) {
+      contentMeta = await ctx.runQuery(internal.seo.getContentMetaBySlug, {
+        slug: slugMatch[1],
+      });
+    }
+    asset = await ctx.runQuery(components.selfHosting.lib.getByPath, {
+      path: "/index.html",
+    });
+  }
+
+  if (!asset) {
+    if (path === "/index.html") {
+      return new Response(
+        "Static assets not deployed yet. Run: npm run deploy",
+        { status: 200, headers: { "Content-Type": "text/plain" } },
+      );
+    }
+    // no-store: without it Cloudflare stamps a 4h browser TTL onto 404s,
+    // and a transiently missing chunk stays cached as a failure client-side.
+    return new Response("Not Found", {
+      status: 404,
+      headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
+    });
+  }
+
+  if (!asset.storageId) {
+    return new Response("Asset not available", {
+      status: 500,
+      headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
+    });
+  }
+
+  const etag = `"${asset.storageId}"`;
+  const isInjected =
+    contentMeta !== null && asset.contentType.startsWith("text/html");
+
+  // 304 handling only for untouched assets; injected HTML changes whenever
+  // the post or page is edited, independent of the deployed file.
+  if (!isInjected) {
+    const ifNoneMatch = request.headers.get("If-None-Match");
+    if (ifNoneMatch === etag) {
+      return new Response(null, {
+        status: 304,
+        headers: {
+          ETag: etag,
+          "Cache-Control": isHashedAsset(path)
+            ? "public, max-age=31536000, immutable"
+            : "public, max-age=0, must-revalidate",
+        },
+      });
+    }
+  }
+
+  const blob = await ctx.storage.get(asset.storageId as Id<"_storage">);
+  if (!blob) {
+    return new Response("Storage error", {
+      status: 500,
+      headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
+    });
+  }
+
+  if (isInjected && contentMeta) {
+    const htmlSource = await blob.text();
+    return new Response(injectContentMeta(htmlSource, contentMeta), {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  }
+
+  const cacheControl = isHashedAsset(path)
+    ? "public, max-age=31536000, immutable"
+    : "public, max-age=0, must-revalidate";
+
+  return new Response(blob, {
+    status: 200,
+    headers: {
+      "Content-Type": asset.contentType,
+      "Cache-Control": cacheControl,
+      ETag: etag,
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+});
+
+// Registered last so every explicit route above takes precedence; this is
+// the catch-all that serves the built frontend (dist/) with SPA fallback.
+http.route({
+  pathPrefix: "/",
+  method: "GET",
+  handler: serveStaticWithMeta,
+});
 
 export default http;

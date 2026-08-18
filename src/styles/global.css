@@ -4512,6 +4512,40 @@ body {
   border-color: var(--text-muted);
 }
 
+/* Design-system tooltip for icon buttons
+   Add data-tooltip="text" to any element; shows below, anchored right */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  padding: 4px 8px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity 0.15s ease 0.3s,
+    transform 0.15s ease 0.3s;
+  z-index: 50;
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* Featured cards grid */
 .featured-cards {
   display: grid;
@@ -5376,6 +5410,13 @@ body {
   .blog-header-top {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  /* Stacked headers put the toggle at the left edge,
+     so anchor the tooltip left to keep it on screen */
+  .view-toggle-button[data-tooltip]::after {
+    left: 0;
+    right: auto;
   }
 
   /* Tag page responsive */
@@ -13719,6 +13760,103 @@ body:has(.dashboard-layout) {
 .dashboard-newsletter-send-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Recipient picker: all subscribers vs a selected set */
+.dashboard-newsletter-recipient-toggle {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-newsletter-recipient-toggle button {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.dashboard-newsletter-recipient-toggle button + button {
+  border-left: 1px solid var(--border-color);
+}
+
+.dashboard-newsletter-recipient-toggle button.active {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+.dashboard-newsletter-recipient-toggle button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dashboard-newsletter-recipient-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dashboard-newsletter-recipient-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.dashboard-newsletter-recipient-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.dashboard-newsletter-recipient-item:hover {
+  background: var(--bg-hover);
+}
+
+.dashboard-newsletter-recipient-item input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.dashboard-newsletter-recipient-empty {
+  display: block;
+  padding: 0.75rem;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.dashboard-newsletter-recipient-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.dashboard-newsletter-recipient-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.dashboard-newsletter-recipient-clear:hover {
+  color: var(--text-primary);
 }
 
 .dashboard-newsletter-form-desc {

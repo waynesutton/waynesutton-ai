@@ -4643,6 +4643,112 @@ function NewsletterSubscribersSection() {
   );
 }
 
+type RecipientMode = "all" | "selected";
+
+// Shared recipient picker for the newsletter send sections: all subscribers
+// or a searchable checkbox list to target one, two, or any selected set.
+function NewsletterRecipientPicker({
+  mode,
+  onModeChange,
+  selectedEmails,
+  onSelectedChange,
+  disabled,
+}: {
+  mode: RecipientMode;
+  onModeChange: (mode: RecipientMode) => void;
+  selectedEmails: Array<string>;
+  onSelectedChange: (emails: Array<string>) => void;
+  disabled: boolean;
+}) {
+  const [search, setSearch] = useState("");
+  const subscribersData = useQuery(
+    api.newsletter.getAllSubscribers,
+    mode === "selected"
+      ? { filter: "subscribed", search: search.trim() || undefined, limit: 100 }
+      : "skip",
+  );
+
+  const toggleEmail = (email: string) => {
+    if (selectedEmails.includes(email)) {
+      onSelectedChange(selectedEmails.filter((e) => e !== email));
+    } else {
+      onSelectedChange([...selectedEmails, email]);
+    }
+  };
+
+  return (
+    <div className="dashboard-newsletter-form-group">
+      <label className="dashboard-newsletter-label">Recipients</label>
+      <div className="dashboard-newsletter-recipient-toggle">
+        <button
+          type="button"
+          className={mode === "all" ? "active" : ""}
+          onClick={() => onModeChange("all")}
+          disabled={disabled}>
+          All subscribers
+        </button>
+        <button
+          type="button"
+          className={mode === "selected" ? "active" : ""}
+          onClick={() => onModeChange("selected")}
+          disabled={disabled}>
+          Select recipients
+        </button>
+      </div>
+
+      {mode === "selected" && (
+        <div className="dashboard-newsletter-recipient-picker">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search subscribers by email..."
+            className="dashboard-newsletter-input"
+            disabled={disabled}
+          />
+          <div className="dashboard-newsletter-recipient-list">
+            {subscribersData === undefined ? (
+              <span className="dashboard-newsletter-recipient-empty">
+                Loading subscribers...
+              </span>
+            ) : subscribersData.subscribers.length === 0 ? (
+              <span className="dashboard-newsletter-recipient-empty">
+                No subscribers found
+              </span>
+            ) : (
+              subscribersData.subscribers.map((sub) => (
+                <label key={sub._id} className="dashboard-newsletter-recipient-item">
+                  <input
+                    type="checkbox"
+                    checked={selectedEmails.includes(sub.email)}
+                    onChange={() => toggleEmail(sub.email)}
+                    disabled={disabled}
+                  />
+                  <span>{sub.email}</span>
+                </label>
+              ))
+            )}
+          </div>
+          <div className="dashboard-newsletter-recipient-footer">
+            <span>
+              {selectedEmails.length} selected
+            </span>
+            {selectedEmails.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onSelectedChange([])}
+                disabled={disabled}
+                className="dashboard-newsletter-recipient-clear">
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NewsletterSendSection({
   addToast,
 }: {
@@ -4650,6 +4756,8 @@ function NewsletterSendSection({
 }) {
   const posts = useQuery(api.newsletter.getPostsForNewsletter);
   const [selectedPost, setSelectedPost] = useState("");
+  const [recipientMode, setRecipientMode] = useState<RecipientMode>("all");
+  const [selectedEmails, setSelectedEmails] = useState<Array<string>>([]);
   const [sendingNewsletter, setSendingNewsletter] = useState(false);
   const [sendResult, setSendResult] = useState<{
     success: boolean;
@@ -4672,13 +4780,15 @@ function NewsletterSendSection({
         postSlug: selectedPost,
         siteUrl: window.location.origin,
         siteName: siteConfig.name,
+        recipientEmails:
+          recipientMode === "selected" ? selectedEmails : undefined,
       });
 
       const command = `npm run newsletter:send ${selectedPost}`;
       setSendResult({
         success: result.success,
         message: result.message,
-        command: result.success ? command : undefined,
+        command: result.success && recipientMode === "all" ? command : undefined,
       });
 
       if (result.success) {
@@ -4696,7 +4806,7 @@ function NewsletterSendSection({
     } finally {
       setSendingNewsletter(false);
     }
-  }, [selectedPost, scheduleSendPost, addToast]);
+  }, [selectedPost, recipientMode, selectedEmails, scheduleSendPost, addToast]);
 
   const handleCopyCommand = useCallback(async (command: string) => {
     try {
@@ -4730,7 +4840,8 @@ function NewsletterSendSection({
       <div className="dashboard-newsletter-send">
         <h3>Send Post as Newsletter</h3>
         <p className="dashboard-newsletter-form-desc">
-          Select a blog post to send as a newsletter to all active subscribers.
+          Select a blog post to send to all active subscribers or a chosen few.
+          Sending to selected people does not mark the post as sent.
         </p>
 
         <div className="dashboard-newsletter-form-group">
@@ -4742,23 +4853,40 @@ function NewsletterSendSection({
             disabled={sendingNewsletter}>
             <option value="">Choose a post...</option>
             {posts?.map((post) => (
-              <option key={post.slug} value={post.slug} disabled={post.wasSent}>
+              <option
+                key={post.slug}
+                value={post.slug}
+                disabled={post.wasSent && recipientMode === "all"}>
                 {post.title} ({post.date}){post.wasSent ? " - SENT" : ""}
               </option>
             ))}
           </select>
         </div>
 
+        <NewsletterRecipientPicker
+          mode={recipientMode}
+          onModeChange={setRecipientMode}
+          selectedEmails={selectedEmails}
+          onSelectedChange={setSelectedEmails}
+          disabled={sendingNewsletter}
+        />
+
         <button
           onClick={handleSendPostNewsletter}
-          disabled={!selectedPost || sendingNewsletter}
+          disabled={
+            !selectedPost ||
+            sendingNewsletter ||
+            (recipientMode === "selected" && selectedEmails.length === 0)
+          }
           className="dashboard-newsletter-send-btn">
           {sendingNewsletter ? (
             "Sending..."
           ) : (
             <>
               <PaperPlaneTilt size={16} />
-              Send to Subscribers
+              {recipientMode === "selected"
+                ? `Send to ${selectedEmails.length} selected`
+                : "Send to Subscribers"}
             </>
           )}
         </button>
@@ -4792,6 +4920,8 @@ function NewsletterWriteEmailSection({
 }) {
   const [customSubject, setCustomSubject] = useState("");
   const [customContent, setCustomContent] = useState("");
+  const [recipientMode, setRecipientMode] = useState<RecipientMode>("all");
+  const [selectedEmails, setSelectedEmails] = useState<Array<string>>([]);
   const [sendingNewsletter, setSendingNewsletter] = useState(false);
   const [sendResult, setSendResult] = useState<{
     success: boolean;
@@ -4815,6 +4945,8 @@ function NewsletterWriteEmailSection({
         content: customContent,
         siteUrl: window.location.origin,
         siteName: siteConfig.name,
+        recipientEmails:
+          recipientMode === "selected" ? selectedEmails : undefined,
       });
 
       setSendResult({
@@ -4840,7 +4972,14 @@ function NewsletterWriteEmailSection({
     } finally {
       setSendingNewsletter(false);
     }
-  }, [customSubject, customContent, scheduleSendCustom, addToast]);
+  }, [
+    customSubject,
+    customContent,
+    recipientMode,
+    selectedEmails,
+    scheduleSendCustom,
+    addToast,
+  ]);
 
   if (!siteConfig.newsletter?.enabled) {
     return (
@@ -4857,7 +4996,8 @@ function NewsletterWriteEmailSection({
       <div className="dashboard-newsletter-write">
         <h3>Write Custom Email</h3>
         <p className="dashboard-newsletter-form-desc">
-          Write a custom email to send to all active subscribers. Supports markdown formatting.
+          Write a custom email for all active subscribers or a chosen few.
+          Supports markdown formatting.
         </p>
 
         <div className="dashboard-newsletter-form-group">
@@ -4890,16 +5030,31 @@ Supports markdown:
           />
         </div>
 
+        <NewsletterRecipientPicker
+          mode={recipientMode}
+          onModeChange={setRecipientMode}
+          selectedEmails={selectedEmails}
+          onSelectedChange={setSelectedEmails}
+          disabled={sendingNewsletter}
+        />
+
         <button
           onClick={handleSendCustomNewsletter}
-          disabled={!customSubject.trim() || !customContent.trim() || sendingNewsletter}
+          disabled={
+            !customSubject.trim() ||
+            !customContent.trim() ||
+            sendingNewsletter ||
+            (recipientMode === "selected" && selectedEmails.length === 0)
+          }
           className="dashboard-newsletter-send-btn">
           {sendingNewsletter ? (
             "Sending..."
           ) : (
             <>
               <PaperPlaneTilt size={16} />
-              Send to Subscribers
+              {recipientMode === "selected"
+                ? `Send to ${selectedEmails.length} selected`
+                : "Send to Subscribers"}
             </>
           )}
         </button>
@@ -5599,6 +5754,7 @@ function ConfigSection({
     blogPageTitle: siteConfig.blogPage.title,
     blogPageDescription: siteConfig.blogPage.description || "",
     blogPageViewMode: siteConfig.blogPage.viewMode,
+    blogPageShowViewToggle: siteConfig.blogPage.showViewToggle,
     blogPageOrder: siteConfig.blogPage.order,
     // Posts display
     showPostsOnHome: siteConfig.postsDisplay.showOnHome,
@@ -5745,6 +5901,7 @@ function ConfigSection({
         description: config.blogPageDescription,
         order: config.blogPageOrder,
         viewMode: config.blogPageViewMode,
+        showViewToggle: config.blogPageShowViewToggle,
       },
       postsDisplay: {
         showOnHome: config.showPostsOnHome,
@@ -5917,7 +6074,7 @@ export const siteConfig: SiteConfig = {
     description: "${config.blogPageDescription}",
     order: ${config.blogPageOrder},
     viewMode: "${config.blogPageViewMode}",
-    showViewToggle: true,
+    showViewToggle: ${config.blogPageShowViewToggle},
   },
   
   hardcodedNavItems: [
@@ -6207,13 +6364,31 @@ export default siteConfig;
             />
           </div>
           <div className="config-field">
-            <label>View Mode</label>
+            <label>Default View Mode</label>
             <select
               value={config.blogPageViewMode}
               onChange={(e) => handleChange("blogPageViewMode", e.target.value)}>
               <option value="list">List</option>
               <option value="cards">Cards</option>
             </select>
+            <span className="config-hint">
+              View new visitors see first on /blog
+            </span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.blogPageShowViewToggle}
+                onChange={(e) =>
+                  handleChange("blogPageShowViewToggle", e.target.checked)
+                }
+              />
+              <span>Show view toggle icons</span>
+            </label>
+            <span className="config-hint">
+              Hide to lock the blog to the default view mode
+            </span>
           </div>
         </div>
 

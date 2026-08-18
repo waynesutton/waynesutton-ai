@@ -2,6 +2,10 @@
 
 ## To Do
 
+- [ ] Browser pass on the new Show view toggle icons checkbox: sign in to /dashboard, open Config, uncheck it in the Blog Page card, confirm the generated code shows showViewToggle: false and the /blog toggle icon disappears in the live preview (PRD: prds/blog-list-view-toggle-fix.md)
+
+- [ ] Browser pass on the newsletter recipient picker: toggle Select recipients in both send sections, search, pick one or two subscribers, send a test, and confirm only they receive it (PRD: prds/newsletter-selected-recipients.md)
+
 - [ ] Browser pass on drag and drop sort: reorder items in the main Dashboard sidebar nav and the Frontmatter sidebar field blocks (post and page editors), reload and confirm the order sticks per browser (PRD: prds/dashboard-drag-sort.md)
 
 - [ ] Browser pass on the Auto sync on publish toggle: flip it on in the Agent Ready section, publish a draft from the inbox, confirm the post shows in /llms.txt on the dev deployment, then unpublish and confirm it disappears (PRD: prds/auto-discovery-sync-on-publish.md)
@@ -27,6 +31,30 @@
 - [ ] Browser pass on the new Drafts Inbox actions: save an inbox draft to draft, confirm it appears unpublished in Posts and that Open loads it in the editor, then publish it and confirm no second post is created; publish another draft unlisted and confirm the slug loads while the post stays out of the homepage, /blog, Cmd+K, /rss.xml, and /sitemap.xml
 
 ## Completed
+
+- [x] Blog list view fix, blog toggle config option, and icon tooltips (2026-08-18 09:50 UTC) (PRD: prds/blog-list-view-toggle-fix.md)
+  - [x] Root cause of the empty list view: Blog.tsx filtered blog-featured posts out of regularPosts unconditionally, but the hero card and featured row only render in cards view, so with all posts featured the list view rendered nothing
+  - [x] src/pages/Blog.tsx: list view now passes all published posts to PostList (year-grouped); cards view keeps the hero / featured row / regular grid split with no duplicates. Saved localStorage view preference only applies when showViewToggle is on, so the config default wins when the icons are hidden
+  - [x] src/pages/Home.tsx: same localStorage guard for the featured section toggle
+  - [x] src/pages/Dashboard.tsx Config Blog Page card: View Mode relabeled Default View Mode with a hint, new Show view toggle icons checkbox; blogPageShowViewToggle wired into state, the live preview object, and the generated siteConfig code (was hardcoded showViewToggle: true)
+  - [x] Design-system tooltip: [data-tooltip] CSS in global.css (themed, shows on hover and focus-visible, left-anchored under the 768px stacked-header breakpoint) applied to the view toggle buttons on Blog, Home, Post related posts, TagPage, and AuthorPage
+  - [x] Verified: tsc, eslint, and build clean; browser pass on localhost:5174/blog confirmed list view shows all 6 posts grouped by 2026/2025, cards view unchanged, tooltip renders fully on screen. Dashboard checkbox browser pass is in To Do (needs GitHub sign-in)
+- [x] Blank homepage and dashboard on prod after failed static deploy (2026-08-18 09:35 UTC)
+  - [x] Root cause chain: failed partial upload -> next upload's cleanup deleted live chunks -> lazy import 404 threw with no error boundary -> React unmounted everything. Cloudflare then stamped a 4h browser TTL on the asset 404s so reloads kept failing client-side even after the server was fixed
+  - [x] convex/http.ts: `Cache-Control: no-store` on the static handler's 404 and 500 responses (Cloudflare edge honors it with BYPASS; its forced browser TTL on .js URLs cannot be overridden on Convex's zone, which is why the URL bust below is also needed)
+  - [x] vite.config.ts: build output moved to `assets/v2/[name]-[hash]` so all asset URLs changed and every poisoned browser or edge cache is bypassed via the always-revalidated index.html
+  - [x] Verified: all chunks referenced by the entry bundle return 200 on prod, homepage and /dashboard render in a live browser with zero failed resources, injected meta still serving. Lesson recorded in prds/lessons.md
+- [x] Server-rendered per-content meta on Convex static hosting (2026-08-18 08:42 UTC) (PRD: prds/static-hosting-meta-injection.md)
+  - [x] Root cause: the self-hosting component's SPA fallback served the same generic index.html for every /{slug} route, so crawlers never saw per-post titles, descriptions, canonical URLs, og:image, ogImage overrides, or noOgImage. Client-side meta effects in Post.tsx only help browsers, not scrapers
+  - [x] New convex/seo.ts: `getContentMetaBySlug` internal query resolves a slug to post-then-page meta (title, description, date, image, ogImage, noOgImage, unlisted, author) in one transaction; only published content returns
+  - [x] convex/http.ts: replaced `registerStaticRoutes` with a custom catch-all (`serveStaticWithMeta`) that keeps the component's asset serving (ETag, immutable caching for hashed assets, SPA fallback) but, for single-segment extension-less paths, strips the generic head tags from index.html and injects content-specific title, description, robots (noindex for unlisted), canonical, og:*, twitter:*, article dates, and BlogPosting JSON-LD before `</head>`. HTML responses are must-revalidate so edits show up immediately
+  - [x] ogImage override and noOgImage (text-only card, twitter:card=summary) are honored, matching the /meta/post behavior; SITE_URL trailing slashes are stripped so canonical URLs never double-slash
+  - [x] Verified: typecheck and build clean; dev curl shows injected tags on a post, generic tags on unknown slugs and the root, assets untouched; deployed to prod and confirmed live on https://waynesutton.ai/open-source-communities-are-eating-the-world plus /about; opengraph.xyz browser pass shows the correct title, description, and openclaw-coding.png image on Facebook, LinkedIn, and WhatsApp cards
+- [x] Newsletter send to selected recipients (2026-08-18 08:42 UTC) (PRD: prds/newsletter-selected-recipients.md)
+  - [x] convex/newsletter.ts: `scheduleSendPostNewsletter` and `scheduleSendCustomNewsletter` accept optional `recipientEmails`; targeted post sends bypass the already-sent guard and skip recording `recordPostSent`, so a test send to yourself never blocks the real send to everyone
+  - [x] convex/newsletterActions.ts: `filterSubscribersByEmails` helper narrows active subscribers by case-insensitive email match; both send actions honor it and report matched counts
+  - [x] Dashboard: shared `NewsletterRecipientPicker` in both the Send post and Write email sections with an All subscribers / Select recipients toggle, search, checkbox list, and selected count; send button shows how many will receive it and disables at zero selected. Styles in global.css follow the dashboard design tokens
+  - [x] Verified: typecheck, eslint, and build clean; deployed to dev and prod. Browser send pass is in To Do
 
 - [x] Drag and drop sort order for the dashboard sidebars (2026-08-18 08:05 UTC) (PRD: prds/dashboard-drag-sort.md)
   - [x] New `src/hooks/useDragSort.ts`: native HTML5 drag-and-drop ordering for a list of string ids, order written to localStorage on every reorder, saved order tolerant of ids that appear or disappear (conditional features keep working)
