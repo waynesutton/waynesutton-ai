@@ -50,6 +50,7 @@ interface PostFrontmatter {
   newsletter?: boolean; // Override newsletter signup display (true/false)
   contactForm?: boolean; // Enable contact form on this post
   unlisted?: boolean; // Hide from listings but allow direct access via slug
+  aiWritten?: boolean; // Show "written with AI and proofed by a human" note under the title
   docsSection?: boolean; // Include in docs navigation
   docsSectionGroup?: string; // Sidebar group name in docs
   docsSectionOrder?: number; // Order within group (lower = first)
@@ -87,6 +88,7 @@ interface ParsedPost {
   newsletter?: boolean; // Override newsletter signup display (true/false)
   contactForm?: boolean; // Enable contact form on this post
   unlisted?: boolean; // Hide from listings but allow direct access via slug
+  aiWritten?: boolean; // Show "written with AI and proofed by a human" note under the title
   docsSection?: boolean; // Include in docs navigation
   docsSectionGroup?: string; // Sidebar group name in docs
   docsSectionOrder?: number; // Order within group (lower = first)
@@ -230,6 +232,7 @@ function parseMarkdownFile(filePath: string): ParsedPost | null {
       newsletter: frontmatter.newsletter, // Override newsletter signup display
       contactForm: frontmatter.contactForm, // Enable contact form on this post
       unlisted: frontmatter.unlisted, // Hide from listings but allow direct access
+      aiWritten: frontmatter.aiWritten, // AI writing disclosure banner
       docsSection: frontmatter.docsSection, // Include in docs navigation
       docsSectionGroup: frontmatter.docsSectionGroup, // Sidebar group name
       docsSectionOrder: frontmatter.docsSectionOrder, // Order within group

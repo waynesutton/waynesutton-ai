@@ -38,6 +38,7 @@ Location: `content/blog/*.md`
 | newsletter | boolean | - | Override newsletter signup |
 | contactForm | boolean | false | Enable contact form |
 | unlisted | boolean | false | Hide from listings but allow direct access via slug |
+| aiWritten | boolean | - | Posts only. `true` shows a note under the title that the post was written with AI and proofed by a human. Overrules the Drafts Inbox default. Omitted means no note. |
 | showFooter | boolean | - | Override footer display |
 | footer | string | - | Custom footer markdown |
 | showSocialFooter | boolean | - | Override social footer |

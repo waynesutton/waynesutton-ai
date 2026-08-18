@@ -4,9 +4,32 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### AI writing banner (2026-08-18)
+
+- **New file** `prds/ai-written-banner.md`: PRD for the Written with AI inbox default and per-post `aiWritten` frontmatter note.
+- **Modified** `convex/schema.ts`: optional `posts.aiWritten`; `draftSettings` singleton for the inbox default.
+- **Modified** `convex/drafts.ts`: get/set inbox default; stamp `aiWritten` on new posts in `materializeDraft`.
+- **Modified** `convex/posts.ts`, `convex/cms.ts`, `scripts/sync-posts.ts`: field on queries, mutations, export YAML, and markdown sync.
+- **Modified** `src/components/FrontmatterForm.tsx`, `src/pages/Dashboard.tsx`, `src/components/dashboard/DraftsInbox.tsx`, `src/pages/Post.tsx`, `src/styles/global.css`: inbox switch, frontmatter switch, public note under the title.
+- **Modified** `convex/demo.ts`: `listAllPosts` returns `aiWritten` so demo and admin list types match.
+
+### Agent blog setup and dashboard Docs rewrite (2026-08-18)
+
+- **New file** `prds/setup-agent-blog.md`: Step by step guide to file drafts from agents (key, skill copy, curl, MCP optional, env tables, troubleshooting).
+- **New file** `src/components/dashboard/docsTopics.ts`: All dashboard Docs topic markdown (Overview through Deploying), including Publish from agents, Site Config, and Media/analytics/sync.
+- **Modified** `src/components/DashboardDocsSection.tsx`: Topics loaded from docsTopics.ts; Copy markdown; skip to content; last topic stored in sessionStorage.
+- **Modified** `src/components/dashboard/ApiKeysSection.tsx`: After generate, copy-ready export, curl, and MCP snippets using the live HTTP origin.
+- **Modified** `convex/mcp.ts`: `create_draft` verifies client pipeline keys against `apiKeys` instead of Convex env `BLOG_POST_KEY`.
+- **Modified** `blogskill/SKILL.md`: MCP uses the same `BLOG_POST_KEY` as `x-api-key`. Trigger phrases now include `blog to wsai`, `send to wsai`, `write to wsai`, `turn this session into a blog post wsai`, and `wsai draft a post about`.
+
+### iPhone GitHub sign-in investigation (2026-08-18)
+
+- **New file** `prds/mobile-safari-github-oauth-same-origin.md`: PRD for the iPhone GitHub sign-in failure on `/dashboard`. Root cause still unknown; the original cross-origin cookie theory is withdrawn and recorded under Ruled out, since prod OAuth already runs entirely on the apex domain. Blocked on a device reproduction with `AUTH_LOG_LEVEL=DEBUG`.
+- **Modified** `prds/lessons.md`: Logged the lesson that a frontend fix is not done until the deployed bundle contains it, with the deploy commands that work in a non-interactive shell.
+
 ### Blog list view fix, blog toggle config, and icon tooltips (2026-08-18)
 
-- **New file** `prds/blog-list-view-toggle-fix.md`: PRD for the empty blog list view, the missing dashboard toggle option, and the icon tooltips.
+- **New file** `prds/blog-list-view-toggle-fix.md`: PRD for the empty blog list view, the missing dashboard toggle option, and the icon tooltips. Updated 18:55 UTC when the fix was deployed to production.
 - **Modified** `src/pages/Blog.tsx`: list view shows all published posts (featured included) since the hero and featured sections only render in cards view; localStorage view preference only applies when the toggle is shown; tooltip on the toggle button.
 - **Modified** `src/pages/Home.tsx`: same localStorage guard for the featured section toggle and tooltip on its button.
 - **Modified** `src/pages/Dashboard.tsx`: Blog Page config card gained a Show view toggle icons checkbox and a Default View Mode hint; `blogPageShowViewToggle` wired through state, live preview, and the generated siteConfig code.
@@ -227,7 +250,7 @@ A brief description of each file in the codebase.
 
 ### Agent blog pipeline and Convex Auth cutover (2026-08-16)
 
-- **New file** `convex/drafts.ts`: Draft lifecycle for the agent blog pipeline: create from API/email/paste box, list, edit, publish (listed or unlisted), save as an unpublished post, reject, delete, rewrite requests, voice profile storage, email approval commands, and PR-merge publishing.
+- **New file** `convex/drafts.ts`: Draft lifecycle for the agent blog pipeline: create from API/email/paste box, list, edit, publish (listed or unlisted), save as an unpublished post, reject, delete, rewrite requests, voice profile storage, inbox Written with AI default, email approval commands, and PR-merge publishing.
 - **New file** `convex/pipelineKeys.ts`: Pipeline API key management: generate (SHA-256 hashed, plaintext shown once), list, revoke, verify by hash, and vendor env var status reporting.
 - **New file** `convex/voiceAgent.ts`: Voice agent on `@convex-dev/agent` that rewrites drafts using voice rules, RAG retrieval over published content, and X oEmbed link context; includes RAG reindex actions.
 - **New file** `convex/draftEmails.ts`: Node action that emails draft previews via AgentMail with reply commands (publish, reject, edit).
@@ -1115,7 +1138,7 @@ A brief description of each file in the codebase.
 | `stats.ts`         | Real-time stats with aggregate components for O(log n) counts (pageViewsByPath, totalPageViews, uniqueVisitors, uniquePaths), page view recording, session heartbeat, top 50 page stats pagination. Extracted helpers: `updatePageViewAggregates`, `buildPageStats`, `collectVisitorLocations`, `getTopPathStats`. |
 | `crons.ts`         | Cron jobs for stale session cleanup (every 5 minutes), weekly newsletter digest (Sundays 9am UTC), weekly stats summary (Mondays 9am UTC), and version cleanup (daily 3am UTC). Uses environment variables SITE_URL and SITE_NAME for email content. |
 | `http.ts`          | HTTP endpoints: `/raw/` dynamic markdown serving with `text/plain` content type (browser-viewable and AI-readable, content served from Convex DB), sitemap (includes tag pages), API (update SITE_URL/SITE_NAME when forking, uses www.markdown.fast), Open Graph HTML generation for social crawlers with hreflang and twitter:site meta tags, `/mcp` MCP server route. Static app files served via `registerStaticRoutes` (Convex self-hosting). |
-| `mcp.ts`           | MCP server (JSON-RPC 2.0) served at `POST /mcp`: 8 tools backed by internal queries, optional `MCP_API_KEY` Bearer gate, `create_draft` verified against `BLOG_POST_KEY`, rate limited at 50/min. |
+| `mcp.ts`           | MCP server (JSON-RPC 2.0) at `POST /mcp`: 8 tools backed by internal queries. Read tools public unless `MCP_API_KEY` is set. `create_draft` verifies a client pipeline key (`x-api-key: wsa_...`) against hashed `apiKeys`. Rate limited at 50/min. |
 | `rss.ts`           | RSS feed generation (update SITE_URL/SITE_TITLE when forking, uses www.markdown.fast)                              |
 | `auth.config.ts`  | Legacy WorkOS JWT configuration. The default auth mode uses `@robelest/convex-auth` in `convex/auth.ts`. This file is kept for backwards compatibility when `auth.mode === "workos"`. WorkOS JWT providers are only active when `WORKOS_CLIENT_ID` is set in Convex environment variables. |
 | `authComponent.ts` | Plain async helper functions (`authUserGetByIdHelper`, `authUserListHelper`) that forward to `@robelest/convex-auth` component APIs. Callers import the helpers directly to share the same transaction. |
@@ -1183,6 +1206,7 @@ Markdown files with frontmatter for blog posts. Each file becomes a blog post.
 | `newsletter`    | Override newsletter signup display (optional, true/false) |
 | `contactForm`   | Enable contact form on this post (optional). Requires siteConfig.contactForm.enabled: true and AGENTMAIL_API_KEY/AGENTMAIL_INBOX environment variables. |
 | `unlisted`      | Hide from listings but allow direct access via slug (optional, posts and pages). Set `true` to hide from listings, navigation, featured sections, tag pages, search results, related posts, sitemap, RSS, and API listings. Content stays accessible via direct link and serves noindex signals so search engines skip it. |
+| `aiWritten`     | Posts only. Show a note under the title that the post was written with AI and proofed by a human (optional). `true` shows the note, `false` hides it, omitted means no note. Overrules the Drafts Inbox Written with AI default. |
 | `docsSection`   | Include in docs sidebar (optional). Set `true` to show in the docs section navigation. |
 | `docsSectionGroup` | Group name for docs sidebar (optional). Posts with the same group name appear together. |
 | `docsSectionOrder` | Order within docs group (optional). Lower numbers appear first within the group. |

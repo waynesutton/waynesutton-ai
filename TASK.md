@@ -2,6 +2,10 @@
 
 ## To Do
 
+- [ ] AI writing banner: browser pass. Turn the Drafts Inbox Written with AI toggle on, publish a draft, confirm the note sits under the title. Uncheck it in Frontmatter, save, confirm the note is gone. Check it on a normal post and confirm the note appears. Inbox toggle off should not stamp new posts. (PRD: prds/ai-written-banner.md)
+
+- [ ] iPhone GitHub sign-in on /dashboard is still broken and still undiagnosed. `AUTH_LOG_LEVEL=DEBUG` is deliberately left on prod so the next attempt is captured; it logs token and verifier values, so remove it with `npx convex env remove AUTH_LOG_LEVEL --prod` once a trace exists. To capture: run `npx convex logs --prod --success > /tmp/authlogs.txt 2>&1`, then try signing in on the iPhone at https://waynesutton.ai/dashboard, and note whether it was Safari or the home screen PWA. The original cross-origin cookie theory is disproven (prod OAuth already runs on the apex), so do not start there (PRD: prds/mobile-safari-github-oauth-same-origin.md)
+
 - [ ] Browser pass on the new Show view toggle icons checkbox: sign in to /dashboard, open Config, uncheck it in the Blog Page card, confirm the generated code shows showViewToggle: false and the /blog toggle icon disappears in the live preview (PRD: prds/blog-list-view-toggle-fix.md)
 
 - [ ] Browser pass on the newsletter recipient picker: toggle Select recipients in both send sections, search, pick one or two subscribers, send a test, and confirm only they receive it (PRD: prds/newsletter-selected-recipients.md)
@@ -31,6 +35,28 @@
 - [ ] Browser pass on the new Drafts Inbox actions: save an inbox draft to draft, confirm it appears unpublished in Posts and that Open loads it in the editor, then publish it and confirm no second post is created; publish another draft unlisted and confirm the slug loads while the post stays out of the homepage, /blog, Cmd+K, /rss.xml, and /sitemap.xml
 
 ## Completed
+
+- [x] blogskill wsai trigger phrases (2026-08-18 22:05 UTC)
+  - [x] YAML description and trigger list now match `blog to wsai`, `send to wsai`, `write to wsai`, `turn this session into a blog post wsai`, and `wsai draft a post about`
+  - [x] Same list copied into Dashboard Docs Publish from agents and `prds/setup-agent-blog.md`
+
+- [x] AI writing banner implementation (2026-08-18 20:55 UTC) (PRD: prds/ai-written-banner.md)
+  - [x] `posts.aiWritten` optional boolean; `draftSettings` inbox singleton; `materializeDraft` stamps new posts when the inbox toggle is on; reuse of an existing post does not overwrite the field
+  - [x] Frontmatter switch in More options; Drafts Inbox Written with AI switch; public note under the title on regular and docs post layouts
+  - [x] `npx tsc -p convex --noEmit` and `npx tsc --noEmit` pass
+  - [ ] Browser pass still in To Do. Frontend is unshipped until a static deploy
+
+- [x] Agent blog setup guide, MCP client-key writes, and dashboard Docs rewrite (2026-08-18 20:30 UTC) (PRD: prds/setup-agent-blog.md)
+  - [x] `convex/mcp.ts` `create_draft` verifies the client `x-api-key` (or Bearer `wsa_...` when `MCP_API_KEY` is unset) against hashed `apiKeys`. Server env `BLOG_POST_KEY` is no longer used for writes. Verified on dev: tools/list public, missing key and bad key fail
+  - [x] Canonical guide `prds/setup-agent-blog.md`: generate a prod key, export `BLOG_POST_KEY`, copy `blogskill` globally, curl verify, per-tool notes, approve, troubleshooting
+  - [x] Dashboard Docs topics live in `src/components/dashboard/docsTopics.ts` with Copy markdown, skip to content, and session-persisted topic. New topics: Publish from agents, Site Config, Media/analytics/sync
+  - [x] API Keys panel shows copy-ready export, curl, and MCP snippets after generate
+  - [ ] Still ops: generate a **prod** pipeline key, export it, copy the skill into global agent folders, fill voice profile, delete probe drafts (items remain in To Do)
+
+- [x] Blog list view fix shipped to production (2026-08-18 18:55 UTC) (PRD: prds/blog-list-view-toggle-fix.md)
+  - [x] The list view was still empty on waynesutton.ai after the morning fix because production was serving the pre-fix bundle, not because of a second bug. Live CSS had no `data-tooltip` rules and `dist/` predated the fix by seven hours
+  - [x] Deployed backend with `npx convex deploy --yes`, then static with `npx @convex-dev/self-hosting deploy --skip-convex`. Note for next time: `npm run deploy` bundles its own `npx convex deploy` step that prompts interactively and therefore fails in an agent shell, so run the backend deploy first and pass `--skip-convex`
+  - [x] Verified live: `/blog` list view shows all four posts grouped under 2026 and 2025, cards view keeps hero plus three featured cards with no duplicates, toggle round trip holds. All 32 built assets return 200 on prod, confirming the cleanup of 25 old files did not delete a live chunk
 
 - [x] Blog list view fix, blog toggle config option, and icon tooltips (2026-08-18 09:50 UTC) (PRD: prds/blog-list-view-toggle-fix.md)
   - [x] Root cause of the empty list view: Blog.tsx filtered blog-featured posts out of regularPosts unconditionally, but the hero card and featured row only render in cards view, so with all posts featured the list view rendered nothing

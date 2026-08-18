@@ -34,6 +34,7 @@ export default defineSchema({
     newsletter: v.optional(v.boolean()), // Override newsletter signup display (true/false)
     contactForm: v.optional(v.boolean()), // Enable contact form on this post
     unlisted: v.optional(v.boolean()), // Hide from listings but allow direct access via slug
+    aiWritten: v.optional(v.boolean()), // Show "written with AI and proofed by a human" note under the title
     docsSection: v.optional(v.boolean()), // Include in docs navigation
     docsSectionGroup: v.optional(v.string()), // Sidebar group name in docs
     docsSectionOrder: v.optional(v.number()), // Order within group (lower = first)
@@ -455,6 +456,13 @@ export default defineSchema({
     rules: v.string(),
     updatedAt: v.number(),
   }),
+
+  // Agent blog pipeline: inbox settings singleton keyed by "inbox"
+  draftSettings: defineTable({
+    key: v.string(), // "inbox"
+    aiWrittenDefault: v.boolean(), // Stamp aiWritten on new posts from the inbox
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   // Agent blog pipeline: record of published drafts
   publishLog: defineTable({

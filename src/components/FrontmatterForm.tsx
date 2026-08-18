@@ -24,6 +24,7 @@ export interface FrontmatterValues {
   image: string;
   ogImage: string;
   noOgImage: boolean;
+  aiWritten: boolean;
   readTime: string;
   authorName: string;
   authorImage: string;
@@ -55,6 +56,7 @@ export function createDefaultFrontmatter(kind: FrontmatterKind): FrontmatterValu
     image: "",
     ogImage: "",
     noOgImage: false,
+    aiWritten: false,
     readTime: "",
     authorName: "",
     authorImage: "",
@@ -107,6 +109,9 @@ export function serializeFrontmatter(kind: FrontmatterKind, values: FrontmatterV
   }
   if (values.noOgImage) {
     lines.push("noOgImage: true");
+  }
+  if (kind === "post" && values.aiWritten) {
+    lines.push("aiWritten: true");
   }
   if (kind === "post" && values.readTime.trim() !== "") {
     lines.push(`readTime: ${yamlQuote(values.readTime)}`);
@@ -192,7 +197,7 @@ const STRING_KEYS = [
   "authorImage",
 ] as const;
 
-const BOOLEAN_KEYS = ["published", "featured", "showInNav", "noOgImage"] as const;
+const BOOLEAN_KEYS = ["published", "featured", "showInNav", "noOgImage", "aiWritten"] as const;
 
 const NUMBER_KEYS = ["featuredOrder", "order"] as const;
 
@@ -693,6 +698,24 @@ export function FrontmatterForm({
             onChange={(checked) => patch({ noOgImage: checked })}
           />
           <span className="fmf-hint">Social previews show only the title and description</span>
+        </div>
+      ),
+    });
+  }
+
+  if (kind === "post" && !isHidden("aiWritten")) {
+    moreBlocks.push({
+      id: "ai-written",
+      node: (
+        <div className="fmf-field">
+          <ToggleSwitch
+            label="Written with AI"
+            checked={value.aiWritten}
+            onChange={(checked) => patch({ aiWritten: checked })}
+          />
+          <span className="fmf-hint">
+            Shows a note under the title. Overrides the Drafts Inbox default.
+          </span>
         </div>
       ),
     });

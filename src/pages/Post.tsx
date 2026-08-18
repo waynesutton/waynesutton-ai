@@ -22,6 +22,16 @@ import siteConfig from "../config/siteConfig";
 // Local storage key for related posts view mode preference
 const RELATED_POSTS_VIEW_MODE_KEY = "related-posts-view-mode";
 
+const AI_WRITTEN_NOTE = "This post was written with AI and proofed by a human.";
+
+function AiWrittenNote() {
+  return (
+    <p className="post-ai-note" role="note">
+      {AI_WRITTEN_NOTE}
+    </p>
+  );
+}
+
 // Site configuration - update these for your site (or run npm run configure)
 const SITE_URL = "https://waynesutton.ai";
 const SITE_NAME = "Wayne Sutton";
@@ -792,6 +802,7 @@ export default function Post({
             {post.description && (
               <p className="docs-article-description">{post.description}</p>
             )}
+            {post.aiWritten && <AiWrittenNote />}
           </header>
           <BlogPost content={post.content} slug={post.slug} pageType="post" />
 
@@ -947,6 +958,7 @@ export default function Post({
             {post.description && (
               <p className="post-description">{post.description}</p>
             )}
+            {post.aiWritten && <AiWrittenNote />}
           </header>
           {/* Blog post content - raw markdown or rendered */}
           <BlogPost content={post.content} slug={post.slug} pageType="post" />

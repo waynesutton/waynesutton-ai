@@ -275,6 +275,7 @@ markdown-blog/
 | featured | No | true for featured section |
 | featuredOrder | No | Display order (lower first) |
 | excerpt | No | Short text for card view |
+| aiWritten | No | true shows an AI writing note under the title; overrules Drafts Inbox default |
 | image | No | OG image path |
 | authorName | No | Author display name |
 | authorImage | No | Round author avatar URL |

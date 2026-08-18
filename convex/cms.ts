@@ -34,6 +34,7 @@ const postDataValidator = v.object({
   newsletter: v.optional(v.boolean()),
   contactForm: v.optional(v.boolean()),
   unlisted: v.optional(v.boolean()),
+  aiWritten: v.optional(v.boolean()),
   docsSection: v.optional(v.boolean()),
   docsSectionGroup: v.optional(v.string()),
   docsSectionOrder: v.optional(v.number()),
@@ -131,6 +132,8 @@ function buildPostFrontmatter(post: Doc<"posts">): Array<string> {
     frontmatter.push(`contactForm: ${post.contactForm}`);
   if (post.unlisted !== undefined)
     frontmatter.push(`unlisted: ${post.unlisted}`);
+  if (post.aiWritten !== undefined)
+    frontmatter.push(`aiWritten: ${post.aiWritten}`);
   if (post.docsSection !== undefined)
     frontmatter.push(`docsSection: ${post.docsSection}`);
   if (post.docsSectionGroup)
@@ -310,6 +313,7 @@ export const updatePost = mutation({
       newsletter: v.optional(v.boolean()),
       contactForm: v.optional(v.boolean()),
       unlisted: v.optional(v.boolean()),
+      aiWritten: v.optional(v.boolean()),
       docsSection: v.optional(v.boolean()),
       docsSectionGroup: v.optional(v.string()),
       docsSectionOrder: v.optional(v.number()),

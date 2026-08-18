@@ -317,6 +317,7 @@ export const listAllPosts = query({
       authorName: v.optional(v.string()),
       authorImage: v.optional(v.string()),
       unlisted: v.optional(v.boolean()),
+      aiWritten: v.optional(v.boolean()),
       source: v.optional(
         v.union(v.literal("dashboard"), v.literal("sync"), v.literal("demo")),
       ),
@@ -350,6 +351,7 @@ export const listAllPosts = query({
       authorName: p.authorName,
       authorImage: p.authorImage,
       unlisted: p.unlisted,
+      aiWritten: p.aiWritten,
       source: p.source,
       demo: p.demo,
     }));

@@ -63,6 +63,7 @@ const POST_FIELDS = [
   { name: "newsletter", required: false, example: "true" },
   { name: "contactForm", required: false, example: "true" },
   { name: "unlisted", required: false, example: "true" },
+  { name: "aiWritten", required: false, example: "true" },
   { name: "docsSection", required: false, example: "true" },
   { name: "docsSectionOrder", required: false, example: "1" },
   { name: "docsSectionGroup", required: false, example: '"Setup"' },

@@ -1,8 +1,8 @@
 # Blog list view toggle fix, dashboard default option, and icon tooltips
 
 Created: 2026-08-18 09:35 UTC
-Last Updated: 2026-08-18 09:50 UTC
-Status: Done
+Last Updated: 2026-08-18 18:55 UTC
+Status: Done (shipped to production)
 
 ## Problem
 
@@ -48,6 +48,7 @@ Status: Done
 
 ## Verification steps
 
+- This is a frontend-only change, so it is invisible on waynesutton.ai until a static deploy runs. Verify against the live bundle, not just localhost: the deployed CSS must contain `data-tooltip` rules, which is the cheapest marker that production is post-fix.
 - `npx tsc --noEmit` and `npm run build` pass.
 - /blog in list view shows all published posts grouped by year, including featured ones.
 - /blog in cards view still shows hero, featured row, and regular grid without duplicates.
@@ -58,3 +59,4 @@ Status: Done
 
 - 2026-08-18 09:35 UTC: PRD created, implementation started.
 - 2026-08-18 09:50 UTC: All changes implemented. tsc, eslint, and build clean. Browser pass on localhost:5174/blog: list view shows all 6 posts grouped by 2026/2025 (previously empty), cards view keeps hero and featured row, tooltip renders below the toggle and stays on screen on narrow layouts after moving the left-anchor rule into the 768px stacked-header breakpoint. Remaining manual step: dashboard Config checkbox browser pass (needs GitHub sign-in), tracked in TASK.md.
+- 2026-08-18 18:55 UTC: Reopened because list view was still empty for the site owner. The code was correct; production was serving a pre-fix bundle. Evidence: live CSS `index-DCROxV46.css` had zero `data-tooltip` matches and `dist/` was last built at 02:38 while the fix landed at 09:50, and the reported screenshot also lacked the new Show view toggle icons checkbox in the dashboard Config card. Two secondary clues confirmed the source was fine before any code was touched: the view toggle button only renders when `posts.length > 0`, so posts had loaded, and in list view `regularPosts` equals `posts`, so `PostList` was rendering. Deployed with `npx convex deploy --yes` then `npx @convex-dev/self-hosting deploy --skip-convex` (the bundled `npm run deploy` fails at its own interactive backend prompt in a non-interactive shell). New bundle live: `index-Choc1nsA.js` / `index-DlH6Wbuz.css`. Verified on https://waynesutton.ai/blog: list view renders all four posts under 2026 and 2025, cards view renders hero plus three featured cards with no duplicates, round trip through the toggle holds. Per the 2026-08-18 deploy lesson, all 32 built assets were curled on production and every one returned 200, so the cleanup step that removed 25 old files did not strip a live chunk.

@@ -597,6 +597,7 @@ interface ContentItem {
   newsletter?: boolean;
   contactForm?: boolean;
   unlisted?: boolean;
+  aiWritten?: boolean;
   showFooter?: boolean;
   footer?: string;
   showSocialFooter?: boolean;
@@ -634,6 +635,7 @@ const postFrontmatterFields: FrontmatterFieldDef[] = [
   { key: "featuredOrder", label: "Featured Order", type: "number", required: false },
   { key: "blogFeatured", label: "Blog Featured", type: "checkbox", required: false },
   { key: "unlisted", label: "Unlisted", type: "checkbox", required: false },
+  { key: "aiWritten", label: "Written with AI", type: "checkbox", required: false },
   // Content options
   { key: "excerpt", label: "Excerpt", type: "textarea", required: false },
   { key: "image", label: "Image URL", type: "text", required: false },
@@ -730,6 +732,7 @@ const FORM_MANAGED_KEYS: ReadonlySet<string> = new Set([
   "image",
   "ogImage",
   "noOgImage",
+  "aiWritten",
   "readTime",
   "authorName",
   "authorImage",
@@ -752,6 +755,7 @@ function itemToFrontmatter(item: ContentItem): FrontmatterValues {
     image: item.image ?? "",
     ogImage: item.ogImage ?? "",
     noOgImage: item.noOgImage ?? false,
+    aiWritten: item.aiWritten ?? false,
     readTime: item.readTime ?? "",
     authorName: item.authorName ?? "",
     authorImage: item.authorImage ?? "",
@@ -788,6 +792,7 @@ function applyFrontmatterToItem(
     next.date = optionalString(fm.date);
     next.tags = fm.tags;
     next.readTime = optionalString(fm.readTime);
+    next.aiWritten = fm.aiWritten;
   } else {
     next.order = fm.order;
     next.showInNav = fm.showInNav;
@@ -1528,6 +1533,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               featuredOrder: item.featuredOrder,
               blogFeatured: item.blogFeatured,
               unlisted: item.unlisted,
+              aiWritten: item.aiWritten,
               authorName: item.authorName,
               authorImage: item.authorImage,
               layout: item.layout,
@@ -3105,6 +3111,11 @@ function EditorView({
               <div className="dashboard-preview-content">
                 <h1 className="blog-h1">{item.title}</h1>
                 {item.description && <p className="lead">{item.description}</p>}
+                {item.aiWritten && (
+                  <p className="post-ai-note" role="note">
+                    This post was written with AI and proofed by a human.
+                  </p>
+                )}
                 <div className="blog-post-content">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkBreaks]}
@@ -3697,6 +3708,7 @@ function WriteSection({
               featuredOrder: frontmatter.featuredOrder,
               authorName: optionalString(frontmatter.authorName),
               authorImage: optionalString(frontmatter.authorImage),
+              aiWritten: frontmatter.aiWritten ? true : undefined,
             },
           });
         }

@@ -13,6 +13,43 @@ import {
 
 type ToastType = "success" | "error" | "info" | "warning";
 
+function httpActionOrigin(): string {
+  if (typeof window === "undefined") {
+    return "https://waynesutton.ai";
+  }
+  const host = window.location.hostname;
+  if (host === "waynesutton.ai" || host === "www.waynesutton.ai") {
+    return "https://waynesutton.ai";
+  }
+  const convex = import.meta.env.VITE_CONVEX_URL as string | undefined;
+  if (convex) {
+    return convex.replace(/\.convex\.cloud\/?$/, ".convex.site").replace(/\/+$/, "");
+  }
+  return "https://waynesutton.ai";
+}
+
+function KeySnippet({
+  title,
+  text,
+  onCopy,
+}: {
+  title: string;
+  text: string;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="pipeline-key-snippet">
+      <div className="pipeline-key-snippet-header">
+        <span>{title}</span>
+        <button type="button" className="dashboard-action-btn" onClick={onCopy}>
+          <Copy size={14} /> Copy
+        </button>
+      </div>
+      <pre className="pipeline-key-snippet-body">{text}</pre>
+    </div>
+  );
+}
+
 /**
  * API Keys dashboard section for the agent blog pipeline.
  * Generates keys for POST /api/v1/drafts (shown once, stored hashed)
@@ -63,6 +100,31 @@ export function ApiKeysSection({
     addToast("Key copied to clipboard", "success");
   };
 
+  const handleCopyText = async (text: string, label: string) => {
+    await navigator.clipboard.writeText(text);
+    addToast(`${label} copied`, "success");
+  };
+
+  const httpOrigin = httpActionOrigin();
+  const exportSnippet = newKey ? `export BLOG_POST_KEY=${newKey}` : "";
+  const curlSnippet = newKey
+    ? `curl -X POST ${httpOrigin}/api/v1/drafts \\\n  -H "Content-Type: application/json" \\\n  -H "x-api-key: $BLOG_POST_KEY" \\\n  -d '{"title":"Setup verification","rawInput":"Checking that the pipeline key works.","mode":"as-is","source":"curl"}'`
+    : "";
+  const mcpSnippet = newKey
+    ? JSON.stringify(
+        {
+          mcpServers: {
+            "waynesutton-ai": {
+              url: `${httpOrigin}/mcp`,
+              headers: { "x-api-key": newKey },
+            },
+          },
+        },
+        null,
+        2,
+      )
+    : "";
+
   const handleRevoke = async (keyId: Id<"apiKeys">) => {
     try {
       await revokeKey({ keyId });
@@ -105,7 +167,8 @@ export function ApiKeysSection({
         <h2>Pipeline API Keys</h2>
         <p>
           Keys let agents submit drafts to POST /api/v1/drafts with an x-api-key
-          header. One key per tool so drafts show where they came from.
+          header. One key per tool so drafts show where they came from. Full
+          setup is in Docs, Publish from agents.
         </p>
       </div>
 
@@ -154,6 +217,23 @@ export function ApiKeysSection({
               Done
             </button>
           </div>
+          <div className="pipeline-key-snippets">
+            <KeySnippet
+              title="Shell export"
+              text={exportSnippet}
+              onCopy={() => void handleCopyText(exportSnippet, "Export")}
+            />
+            <KeySnippet
+              title="Verify with curl"
+              text={curlSnippet}
+              onCopy={() => void handleCopyText(curlSnippet, "Curl")}
+            />
+            <KeySnippet
+              title="Optional MCP config"
+              text={mcpSnippet}
+              onCopy={() => void handleCopyText(mcpSnippet, "MCP config")}
+            />
+          </div>
         </div>
       )}
 
@@ -171,7 +251,8 @@ export function ApiKeysSection({
         )}
         {keys !== undefined && keys.length === 0 && (
           <div className="dashboard-list-empty">
-            No keys yet. Generate one per tool that will submit drafts.
+            No keys yet. Generate one per tool, then copy blogskill/SKILL.md into
+            your global skills folder. Docs, Publish from agents has every step.
           </div>
         )}
         {keys?.map((key) => (

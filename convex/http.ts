@@ -1303,8 +1303,8 @@ http.route({
   }),
 });
 
-// MCP server: JSON-RPC 2.0 over HTTP, replaces the old Netlify edge function.
-// Optional gate via MCP_API_KEY (Bearer token); rate limited at 50/min.
+// MCP server: JSON-RPC 2.0 over HTTP. Optional MCP_API_KEY gates all calls.
+// create_draft uses the same pipeline key as POST /api/v1/drafts (x-api-key).
 http.route({
   path: "/mcp",
   method: "POST",

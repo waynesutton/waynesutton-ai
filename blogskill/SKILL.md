@@ -1,6 +1,6 @@
 ---
 name: blog-post
-description: Submit a blog draft to waynesutton.ai. Use when the user says "blog this", "post this to my blog", "write this up for the blog", or asks to turn a coding session, notes, or a link into a blog post. Drafts go to a review inbox and are never published without approval.
+description: Submit a blog draft to waynesutton.ai. Use when the user says "blog this", "blog to wsai", "send to wsai", "write to wsai", "post this to my blog", "write this up for the blog", "turn this session into a blog post", "turn this session into a blog post wsai", "draft a post about", "wsai draft a post about", or asks to file session notes to waynesutton.ai. Drafts go to a review inbox and are never published without approval.
 ---
 
 # Blog post skill for waynesutton.ai
@@ -10,10 +10,15 @@ Turn the current session, notes, or a shared link into a blog draft on waynesutt
 ## Trigger phrases
 
 - "blog this"
+- "blog to wsai"
+- "send to wsai"
+- "write to wsai"
 - "post this to my blog"
 - "write this up for the blog"
 - "turn this session into a blog post"
+- "turn this session into a blog post wsai"
 - "draft a post about ..."
+- "wsai draft a post about ..."
 
 ## Requirements
 
@@ -69,6 +74,10 @@ For a session summary, cover:
 Write plainly. Skip filler. Do not oversell. The voice agent rewrites drafts in Wayne's voice when mode is rewrite, so focus on getting the facts and the story right, not the polish.
 
 For link commentary, include the link in `links`, set `type` to `link-commentary`, and put your take or the user's take in `rawInput`.
+
+## MCP alternative
+
+If the MCP server is connected at `https://waynesutton.ai/mcp`, you can call `create_draft` instead of curl. Send the same `BLOG_POST_KEY` as `x-api-key` (or `Authorization: Bearer $BLOG_POST_KEY` when the server is not gated by `MCP_API_KEY`). Payload fields match the table above. Prefer curl when MCP is not configured.
 
 ## Rules
 

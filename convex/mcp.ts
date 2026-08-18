@@ -9,7 +9,7 @@ import { internal } from "./_generated/api";
 const SITE_URL = (process.env.SITE_URL || "https://waynesutton.ai").replace(/\/+$/, "");
 const SITE_NAME = "Wayne Sutton";
 const MCP_SERVER_NAME = "waynesutton-ai-mcp";
-const MCP_SERVER_VERSION = "2.0.0";
+const MCP_SERVER_VERSION = "2.1.0";
 
 // Keep draft submissions well under the 1MB Convex document limit
 const MAX_DRAFT_INPUT_CHARS = 400_000;
@@ -89,7 +89,7 @@ export const MCP_TOOLS = [
   {
     name: "create_draft",
     description:
-      "Submit a blog draft to the review inbox. Drafts are reviewed by the site owner before publishing. Requires the server to have BLOG_POST_KEY configured.",
+      "Submit a blog draft to the review inbox. Drafts are reviewed by the site owner before publishing. Requires a pipeline API key (wsa_...) in the x-api-key header, or Authorization: Bearer wsa_... when MCP_API_KEY is not set.",
     inputSchema: {
       type: "object",
       properties: {
@@ -229,18 +229,19 @@ async function handleExportAll(ctx: ActionCtx): Promise<unknown> {
 async function handleCreateDraft(
   ctx: ActionCtx,
   args: Record<string, unknown>,
+  pipelineKey: string | null,
 ): Promise<unknown> {
-  // The pipeline key lives in Convex env vars; MCP clients never see it
-  const blogPostKey = envConfigured("BLOG_POST_KEY");
-  if (!blogPostKey) {
+  // Same trust model as POST /api/v1/drafts: the client sends a wsa_ key.
+  // Public MCP stays read-only. Writes never use a server-side BLOG_POST_KEY.
+  if (!pipelineKey) {
     throw new Error(
-      "Draft submission is not configured on this server (BLOG_POST_KEY missing)",
+      "Missing pipeline API key. Send x-api-key: wsa_... (or Authorization: Bearer wsa_... when MCP_API_KEY is not set)",
     );
   }
-  const keyHash = await sha256Hex(blogPostKey);
+  const keyHash = await sha256Hex(pipelineKey);
   const verified = await ctx.runQuery(internal.pipelineKeys.verifyApiKey, { keyHash });
   if (!verified) {
-    throw new Error("BLOG_POST_KEY does not match any active pipeline API key");
+    throw new Error("Invalid pipeline API key");
   }
 
   const rawInput = args.rawInput;
@@ -291,6 +292,7 @@ async function handleToolCall(
   ctx: ActionCtx,
   toolName: string,
   args: Record<string, unknown>,
+  pipelineKey: string | null,
 ): Promise<unknown> {
   switch (toolName) {
     case "list_posts":
@@ -317,7 +319,7 @@ async function handleToolCall(
     case "export_all":
       return handleExportAll(ctx);
     case "create_draft":
-      return handleCreateDraft(ctx, args);
+      return handleCreateDraft(ctx, args, pipelineKey);
     default:
       throw new Error(`Unknown tool: ${toolName}`);
   }
@@ -328,6 +330,7 @@ async function handleMcpMethod(
   method: string,
   params: Record<string, unknown> | undefined,
   id: string | number | null,
+  pipelineKey: string | null,
 ): Promise<JsonRpcResponse> {
   try {
     switch (method) {
@@ -347,7 +350,7 @@ async function handleMcpMethod(
         if (!toolName) {
           return errorResponse(id, -32602, "Missing tool name");
         }
-        const result = await handleToolCall(ctx, toolName, toolArgs);
+        const result = await handleToolCall(ctx, toolName, toolArgs, pipelineKey);
         return successResponse(id, {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
         });
@@ -366,7 +369,7 @@ async function handleMcpMethod(
 const MCP_CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key",
 };
 
 function jsonResponse(body: JsonRpcResponse, status = 200): Response {
@@ -388,6 +391,23 @@ export function mcpPreflightResponse(): Response {
   });
 }
 
+/** Pipeline key for create_draft. Prefer x-api-key. Bearer wsa_... only when MCP_API_KEY is off. */
+function extractPipelineKey(request: Request, mcpGated: boolean): string | null {
+  const headerKey = request.headers.get("x-api-key")?.trim();
+  if (headerKey) {
+    return headerKey;
+  }
+  if (mcpGated) {
+    return null;
+  }
+  const authHeader = request.headers.get("Authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (token.startsWith("wsa_")) {
+    return token;
+  }
+  return null;
+}
+
 // Full request handler used by the /mcp HTTP route
 export async function handleMcpRequest(
   ctx: ActionCtx,
@@ -403,6 +423,8 @@ export async function handleMcpRequest(
       return jsonResponse(errorResponse(null, -32600, "Invalid or missing API key"), 401);
     }
   }
+
+  const pipelineKey = extractPipelineKey(request, Boolean(mcpApiKey));
 
   const rl = await ctx.runMutation(internal.rateLimits.checkHttpRateLimit, {
     name: "mcp",
@@ -430,6 +452,7 @@ export async function handleMcpRequest(
     jsonRpcRequest.method,
     jsonRpcRequest.params,
     jsonRpcRequest.id ?? null,
+    pipelineKey,
   );
   return jsonResponse(response);
 }

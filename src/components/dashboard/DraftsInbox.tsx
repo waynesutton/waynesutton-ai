@@ -3,6 +3,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import ReactMarkdown from "react-markdown";
+import "../../styles/dashboard-forms.css";
 import {
   Tray,
   ArrowsClockwise,
@@ -73,6 +74,7 @@ export function DraftsInbox({
   const [pasteMode, setPasteMode] = useState<"rewrite" | "as-is">("rewrite");
   const [voiceRules, setVoiceRules] = useState<string | null>(null);
   const [confirmClearVoice, setConfirmClearVoice] = useState(false);
+  const [aiWrittenSaving, setAiWrittenSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Id<"drafts"> | null>(null);
   const [filter, setFilter] = useState("");
@@ -116,6 +118,8 @@ export function DraftsInbox({
   const requestRewrite = useMutation(api.drafts.requestRewrite);
   const createDraft = useMutation(api.drafts.createDraftFromDashboard);
   const saveVoiceProfile = useMutation(api.drafts.saveVoiceProfile);
+  const aiWrittenDefault = useQuery(api.drafts.getAiWrittenDefault);
+  const setAiWrittenDefault = useMutation(api.drafts.setAiWrittenDefault);
   const openReviewPr = useAction(api.githubReview.openReviewPr);
   const requestReindex = useAction(api.voiceAgent.requestReindex);
 
@@ -256,6 +260,23 @@ export function DraftsInbox({
       );
     });
 
+  const handleAiWrittenToggle = (enabled: boolean) => {
+    if (aiWrittenSaving) return;
+    setAiWrittenSaving(true);
+    void (async () => {
+      try {
+        await setAiWrittenDefault({ enabled });
+      } catch (error) {
+        addToast(
+          error instanceof Error ? error.message : "Could not save setting",
+          "error",
+        );
+      } finally {
+        setAiWrittenSaving(false);
+      }
+    })();
+  };
+
   const agentBadge = (draft: {
     agentStatus?: "pending" | "running" | "done" | "failed";
   }) => {
@@ -370,6 +391,26 @@ export function DraftsInbox({
             <ArrowsClockwise size={14} /> Reindex voice context
           </button>
         </div>
+      </div>
+
+      <div className="drafts-ai-setting">
+        <label className="fmf-switch">
+          <input
+            type="checkbox"
+            checked={aiWrittenDefault === true}
+            disabled={aiWrittenDefault === undefined || aiWrittenSaving}
+            aria-describedby="drafts-ai-written-hint"
+            onChange={(e) => handleAiWrittenToggle(e.target.checked)}
+          />
+          <span className="fmf-switch-track" aria-hidden="true">
+            <span className="fmf-switch-thumb" />
+          </span>
+          <span className="fmf-switch-label">Written with AI</span>
+        </label>
+        <p className="drafts-panel-hint" id="drafts-ai-written-hint">
+          New posts from this inbox get a small note under the title. Frontmatter
+          on the post can turn it off.
+        </p>
       </div>
 
       {/* Paste box */}

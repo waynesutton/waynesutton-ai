@@ -29,6 +29,7 @@ const postVisibilityValidator = v.union(
   v.literal("unlisted"),
   v.literal("draft"),
 );
+const INBOX_SETTINGS_KEY = "inbox";
 
 /** Where a draft ends up once it becomes a post. */
 type PostVisibility = "listed" | "unlisted" | "draft";
@@ -204,6 +205,12 @@ async function materializeDraft(
   const slug = await uniqueSlug(ctx, slugify(title));
   const description = deriveDescription(body);
 
+  // Inbox default stamps the AI note. Frontmatter on the post can turn it off later.
+  const settings = await ctx.db
+    .query("draftSettings")
+    .withIndex("by_key", (q) => q.eq("key", INBOX_SETTINGS_KEY))
+    .unique();
+
   await ctx.db.insert("posts", {
     slug,
     title,
@@ -212,6 +219,7 @@ async function materializeDraft(
     date: todayIsoDate(),
     published,
     unlisted: unlisted ? true : undefined,
+    aiWritten: settings?.aiWrittenDefault === true ? true : undefined,
     tags: overrides?.tags ?? draft.tags ?? [],
     source: "dashboard",
     lastSyncedAt: now,
@@ -532,6 +540,53 @@ export const saveVoiceProfile = mutation({
     await ctx.db.insert("voiceProfile", {
       rules: args.rules,
       updatedAt: Date.now(),
+    });
+    return null;
+  },
+});
+
+/** Inbox default for the AI writing banner. False when no row exists. */
+export const getAiWrittenDefault = query({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    await requireDashboardAdmin(ctx);
+    const settings = await ctx.db
+      .query("draftSettings")
+      .withIndex("by_key", (q) => q.eq("key", INBOX_SETTINGS_KEY))
+      .unique();
+    return settings?.aiWrittenDefault === true;
+  },
+});
+
+/**
+ * Persist the inbox default that stamps aiWritten on new posts.
+ * Idempotent: same value writes nothing.
+ */
+export const setAiWrittenDefault = mutation({
+  args: { enabled: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+    const existing = await ctx.db
+      .query("draftSettings")
+      .withIndex("by_key", (q) => q.eq("key", INBOX_SETTINGS_KEY))
+      .unique();
+    const now = Date.now();
+    if (existing) {
+      if (existing.aiWrittenDefault === args.enabled) {
+        return null;
+      }
+      await ctx.db.patch(existing._id, {
+        aiWrittenDefault: args.enabled,
+        updatedAt: now,
+      });
+      return null;
+    }
+    await ctx.db.insert("draftSettings", {
+      key: INBOX_SETTINGS_KEY,
+      aiWrittenDefault: args.enabled,
+      updatedAt: now,
     });
     return null;
   },
