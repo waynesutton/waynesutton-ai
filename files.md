@@ -4,6 +4,15 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### Drag and drop sort order for dashboard sidebars (2026-08-18)
+
+- **New file** `prds/dashboard-drag-sort.md`: PRD for drag-and-drop ordering of the main Dashboard sidebar nav items and the Frontmatter sidebar field blocks, with the last sort persisted per browser.
+- **New file** `src/hooks/useDragSort.ts`: persisted drag-order hook. Native HTML5 drag and drop, order saved to localStorage on every reorder, tolerant of ids that appear or disappear (conditional features).
+- **Modified** `src/pages/Dashboard.tsx`: nav sections render through a new `SortableNavSection` component; items drag to reorder within their section under `dashboard-nav-order:<section>` keys.
+- **Modified** `src/components/FrontmatterForm.tsx`: field blocks restructured into two sortable groups (main fields and More options) rendered by a new `SortableFields` component with hover grab handles; order persists per kind under `fmf-order:<kind>:main` and `fmf-order:<kind>:more`.
+- **Modified** `src/styles/dashboard.css`: dragging state for nav items.
+- **Modified** `src/styles/dashboard-forms.css`: `.fmf-sortable` wrapper, hover-revealed `.fmf-drag-handle`, and dragging state.
+
 ### OG image frontmatter controls (2026-08-17)
 
 - **New file** `prds/og-image-frontmatter-controls.md`: PRD for the `ogImage` override and `noOgImage` text-only share preview fields on posts and pages.
@@ -1049,6 +1058,7 @@ A brief description of each file in the codebase.
 
 | File                       | Description                                                                                                                                              |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useDragSort.ts`           | Persisted drag-and-drop ordering for a flat list of string ids. Native HTML5 drag events, order saved to localStorage, used by the Dashboard sidebar nav and the FrontmatterForm field blocks. |
 | `usePageTracking.ts`       | Page view recording and active session heartbeat. Respects `siteConfig.statsPage.enabled` (no DB writes when disabled) |
 | `useSearchHighlighting.ts` | Search term highlighting and scroll-to-match. Reads `?q=` URL param, waits for content to load, highlights matches in DOM, scrolls to first match. |
 

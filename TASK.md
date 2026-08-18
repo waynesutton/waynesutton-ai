@@ -2,6 +2,8 @@
 
 ## To Do
 
+- [ ] Browser pass on drag and drop sort: reorder items in the main Dashboard sidebar nav and the Frontmatter sidebar field blocks (post and page editors), reload and confirm the order sticks per browser (PRD: prds/dashboard-drag-sort.md)
+
 - [ ] Browser pass on the Auto sync on publish toggle: flip it on in the Agent Ready section, publish a draft from the inbox, confirm the post shows in /llms.txt on the dev deployment, then unpublish and confirm it disappears (PRD: prds/auto-discovery-sync-on-publish.md)
 - [ ] Browser pass on the Drafts Inbox split view: desktop shows list left and detail right with first draft auto-selected, filter narrows the list, mobile swaps to a full-width detail with a Back to list button, and every action still works (PRD: prds/drafts-inbox-split-view-and-mobile-login.md)
 - [ ] Phone pass on the mobile login fix: sign in with GitHub from /dashboard on a phone; if the callback lands on the home page it should bounce to /dashboard signed in (PRD: prds/drafts-inbox-split-view-and-mobile-login.md)
@@ -25,6 +27,13 @@
 - [ ] Browser pass on the new Drafts Inbox actions: save an inbox draft to draft, confirm it appears unpublished in Posts and that Open loads it in the editor, then publish it and confirm no second post is created; publish another draft unlisted and confirm the slug loads while the post stays out of the homepage, /blog, Cmd+K, /rss.xml, and /sitemap.xml
 
 ## Completed
+
+- [x] Drag and drop sort order for the dashboard sidebars (2026-08-18 08:05 UTC) (PRD: prds/dashboard-drag-sort.md)
+  - [x] New `src/hooks/useDragSort.ts`: native HTML5 drag-and-drop ordering for a list of string ids, order written to localStorage on every reorder, saved order tolerant of ids that appear or disappear (conditional features keep working)
+  - [x] Main Dashboard sidebar: nav items drag to reorder within their section via a new `SortableNavSection` component, persisted per section under `dashboard-nav-order:<section label>`
+  - [x] Frontmatter sidebar (post and page editors): field blocks restructured into two sortable groups (main fields, More options) rendered by a new `SortableFields` component. Each block gets a hover-revealed grab handle; the wrapper is only draggable while the handle is held so text selection in inputs is unaffected. Persisted per kind under `fmf-order:<kind>:main` and `fmf-order:<kind>:more`, so post and page editors remember independent sorts
+  - [x] Styles: dragging state for nav items in dashboard.css; `.fmf-sortable` and `.fmf-drag-handle` in dashboard-forms.css
+  - [x] Verified: `npx tsc --noEmit` clean, eslint clean on all three touched TS files, `npm run build` passes. Browser drag pass is in To Do (the dashboard sits behind GitHub sign-in, so it needs a manual pass)
 
 - [x] OG image frontmatter controls: override or disable the share image per post and page (2026-08-18 06:45 UTC) (PRD: prds/og-image-frontmatter-controls.md)
   - [x] New frontmatter fields on posts and pages: `ogImage` (share image override, OG/Twitter only, cards and headers keep using `image`) and `noOgImage: true` (text-only share preview). `ogImage: false` is accepted as shorthand and normalized to `noOgImage: true` by the sync script

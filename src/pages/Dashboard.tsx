@@ -74,6 +74,8 @@ import {
   SquaresFour,
   List,
 } from "@phosphor-icons/react";
+import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { useDragSort } from "../hooks/useDragSort";
 import { DraftsInbox } from "../components/dashboard/DraftsInbox";
 import { ApiKeysSection } from "../components/dashboard/ApiKeysSection";
 import { XSection } from "../components/dashboard/XSection";
@@ -932,6 +934,56 @@ function DemoSignInButton() {
         <span>{isSubmitting ? "Redirecting..." : "Sign in with GitHub"}</span>
       </button>
     </>
+  );
+}
+
+// Sidebar nav section with drag-and-drop item ordering.
+// Items reorder within their section; the last sort persists per browser
+// under dashboard-nav-order:<section label> in localStorage.
+function SortableNavSection({
+  label,
+  items,
+  activeSection,
+  onSelect,
+}: {
+  label: string;
+  items: Array<{ id: DashboardSection; label: string; icon: PhosphorIcon }>;
+  activeSection: DashboardSection;
+  onSelect: (id: DashboardSection) => void;
+}) {
+  const drag = useDragSort(
+    `dashboard-nav-order:${label}`,
+    items.map((item) => item.id)
+  );
+  const itemsById = new Map<string, (typeof items)[number]>(items.map((item) => [item.id, item]));
+
+  return (
+    <div className="dashboard-nav-section">
+      <span className="dashboard-nav-label">{label}</span>
+      {drag.sortedIds.map((id) => {
+        const item = itemsById.get(id);
+        if (!item) {
+          return null;
+        }
+        return (
+          <button
+            key={item.id}
+            draggable
+            onDragStart={drag.onDragStart(item.id)}
+            onDragOver={drag.onDragOver(item.id)}
+            onDrop={drag.onDrop}
+            onDragEnd={drag.onDragEnd}
+            className={`dashboard-nav-item ${activeSection === item.id ? "active" : ""} ${
+              drag.draggingId === item.id ? "dragging" : ""
+            }`}
+            title="Click to open, drag to reorder"
+            onClick={() => onSelect(item.id)}>
+            <item.icon size={18} weight={activeSection === item.id ? "fill" : "regular"} />
+            <span>{item.label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1910,22 +1962,17 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
 
         <nav className="dashboard-nav">
           {navSections.map((section) => (
-            <div key={section.label} className="dashboard-nav-section">
-              <span className="dashboard-nav-label">{section.label}</span>
-              {section.items.map((item) => (
-                <button
-                  key={item.id}
-                  className={`dashboard-nav-item ${activeSection === item.id ? "active" : ""}`}
-                  onClick={() => {
-                    setActiveSection(item.id);
-                    setEditingItem(null);
-                    setMobileNavOpen(false);
-                  }}>
-                  <item.icon size={18} weight={activeSection === item.id ? "fill" : "regular"} />
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
+            <SortableNavSection
+              key={section.label}
+              label={section.label}
+              items={section.items}
+              activeSection={activeSection}
+              onSelect={(id) => {
+                setActiveSection(id);
+                setEditingItem(null);
+                setMobileNavOpen(false);
+              }}
+            />
           ))}
         </nav>
 

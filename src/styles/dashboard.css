@@ -222,6 +222,12 @@
   opacity: 0.85;
 }
 
+/* Drag-and-drop nav reordering */
+.dashboard-layout .dashboard-nav-item.dragging {
+  opacity: 0.45;
+  background: var(--db-inset);
+}
+
 /* Sidebar footer */
 .dashboard-layout .dashboard-sidebar-footer {
   border-top: 1px solid var(--db-border-soft);

@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
-import { CaretDown, CaretRight, UploadSimple, X } from "@phosphor-icons/react";
+import { useRef, useState, type ReactNode } from "react";
+import { CaretDown, CaretRight, DotsSixVertical, UploadSimple, X } from "@phosphor-icons/react";
+import { useDragSort } from "../hooks/useDragSort";
 
 // Frontmatter form for dashboard write and edit flows.
 // Styles live in src/styles/dashboard-forms.css (imported by Dashboard.tsx).
@@ -269,6 +270,61 @@ export function parseFrontmatterDocument(
   return { values, body, hasFrontmatter: true };
 }
 
+// A group of frontmatter field blocks with drag-and-drop ordering.
+// The wrapper only becomes draggable while the grab handle is held so text
+// selection inside inputs keeps working. Last sort persists per storageKey.
+function SortableFields({
+  storageKey,
+  blocks,
+}: {
+  storageKey: string;
+  blocks: Array<{ id: string; node: ReactNode }>;
+}) {
+  const drag = useDragSort(
+    storageKey,
+    blocks.map((block) => block.id)
+  );
+  const [armedId, setArmedId] = useState<string | null>(null);
+  const blocksById = new Map(blocks.map((block) => [block.id, block]));
+
+  return (
+    <>
+      {drag.sortedIds.map((id) => {
+        const block = blocksById.get(id);
+        if (!block) {
+          return null;
+        }
+        return (
+          <div
+            key={id}
+            className={`fmf-sortable ${drag.draggingId === id ? "dragging" : ""}`}
+            draggable={armedId === id}
+            onDragStart={drag.onDragStart(id)}
+            onDragOver={drag.onDragOver(id)}
+            onDrop={(event) => {
+              drag.onDrop(event);
+              setArmedId(null);
+            }}
+            onDragEnd={() => {
+              drag.onDragEnd();
+              setArmedId(null);
+            }}>
+            <span
+              className="fmf-drag-handle"
+              title="Drag to reorder"
+              aria-hidden="true"
+              onMouseDown={() => setArmedId(id)}
+              onMouseUp={() => setArmedId(null)}>
+              <DotsSixVertical size={14} weight="bold" />
+            </span>
+            {block.node}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 // Toggle switch styled via dashboard-forms.css
 function ToggleSwitch({
   label,
@@ -362,8 +418,13 @@ export function FrontmatterForm({
     return Number.isFinite(parsed) ? parsed : undefined;
   };
 
-  return (
-    <div className="fmf">
+  // Field blocks for drag-and-drop ordering. Conditional blocks are filtered
+  // out before sorting; useDragSort tolerates ids missing from the saved order.
+  const mainBlocks: Array<{ id: string; node: ReactNode }> = [];
+
+  mainBlocks.push({
+    id: "title",
+    node: (
       <div className="fmf-field">
         <label className="fmf-label" htmlFor={`fmf-title-${kind}`}>
           Title <span className="fmf-required">*</span>
@@ -377,7 +438,12 @@ export function FrontmatterForm({
           placeholder={kind === "post" ? "Post title" : "Page title"}
         />
       </div>
+    ),
+  });
 
+  mainBlocks.push({
+    id: "slug",
+    node: (
       <div className="fmf-field">
         <label className="fmf-label" htmlFor={`fmf-slug-${kind}`}>
           Slug <span className="fmf-required">*</span>
@@ -399,8 +465,13 @@ export function FrontmatterForm({
           <span className="fmf-hint">Auto-generated from the title until you edit it</span>
         )}
       </div>
+    ),
+  });
 
-      {kind === "post" && (
+  if (kind === "post") {
+    mainBlocks.push({
+      id: "description",
+      node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor="fmf-description">
             Description <span className="fmf-required">*</span>
@@ -414,9 +485,12 @@ export function FrontmatterForm({
             rows={2}
           />
         </div>
-      )}
+      ),
+    });
 
-      {kind === "post" && (
+    mainBlocks.push({
+      id: "date",
+      node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor="fmf-date">
             Date <span className="fmf-required">*</span>
@@ -429,8 +503,13 @@ export function FrontmatterForm({
             onChange={(e) => patch({ date: e.target.value })}
           />
         </div>
-      )}
+      ),
+    });
+  }
 
+  mainBlocks.push({
+    id: "publish-toggles",
+    node: (
       <div className="fmf-row">
         <ToggleSwitch
           label="Published"
@@ -450,8 +529,13 @@ export function FrontmatterForm({
           />
         )}
       </div>
+    ),
+  });
 
-      {value.featured && !isHidden("featuredOrder") && (
+  if (value.featured && !isHidden("featuredOrder")) {
+    mainBlocks.push({
+      id: "featured-order",
+      node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor={`fmf-featured-order-${kind}`}>
             Featured order
@@ -466,9 +550,14 @@ export function FrontmatterForm({
             min={0}
           />
         </div>
-      )}
+      ),
+    });
+  }
 
-      {kind === "post" && (
+  if (kind === "post") {
+    mainBlocks.push({
+      id: "tags",
+      node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor="fmf-tag-input">
             Tags
@@ -502,7 +591,214 @@ export function FrontmatterForm({
             />
           </div>
         </div>
-      )}
+      ),
+    });
+  }
+
+  const moreBlocks: Array<{ id: string; node: ReactNode }> = [];
+
+  moreBlocks.push({
+    id: "excerpt",
+    node: (
+      <div className="fmf-field">
+        <label className="fmf-label" htmlFor={`fmf-excerpt-${kind}`}>
+          Excerpt
+        </label>
+        <textarea
+          id={`fmf-excerpt-${kind}`}
+          className="fmf-textarea"
+          value={value.excerpt}
+          onChange={(e) => patch({ excerpt: e.target.value })}
+          placeholder="Short text for card views"
+          rows={2}
+        />
+      </div>
+    ),
+  });
+
+  moreBlocks.push({
+    id: "image",
+    node: (
+      <div className="fmf-field">
+        <label className="fmf-label" htmlFor={`fmf-image-${kind}`}>
+          Featured image URL
+        </label>
+        <div className="fmf-input-row">
+          <input
+            id={`fmf-image-${kind}`}
+            type="text"
+            className="fmf-input"
+            value={value.image}
+            onChange={(e) => patch({ image: e.target.value })}
+            placeholder="/images/my-image.png"
+          />
+          {onRequestImage && (
+            <button
+              type="button"
+              className="fmf-upload-button"
+              onClick={() => onRequestImage("image")}>
+              <UploadSimple size={14} />
+              Upload
+            </button>
+          )}
+        </div>
+        <span className="fmf-hint">Used for cards, headers, and as the default share image</span>
+      </div>
+    ),
+  });
+
+  if (!isHidden("ogImage")) {
+    moreBlocks.push({
+      id: "og-image",
+      node: (
+        <div className="fmf-field">
+          <label className="fmf-label" htmlFor={`fmf-og-image-${kind}`}>
+            Social share image (OG)
+          </label>
+          <div className="fmf-input-row">
+            <input
+              id={`fmf-og-image-${kind}`}
+              type="text"
+              className="fmf-input"
+              value={value.ogImage}
+              onChange={(e) => patch({ ogImage: e.target.value })}
+              placeholder="/images/og/my-share-image.png"
+              disabled={value.noOgImage}
+            />
+            {onRequestImage && (
+              <button
+                type="button"
+                className="fmf-upload-button"
+                onClick={() => onRequestImage("ogImage")}
+                disabled={value.noOgImage}>
+                <UploadSimple size={14} />
+                Upload
+              </button>
+            )}
+          </div>
+          <span className="fmf-hint">Overrides the featured image for social previews only</span>
+        </div>
+      ),
+    });
+  }
+
+  if (!isHidden("noOgImage")) {
+    moreBlocks.push({
+      id: "no-og-image",
+      node: (
+        <div className="fmf-field">
+          <ToggleSwitch
+            label="No share image (text-only preview)"
+            checked={value.noOgImage}
+            onChange={(checked) => patch({ noOgImage: checked })}
+          />
+          <span className="fmf-hint">Social previews show only the title and description</span>
+        </div>
+      ),
+    });
+  }
+
+  if (kind === "post" && !isHidden("readTime")) {
+    moreBlocks.push({
+      id: "read-time",
+      node: (
+        <div className="fmf-field">
+          <label className="fmf-label" htmlFor="fmf-read-time">
+            Read time
+          </label>
+          <input
+            id="fmf-read-time"
+            type="text"
+            className="fmf-input"
+            value={value.readTime}
+            onChange={(e) => patch({ readTime: e.target.value })}
+            placeholder="5 min read"
+          />
+        </div>
+      ),
+    });
+  }
+
+  if (kind === "page" && !isHidden("order")) {
+    moreBlocks.push({
+      id: "nav-order",
+      node: (
+        <div className="fmf-field">
+          <label className="fmf-label" htmlFor="fmf-order">
+            Nav order
+          </label>
+          <input
+            id="fmf-order"
+            type="number"
+            className="fmf-input"
+            value={value.order ?? ""}
+            onChange={(e) => patch({ order: parseOptionalNumber(e.target.value) })}
+            placeholder="1"
+            min={0}
+          />
+        </div>
+      ),
+    });
+  }
+
+  if (kind === "page" && !isHidden("showInNav")) {
+    moreBlocks.push({
+      id: "show-in-nav",
+      node: (
+        <ToggleSwitch
+          label="Show in nav"
+          checked={value.showInNav}
+          onChange={(checked) => patch({ showInNav: checked })}
+        />
+      ),
+    });
+  }
+
+  if (!isHidden("authorName")) {
+    moreBlocks.push({
+      id: "author-name",
+      node: (
+        <div className="fmf-field">
+          <label className="fmf-label" htmlFor={`fmf-author-name-${kind}`}>
+            Author name
+          </label>
+          <input
+            id={`fmf-author-name-${kind}`}
+            type="text"
+            className="fmf-input"
+            value={value.authorName}
+            onChange={(e) => patch({ authorName: e.target.value })}
+            placeholder="Jane Doe"
+          />
+        </div>
+      ),
+    });
+  }
+
+  if (!isHidden("authorImage")) {
+    moreBlocks.push({
+      id: "author-image",
+      node: (
+        <div className="fmf-field">
+          <label className="fmf-label" htmlFor={`fmf-author-image-${kind}`}>
+            Author image URL
+          </label>
+          <input
+            id={`fmf-author-image-${kind}`}
+            type="text"
+            className="fmf-input"
+            value={value.authorImage}
+            onChange={(e) => patch({ authorImage: e.target.value })}
+            placeholder="/images/authors/jane.png"
+          />
+        </div>
+      ),
+    });
+  }
+
+  return (
+    <div className="fmf">
+      <SortableFields storageKey={`fmf-order:${kind}:main`} blocks={mainBlocks} />
 
       <div className="fmf-section">
         <button
@@ -515,165 +811,7 @@ export function FrontmatterForm({
         </button>
         {moreOpen && (
           <div className="fmf-section-body">
-            <div className="fmf-field">
-              <label className="fmf-label" htmlFor={`fmf-excerpt-${kind}`}>
-                Excerpt
-              </label>
-              <textarea
-                id={`fmf-excerpt-${kind}`}
-                className="fmf-textarea"
-                value={value.excerpt}
-                onChange={(e) => patch({ excerpt: e.target.value })}
-                placeholder="Short text for card views"
-                rows={2}
-              />
-            </div>
-
-            <div className="fmf-field">
-              <label className="fmf-label" htmlFor={`fmf-image-${kind}`}>
-                Featured image URL
-              </label>
-              <div className="fmf-input-row">
-                <input
-                  id={`fmf-image-${kind}`}
-                  type="text"
-                  className="fmf-input"
-                  value={value.image}
-                  onChange={(e) => patch({ image: e.target.value })}
-                  placeholder="/images/my-image.png"
-                />
-                {onRequestImage && (
-                  <button
-                    type="button"
-                    className="fmf-upload-button"
-                    onClick={() => onRequestImage("image")}>
-                    <UploadSimple size={14} />
-                    Upload
-                  </button>
-                )}
-              </div>
-              <span className="fmf-hint">
-                Used for cards, headers, and as the default share image
-              </span>
-            </div>
-
-            {!isHidden("ogImage") && (
-              <div className="fmf-field">
-                <label className="fmf-label" htmlFor={`fmf-og-image-${kind}`}>
-                  Social share image (OG)
-                </label>
-                <div className="fmf-input-row">
-                  <input
-                    id={`fmf-og-image-${kind}`}
-                    type="text"
-                    className="fmf-input"
-                    value={value.ogImage}
-                    onChange={(e) => patch({ ogImage: e.target.value })}
-                    placeholder="/images/og/my-share-image.png"
-                    disabled={value.noOgImage}
-                  />
-                  {onRequestImage && (
-                    <button
-                      type="button"
-                      className="fmf-upload-button"
-                      onClick={() => onRequestImage("ogImage")}
-                      disabled={value.noOgImage}>
-                      <UploadSimple size={14} />
-                      Upload
-                    </button>
-                  )}
-                </div>
-                <span className="fmf-hint">
-                  Overrides the featured image for social previews only
-                </span>
-              </div>
-            )}
-
-            {!isHidden("noOgImage") && (
-              <div className="fmf-field">
-                <ToggleSwitch
-                  label="No share image (text-only preview)"
-                  checked={value.noOgImage}
-                  onChange={(checked) => patch({ noOgImage: checked })}
-                />
-                <span className="fmf-hint">
-                  Social previews show only the title and description
-                </span>
-              </div>
-            )}
-
-            {kind === "post" && !isHidden("readTime") && (
-              <div className="fmf-field">
-                <label className="fmf-label" htmlFor="fmf-read-time">
-                  Read time
-                </label>
-                <input
-                  id="fmf-read-time"
-                  type="text"
-                  className="fmf-input"
-                  value={value.readTime}
-                  onChange={(e) => patch({ readTime: e.target.value })}
-                  placeholder="5 min read"
-                />
-              </div>
-            )}
-
-            {kind === "page" && !isHidden("order") && (
-              <div className="fmf-field">
-                <label className="fmf-label" htmlFor="fmf-order">
-                  Nav order
-                </label>
-                <input
-                  id="fmf-order"
-                  type="number"
-                  className="fmf-input"
-                  value={value.order ?? ""}
-                  onChange={(e) => patch({ order: parseOptionalNumber(e.target.value) })}
-                  placeholder="1"
-                  min={0}
-                />
-              </div>
-            )}
-
-            {kind === "page" && !isHidden("showInNav") && (
-              <ToggleSwitch
-                label="Show in nav"
-                checked={value.showInNav}
-                onChange={(checked) => patch({ showInNav: checked })}
-              />
-            )}
-
-            {!isHidden("authorName") && (
-              <div className="fmf-field">
-                <label className="fmf-label" htmlFor={`fmf-author-name-${kind}`}>
-                  Author name
-                </label>
-                <input
-                  id={`fmf-author-name-${kind}`}
-                  type="text"
-                  className="fmf-input"
-                  value={value.authorName}
-                  onChange={(e) => patch({ authorName: e.target.value })}
-                  placeholder="Jane Doe"
-                />
-              </div>
-            )}
-
-            {!isHidden("authorImage") && (
-              <div className="fmf-field">
-                <label className="fmf-label" htmlFor={`fmf-author-image-${kind}`}>
-                  Author image URL
-                </label>
-                <input
-                  id={`fmf-author-image-${kind}`}
-                  type="text"
-                  className="fmf-input"
-                  value={value.authorImage}
-                  onChange={(e) => patch({ authorImage: e.target.value })}
-                  placeholder="/images/authors/jane.png"
-                />
-              </div>
-            )}
+            <SortableFields storageKey={`fmf-order:${kind}:more`} blocks={moreBlocks} />
           </div>
         )}
       </div>

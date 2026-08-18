@@ -17,6 +17,48 @@
   min-width: 0;
 }
 
+/* Drag-and-drop field ordering: each block gets a hover-revealed grab
+   handle in its top-right corner; the last sort persists per browser. */
+.fmf-sortable {
+  position: relative;
+  min-width: 0;
+}
+
+.fmf-sortable.dragging {
+  opacity: 0.45;
+}
+
+.fmf-drag-handle {
+  position: absolute;
+  top: -2px;
+  right: 0;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.fmf-sortable:hover .fmf-drag-handle,
+.fmf-drag-handle:focus-visible {
+  opacity: 1;
+}
+
+.fmf-drag-handle:hover {
+  background: var(--db-inset, rgba(128, 128, 128, 0.12));
+  color: var(--text-secondary);
+}
+
+.fmf-drag-handle:active {
+  cursor: grabbing;
+}
+
 .fmf-label {
   font-size: 0.75rem;
   font-weight: 600;
