@@ -3,6 +3,7 @@ import { v, ConvexError } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
+import { scheduleDiscoverySyncIfEnabled } from "./agentReady/autoSync";
 
 // Shared validator for post data
 const postDataValidator = v.object({
@@ -218,6 +219,17 @@ export const createPost = mutation({
       lastSyncedAt: Date.now(),
     });
 
+    // Auto discovery sync: new public post goes into llms.txt/agents.md
+    if (args.post.published && args.post.unlisted !== true) {
+      await scheduleDiscoverySyncIfEnabled(ctx, {
+        publish: {
+          title: args.post.title,
+          path: `/${args.post.slug}`,
+          description: args.post.description,
+        },
+      });
+    }
+
     return postId;
   },
 });
@@ -237,11 +249,24 @@ export const createPostInternal = internalMutation({
       throw new ConvexError(`Post with slug "${args.post.slug}" already exists`);
     }
 
-    return await ctx.db.insert("posts", {
+    const postId = await ctx.db.insert("posts", {
       ...args.post,
       source: "dashboard",
       lastSyncedAt: Date.now(),
     });
+
+    // Auto discovery sync: imported public posts go into llms.txt too
+    if (args.post.published && args.post.unlisted !== true) {
+      await scheduleDiscoverySyncIfEnabled(ctx, {
+        publish: {
+          title: args.post.title,
+          path: `/${args.post.slug}`,
+          description: args.post.description,
+        },
+      });
+    }
+
+    return postId;
   },
 });
 
@@ -320,6 +345,25 @@ export const updatePost = mutation({
       lastSyncedAt: Date.now(),
     });
 
+    // Auto discovery sync: publish/unpublish/unlist/rename updates llms.txt
+    const next = { ...existing, ...args.post };
+    const wasPublic = existing.published && existing.unlisted !== true;
+    const isPublic = next.published && next.unlisted !== true;
+    const slugChanged = next.slug !== existing.slug;
+    await scheduleDiscoverySyncIfEnabled(ctx, {
+      publish: isPublic
+        ? {
+            title: next.title,
+            path: `/${next.slug}`,
+            description: next.description,
+          }
+        : undefined,
+      removePath:
+        wasPublic && (slugChanged || !isPublic)
+          ? `/${existing.slug}`
+          : undefined,
+    });
+
     return null;
   },
 });
@@ -337,6 +381,14 @@ export const deletePost = mutation({
     }
 
     await ctx.db.delete(args.id);
+
+    // Auto discovery sync: drop a deleted public post from llms.txt
+    if (existing.published && existing.unlisted !== true) {
+      await scheduleDiscoverySyncIfEnabled(ctx, {
+        removePath: `/${existing.slug}`,
+      });
+    }
+
     return null;
   },
 });

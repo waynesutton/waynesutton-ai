@@ -17040,19 +17040,117 @@ body:has(.docs-layout) {
   line-height: 1.5;
 }
 
-.drafts-row {
-  cursor: pointer;
+/* Master-detail split view: list pane left, detail pane right */
+.drafts-split {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
 }
 
-.drafts-row.selected {
-  background: var(--bg-hover, rgba(128, 128, 128, 0.08));
-}
-
-.drafts-detail {
-  margin-top: 20px;
-  padding: 20px;
+.drafts-list-pane {
+  flex: 0 0 320px;
+  min-width: 0;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.drafts-list-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.drafts-filter-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.drafts-list-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.drafts-list-scroll {
+  overflow-y: auto;
+  max-height: 65vh;
+}
+
+.drafts-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.drafts-item:last-child {
+  border-bottom: none;
+}
+
+.drafts-item:hover {
+  background: var(--bg-hover, rgba(128, 128, 128, 0.06));
+}
+
+.drafts-item.selected {
+  background: var(--bg-hover, rgba(128, 128, 128, 0.1));
+  box-shadow: inset 3px 0 0 var(--accent, currentColor);
+}
+
+.drafts-item-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+.drafts-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.drafts-item-date {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.drafts-detail-pane {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  padding: 20px;
+}
+
+.drafts-detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Mobile-only escape hatch from the detail pane back to the list */
+.drafts-back-btn {
+  display: none;
 }
 
 .drafts-detail-header {
@@ -17114,6 +17212,36 @@ body:has(.docs-layout) {
   flex: 1;
 }
 
+/* Split view collapses to a single pane; picking a draft swaps list for detail.
+   Keep this breakpoint in sync with MOBILE_SPLIT_QUERY in DraftsInbox.tsx. */
+@media (max-width: 900px) {
+  .drafts-split {
+    display: block;
+  }
+
+  .drafts-list-scroll {
+    max-height: none;
+  }
+
+  .drafts-split.has-selection .drafts-list-pane {
+    display: none;
+  }
+
+  .drafts-split:not(.has-selection) .drafts-detail-pane {
+    display: none;
+  }
+
+  .drafts-back-btn {
+    display: inline-flex;
+    margin-bottom: 12px;
+    min-height: 40px;
+  }
+
+  .drafts-detail-pane {
+    padding: 14px;
+  }
+}
+
 /* Drafts inbox: mobile re-flow */
 @media (max-width: 768px) {
   .drafts-toolbar {
@@ -17164,10 +17292,6 @@ body:has(.docs-layout) {
   .drafts-panel-actions .dashboard-action-btn {
     justify-content: center;
     min-height: 40px;
-  }
-
-  .drafts-detail {
-    padding: 14px;
   }
 
   /* Publish / Edit / Review / Reject become thumb-sized half-width buttons */

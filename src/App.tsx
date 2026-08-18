@@ -1,6 +1,6 @@
-import { Routes, Route, useLocation } from "react-router-dom";
-import { lazy, Suspense } from "react";
-import { useQuery } from "convex/react";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import Layout from "./components/Layout";
 import ScrollToTopOnNav from "./components/ScrollToTopOnNav";
@@ -47,10 +47,36 @@ function PageSkeleton() {
   return <div style={{ minHeight: "100vh" }} />;
 }
 
+// Mirrors SIGN_IN_PENDING_KEY in src/pages/Dashboard.tsx. Set before the
+// browser leaves for GitHub; sessionStorage survives the same-tab OAuth trip.
+const DASHBOARD_SIGN_IN_PENDING_KEY = "dashboard-github-signin-pending";
+const SIGN_IN_PENDING_MAX_AGE_MS = 10 * 60 * 1000;
+
 function App() {
   // Track page views and active sessions
   usePageTracking();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isLoading: authLoading } = useConvexAuth();
+
+  // Mobile OAuth recovery. Convex Auth carries redirectTo in a cross-site
+  // cookie that mobile Safari often drops; when that happens the callback
+  // falls back to the home page even though the sign-in itself succeeds.
+  // A fresh pending marker means a dashboard sign-in is mid-flight, so once
+  // the provider finishes the ?code= exchange, finish the trip to /dashboard.
+  // The marker is left in place: the Dashboard gate consumes it and shows a
+  // retry notice when the sign-in did not complete.
+  useEffect(() => {
+    if (location.pathname === "/dashboard") return;
+    const startedAt = sessionStorage.getItem(DASHBOARD_SIGN_IN_PENDING_KEY);
+    if (startedAt === null) return;
+    if (Date.now() - Number(startedAt) > SIGN_IN_PENDING_MAX_AGE_MS) {
+      sessionStorage.removeItem(DASHBOARD_SIGN_IN_PENDING_KEY);
+      return;
+    }
+    if (authLoading) return;
+    navigate("/dashboard", { replace: true });
+  }, [authLoading, location.pathname, navigate]);
 
   // Dashboard-controlled widget settings; falls back to defaults while loading
   const widgetSettings =

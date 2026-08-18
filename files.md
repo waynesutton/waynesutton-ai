@@ -4,6 +4,24 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### Auto discovery sync on publish (2026-08-17)
+
+- **New file** `prds/auto-discovery-sync-on-publish.md`: PRD for the dashboard toggle that refreshes the live discovery files whenever a post goes public, including why the local Sync All (Prod) command cannot run from Convex and what actually serves `/llms.txt` at runtime.
+- **New file** `convex/agentReady/autoSync.ts`: `scheduleDiscoverySyncIfEnabled` helper (reads the toggle, schedules through the scheduler so publish mutations stay fast) and the `syncDiscovery` internal action that upserts or archives the post in the agent-ready pages table and regenerates the cached llms.txt, agents.md, and llms-full.txt.
+- **Modified** `convex/agentReady/settings.ts`: admin query `getAutoSyncOnPublish` and admin mutation `setAutoSyncOnPublish` on the existing `agentReadySettings` singleton.
+- **Modified** `convex/schema.ts`: optional `autoSyncOnPublish` boolean on `agentReadySettings`.
+- **Modified** `convex/cms.ts`: `createPost`, `createPostInternal`, `updatePost`, and `deletePost` schedule the discovery sync on publish, unpublish, unlist, slug rename, and delete of public posts.
+- **Modified** `convex/drafts.ts`: `materializeDraft` schedules the sync for both branches, covering inbox publish, email publish, PR publish, and agent auto publish.
+- **Modified** `src/components/AgentReadySection.tsx`: new Publishing panel with the Auto sync on publish toggle, saved immediately on change.
+
+### Drafts Inbox split view and mobile login recovery (2026-08-17)
+
+- **New file** `prds/drafts-inbox-split-view-and-mobile-login.md`: PRD for the Drafts Inbox master-detail redesign and the mobile GitHub OAuth callback landing on the home page instead of `/dashboard`.
+- **Modified** `src/components/dashboard/DraftsInbox.tsx`: master-detail split view. Compact draft list on the left (title, source, status, agent badge, relative time) with a client-side filter and count; full preview with every action as a labeled button on the right. Icon-only row actions removed. Desktop auto-selects the first draft; mobile swaps between list and detail with a Back to list button.
+- **Modified** `src/App.tsx`: post-OAuth recovery effect. A fresh `dashboard-github-signin-pending` sessionStorage marker on any non-dashboard page redirects to `/dashboard` once Convex auth settles, covering mobile browsers that drop the cross-site redirect cookie Convex Auth uses for `redirectTo`.
+- **Modified** `src/styles/global.css`: `.drafts-split`, `.drafts-list-pane`, `.drafts-item`, `.drafts-detail-pane`, `.drafts-detail-empty`, and `.drafts-back-btn` styles plus a 900px breakpoint that collapses the split into a single pane; dead `.drafts-row` and `.drafts-detail` rules removed.
+- **Modified** `src/styles/dashboard.css`: the Drafts Inbox section widens to 1320px so both panes fit side by side.
+
 ### Open live link for published content (2026-08-17)
 
 - **New file** `prds/dashboard-open-live-link.md`: PRD for the missing live link in the dashboard, why the old eye icon was a dead link on drafts, and why the published gate ignores unlisted.
@@ -163,7 +181,7 @@ A brief description of each file in the codebase.
 - **New file** `convex/voiceAgent.ts`: Voice agent on `@convex-dev/agent` that rewrites drafts using voice rules, RAG retrieval over published content, and X oEmbed link context; includes RAG reindex actions.
 - **New file** `convex/draftEmails.ts`: Node action that emails draft previews via AgentMail with reply commands (publish, reject, edit).
 - **New file** `convex/githubReview.ts`: Opens GitHub review PRs for drafts and publishes or rejects them when the PR closes.
-- **New file** `src/components/dashboard/DraftsInbox.tsx`: Dashboard Drafts Inbox: status tabs (Inbox, Saved, Published, Rejected, All), markdown preview, edit mode, rewrite notes, paste box, voice profile editor, reindex button, publish log, draft delete with inline confirm, and three draft exits (Publish, Publish unlisted, Save to draft) each linking to the resulting post.
+- **New file** `src/components/dashboard/DraftsInbox.tsx`: Dashboard Drafts Inbox: master-detail split view (filterable draft list left, preview with labeled actions right, single-pane swap on mobile), status tabs (Inbox, Saved, Published, Rejected, All), markdown preview, edit mode, rewrite notes, paste box, voice profile editor, reindex button, publish log, draft delete with inline confirm, and three draft exits (Publish, Publish unlisted, Save to draft) each linking to the resulting post.
 - **New file** `src/components/dashboard/ApiKeysSection.tsx`: Dashboard API Keys section: key generation with one-time display, revoke with inline confirm, vendor key status panel.
 - **New file** `blogskill/SKILL.md`: Installable agent skill teaching the drafts API payload and trigger phrases; publish to waynesutton/blogskill.
 - **New file** `prds/setup-guide-new-features.md`: What was built, the draft lifecycle, and how each surface works.

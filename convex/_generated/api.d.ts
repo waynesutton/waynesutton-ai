@@ -9,6 +9,7 @@
  */
 
 import type * as agentReady_analytics from "../agentReady/analytics.js";
+import type * as agentReady_autoSync from "../agentReady/autoSync.js";
 import type * as agentReady_content from "../agentReady/content.js";
 import type * as agentReady_settings from "../agentReady/settings.js";
 import type * as aiChatActions from "../aiChatActions.js";
@@ -67,6 +68,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "agentReady/analytics": typeof agentReady_analytics;
+  "agentReady/autoSync": typeof agentReady_autoSync;
   "agentReady/content": typeof agentReady_content;
   "agentReady/settings": typeof agentReady_settings;
   aiChatActions: typeof aiChatActions;

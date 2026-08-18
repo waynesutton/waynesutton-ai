@@ -380,6 +380,11 @@
   width: 100%;
 }
 
+/* Drafts Inbox gets extra room so the list and detail panes sit side by side */
+.dashboard-layout .drafts-inbox-section {
+  max-width: 1320px;
+}
+
 /* Demo + auth banners: themed, not hardcoded amber-on-white */
 .dashboard-layout .dashboard-demo-banner {
   background: var(--db-warning-bg);

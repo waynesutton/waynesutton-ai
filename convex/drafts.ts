@@ -9,6 +9,7 @@ import { v, ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
+import { scheduleDiscoverySyncIfEnabled } from "./agentReady/autoSync";
 
 // Shared validators for draft payloads
 const draftTypeValidator = v.union(
@@ -179,16 +180,34 @@ async function materializeDraft(
       postVisibility: visibility,
       updatedAt: now,
     });
+
+    // Auto discovery sync: reflect the visibility change in llms.txt
+    const wasPublic =
+      existingPost.published && (existingPost.unlisted ?? false) === false;
+    const isPublic = published && !unlisted;
+    await scheduleDiscoverySyncIfEnabled(ctx, {
+      publish: isPublic
+        ? {
+            title: overrides?.title ?? existingPost.title,
+            path: `/${existingPost.slug}`,
+            description: existingPost.description,
+          }
+        : undefined,
+      removePath:
+        wasPublic && !isPublic ? `/${existingPost.slug}` : undefined,
+    });
+
     return existingPost.slug;
   }
 
   const title = overrides?.title ?? deriveTitle(draft, body);
   const slug = await uniqueSlug(ctx, slugify(title));
+  const description = deriveDescription(body);
 
   await ctx.db.insert("posts", {
     slug,
     title,
-    description: deriveDescription(body),
+    description,
     content: body,
     date: todayIsoDate(),
     published,
@@ -212,6 +231,13 @@ async function materializeDraft(
     postVisibility: visibility,
     updatedAt: now,
   });
+
+  // Auto discovery sync: brand new public post goes into llms.txt
+  if (published && !unlisted) {
+    await scheduleDiscoverySyncIfEnabled(ctx, {
+      publish: { title, path: `/${slug}`, description },
+    });
+  }
 
   return slug;
 }

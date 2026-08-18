@@ -442,6 +442,7 @@ export default defineSchema({
     showMachineTab: v.boolean(),
     showScoreTab: v.boolean(),
     showChatLinks: v.boolean(),
+    autoSyncOnPublish: v.optional(v.boolean()), // When true, publishing a public post refreshes llms.txt/agents.md automatically
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
 

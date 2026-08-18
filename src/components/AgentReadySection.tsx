@@ -53,8 +53,23 @@ export default function AgentReadySection() {
   const draft = useMutation(api.agentReady.content.draftPage);
   const archive = useMutation(api.agentReady.content.archivePage);
 
+  const autoSync = useQuery(api.agentReady.settings.getAutoSyncOnPublish);
+  const setAutoSync = useMutation(api.agentReady.settings.setAutoSyncOnPublish);
+  const [autoSyncSaving, setAutoSyncSaving] = useState(false);
+
   const [local, setLocal] = useState<WidgetSettings | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  // Saves immediately on change; guarded against overlapping calls
+  const handleAutoSyncToggle = async (enabled: boolean) => {
+    if (autoSyncSaving) return;
+    setAutoSyncSaving(true);
+    try {
+      await setAutoSync({ enabled });
+    } finally {
+      setAutoSyncSaving(false);
+    }
+  };
 
   // Seed local edit state once settings load
   useEffect(() => {
@@ -168,6 +183,32 @@ export default function AgentReadySection() {
             </div>
           </>
         )}
+      </div>
+
+      <div className="agent-ready-panel">
+        <h3>Publishing</h3>
+        <p className="agent-ready-hint">
+          When on, publishing a public post adds it to llms.txt and agents.md and
+          regenerates the cached files automatically. Unpublishing, unlisting, or
+          deleting a public post removes it. Saves immediately.
+        </p>
+        <div className="agent-ready-toggle-grid">
+          <label className="agent-ready-toggle">
+            <input
+              type="checkbox"
+              checked={autoSync === true}
+              disabled={autoSync === undefined || autoSyncSaving}
+              onChange={(e) => void handleAutoSyncToggle(e.target.checked)}
+            />
+            <span className="agent-ready-toggle-track" aria-hidden="true" />
+            <span className="agent-ready-toggle-text">
+              <span className="agent-ready-toggle-label">Auto sync on publish</span>
+              <span className="agent-ready-toggle-hint">
+                Refresh discovery files every time a post goes public
+              </span>
+            </span>
+          </label>
+        </div>
       </div>
 
       <div className="agent-ready-panel">

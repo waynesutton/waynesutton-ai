@@ -2,6 +2,10 @@
 
 ## To Do
 
+- [ ] Browser pass on the Auto sync on publish toggle: flip it on in the Agent Ready section, publish a draft from the inbox, confirm the post shows in /llms.txt on the dev deployment, then unpublish and confirm it disappears (PRD: prds/auto-discovery-sync-on-publish.md)
+- [ ] Browser pass on the Drafts Inbox split view: desktop shows list left and detail right with first draft auto-selected, filter narrows the list, mobile swaps to a full-width detail with a Back to list button, and every action still works (PRD: prds/drafts-inbox-split-view-and-mobile-login.md)
+- [ ] Phone pass on the mobile login fix: sign in with GitHub from /dashboard on a phone; if the callback lands on the home page it should bounce to /dashboard signed in (PRD: prds/drafts-inbox-split-view-and-mobile-login.md)
+
 - [ ] Browser pass on the open live link: confirm the open icon shows on published post and page rows (including published unlisted), is absent on drafts, and that the editor toolbar Open button loads the live URL (PRD: prds/dashboard-open-live-link.md)
 - [ ] X integration manual setup: create an X developer app (OAuth 2.0, confidential client), set callback URL to https://<deployment>.convex.site/x/callback, then set X_CLIENT_ID and X_CLIENT_SECRET in the API Keys dashboard section or Convex env vars (dev + prod)
 - [ ] Manual setup from prds/finish-updating-guide.md: GitHub OAuth apps (dev + prod), OPENAI_API_KEY, pipeline keys, optional webhooks
@@ -21,6 +25,20 @@
 - [ ] Browser pass on the new Drafts Inbox actions: save an inbox draft to draft, confirm it appears unpublished in Posts and that Open loads it in the editor, then publish it and confirm no second post is created; publish another draft unlisted and confirm the slug loads while the post stays out of the homepage, /blog, Cmd+K, /rss.xml, and /sitemap.xml
 
 ## Completed
+
+- [x] Auto discovery sync on publish (2026-08-18 04:40 UTC) (PRD: prds/auto-discovery-sync-on-publish.md)
+  - [x] Dashboard toggle in the Agent Ready section (Publishing panel), stored as `autoSyncOnPublish` on the `agentReadySettings` singleton, admin only, saves on change, defaults off
+  - [x] convex/agentReady/autoSync.ts: `scheduleDiscoverySyncIfEnabled` reads the toggle and schedules `syncDiscovery`, an internal action that upserts the post into the agent-ready pages table (section Posts) and regenerates the cached /llms.txt, /agents.md, and /llms-full.txt; archive runs first so slug renames end with only the new path
+  - [x] Hooked every publish path: cms createPost, createPostInternal (URL import), updatePost (publish, unpublish, unlist, slug rename), deletePost, and drafts materializeDraft (inbox publish, email publish command, PR publish, agent auto publish). Unlisted posts never enter discovery; a listed post going unlisted is archived
+  - [x] Not hooked on purpose: markdown CLI sync (pairs with sync:discovery already) and demo posts. Repo files AGENTS.md and public/llms.txt still update only via npm run sync:discovery and are shadowed at runtime by the agent-ready routes
+  - [x] Verified: npx tsc --noEmit clean, eslint clean on touched files (one pre-existing drafts.ts regex escape error untouched), convex-doctor reports zero findings in the new code (the 95/100 overall predates this change), and a live dev smoke test ran syncDiscovery directly: the probe appeared in notable-loris-927 /llms.txt under Posts and disappeared after the remove event. Dashboard browser pass in To Do
+
+- [x] Drafts Inbox split view and mobile GitHub login recovery (2026-08-18 04:22 UTC) (PRD: prds/drafts-inbox-split-view-and-mobile-login.md)
+  - [x] DraftsInbox.tsx: master-detail layout. Filterable draft list on the left (title, source badge, status, agent badge, relative time with full date on hover, draft count), detail preview on the right so reading a draft never requires scrolling past the list. Icon-only row actions removed; every action is a labeled button in the detail pane. Desktop auto-selects the first draft of the active tab; selection no longer toggles off on click
+  - [x] Mobile (under 900px, matching MOBILE_SPLIT_QUERY in the component): split collapses to one pane, list first, tapping a draft swaps to a full-width detail with a Back to list button; no auto-select so the list always shows first
+  - [x] global.css: drafts-split, drafts-list-pane, drafts-item, drafts-detail-pane, drafts-detail-empty, drafts-back-btn plus the 900px collapse block; dead drafts-row and drafts-detail rules removed. dashboard.css widens the section to 1320px
+  - [x] App.tsx: mobile OAuth recovery. Convex Auth carries redirectTo in a partitioned cross-site cookie that mobile Safari drops, so the callback fell back to SITE_URL (home) even when sign-in succeeded. A fresh dashboard-github-signin-pending sessionStorage marker (under 10 minutes) on any non-dashboard page now waits for useConvexAuth().isLoading to settle (so the ?code= exchange is not interrupted) and navigates to /dashboard; the Dashboard gate still consumes the marker for the retry notice. Stale markers are removed without redirecting
+  - [x] Verified: npx tsc --noEmit clean, eslint clean on both touched TS files, npm run build passes, and a browser smoke test confirmed the home page renders with no redirect, /dashboard shows the sign-in card, and a planted pending marker on the home page redirects to /dashboard in about 200ms with the retry notice showing. Browser pass of the split view behind GitHub auth and a real phone sign-in remain in To Do
 
 - [x] Open live link for published posts and pages in the dashboard (2026-08-17 21:45 UTC) (PRD: prds/dashboard-open-live-link.md)
   - [x] Problem: list rows rendered an eye link to `/{slug}` on every row including drafts, but `getPostBySlug` and `getPageBySlug` return null unless published and there is no draft preview route, so the draft link landed on the not found page. The editor had no live link at all

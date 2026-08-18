@@ -75,3 +75,45 @@ export const updateWidgetSettings = mutation({
     return null;
   },
 });
+
+/** Whether publishing a public post auto-refreshes discovery files. Admin only. */
+export const getAutoSyncOnPublish = query({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    await requireDashboardAdmin(ctx);
+    const row = await ctx.db
+      .query("agentReadySettings")
+      .withIndex("by_key", (q) => q.eq("key", "widget"))
+      .unique();
+    return row?.autoSyncOnPublish === true;
+  },
+});
+
+/** Toggle auto discovery sync on publish from the dashboard. Admin only. */
+export const setAutoSyncOnPublish = mutation({
+  args: { enabled: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+    const existing = await ctx.db
+      .query("agentReadySettings")
+      .withIndex("by_key", (q) => q.eq("key", "widget"))
+      .unique();
+    if (existing) {
+      if (existing.autoSyncOnPublish === args.enabled) return null;
+      await ctx.db.patch(existing._id, {
+        autoSyncOnPublish: args.enabled,
+        updatedAt: Date.now(),
+      });
+      return null;
+    }
+    await ctx.db.insert("agentReadySettings", {
+      key: "widget",
+      ...WIDGET_DEFAULTS,
+      autoSyncOnPublish: args.enabled,
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});
