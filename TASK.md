@@ -26,6 +26,11 @@
 
 ## Completed
 
+- [x] Drafts Inbox slug link overlay fix (2026-08-18 06:08 UTC)
+  - [x] The published-slug link in the detail pane result line reuses the `action-btn view` class, which dashboard.css fixes at 32px for icon-only row buttons, so a long slug wrapped one character per line into a vertical column overlaying the pane
+  - [x] global.css: scoped override for `.dashboard-layout .drafts-result-line .action-btn` sizes the link to its content (inline-flex, auto width, 13px, nowrap with ellipsis at max-width) while the icon-only 32px buttons in the Posts and Pages lists keep their style
+  - [x] Verified: no linter errors; the only text-bearing `action-btn view` usages are the two inside `resultLink`, both rendered within `.drafts-result-line`
+
 - [x] Auto discovery sync on publish (2026-08-18 04:40 UTC) (PRD: prds/auto-discovery-sync-on-publish.md)
   - [x] Dashboard toggle in the Agent Ready section (Publishing panel), stored as `autoSyncOnPublish` on the `agentReadySettings` singleton, admin only, saves on change, defaults off
   - [x] convex/agentReady/autoSync.ts: `scheduleDiscoverySyncIfEnabled` reads the toggle and schedules `syncDiscovery`, an internal action that upserts the post into the agent-ready pages table (section Posts) and regenerates the cached /llms.txt, /agents.md, and /llms-full.txt; archive runs first so slug renames end with only the new path

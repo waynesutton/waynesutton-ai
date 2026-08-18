@@ -17201,6 +17201,23 @@ body:has(.docs-layout) {
   background: var(--bg-secondary);
 }
 
+/* The slug link reuses .action-btn, which is a fixed 32px icon button in the
+   dashboard. Undo that sizing here so long slugs render on one line instead
+   of wrapping character by character over the panel. */
+.dashboard-layout .drafts-result-line .action-btn {
+  width: auto;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 13px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .drafts-rewrite-row {
   display: flex;
   align-items: center;
