@@ -9630,11 +9630,33 @@ body {
   outline-offset: 1px;
 }
 
+/* Pagination row owns both the page nav and items-per-page, since both
+   decide what this page holds. Filters stay in the list header. */
 .dashboard-pagination {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 1rem;
-  justify-content: center;
+}
+
+.dashboard-pagination-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Tabular numerals so the width holds steady from page 9 to page 10 */
+.dashboard-pagination-status {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dashboard-pagination-first {
+  padding-inline: 0.625rem;
+  gap: 0;
 }
 
 .dashboard-pagination-btn {
@@ -11841,24 +11863,6 @@ body:has(.dashboard-layout) {
   color: var(--text-primary);
 }
 
-.dashboard-editor-mode-toggles {
-  display: flex;
-  gap: 0;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-md);
-  overflow: hidden;
-}
-
-.dashboard-editor-mode-toggles .dashboard-view-toggle {
-  border: none;
-  border-radius: 0;
-  border-right: 1px solid var(--border-color);
-}
-
-.dashboard-editor-mode-toggles .dashboard-view-toggle:last-child {
-  border-right: none;
-}
-
 /* Rich text editor styles */
 .dashboard-quill-container {
   flex: 1;
@@ -12275,34 +12279,29 @@ body:has(.dashboard-layout) {
   border-color: var(--text-primary);
 }
 
-/* Dashboard Write Sidebar Toggle */
-.dashboard-write-sidebar-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-
-.dashboard-write-sidebar-toggle:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-/* Dashboard Write Sidebar Header with Toggle */
+/* Dashboard Write Sidebar Header doubles as the collapse control */
 .dashboard-write-sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dashboard-write-sidebar-header:hover {
+  background: var(--bg-hover);
+}
+
+.dashboard-write-sidebar-toggle-icon {
+  flex-shrink: 0;
+  color: var(--text-secondary);
 }
 
 /* Dashboard Write Sidebar Collapsed State */
@@ -12414,18 +12413,29 @@ body:has(.dashboard-layout) {
 
   .dashboard-write-actions {
     width: 100%;
-    justify-content: flex-end;
   }
 
   .dashboard-write-container {
     flex-direction: column;
+    overflow: visible;
   }
 
+  .dashboard-write-main {
+    overflow: visible;
+  }
+
+  /* Natural height so the page scrolls instead of a nested clipped pane */
   .dashboard-write-sidebar {
     width: 100%;
     border-left: none;
     border-top: 1px solid var(--border-color);
-    max-height: 300px;
+    max-height: none;
+    height: auto;
+  }
+
+  .dashboard-write-title {
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   .dashboard-write-footer {
@@ -14217,17 +14227,28 @@ body:has(.dashboard-layout) {
     flex: 0 1 auto;
   }
 
+  /* Actions get their own line so the date and badges above them are never
+     squeezed by three 44px buttons. Aligned to the card's leading edge so the
+     title still leads, with a double gap above to read as a separate tier. */
   .dashboard-list-row .col-actions {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
-    margin-left: auto;
+    flex: 1 1 100%;
+    gap: 0.375rem;
+    margin-top: 0.375rem;
   }
 
   /* Comfortable touch targets for row actions */
   .dashboard-list-row .action-btn {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
+  }
+
+  /* The title is the way into the editor, so give it a real tap line */
+  .dashboard-list-row .post-title-link {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
   }
 
   .dashboard-list-header {
@@ -14239,7 +14260,9 @@ body:has(.dashboard-layout) {
     border-top: 1px solid var(--border-color);
   }
 
-  /* Editor stacks: content first, full-width frontmatter pane below */
+  /* Editor stacks: content first, full-width frontmatter pane below.
+     Every pane grows to its natural height and the page does the scrolling,
+     so nested scroll boxes can no longer clip the frontmatter labels. */
   .dashboard-editor {
     height: auto;
     min-height: 0;
@@ -14247,10 +14270,12 @@ body:has(.dashboard-layout) {
 
   .dashboard-editor-container {
     flex-direction: column;
+    overflow: visible;
   }
 
   .dashboard-editor-content {
-    min-height: 50vh;
+    min-height: 0;
+    overflow: visible;
   }
 
   /* Beats the inline width set by the desktop resize handle */
@@ -14259,7 +14284,9 @@ body:has(.dashboard-layout) {
     min-width: 0;
     border-left: none;
     border-top: 1px solid var(--border-color);
-    max-height: 50vh;
+    max-height: none;
+    height: auto;
+    overflow: visible;
   }
 
   /* Resize handle is mouse-only and meaningless once stacked */
@@ -14271,11 +14298,6 @@ body:has(.dashboard-layout) {
     flex-direction: column;
     align-items: stretch;
     gap: 0.75rem;
-  }
-
-  .dashboard-editor-actions {
-    flex-wrap: wrap;
-    justify-content: space-between;
   }
 
   .dashboard-sync-grid {
@@ -14368,22 +14390,33 @@ body:has(.dashboard-layout) {
     justify-content: center;
   }
 
-  /* Pagination mobile */
+  /* Pagination mobile: Previous and Next share one line, the page indicator
+     drops below them, and items-per-page takes the row under both */
   .dashboard-items-per-page {
     margin-left: 0;
-    margin-top: 0.5rem;
     width: 100%;
     justify-content: flex-end;
   }
 
-  .dashboard-pagination {
+  .dashboard-pagination-nav {
     flex-wrap: wrap;
+    width: 100%;
   }
 
   .dashboard-pagination-btn {
-    flex: 1;
+    flex: 1 1 0;
     justify-content: center;
-    min-width: 120px;
+    min-width: 0;
+  }
+
+  .dashboard-pagination-first {
+    flex: 0 0 44px;
+  }
+
+  .dashboard-pagination-status {
+    flex: 1 1 100%;
+    order: 1;
+    text-align: center;
   }
 }
 
@@ -14443,6 +14476,8 @@ body:has(.dashboard-layout) {
 .dashboard-pagination-btn:focus-visible,
 .dashboard-back-btn:focus-visible,
 .dashboard-view-toggle:focus-visible,
+.dashboard-seg-btn:focus-visible,
+.dashboard-body-head:focus-visible,
 .dashboard-action-btn:focus-visible,
 .dashboard-ai-tab:focus-visible,
 .dashboard-image-gen-aspect-btn:focus-visible,
@@ -14451,7 +14486,7 @@ body:has(.dashboard-layout) {
 .dashboard-import-btn:focus-visible,
 .dashboard-sync-card-btn:focus-visible,
 .dashboard-rich-btn:focus-visible,
-.dashboard-write-sidebar-toggle:focus-visible,
+.dashboard-write-sidebar-header:focus-visible,
 .dashboard-toast-close:focus-visible,
 .dashboard-modal-close:focus-visible,
 .dashboard-modal-btn:focus-visible,
@@ -14546,7 +14581,7 @@ body:has(.dashboard-layout) {
 
   .dashboard-filter-tab,
   .dashboard-newsletter-filter-btn {
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .dashboard-search,
@@ -17349,6 +17384,12 @@ body:has(.docs-layout) {
   flex-wrap: wrap;
 }
 
+/* Above the phone breakpoint the tiers dissolve, so every button stays a direct
+   flex item of .drafts-detail-actions and the desktop wrap is untouched. */
+.drafts-action-tier {
+  display: contents;
+}
+
 .drafts-preview {
   padding: 12px 4px;
   font-size: 14px;
@@ -17400,7 +17441,7 @@ body:has(.docs-layout) {
   margin-top: 12px;
 }
 
-.drafts-rewrite-row .dashboard-import-input {
+.drafts-rewrite-row .dashboard-field-input {
   flex: 1;
 }
 
@@ -17426,7 +17467,7 @@ body:has(.docs-layout) {
   .drafts-back-btn {
     display: inline-flex;
     margin-bottom: 12px;
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .drafts-detail-pane {
@@ -17457,14 +17498,14 @@ body:has(.docs-layout) {
 
   .drafts-tabs .dashboard-action-btn {
     flex-shrink: 0;
-    min-height: 40px;
+    min-height: 44px;
     white-space: nowrap;
   }
 
   .drafts-toolbar-actions .dashboard-action-btn {
     flex: 1;
     justify-content: center;
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .drafts-panel {
@@ -17487,14 +17528,36 @@ body:has(.docs-layout) {
   }
 
   /* Publish / Edit / Review / Reject become thumb-sized half-width buttons */
+  /* Tiers become real rows: Publish alone and full width, the alternatives
+     2-up, then a wider gap before Reject and Delete so a thumb reaching for
+     Edit is nowhere near the two actions you cannot take back. */
   .drafts-detail-actions {
     width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
   }
 
-  .drafts-detail-actions .dashboard-action-btn {
+  .drafts-action-tier {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .drafts-action-tier .dashboard-action-btn {
     flex: 1 1 calc(50% - 4px);
     justify-content: center;
-    min-height: 40px;
+    min-height: 44px;
+  }
+
+  /* Publish stands alone at full width. Save and Cancel while editing are two
+     buttons in this tier, so they stay 2-up. */
+  .drafts-action-tier-primary .dashboard-action-btn:only-child {
+    flex: 1 1 100%;
+  }
+
+  .drafts-action-tier-danger {
+    margin-top: 8px;
   }
 
   .drafts-rewrite-row {

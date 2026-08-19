@@ -125,46 +125,53 @@
   color: var(--text-muted);
 }
 
-/* Input with a trailing action button (image upload) */
+/* Action row under image URL fields (Upload + Clear) */
 
 .fmf-input-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   align-items: stretch;
   min-width: 0;
 }
 
-.fmf-input-row .fmf-input {
-  flex: 1;
-  min-width: 0;
-}
-
-.fmf-upload-button {
+.fmf-upload-button,
+.fmf-clear-button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.3rem;
-  padding: 0 0.7rem;
-  min-height: 38px;
+  padding: 0 0.75rem;
+  min-height: 36px;
+  min-width: 44px;
   font-size: 0.78rem;
   font-family: var(--font-family);
   font-weight: 500;
   color: var(--text-secondary);
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  background: var(--db-surface, var(--bg-primary));
+  border: 1px solid var(--db-border, var(--border-color));
+  border-radius: var(--db-radius-sm, 8px);
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: none;
   transition:
     border-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    background 0.15s ease;
 }
 
 .fmf-upload-button:hover:not(:disabled) {
-  border-color: var(--accent);
+  border-color: var(--text-tertiary, var(--text-secondary));
   color: var(--text-primary);
 }
 
-.fmf-upload-button:disabled {
+.fmf-clear-button:hover:not(:disabled) {
+  border-color: var(--db-danger, #b91c1c);
+  color: var(--db-danger, #b91c1c);
+}
+
+.fmf-upload-button:disabled,
+.fmf-clear-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -174,13 +181,164 @@
   cursor: not-allowed;
 }
 
-/* Toggle switches */
+/* Frontmatter group cards.
+   Each group is one card with a tappable header. The header carries the group
+   name, a filled/total denominator, and a caret. When collapsed it also lists
+   the YAML keys inside so a writer can tell what is hidden without opening it. */
 
-.fmf-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
+.fmf-group {
+  border: 1px solid var(--db-border, var(--border-color));
+  border-radius: var(--db-radius, 10px);
+  background: var(--db-surface, var(--bg-secondary));
+  overflow: hidden;
 }
+
+.fmf-group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  min-height: 40px;
+  font-family: var(--font-family);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.fmf-group-head:hover {
+  color: var(--text-primary);
+  background: var(--db-inset, var(--bg-hover));
+}
+
+.fmf-group-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.fmf-group-caret {
+  flex-shrink: 0;
+  color: var(--text-tertiary, var(--text-muted));
+  transform: rotate(-90deg);
+  transition: transform 0.15s ease;
+}
+
+.fmf-group.open .fmf-group-caret {
+  transform: rotate(0deg);
+}
+
+.fmf-group-title {
+  flex: 1;
+  min-width: 0;
+  letter-spacing: 0.01em;
+}
+
+/* Filled count reads as a fraction so an empty group is obvious at a glance */
+.fmf-group-count {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.fmf-group-count-total {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.fmf-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 0.25rem 0.7rem 0.85rem;
+}
+
+/* Collapsed preview: the YAML keys this group writes */
+.fmf-group-keys {
+  margin: 0;
+  padding: 0 0.7rem 0.6rem 1.7rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.fmf-group .fmf-raw {
+  margin: 0 0.7rem 0.7rem;
+}
+
+/* Full-width switch rows: label and hint lead, switch trails, row taps */
+
+.fmf-switch-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.35rem 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.fmf-switch-row.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.fmf-switch-row input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.fmf-switch-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.fmf-switch-row-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.fmf-switch-row-hint {
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.fmf-switch-row .fmf-switch-track {
+  flex-shrink: 0;
+}
+
+.fmf-switch-row input:checked + .fmf-switch-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.fmf-switch-row input:checked + .fmf-switch-track .fmf-switch-thumb {
+  transform: translateX(14px);
+  background: var(--bg-primary);
+}
+
+.fmf-switch-row input:focus-visible + .fmf-switch-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Toggle switches */
 
 .fmf-switch {
   display: inline-flex;
@@ -389,14 +547,20 @@
     flex-direction: column;
   }
 
+  /* Natural height: the page scrolls, so nothing clips the group cards */
   .dashboard-write-section .dashboard-write-container .dashboard-write-sidebar {
     order: -1;
     width: 100%;
     border-left: none;
     border-top: none;
     border-bottom: 1px solid var(--border-color);
-    max-height: 45vh;
-    overflow-y: auto;
+    max-height: none;
+    height: auto;
+    overflow: visible;
+  }
+
+  .dashboard-write-section .dashboard-write-container .dashboard-write-fields {
+    overflow: visible;
   }
 }
 
@@ -422,6 +586,14 @@
     min-height: 44px;
   }
 
+  /* Upload and Clear split the row so both clear the 44px touch minimum */
+  .fmf-upload-button,
+  .fmf-clear-button {
+    flex: 1;
+    min-height: 44px;
+    font-size: 0.85rem;
+  }
+
   .fmf-tag {
     min-height: 32px;
   }
@@ -431,9 +603,24 @@
     font-size: 0.95rem;
   }
 
-  .fmf-row {
-    flex-direction: column;
-    gap: 0;
+  .fmf-group-head {
+    min-height: 48px;
+    font-size: 0.82rem;
+    padding: 0.6rem 0.75rem;
+  }
+
+  .fmf-group-body {
+    padding: 0.3rem 0.75rem 0.9rem;
+  }
+
+  /* No hover on touch, so drag sort is a desktop affordance only */
+  .fmf-drag-handle {
+    display: none;
+  }
+
+  /* The page owns scrolling on a phone, so the panel stops clipping */
+  .fmf-panel {
+    overflow: visible;
   }
 }
 
@@ -477,7 +664,7 @@
   margin-top: 8px;
 }
 
-.pipeline-vendor-edit .dashboard-import-input {
+.pipeline-vendor-edit .dashboard-field-input {
   flex: 1;
   min-width: 0;
 }
@@ -487,7 +674,7 @@
     flex-wrap: wrap;
   }
 
-  .pipeline-vendor-edit .dashboard-import-input {
+  .pipeline-vendor-edit .dashboard-field-input {
     flex-basis: 100%;
   }
 }
@@ -562,8 +749,8 @@
   margin-bottom: 20px;
   background: var(--db-surface, var(--bg-secondary));
   border: 1px solid var(--db-border, var(--border-color));
-  border-radius: var(--db-radius, 10px);
-  box-shadow: var(--db-shadow-sm, none);
+  border-radius: var(--db-radius-lg, 12px);
+  box-shadow: none;
 }
 
 .dashboard-docs-nav-item {

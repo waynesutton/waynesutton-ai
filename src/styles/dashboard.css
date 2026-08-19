@@ -1,8 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    DASHBOARD REDESIGN
    Loaded after global.css and dashboard-forms.css so these rules win.
-   A calm publishing desk: hairline borders, quiet layered surfaces,
-   one accent, denominators under every number, real mobile support.
+   A typeset publishing desk: hairline borders, no lift, one accent,
+   denominators under every number, real mobile support.
+   Depth is borders-only. Focus rings stay. Modals use a scrim, not a drop
+   shadow.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ─────────────────────────────────────────────
@@ -18,21 +20,21 @@
     "Helvetica Neue", Arial, sans-serif;
   --db-radius-sm: 8px;
   --db-radius: 10px;
-  --db-radius-lg: 14px;
+  --db-radius-lg: 12px;
   --db-radius-full: 999px;
 
   /* Light defaults (match FOUC bootstrap) */
   --text-tertiary: #71717a;
   --bg-tertiary: #ececec;
-  --db-canvas: #fafafa;
+  --db-canvas: #ffffff;
   --db-surface: #ffffff;
-  --db-surface-2: #f6f6f6;
+  --db-surface-2: #f7f7f8;
   --db-inset: #f4f4f5;
   --db-border: #e4e4e7;
   --db-border-soft: #efeff1;
-  --db-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
-  --db-shadow-md: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.06);
-  --db-shadow-lg: 0 8px 32px rgba(16, 24, 40, 0.14);
+  --db-shadow-sm: none;
+  --db-shadow-md: none;
+  --db-shadow-lg: none;
   --db-success: #15803d;
   --db-success-bg: rgba(21, 128, 61, 0.09);
   --db-warning: #a16207;
@@ -46,15 +48,15 @@
 :root[data-theme="light"] {
   --text-tertiary: #71717a;
   --bg-tertiary: #ececec;
-  --db-canvas: #fafafa;
+  --db-canvas: #ffffff;
   --db-surface: #ffffff;
-  --db-surface-2: #f6f6f6;
+  --db-surface-2: #f7f7f8;
   --db-inset: #f4f4f5;
   --db-border: #e4e4e7;
   --db-border-soft: #efeff1;
-  --db-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
-  --db-shadow-md: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.06);
-  --db-shadow-lg: 0 8px 32px rgba(16, 24, 40, 0.14);
+  --db-shadow-sm: none;
+  --db-shadow-md: none;
+  --db-shadow-lg: none;
   --db-success: #15803d;
   --db-success-bg: rgba(21, 128, 61, 0.09);
   --db-warning: #a16207;
@@ -76,7 +78,7 @@
   --db-border-soft: rgba(214, 235, 253, 0.07);
   --db-shadow-sm: none;
   --db-shadow-md: none;
-  --db-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
+  --db-shadow-lg: none;
   --db-success: #4ade80;
   --db-success-bg: rgba(74, 222, 128, 0.12);
   --db-warning: #fbbf24;
@@ -96,9 +98,9 @@
   --db-inset: #f3f0ea;
   --db-border: #e7e2d9;
   --db-border-soft: #efeae1;
-  --db-shadow-sm: 0 1px 2px rgba(80, 62, 40, 0.05);
-  --db-shadow-md: 0 1px 2px rgba(80, 62, 40, 0.05), 0 4px 14px rgba(80, 62, 40, 0.07);
-  --db-shadow-lg: 0 8px 32px rgba(80, 62, 40, 0.16);
+  --db-shadow-sm: none;
+  --db-shadow-md: none;
+  --db-shadow-lg: none;
   --db-success: #4d7c0f;
   --db-success-bg: rgba(77, 124, 15, 0.1);
   --db-warning: #92400e;
@@ -112,15 +114,15 @@
 :root[data-theme="cloud"] {
   --text-tertiary: #6f6f6f;
   --bg-tertiary: #e6e6e6;
-  --db-canvas: #f5f5f5;
+  --db-canvas: #ffffff;
   --db-surface: #ffffff;
-  --db-surface-2: #efefef;
-  --db-inset: #ededed;
-  --db-border: #dcdcdc;
-  --db-border-soft: #e8e8e8;
-  --db-shadow-sm: 0 1px 2px rgba(23, 23, 23, 0.05);
-  --db-shadow-md: 0 1px 2px rgba(23, 23, 23, 0.05), 0 4px 12px rgba(23, 23, 23, 0.06);
-  --db-shadow-lg: 0 8px 32px rgba(23, 23, 23, 0.15);
+  --db-surface-2: #f4f4f4;
+  --db-inset: #f0f0f0;
+  --db-border: #e2e2e2;
+  --db-border-soft: #ececec;
+  --db-shadow-sm: none;
+  --db-shadow-md: none;
+  --db-shadow-lg: none;
   --db-success: #166534;
   --db-success-bg: rgba(22, 101, 52, 0.09);
   --db-warning: #854d0e;
@@ -214,7 +216,7 @@
   background: var(--db-surface);
   color: var(--text-primary);
   font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--db-border), var(--db-shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--db-border);
 }
 
 .dashboard-layout .dashboard-nav-item svg {
@@ -345,7 +347,7 @@
   background: var(--db-surface);
   color: var(--text-secondary);
   font-weight: 500;
-  box-shadow: var(--db-shadow-sm);
+  box-shadow: none;
 }
 
 .dashboard-layout .dashboard-sync-btn:hover:not(:disabled) {
@@ -430,12 +432,11 @@
   font-weight: 500;
   line-height: 1.2;
   cursor: pointer;
-  box-shadow: var(--db-shadow-sm);
+  box-shadow: none;
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
-    color 0.15s ease,
-    box-shadow 0.15s ease;
+    color 0.15s ease;
 }
 
 .dashboard-layout .dashboard-action-btn:hover:not(:disabled),
@@ -460,13 +461,14 @@
   box-shadow: none;
 }
 
-/* Primary: accent fill */
+/* Primary: accent fill, pill like the reference CTAs */
 .dashboard-layout .dashboard-action-btn.primary,
 .dashboard-layout .dashboard-import-btn.primary,
 .dashboard-layout .dashboard-import-btn {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--bg-primary);
+  border-radius: var(--db-radius-full);
 }
 
 .dashboard-layout .dashboard-action-btn.primary:hover:not(:disabled),
@@ -626,14 +628,21 @@
   background: var(--db-surface);
   color: var(--text-primary);
   font-weight: 600;
-  box-shadow: var(--db-shadow-sm), inset 0 0 0 1px var(--db-border-soft);
+  box-shadow: inset 0 0 0 1px var(--db-border);
 }
 
 .dashboard-layout .dashboard-pagination-btn {
   min-height: 34px;
 }
 
-.dashboard-layout .dashboard-items-label {
+/* Icon only, so drop the label gap and the wider text padding */
+.dashboard-layout .dashboard-pagination-first {
+  padding-inline: 0.5rem;
+  gap: 0;
+}
+
+.dashboard-layout .dashboard-items-label,
+.dashboard-layout .dashboard-pagination-status {
   color: var(--text-tertiary);
 }
 
@@ -645,7 +654,7 @@
   background: var(--db-surface);
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-lg);
-  box-shadow: var(--db-shadow-sm);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -679,6 +688,14 @@
 .dashboard-layout .dashboard-newsletter-section .dashboard-list-table-header,
 .dashboard-layout .dashboard-newsletter-section .dashboard-list-row {
   grid-template-columns: minmax(0, 1.4fr) 110px 110px 130px 110px;
+}
+
+/* Pipeline keys: label, created, last used, auto-publish, actions. The default
+   four tracks left the fifth column with none, so Actions had no width of its
+   own. Last used prints a full date and time, so it gets the wide track. */
+.dashboard-layout .pipeline-keys-table .dashboard-list-table-header,
+.dashboard-layout .pipeline-keys-table .dashboard-list-row {
+  grid-template-columns: minmax(0, 1fr) 110px 170px 110px 130px;
 }
 
 .dashboard-layout .dashboard-list-row .post-title {
@@ -775,15 +792,34 @@
 .dashboard-layout .dashboard-sync-card,
 .dashboard-layout .dashboard-stat-card,
 .dashboard-layout .newsletter-stat-card,
-.dashboard-layout .dashboard-newsletter-stat-card {
+.dashboard-layout .dashboard-newsletter-stat-card,
+.dashboard-layout .drafts-list-pane,
+.dashboard-layout .drafts-detail-pane,
+.dashboard-layout .dashboard-docs-nav {
   background: var(--db-surface);
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-lg);
-  box-shadow: var(--db-shadow-sm);
+  box-shadow: none;
+}
+
+.dashboard-layout .dashboard-ai-tab.active,
+.dashboard-layout .ai-agent-tab.active,
+.dashboard-layout .newsletter-admin-mode-btn.active {
+  box-shadow: none;
+}
+
+.dashboard-layout .dashboard-config-card,
+.dashboard-layout .dashboard-sync-card {
+  padding: 1.5rem;
+}
+
+/* The Config save bar is a phone affordance; the header Save serves desktop */
+.dashboard-config-savebar {
+  display: none;
 }
 
 .dashboard-layout .dashboard-stat-card {
-  padding: 1.125rem 1.25rem;
+  padding: 1.25rem 1.375rem;
 }
 
 .dashboard-layout .dashboard-config-note,
@@ -836,6 +872,148 @@
   border-color: var(--text-tertiary);
 }
 
+/* Toolbar tier one: where you came from and which view you are in */
+.dashboard-layout .dashboard-editor-lead {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+/* Segmented view switch. One border around the pair, a hairline between,
+   so the two views read as one control instead of two loose buttons. */
+.dashboard-layout .dashboard-seg {
+  display: inline-flex;
+  flex: 0 0 auto;
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-sm);
+  background: var(--db-surface-2);
+  overflow: hidden;
+}
+
+.dashboard-layout .dashboard-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0.4375rem 0.75rem;
+  border: none;
+  border-left: 1px solid var(--db-border-soft);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--db-font);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.dashboard-layout .dashboard-seg-btn:first-child {
+  border-left: none;
+}
+
+.dashboard-layout .dashboard-seg-btn:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.dashboard-layout .dashboard-seg-btn.active {
+  background: var(--db-surface);
+  color: var(--text-primary);
+  box-shadow: inset 0 -2px 0 0 var(--accent);
+}
+
+/* Body card: the markdown body becomes one more named, collapsible card so
+   the editor reads as a single stack with the frontmatter groups. Collapsing
+   it is how you reach the frontmatter on a phone. */
+.dashboard-layout .dashboard-body-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius);
+  background: var(--db-surface);
+  overflow: hidden;
+}
+
+.dashboard-layout .dashboard-body-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 40px;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: var(--db-surface-2);
+  color: var(--text-primary);
+  font-family: var(--db-font);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-layout .dashboard-body-card.open .dashboard-body-head {
+  border-bottom-color: var(--db-border-soft);
+}
+
+.dashboard-layout .dashboard-body-caret {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  transform: rotate(-90deg);
+  transition: transform 0.15s ease;
+}
+
+.dashboard-layout .dashboard-body-card.open .dashboard-body-caret {
+  transform: rotate(0deg);
+}
+
+.dashboard-layout .dashboard-body-title {
+  flex: 0 0 auto;
+}
+
+/* Denominator: a collapsed body still reports how much is in there */
+.dashboard-layout .dashboard-body-meta {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dashboard-layout .dashboard-body-meta-sep {
+  opacity: 0.5;
+}
+
+.dashboard-layout .dashboard-body-inner {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* The card already draws the frame, so the panes inside drop theirs */
+.dashboard-layout .dashboard-body-inner > .dashboard-textarea,
+.dashboard-layout .dashboard-body-inner > .dashboard-write-textarea,
+.dashboard-layout .dashboard-body-inner > .dashboard-preview,
+.dashboard-layout .dashboard-body-inner > .dashboard-quill-container {
+  border: none;
+  border-radius: 0;
+  background: var(--db-surface);
+}
+
+/* Sticky save bar is mobile-only chrome; desktop keeps Save in the toolbar */
+.dashboard-layout .dashboard-editor-savebar {
+  display: none;
+}
+
 /* ─────────────────────────────────────────────
    9. Toasts and modals
    ───────────────────────────────────────────── */
@@ -844,7 +1022,7 @@
   background: var(--db-surface);
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius);
-  box-shadow: var(--db-shadow-lg);
+  box-shadow: none;
   color: var(--text-primary);
   font-family: var(--db-font);
 }
@@ -874,7 +1052,7 @@
   background: var(--db-surface);
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-lg);
-  box-shadow: var(--db-shadow-lg);
+  box-shadow: none;
   font-family: var(--db-font);
 }
 
@@ -953,16 +1131,16 @@
   font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
-  box-shadow: var(--db-shadow-sm);
+  box-shadow: none;
   transition:
     border-color 0.15s ease,
-    transform 0.1s ease,
-    box-shadow 0.15s ease;
+    background 0.15s ease,
+    transform 0.1s ease;
 }
 
 .db-quick-action:hover {
   border-color: var(--text-tertiary);
-  box-shadow: var(--db-shadow-md);
+  background: var(--db-surface-2);
 }
 
 .db-quick-action:active {
@@ -984,11 +1162,11 @@
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-  padding: 1rem 1.125rem 1.0625rem;
+  padding: 1.25rem 1.375rem;
   background: var(--db-surface);
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-lg);
-  box-shadow: var(--db-shadow-sm);
+  box-shadow: none;
   min-width: 0;
 }
 
@@ -1058,7 +1236,7 @@
   background: var(--db-surface);
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-lg);
-  box-shadow: var(--db-shadow-sm);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -1131,7 +1309,7 @@
   background: var(--db-surface);
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-lg);
-  box-shadow: var(--db-shadow-md);
+  box-shadow: none;
 }
 
 .dashboard-sign-in-button {
@@ -1206,7 +1384,7 @@
     border-right: 1px solid var(--db-border);
     border-bottom: none;
     background: var(--db-canvas);
-    box-shadow: var(--db-shadow-lg);
+    box-shadow: none;
     transform: translateX(-105%);
     transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
     padding-top: env(safe-area-inset-top, 0px);
@@ -1330,6 +1508,30 @@
     padding: 1rem 1rem calc(2rem + env(safe-area-inset-bottom, 0px));
   }
 
+  /* ── Touch size for the whole button system ──
+     Section 3 sizes these classes to 36px under .dashboard-layout, which
+     outranks the 44px touch rules in global.css because those are written
+     without the layout class. Restating the same list here is what makes a
+     phone-sized button the default, so a new dashboard section inherits it
+     instead of needing its own patch. */
+  .dashboard-layout .dashboard-action-btn,
+  .dashboard-layout .dashboard-back-btn,
+  .dashboard-layout .dashboard-view-toggle,
+  .dashboard-layout .dashboard-import-btn,
+  .dashboard-layout .dashboard-pagination-btn,
+  .dashboard-layout .dashboard-sync-card-btn,
+  .dashboard-layout .dashboard-link-button {
+    min-height: 44px;
+  }
+
+  /* global.css pins this one to 20px square, so min-height alone would leave a
+     44px tall, 20px wide sliver */
+  .dashboard-layout .copy-sync-server-btn {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+
   /* Titles wrap instead of truncating on cards */
   .dashboard-layout .dashboard-list-row .post-title,
   .dashboard-layout .dashboard-list-row .post-title-link,
@@ -1354,6 +1556,246 @@
     display: none;
   }
 
+  /* ── List rows on a phone ──
+     Row actions get their own line under the meta line, so a published
+     unlisted post can show three badges and three buttons without either
+     shape guessing where the other ends. These carry .dashboard-layout
+     because the desktop 32px action-btn rule does too. */
+  .dashboard-layout .dashboard-list-row .col-actions {
+    flex: 1 1 100%;
+    gap: 0.375rem;
+    margin-top: 0.375rem;
+  }
+
+  .dashboard-layout .dashboard-list-row .action-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .dashboard-layout .dashboard-list-row .post-title-link {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Filters own the scrolling strip; Show: moved out to the pagination row */
+  .dashboard-layout .dashboard-filter-tab {
+    min-height: 44px;
+  }
+
+  /* The pagination buttons come from the shared button rule above; the select
+     is its own class */
+  .dashboard-layout .dashboard-items-select {
+    min-height: 44px;
+  }
+
+  .dashboard-layout .dashboard-pagination-first {
+    flex: 0 0 44px;
+    min-width: 0;
+  }
+
+  /* ── Overview recent posts on a phone ──
+     Same card shape as the Posts list: the title leads on its own line, then
+     date, status, and Edit form a meta line with Edit on the trailing edge.
+     Without this the date is flex-shrink: 0 and the title gets whatever width
+     is left, which at 375px is almost nothing. */
+  .db-recent-row {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem 0.75rem;
+  }
+
+  .db-recent-main {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .db-recent-row .action-btn {
+    width: 44px;
+    height: 44px;
+    margin-left: auto;
+  }
+
+  .db-recent-viewall {
+    min-height: 44px;
+  }
+
+  /* ── Field plus button groups on a phone ──
+     API Keys, X, and Import URL all put a text field and its submit button in
+     one bordered pill. At 375px that leaves the field about 200px. The group
+     drops its own frame and stacks, and since .dashboard-import-input already
+     carries a border and focus ring under .dashboard-layout, the field keeps
+     looking like a field. */
+  .dashboard-layout .dashboard-import-input-group {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0;
+    border: none;
+    background: none;
+  }
+
+  .dashboard-layout .dashboard-import-input-group .dashboard-import-input {
+    min-height: 44px;
+    padding: 0 0.875rem;
+  }
+
+  .dashboard-layout .dashboard-import-input-group .dashboard-import-btn {
+    width: 100%;
+  }
+
+  /* ── API Keys on a phone ── */
+  .dashboard-layout .pipeline-checkbox-label {
+    min-height: 44px;
+    gap: 0.75rem;
+  }
+
+  .dashboard-layout .pipeline-checkbox-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  /* Vendor rows pack an icon, name, purpose, badge, and up to two buttons, so
+     the buttons take a line of their own rather than squeezing the name */
+  .dashboard-layout .pipeline-vendor-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+
+  /* ── X compose on a phone ──
+     The counter and Post to X shared one line, which left the button around
+     half the width for the section's primary action. */
+  .dashboard-layout .x-compose-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .dashboard-layout .x-compose-counter {
+    text-align: right;
+  }
+
+  .dashboard-layout .x-compose-footer .dashboard-import-btn {
+    width: 100%;
+  }
+
+  /* ── Docs on a phone ──
+     The topic strip already scrolls horizontally; the pills were 40px. */
+  .dashboard-layout .dashboard-docs-nav-item {
+    min-height: 44px;
+  }
+
+  /* ── Newsletter on a phone ──
+     The subscriber table reflows to wrapped rows via the shared list rule
+     above, but that rule gives the full line to .col-title and this table
+     leads with .col-email, so the email shared a line with status and date. */
+  .dashboard-layout .dashboard-newsletter-section .dashboard-list-row .col-email {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  /* These inputs were left off the 16px anti-zoom list in global.css, so
+     focusing the subscriber search zoomed the page on iOS */
+  .dashboard-layout .dashboard-newsletter-search-input,
+  .dashboard-layout .dashboard-newsletter-input,
+  .dashboard-layout .dashboard-newsletter-select,
+  .dashboard-layout .dashboard-newsletter-textarea {
+    font-size: 16px;
+  }
+
+  /* All subscribers / Select recipients reads as one full-width segmented pair */
+  .dashboard-layout .dashboard-newsletter-recipient-toggle {
+    display: flex;
+    width: 100%;
+  }
+
+  .dashboard-layout .dashboard-newsletter-recipient-toggle button {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .dashboard-layout .dashboard-newsletter-recipient-item {
+    min-height: 44px;
+    padding: 0.5rem 0.625rem;
+  }
+
+  .dashboard-layout .dashboard-newsletter-recipient-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .dashboard-layout .dashboard-newsletter-recipient-clear {
+    min-height: 44px;
+    padding: 0 0.5rem;
+  }
+
+  /* ── Sync on a phone ──
+     The status block is one space-between row. When the sync server is offline
+     it also carries a code snippet, a copy button, and "to enable execute
+     buttons", which cannot fit 343px on one line. */
+  .dashboard-layout .sync-server-status {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.625rem;
+  }
+
+  .dashboard-layout .status-help {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-layout .sync-terminal-clear {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+
+  /* 400px of terminal is most of a phone screen */
+  .dashboard-layout .sync-terminal-output {
+    max-height: 50vh;
+  }
+
+  /* ── Config on a phone ──
+     Save lives in the header, above 22 cards. Edit a toggle in the last card
+     and Save is a long scroll away, so it moves to a sticky bar the same way
+     the editor's does. Only one Save is on screen: the header one hides via
+     .dashboard-save-inline. */
+  .dashboard-layout .dashboard-config-savebar {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    margin: 0.75rem -1rem 0;
+    padding: 0.625rem 1rem calc(0.625rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--db-border);
+    background: var(--db-canvas);
+  }
+
+  .dashboard-layout .dashboard-config-savebar .dashboard-action-btn {
+    flex: 1;
+    min-height: 48px;
+  }
+
+  /* Config booleans become switch rows, matching the frontmatter form: label on
+     the leading edge, control on the trailing edge, whole row tappable. */
+  .dashboard-layout .config-field.checkbox > label {
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 44px;
+  }
+
+  .dashboard-layout .config-field.checkbox > label > input[type="checkbox"] {
+    order: 2;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .dashboard-layout .dashboard-config-reminder {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
   .db-quick-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1362,6 +1804,94 @@
   .db-quick-action {
     min-height: 44px;
     justify-content: flex-start;
+  }
+
+  /* ── Editor on a phone ──
+     Tier one wraps, tier two becomes one horizontal scroll row of pills
+     (same affordance as .dashboard-docs-nav), and Save moves to a sticky
+     bar so it is always one thumb away. */
+
+  /* Natural height so the sticky save bar has a page to stick to */
+  .dashboard-layout .dashboard-write-section:not(.focus-mode) {
+    height: auto;
+  }
+
+  .dashboard-layout .dashboard-editor-lead {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .dashboard-layout .dashboard-editor-lead .dashboard-back-btn {
+    flex: 1 1 100%;
+    min-height: 44px;
+  }
+
+  .dashboard-layout .dashboard-seg {
+    flex: 1 1 100%;
+  }
+
+  .dashboard-layout .dashboard-seg-btn {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .dashboard-layout .dashboard-editor-actions,
+  .dashboard-layout .dashboard-write-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Let the last pill peek past the edge so the row reads as scrollable */
+    padding-right: 1.25rem;
+    margin-right: -1rem;
+  }
+
+  .dashboard-layout .dashboard-editor-actions::-webkit-scrollbar,
+  .dashboard-layout .dashboard-write-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-layout .dashboard-editor-actions > *,
+  .dashboard-layout .dashboard-write-actions > * {
+    flex: 0 0 auto;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  /* One Save on screen: the sticky bar owns it */
+  .dashboard-layout .dashboard-save-inline {
+    display: none;
+  }
+
+  .dashboard-layout .dashboard-editor-savebar {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    gap: 0.5rem;
+    margin: 0.75rem -1rem 0;
+    padding: 0.625rem 1rem calc(0.625rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--db-border);
+    background: var(--db-canvas);
+  }
+
+  .dashboard-layout .dashboard-editor-savebar .dashboard-action-btn {
+    flex: 1;
+    min-height: 48px;
+  }
+
+  /* Body panes get a readable fixed measure and let the page scroll */
+  .dashboard-layout .dashboard-body-inner > .dashboard-textarea,
+  .dashboard-layout .dashboard-body-inner > .dashboard-write-textarea {
+    height: 60vh;
+    min-height: 320px;
+  }
+
+  .dashboard-layout .dashboard-body-inner > .dashboard-preview {
+    max-height: 70vh;
+    padding: 1rem;
   }
 }
 

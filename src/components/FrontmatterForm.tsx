@@ -1,11 +1,13 @@
 import { useRef, useState, type ReactNode } from "react";
-import { CaretDown, CaretRight, DotsSixVertical, UploadSimple, X } from "@phosphor-icons/react";
+import { CaretDown, DotsSixVertical, UploadSimple, X } from "@phosphor-icons/react";
 import { useDragSort } from "../hooks/useDragSort";
 
 // Frontmatter form for dashboard write and edit flows.
 // Styles live in src/styles/dashboard-forms.css (imported by Dashboard.tsx).
 
 export type FrontmatterKind = "post" | "page";
+
+export type FrontmatterImageField = "image" | "ogImage" | "authorImage";
 
 // Flat value object covering both posts and pages. The kind prop decides
 // which fields render and which get serialized to YAML.
@@ -330,24 +332,180 @@ function SortableFields({
   );
 }
 
-// Toggle switch styled via dashboard-forms.css
-function ToggleSwitch({
+// Full-width settings row: label and hint lead, switch trails, whole row taps.
+// Reads as a settings list instead of a checkbox pile on narrow screens.
+function SwitchRow({
   label,
+  hint,
   checked,
+  disabled,
   onChange,
 }: {
   label: string;
+  hint?: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="fmf-switch">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <label className={`fmf-switch-row ${disabled ? "disabled" : ""}`}>
+      <span className="fmf-switch-row-text">
+        <span className="fmf-switch-row-label">{label}</span>
+        {hint !== undefined && <span className="fmf-switch-row-hint">{hint}</span>}
+      </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
       <span className="fmf-switch-track" aria-hidden="true">
         <span className="fmf-switch-thumb" />
       </span>
-      <span className="fmf-switch-label">{label}</span>
     </label>
+  );
+}
+
+// One frontmatter field plus the metadata the group header summarizes.
+interface FieldBlock {
+  id: string;
+  // YAML key this block writes, listed in the collapsed group header
+  yamlKey: string;
+  // Whether the field carries a value, for the "filled of total" count
+  filled: boolean;
+  node: ReactNode;
+}
+
+// Group open state persists per kind so a writer's preferred sections stay
+// expanded across reloads, the same way the sidebar width does.
+function useGroupOpen(storageKey: string, defaultOpen: boolean) {
+  const [open, setOpen] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw === null ? defaultOpen : raw === "1";
+    } catch {
+      return defaultOpen;
+    }
+  });
+
+  const toggle = () => {
+    setOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(storageKey, next ? "1" : "0");
+      } catch {
+        // Persistence is best-effort; the toggle still works this session.
+      }
+      return next;
+    });
+  };
+
+  return [open, toggle] as const;
+}
+
+// Collapsible card holding one logical set of frontmatter fields. Collapsed
+// headers list the YAML keys inside so nothing is hidden without a trace.
+function FieldGroup({
+  title,
+  blocks,
+  defaultOpen,
+  stateKey,
+  orderKey,
+}: {
+  title: string;
+  blocks: FieldBlock[];
+  defaultOpen: boolean;
+  stateKey: string;
+  orderKey: string;
+}) {
+  const [open, toggle] = useGroupOpen(stateKey, defaultOpen);
+  const filled = blocks.filter((block) => block.filled).length;
+
+  return (
+    <section className={`fmf-group ${open ? "open" : ""}`}>
+      <button type="button" className="fmf-group-head" aria-expanded={open} onClick={toggle}>
+        <CaretDown size={13} weight="bold" className="fmf-group-caret" />
+        <span className="fmf-group-title">{title}</span>
+        <span className="fmf-group-count">
+          {filled}
+          <span className="fmf-group-count-total">/{blocks.length}</span>
+        </span>
+      </button>
+      {open ? (
+        <div className="fmf-group-body">
+          <SortableFields storageKey={orderKey} blocks={blocks} />
+        </div>
+      ) : (
+        <p className="fmf-group-keys">{blocks.map((block) => block.yamlKey).join("  ")}</p>
+      )}
+    </section>
+  );
+}
+
+// URL field with optional Upload and a Clear button when a value is set.
+function ImageUrlField({
+  id,
+  label,
+  value,
+  placeholder,
+  hint,
+  disabled,
+  onChange,
+  onRequestUpload,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  placeholder: string;
+  hint: string;
+  disabled?: boolean;
+  onChange: (next: string) => void;
+  onRequestUpload?: () => void;
+}) {
+  const hasValue = value.trim() !== "";
+  const showActions = onRequestUpload !== undefined || hasValue;
+
+  return (
+    <div className="fmf-field">
+      <label className="fmf-label" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type="text"
+        className="fmf-input"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+      />
+      {showActions && (
+        <div className="fmf-input-row">
+          {onRequestUpload && (
+            <button
+              type="button"
+              className="fmf-upload-button"
+              onClick={onRequestUpload}
+              disabled={disabled}>
+              <UploadSimple size={14} />
+              Upload
+            </button>
+          )}
+          {hasValue && (
+            <button
+              type="button"
+              className="fmf-clear-button"
+              onClick={() => onChange("")}
+              disabled={disabled}
+              aria-label={`Clear ${label}`}>
+              <X size={14} />
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+      <span className="fmf-hint">{hint}</span>
+    </div>
   );
 }
 
@@ -362,12 +520,11 @@ export function FrontmatterForm({
   value: FrontmatterValues;
   onChange: (next: FrontmatterValues) => void;
   hiddenFields?: ReadonlyArray<keyof FrontmatterValues>;
-  // When provided, renders Upload buttons next to image URL fields.
+  // When provided, renders Upload next to image URL fields.
   // The dashboard opens the image picker and patches the field with the URL.
-  onRequestImage?: (field: "image" | "ogImage") => void;
+  onRequestImage?: (field: FrontmatterImageField) => void;
 }) {
   const [tagDraft, setTagDraft] = useState("");
-  const [moreOpen, setMoreOpen] = useState(false);
   const [rawOpen, setRawOpen] = useState(false);
   // Auto-slugify from title only while the slug is empty or was generated here
   const autoSlugRef = useRef(value.slug === "");
@@ -423,12 +580,21 @@ export function FrontmatterForm({
     return Number.isFinite(parsed) ? parsed : undefined;
   };
 
-  // Field blocks for drag-and-drop ordering. Conditional blocks are filtered
-  // out before sorting; useDragSort tolerates ids missing from the saved order.
-  const mainBlocks: Array<{ id: string; node: ReactNode }> = [];
+  const filledText = (raw: string): boolean => raw.trim() !== "";
 
-  mainBlocks.push({
+  // Field blocks per group. Conditional blocks are filtered out before
+  // sorting; useDragSort tolerates ids missing from the saved order.
+  const essentials: FieldBlock[] = [];
+  const visibility: FieldBlock[] = [];
+  const taxonomy: FieldBlock[] = [];
+  const media: FieldBlock[] = [];
+  const author: FieldBlock[] = [];
+  const advanced: FieldBlock[] = [];
+
+  essentials.push({
     id: "title",
+    yamlKey: "title",
+    filled: filledText(value.title),
     node: (
       <div className="fmf-field">
         <label className="fmf-label" htmlFor={`fmf-title-${kind}`}>
@@ -446,8 +612,10 @@ export function FrontmatterForm({
     ),
   });
 
-  mainBlocks.push({
+  essentials.push({
     id: "slug",
+    yamlKey: "slug",
+    filled: filledText(value.slug) && !slugInvalid,
     node: (
       <div className="fmf-field">
         <label className="fmf-label" htmlFor={`fmf-slug-${kind}`}>
@@ -474,8 +642,10 @@ export function FrontmatterForm({
   });
 
   if (kind === "post") {
-    mainBlocks.push({
+    essentials.push({
       id: "description",
+      yamlKey: "description",
+      filled: filledText(value.description),
       node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor="fmf-description">
@@ -493,8 +663,10 @@ export function FrontmatterForm({
       ),
     });
 
-    mainBlocks.push({
+    essentials.push({
       id: "date",
+      yamlKey: "date",
+      filled: filledText(value.date),
       node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor="fmf-date">
@@ -512,34 +684,46 @@ export function FrontmatterForm({
     });
   }
 
-  mainBlocks.push({
-    id: "publish-toggles",
+  visibility.push({
+    id: "published",
+    yamlKey: "published",
+    filled: value.published,
     node: (
-      <div className="fmf-row">
-        <ToggleSwitch
-          label="Published"
-          checked={value.published}
-          onChange={(checked) => patch({ published: checked })}
-        />
-        {!isHidden("featured") && (
-          <ToggleSwitch
-            label="Featured"
-            checked={value.featured}
-            onChange={(checked) =>
-              patch({
-                featured: checked,
-                featuredOrder: checked ? value.featuredOrder : undefined,
-              })
-            }
-          />
-        )}
-      </div>
+      <SwitchRow
+        label="Published"
+        hint={value.published ? "Live on the site" : "Hidden from the site"}
+        checked={value.published}
+        onChange={(checked) => patch({ published: checked })}
+      />
     ),
   });
 
+  if (!isHidden("featured")) {
+    visibility.push({
+      id: "featured",
+      yamlKey: "featured",
+      filled: value.featured,
+      node: (
+        <SwitchRow
+          label="Featured"
+          hint="Pins this to the featured section"
+          checked={value.featured}
+          onChange={(checked) =>
+            patch({
+              featured: checked,
+              featuredOrder: checked ? value.featuredOrder : undefined,
+            })
+          }
+        />
+      ),
+    });
+  }
+
   if (value.featured && !isHidden("featuredOrder")) {
-    mainBlocks.push({
+    visibility.push({
       id: "featured-order",
+      yamlKey: "featuredOrder",
+      filled: value.featuredOrder !== undefined,
       node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor={`fmf-featured-order-${kind}`}>
@@ -560,8 +744,10 @@ export function FrontmatterForm({
   }
 
   if (kind === "post") {
-    mainBlocks.push({
+    taxonomy.push({
       id: "tags",
+      yamlKey: "tags",
+      filled: value.tags.length > 0,
       node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor="fmf-tag-input">
@@ -600,10 +786,10 @@ export function FrontmatterForm({
     });
   }
 
-  const moreBlocks: Array<{ id: string; node: ReactNode }> = [];
-
-  moreBlocks.push({
+  advanced.push({
     id: "excerpt",
+    yamlKey: "excerpt",
+    filled: filledText(value.excerpt),
     node: (
       <div className="fmf-field">
         <label className="fmf-label" htmlFor={`fmf-excerpt-${kind}`}>
@@ -621,109 +807,80 @@ export function FrontmatterForm({
     ),
   });
 
-  moreBlocks.push({
+  media.push({
     id: "image",
+    yamlKey: "image",
+    filled: filledText(value.image),
     node: (
-      <div className="fmf-field">
-        <label className="fmf-label" htmlFor={`fmf-image-${kind}`}>
-          Featured image URL
-        </label>
-        <div className="fmf-input-row">
-          <input
-            id={`fmf-image-${kind}`}
-            type="text"
-            className="fmf-input"
-            value={value.image}
-            onChange={(e) => patch({ image: e.target.value })}
-            placeholder="/images/my-image.png"
-          />
-          {onRequestImage && (
-            <button
-              type="button"
-              className="fmf-upload-button"
-              onClick={() => onRequestImage("image")}>
-              <UploadSimple size={14} />
-              Upload
-            </button>
-          )}
-        </div>
-        <span className="fmf-hint">Used for cards, headers, and as the default share image</span>
-      </div>
+      <ImageUrlField
+        id={`fmf-image-${kind}`}
+        label="Featured image URL"
+        value={value.image}
+        placeholder="/images/my-image.png"
+        hint="Used for cards, headers, and as the default share image"
+        onChange={(next) => patch({ image: next })}
+        onRequestUpload={onRequestImage ? () => onRequestImage("image") : undefined}
+      />
     ),
   });
 
   if (!isHidden("ogImage")) {
-    moreBlocks.push({
+    media.push({
       id: "og-image",
+      yamlKey: "ogImage",
+      filled: filledText(value.ogImage),
       node: (
-        <div className="fmf-field">
-          <label className="fmf-label" htmlFor={`fmf-og-image-${kind}`}>
-            Social share image (OG)
-          </label>
-          <div className="fmf-input-row">
-            <input
-              id={`fmf-og-image-${kind}`}
-              type="text"
-              className="fmf-input"
-              value={value.ogImage}
-              onChange={(e) => patch({ ogImage: e.target.value })}
-              placeholder="/images/og/my-share-image.png"
-              disabled={value.noOgImage}
-            />
-            {onRequestImage && (
-              <button
-                type="button"
-                className="fmf-upload-button"
-                onClick={() => onRequestImage("ogImage")}
-                disabled={value.noOgImage}>
-                <UploadSimple size={14} />
-                Upload
-              </button>
-            )}
-          </div>
-          <span className="fmf-hint">Overrides the featured image for social previews only</span>
-        </div>
+        <ImageUrlField
+          id={`fmf-og-image-${kind}`}
+          label="Social share image (OG)"
+          value={value.ogImage}
+          placeholder="/images/og/my-share-image.png"
+          hint="Overrides the featured image for social previews only"
+          disabled={value.noOgImage}
+          onChange={(next) => patch({ ogImage: next })}
+          onRequestUpload={onRequestImage ? () => onRequestImage("ogImage") : undefined}
+        />
       ),
     });
   }
 
   if (!isHidden("noOgImage")) {
-    moreBlocks.push({
+    media.push({
       id: "no-og-image",
+      yamlKey: "noOgImage",
+      filled: value.noOgImage,
       node: (
-        <div className="fmf-field">
-          <ToggleSwitch
-            label="No share image (text-only preview)"
-            checked={value.noOgImage}
-            onChange={(checked) => patch({ noOgImage: checked })}
-          />
-          <span className="fmf-hint">Social previews show only the title and description</span>
-        </div>
+        <SwitchRow
+          label="No share image"
+          hint="Social previews show only the title and description"
+          checked={value.noOgImage}
+          onChange={(checked) => patch({ noOgImage: checked })}
+        />
       ),
     });
   }
 
   if (kind === "post" && !isHidden("aiWritten")) {
-    moreBlocks.push({
+    advanced.push({
       id: "ai-written",
+      yamlKey: "aiWritten",
+      filled: value.aiWritten,
       node: (
-        <div className="fmf-field">
-          <ToggleSwitch
-            label="Written with AI"
-            checked={value.aiWritten}
-            onChange={(checked) => patch({ aiWritten: checked })}
-          />
-          <span className="fmf-hint">
-            Shows a note under the title. Overrides the Drafts Inbox default.
-          </span>
-        </div>
+        <SwitchRow
+          label="Written with AI"
+          hint="Shows a note under the title. Overrides the Drafts Inbox default."
+          checked={value.aiWritten}
+          onChange={(checked) => patch({ aiWritten: checked })}
+        />
       ),
     });
   }
 
   if (kind === "post" && !isHidden("readTime")) {
-    moreBlocks.push({
+    advanced.push({
       id: "read-time",
+      yamlKey: "readTime",
+      filled: filledText(value.readTime),
       node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor="fmf-read-time">
@@ -743,8 +900,10 @@ export function FrontmatterForm({
   }
 
   if (kind === "page" && !isHidden("order")) {
-    moreBlocks.push({
+    visibility.push({
       id: "nav-order",
+      yamlKey: "order",
+      filled: value.order !== undefined,
       node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor="fmf-order">
@@ -765,11 +924,14 @@ export function FrontmatterForm({
   }
 
   if (kind === "page" && !isHidden("showInNav")) {
-    moreBlocks.push({
+    visibility.push({
       id: "show-in-nav",
+      yamlKey: "showInNav",
+      filled: value.showInNav,
       node: (
-        <ToggleSwitch
+        <SwitchRow
           label="Show in nav"
+          hint="Lists this page in the site navigation"
           checked={value.showInNav}
           onChange={(checked) => patch({ showInNav: checked })}
         />
@@ -778,8 +940,10 @@ export function FrontmatterForm({
   }
 
   if (!isHidden("authorName")) {
-    moreBlocks.push({
+    author.push({
       id: "author-name",
+      yamlKey: "authorName",
+      filled: filledText(value.authorName),
       node: (
         <div className="fmf-field">
           <label className="fmf-label" htmlFor={`fmf-author-name-${kind}`}>
@@ -799,57 +963,62 @@ export function FrontmatterForm({
   }
 
   if (!isHidden("authorImage")) {
-    moreBlocks.push({
+    author.push({
       id: "author-image",
+      yamlKey: "authorImage",
+      filled: filledText(value.authorImage),
       node: (
-        <div className="fmf-field">
-          <label className="fmf-label" htmlFor={`fmf-author-image-${kind}`}>
-            Author image URL
-          </label>
-          <input
-            id={`fmf-author-image-${kind}`}
-            type="text"
-            className="fmf-input"
-            value={value.authorImage}
-            onChange={(e) => patch({ authorImage: e.target.value })}
-            placeholder="/images/authors/jane.png"
-          />
-        </div>
+        <ImageUrlField
+          id={`fmf-author-image-${kind}`}
+          label="Author image URL"
+          value={value.authorImage}
+          placeholder="/images/authors/jane.png"
+          hint="Round avatar next to the author name. Upload or paste a URL."
+          onChange={(next) => patch({ authorImage: next })}
+          onRequestUpload={onRequestImage ? () => onRequestImage("authorImage") : undefined}
+        />
       ),
     });
   }
 
+  // Groups render in importance order. Taxonomy opens on posts because tags
+  // drive the archive; Media, Author, and Advanced start closed so the
+  // required fields stay above the fold on a phone.
+  const groups: Array<{ id: string; title: string; blocks: FieldBlock[]; defaultOpen: boolean }> = [
+    { id: "essentials", title: "Essentials", blocks: essentials, defaultOpen: true },
+    { id: "visibility", title: "Visibility", blocks: visibility, defaultOpen: true },
+    { id: "taxonomy", title: "Taxonomy", blocks: taxonomy, defaultOpen: true },
+    { id: "media", title: "Media", blocks: media, defaultOpen: false },
+    { id: "author", title: "Author", blocks: author, defaultOpen: false },
+    { id: "advanced", title: "Advanced", blocks: advanced, defaultOpen: false },
+  ];
+
   return (
     <div className="fmf">
-      <SortableFields storageKey={`fmf-order:${kind}:main`} blocks={mainBlocks} />
+      {groups
+        .filter((group) => group.blocks.length > 0)
+        .map((group) => (
+          <FieldGroup
+            key={group.id}
+            title={group.title}
+            blocks={group.blocks}
+            defaultOpen={group.defaultOpen}
+            stateKey={`fmf-group:${kind}:${group.id}`}
+            orderKey={`fmf-order:${kind}:${group.id}`}
+          />
+        ))}
 
-      <div className="fmf-section">
+      <section className={`fmf-group ${rawOpen ? "open" : ""}`}>
         <button
           type="button"
-          className="fmf-section-toggle"
-          onClick={() => setMoreOpen((prev) => !prev)}
-          aria-expanded={moreOpen}>
-          {moreOpen ? <CaretDown size={14} /> : <CaretRight size={14} />}
-          <span>More options</span>
-        </button>
-        {moreOpen && (
-          <div className="fmf-section-body">
-            <SortableFields storageKey={`fmf-order:${kind}:more`} blocks={moreBlocks} />
-          </div>
-        )}
-      </div>
-
-      <div className="fmf-section">
-        <button
-          type="button"
-          className="fmf-section-toggle"
+          className="fmf-group-head"
           onClick={() => setRawOpen((prev) => !prev)}
           aria-expanded={rawOpen}>
-          {rawOpen ? <CaretDown size={14} /> : <CaretRight size={14} />}
-          <span>View raw frontmatter</span>
+          <CaretDown size={13} weight="bold" className="fmf-group-caret" />
+          <span className="fmf-group-title">Raw frontmatter</span>
         </button>
         {rawOpen && <pre className="fmf-raw">{serializeFrontmatter(kind, value)}</pre>}
-      </div>
+      </section>
     </div>
   );
 }

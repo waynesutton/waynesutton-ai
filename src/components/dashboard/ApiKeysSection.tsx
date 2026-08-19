@@ -327,7 +327,7 @@ export function ApiKeysSection({
               {editingVendor === entry.name ? (
                 <div className="pipeline-vendor-edit">
                   <input
-                    className="dashboard-import-input"
+                    className="dashboard-field-input"
                     type="password"
                     autoComplete="off"
                     placeholder={`Paste ${entry.name} value`}

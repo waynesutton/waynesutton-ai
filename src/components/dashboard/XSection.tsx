@@ -152,7 +152,7 @@ export function XSection({
         <div className="dashboard-import-form">
           <h3>Compose a post</h3>
           <textarea
-            className="dashboard-import-input x-compose-textarea"
+            className="dashboard-field-textarea x-compose-textarea"
             rows={4}
             placeholder="What's happening?"
             value={composeText}

@@ -110,6 +110,17 @@ export function DraftsInbox({
   const voiceProfile = useQuery(api.drafts.getVoiceProfile);
   const publishLog = useQuery(api.drafts.listPublishLog);
 
+  // Which action tiers the selected draft earns. Delete has its own gate, so a
+  // draft mid agent run can show the destructive tier with nothing above it.
+  const showMainActions =
+    !editing &&
+    (selected?.status === "inbox" || selected?.status === "approved");
+  const showDelete =
+    !editing &&
+    selected != null &&
+    selected.agentStatus !== "pending" &&
+    selected.agentStatus !== "running";
+
   const publishDraft = useMutation(api.drafts.publishDraft);
   const saveDraftAsPost = useMutation(api.drafts.saveDraftAsPost);
   const rejectDraft = useMutation(api.drafts.rejectDraft);
@@ -417,7 +428,7 @@ export function DraftsInbox({
       {showPasteBox && (
         <div className="drafts-panel">
           <input
-            className="dashboard-import-input"
+            className="dashboard-field-input"
             type="text"
             placeholder="Title (optional)"
             value={pasteTitle}
@@ -528,7 +539,7 @@ export function DraftsInbox({
         <div className="drafts-list-pane">
           <div className="drafts-list-controls">
             <input
-              className="dashboard-import-input drafts-filter-input"
+              className="dashboard-field-input drafts-filter-input"
               type="search"
               placeholder="Filter by title or source..."
               value={filter}
@@ -621,7 +632,7 @@ export function DraftsInbox({
               <div className="drafts-detail-header">
                 {editing ? (
                   <input
-                    className="dashboard-import-input"
+                    className="dashboard-field-input"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     placeholder="Title"
@@ -629,65 +640,63 @@ export function DraftsInbox({
                 ) : (
                   <h3>{selected.title ?? "Untitled"}</h3>
                 )}
+                {/* Three tiers: the one action you came for, the alternatives,
+                    then the ones you cannot undo. Tiers are display: contents
+                    above 768px so the desktop wrap is unchanged. */}
                 <div className="drafts-detail-actions">
-                  {(selected.status === "inbox" ||
-                    selected.status === "approved") &&
-                    !editing && (
-                      <>
-                        <button
-                          className="dashboard-action-btn primary"
-                          disabled={busy}
-                          onClick={() => void handlePublish(selected._id)}
-                        >
-                          <Check size={14} /> Publish
-                        </button>
-                        <button
-                          className="dashboard-action-btn"
-                          disabled={busy}
-                          title="Live at its slug but hidden from listings, search, RSS, the sitemap, and the VFS, and served noindex"
-                          onClick={() => void handlePublish(selected._id, true)}
-                        >
-                          <EyeSlash size={14} /> Publish unlisted
-                        </button>
-                        {selected.status === "inbox" && (
-                          <button
-                            className="dashboard-action-btn"
-                            disabled={busy}
-                            title="Create the post unpublished so you can finish it in the post editor"
-                            onClick={() => void handleSaveAsPost(selected._id)}
-                          >
-                            <FileArrowDown size={14} /> Save to draft
-                          </button>
-                        )}
-                        <button
-                          className="dashboard-action-btn"
-                          onClick={() => {
-                            setEditing(true);
-                            setEditTitle(selected.title ?? "");
-                            setEditBody(selected.postBody ?? selected.rawInput);
-                          }}
-                        >
-                          <PencilSimple size={14} /> Edit
-                        </button>
+                  {showMainActions && (
+                    <div className="drafts-action-tier drafts-action-tier-primary">
+                      <button
+                        className="dashboard-action-btn primary"
+                        disabled={busy}
+                        onClick={() => void handlePublish(selected._id)}
+                      >
+                        <Check size={14} /> Publish
+                      </button>
+                    </div>
+                  )}
+                  {showMainActions && (
+                    <div className="drafts-action-tier">
+                      <button
+                        className="dashboard-action-btn"
+                        disabled={busy}
+                        title="Live at its slug but hidden from listings, search, RSS, the sitemap, and the VFS, and served noindex"
+                        onClick={() => void handlePublish(selected._id, true)}
+                      >
+                        <EyeSlash size={14} /> Publish unlisted
+                      </button>
+                      {selected.status === "inbox" && (
                         <button
                           className="dashboard-action-btn"
                           disabled={busy}
-                          title="Open a GitHub review PR (requires GITHUB_TOKEN and GITHUB_REVIEW_REPO)"
-                          onClick={() => void handleOpenPr(selected._id)}
+                          title="Create the post unpublished so you can finish it in the post editor"
+                          onClick={() => void handleSaveAsPost(selected._id)}
                         >
-                          <GitPullRequest size={14} /> Review PR
+                          <FileArrowDown size={14} /> Save to draft
                         </button>
-                        <button
-                          className="dashboard-action-btn"
-                          disabled={busy}
-                          onClick={() => void handleReject(selected._id)}
-                        >
-                          <X size={14} /> Reject
-                        </button>
-                      </>
-                    )}
+                      )}
+                      <button
+                        className="dashboard-action-btn"
+                        onClick={() => {
+                          setEditing(true);
+                          setEditTitle(selected.title ?? "");
+                          setEditBody(selected.postBody ?? selected.rawInput);
+                        }}
+                      >
+                        <PencilSimple size={14} /> Edit
+                      </button>
+                      <button
+                        className="dashboard-action-btn"
+                        disabled={busy}
+                        title="Open a GitHub review PR (requires GITHUB_TOKEN and GITHUB_REVIEW_REPO)"
+                        onClick={() => void handleOpenPr(selected._id)}
+                      >
+                        <GitPullRequest size={14} /> Review PR
+                      </button>
+                    </div>
+                  )}
                   {editing && (
-                    <>
+                    <div className="drafts-action-tier drafts-action-tier-primary">
                       <button
                         className="dashboard-action-btn primary"
                         disabled={busy}
@@ -701,37 +710,48 @@ export function DraftsInbox({
                       >
                         Cancel
                       </button>
-                    </>
+                    </div>
                   )}
-                  {!editing &&
-                    selected.agentStatus !== "pending" &&
-                    selected.agentStatus !== "running" &&
-                    (confirmDelete === selected._id ? (
-                      <>
+                  {(showMainActions || showDelete) && (
+                    <div className="drafts-action-tier drafts-action-tier-danger">
+                      {showMainActions && (
                         <button
                           className="dashboard-action-btn"
                           disabled={busy}
-                          onClick={() => void handleDelete(selected._id)}
+                          onClick={() => void handleReject(selected._id)}
                         >
-                          Confirm delete
+                          <X size={14} /> Reject
                         </button>
-                        <button
-                          className="dashboard-action-btn"
-                          onClick={() => setConfirmDelete(null)}
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        className="dashboard-action-btn"
-                        disabled={busy}
-                        title="Delete draft"
-                        onClick={() => setConfirmDelete(selected._id)}
-                      >
-                        <Trash size={14} /> Delete
-                      </button>
-                    ))}
+                      )}
+                      {showDelete &&
+                        (confirmDelete === selected._id ? (
+                          <>
+                            <button
+                              className="dashboard-action-btn"
+                              disabled={busy}
+                              onClick={() => void handleDelete(selected._id)}
+                            >
+                              Confirm delete
+                            </button>
+                            <button
+                              className="dashboard-action-btn"
+                              onClick={() => setConfirmDelete(null)}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="dashboard-action-btn"
+                            disabled={busy}
+                            title="Delete draft"
+                            onClick={() => setConfirmDelete(selected._id)}
+                          >
+                            <Trash size={14} /> Delete
+                          </button>
+                        ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -783,7 +803,7 @@ export function DraftsInbox({
               {selected.status === "inbox" && !editing && (
                 <div className="drafts-rewrite-row">
                   <input
-                    className="dashboard-import-input"
+                    className="dashboard-field-input"
                     type="text"
                     placeholder="Notes for the voice agent (optional)"
                     value={rewriteNotes}

@@ -4,6 +4,55 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### Drafts Inbox input styling (2026-08-18)
+
+- **New file** `prds/drafts-inbox-input-styling.md`: PRD for the Drafts Inbox filter and voice agent notes boxes not matching the site fields. Documents the root cause (`.dashboard-import-input` is the bare input inside `.dashboard-import-input-group`, which owns the padding and height, but `dashboard.css` gave the bare class a frame so six places used it standalone and got a border with no padding), the six standalone usages, and the nested-frame side effect left out of scope.
+- **Modified** `src/components/dashboard/DraftsInbox.tsx`: filter, voice agent notes, paste box title, and the detail header title while editing now use `dashboard-field-input`.
+- **Modified** `src/components/dashboard/ApiKeysSection.tsx`: vendor key paste field uses `dashboard-field-input`.
+- **Modified** `src/components/dashboard/XSection.tsx`: compose box uses `dashboard-field-textarea` alongside `x-compose-textarea`.
+- **Modified** `src/styles/global.css`: `.drafts-rewrite-row` child selector renamed to `.dashboard-field-input`.
+- **Modified** `src/styles/dashboard-forms.css`: `.pipeline-vendor-edit` child selectors renamed to `.dashboard-field-input`, including the 700px block.
+
+### Clear on optional frontmatter fields not persisting (2026-08-18)
+
+- **New file** `prds/clear-image-fields-not-persisting.md`: PRD for the Clear buttons on the featured image and social share image doing nothing on Save. Documents the root cause (the Convex client drops `undefined` values from nested mutation arguments, so `ctx.db.patch` never learned the field was emptied), why the raw frontmatter kept the stale `image:` and `ogImage:` lines, and why the clearable list is capped to what `posts.listAll` and `pages.listAll` return.
+- **Modified** `convex/cms.ts`: `clearablePostField` and `clearablePageField` literal unions, a `buildClearPatch` helper, and an optional `clearFields` array on `updatePost` and `updatePage` that patches the named fields to `undefined` so Convex removes them.
+- **Modified** `convex/demo.ts`: `clearableDemoField` union and the same `clearFields` argument on `updateDemoPost` and `updateDemoPage` for the anonymous demo editor.
+- **Modified** `src/pages/Dashboard.tsx`: `CLEARABLE_POST_FIELDS`, `CLEARABLE_PAGE_FIELDS`, and their demo counterparts, plus a `clearedFields` helper that `doSavePost` and `doSavePage` use to name the emptied fields on each save.
+
+### Dashboard sections mobile UI, phase 3 (2026-08-18)
+
+- **New file** `prds/dashboard-sections-mobile-ui.md`: PRD for the seven remaining dashboard sections on phones (Overview, Config, Sync, Newsletter, API Keys, Docs, X). Documents the 36px button system that outranks the 44px touch rules, which is what phases 1 and 2 kept patching around, and lists the two shared problems left out of scope because they live in the public post styles.
+- **Modified** `src/pages/Dashboard.tsx`: Config header Save picks up `dashboard-save-inline` so it hides on phones, and a new `.dashboard-config-savebar` at the end of the section carries the same `handleSaveConfig` and `saving` state.
+- **Modified** `src/styles/dashboard.css`: one 44px rule for the whole button system inside the 768px block, replacing the drafts, pagination, and back-button patches; a 44px square for `copy-sync-server-btn`, which is pinned to 20px; five grid tracks for `.pipeline-keys-table`; and phone rules for Overview recent rows, the Config save bar and switch rows, the Sync status block and terminal, the Newsletter `.col-email` line, anti-zoom input sizes and recipient picker, the shared `.dashboard-import-input-group` stacking used by API Keys, X, and Import URL, the X compose footer, and the Docs nav pills.
+
+### Dashboard lists mobile UI, phase 2 (2026-08-18)
+
+- **New file** `prds/dashboard-lists-mobile-ui.md`: PRD for the Posts and Pages lists and the Drafts Inbox on phones, including the specificity trap that kept the existing 700px touch rules from ever reaching the dashboard.
+- **Modified** `src/pages/Dashboard.tsx`: `PostsListView` and `PagesListView` move items-per-page out of the filter tabs into a new `.dashboard-pagination-nav` row, gain `Previous` plus a `Page N of M` indicator, and take an `isLoading` prop so a pending query reads as loading instead of empty.
+- **Modified** `src/components/dashboard/DraftsInbox.tsx`: detail actions grouped into `.drafts-action-tier` wrappers (primary, secondary, destructive) driven by new `showMainActions` and `showDelete` guards.
+- **Modified** `src/styles/global.css`: pagination row and status styles, `.drafts-action-tier` as `display: contents` on desktop and real rows on phones, row actions on their own line at 44px, filter tabs and drafts buttons to 44px.
+- **Modified** `src/styles/dashboard.css`: the same phone rules re-stated under `.dashboard-layout`, where they outrank the desktop 32px and 34px overrides, plus icon-only sizing for the First page button.
+
+### Editor mobile card UI, phase 1 (2026-08-18)
+
+- **New file** `prds/editor-mobile-card-ui.md`: PRD for the collapsible Content card, grouped frontmatter, tiered editor toolbar, and the 375px overlap fix.
+- **Modified** `src/components/FrontmatterForm.tsx`: fields split into six `FieldGroup` cards plus Raw frontmatter, each with a filled/total count and a collapsed YAML key list; `useGroupOpen` persists open state per content kind; booleans moved to a new full-width `SwitchRow`; drag sort now runs per group.
+- **Modified** `src/pages/Dashboard.tsx`: new `usePersistedOpen` hook and `BodyCard` component wrap the markdown body in both `EditorView` and `WriteSection`; toolbar split into a lead row (Back plus segmented Markdown/Preview) and a scrollable utility row; mobile sticky Save bar; Write frontmatter header is now a full-width toggle button.
+- **Modified** `src/styles/dashboard.css`: `.dashboard-seg`, `.dashboard-body-card`, and `.dashboard-editor-savebar` styles, plus the mobile block that makes utility actions scroll and the Save bar stick.
+- **Modified** `src/styles/dashboard-forms.css`: `.fmf-group*` card styles, `.fmf-switch-row*` settings rows, 44px touch targets on phones, and natural-height panel rules.
+- **Modified** `src/styles/global.css`: removed the unused `.dashboard-editor-mode-toggles` block; sidebar header restyled as a toggle; mobile editor and write rules drop the fixed heights that clipped content.
+
+### Dashboard boxes and image clear (2026-08-18)
+
+- **New file** `.interface-design/system.md`: Saved dashboard patterns (borders-only depth, tokens, radius, image URL tray, card and button rules) for later sessions.
+- **New file** `prds/dashboard-boxes-and-image-clear.md`: PRD for Clear/Upload on image fields and borders-only dashboard cards.
+- **Modified** `src/components/FrontmatterForm.tsx`: shared ImageUrlField for featured, social share, and author image with Upload and Clear.
+- **Modified** `src/pages/Dashboard.tsx`: image picker accepts `authorImage`.
+- **Modified** `src/styles/dashboard.css`: shadow tokens set to none; cards, tables, stats, drafts panes, and auth use hairline borders and extra padding; primary buttons are pills.
+- **Modified** `src/styles/dashboard-forms.css`: Clear button styles; docs nav no longer uses a drop shadow.
+- **Modified** `src/components/dashboard/docsTopics.ts`: Writing and publishing notes the new Upload and Clear controls.
+
 ### AI writing banner (2026-08-18)
 
 - **New file** `prds/ai-written-banner.md`: PRD for the Written with AI inbox default and per-post `aiWritten` frontmatter note.

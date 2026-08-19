@@ -51,6 +51,7 @@ import {
   PaperPlaneTilt,
   Users,
   Funnel,
+  CaretDoubleLeft,
   CaretLeft,
   CaretRight,
   ClockCounterClockwise,
@@ -94,10 +95,18 @@ import {
   serializeFrontmatter,
   SLUG_PATTERN,
 } from "../components/FrontmatterForm";
-import type { FrontmatterValues } from "../components/FrontmatterForm";
+import type { FrontmatterImageField, FrontmatterValues } from "../components/FrontmatterForm";
 
 // Default slug values that should trigger a warning
 const DEFAULT_SLUGS = ["your-post-url", "page-url"];
+
+// Rows per page choices for the Posts and Pages lists. The first entry is the
+// default, and it also decides when the pagination row appears: a list shorter
+// than the smallest page size has nothing to page through and nothing to
+// configure. Anything longer keeps the row so a list set to 100 per page can be
+// set back down again.
+const PAGE_SIZE_OPTIONS = [15, 25, 50, 100] as const;
+const MIN_PAGE_SIZE = PAGE_SIZE_OPTIONS[0];
 
 // Toast notification types
 type ToastType = "success" | "error" | "info" | "warning";
@@ -799,6 +808,43 @@ function applyFrontmatterToItem(
   }
 
   return next;
+}
+
+// Convex drops undefined values inside nested mutation arguments, so a field the
+// editor emptied has to be named for the mutation to delete it. Only fields that
+// posts.listAll and pages.listAll return are listed, so a save never wipes a
+// field the editor never loaded.
+const CLEARABLE_POST_FIELDS = [
+  "image",
+  "ogImage",
+  "noOgImage",
+  "excerpt",
+  "readTime",
+  "featuredOrder",
+  "authorName",
+  "authorImage",
+] as const;
+
+const CLEARABLE_PAGE_FIELDS = [
+  "image",
+  "ogImage",
+  "noOgImage",
+  "excerpt",
+  "order",
+  "featuredOrder",
+  "authorName",
+  "authorImage",
+] as const;
+
+// Demo mutations accept a smaller field set
+const CLEARABLE_DEMO_POST_FIELDS = ["image", "excerpt", "readTime", "authorName"] as const;
+const CLEARABLE_DEMO_PAGE_FIELDS = ["image", "excerpt", "authorName"] as const;
+
+function clearedFields<Field extends keyof ContentItem>(
+  item: ContentItem,
+  fields: readonly Field[]
+): Array<Field> {
+  return fields.filter((field) => item[field] === undefined);
 }
 
 // Loading state component for auth
@@ -1512,6 +1558,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               readTime: item.readTime,
               authorName: item.authorName,
             },
+            clearFields: clearedFields(item, CLEARABLE_DEMO_POST_FIELDS),
           });
         } else {
           await updatePostMutation({
@@ -1551,6 +1598,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               docsSectionGroupIcon: item.docsSectionGroupIcon,
               docsLanding: item.docsLanding,
             },
+            clearFields: clearedFields(item, CLEARABLE_POST_FIELDS),
           });
         }
         addToast("Post saved successfully", "success");
@@ -1576,6 +1624,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               image: item.image,
               authorName: item.authorName,
             },
+            clearFields: clearedFields(item, CLEARABLE_DEMO_PAGE_FIELDS),
           });
         } else {
           await updatePageMutation({
@@ -1612,6 +1661,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               docsSectionGroupIcon: item.docsSectionGroupIcon,
               docsLanding: item.docsLanding,
             },
+            clearFields: clearedFields(item, CLEARABLE_PAGE_FIELDS),
           });
         }
         addToast("Page saved successfully", "success");
@@ -2176,6 +2226,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               searchQuery={searchQuery}
               onDelete={handleDeletePost}
               isDemo={isDemo}
+              isLoading={posts === undefined}
             />
           )}
 
@@ -2187,6 +2238,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               searchQuery={searchQuery}
               onDelete={handleDeletePage}
               isDemo={isDemo}
+              isLoading={pages === undefined}
             />
           )}
 
@@ -2492,15 +2544,17 @@ function PostsListView({
   searchQuery,
   onDelete,
   isDemo = false,
+  isLoading = false,
 }: {
   posts: ContentItem[];
   onEdit: (post: ContentItem) => void;
   searchQuery: string;
   onDelete: (item: ContentItem) => void;
   isDemo?: boolean;
+  isLoading?: boolean;
 }) {
   const [filter, setFilter] = useState<"all" | "published" | "draft" | "unlisted">("all");
-  const [itemsPerPage, setItemsPerPage] = useState(15);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(MIN_PAGE_SIZE);
   const [currentPage, setCurrentPage] = useState(0);
 
   // Track which row's live URL was just copied for button feedback
@@ -2540,9 +2594,12 @@ function PostsListView({
 
   const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
   const hasNextPage = currentPage < totalPages - 1;
+  const hasPrevPage = currentPage > 0;
 
-  const handleFirstPage = () => {
-    setCurrentPage(0);
+  const handlePrevPage = () => {
+    if (hasPrevPage) {
+      setCurrentPage((prev) => prev - 1);
+    }
   };
 
   const handleNextPage = () => {
@@ -2580,24 +2637,6 @@ function PostsListView({
             onClick={() => handleFilterChange("unlisted")}>
             Unlisted ({posts.filter((p) => p.unlisted).length})
           </button>
-          <div className="dashboard-items-per-page">
-            <label htmlFor="posts-per-page" className="dashboard-items-label">
-              Show:
-            </label>
-            <select
-              id="posts-per-page"
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(0);
-              }}
-              className="dashboard-items-select">
-              <option value={15}>15</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -2609,7 +2648,9 @@ function PostsListView({
           <span className="col-actions">Actions</span>
         </div>
 
-        {filteredPosts.length === 0 ? (
+        {isLoading ? (
+          <div className="dashboard-list-empty">Loading posts...</div>
+        ) : filteredPosts.length === 0 ? (
           <div className="dashboard-list-empty">
             {searchQuery ? "No posts match your search" : "No posts found"}
           </div>
@@ -2694,23 +2735,56 @@ function PostsListView({
         )}
       </div>
 
-      {/* Pagination */}
-      {filteredPosts.length > itemsPerPage && (
+      {/* Pagination, with items-per-page alongside it since both control what the page holds */}
+      {filteredPosts.length > MIN_PAGE_SIZE && (
         <div className="dashboard-pagination">
-          <button
-            onClick={handleFirstPage}
-            disabled={currentPage === 0}
-            className="dashboard-pagination-btn">
-            <CaretLeft size={16} />
-            First
-          </button>
-          <button
-            onClick={handleNextPage}
-            disabled={!hasNextPage}
-            className="dashboard-pagination-btn">
-            Next
-            <CaretRight size={16} />
-          </button>
+          {totalPages > 1 && (
+            <div className="dashboard-pagination-nav">
+              <button
+                onClick={() => setCurrentPage(0)}
+                disabled={!hasPrevPage}
+                className="dashboard-pagination-btn dashboard-pagination-first"
+                title="First page">
+                <CaretDoubleLeft size={16} />
+              </button>
+              <button
+                onClick={handlePrevPage}
+                disabled={!hasPrevPage}
+                className="dashboard-pagination-btn">
+                <CaretLeft size={16} />
+                Previous
+              </button>
+              <span className="dashboard-pagination-status">
+                Page {currentPage + 1} of {totalPages}
+              </span>
+              <button
+                onClick={handleNextPage}
+                disabled={!hasNextPage}
+                className="dashboard-pagination-btn">
+                Next
+                <CaretRight size={16} />
+              </button>
+            </div>
+          )}
+          <div className="dashboard-items-per-page">
+            <label htmlFor="posts-per-page" className="dashboard-items-label">
+              Show:
+            </label>
+            <select
+              id="posts-per-page"
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(0);
+              }}
+              className="dashboard-items-select">
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
     </div>
@@ -2724,15 +2798,17 @@ function PagesListView({
   searchQuery,
   onDelete,
   isDemo = false,
+  isLoading = false,
 }: {
   pages: ContentItem[];
   onEdit: (page: ContentItem) => void;
   searchQuery: string;
   onDelete: (item: ContentItem) => void;
   isDemo?: boolean;
+  isLoading?: boolean;
 }) {
   const [filter, setFilter] = useState<"all" | "published" | "draft" | "unlisted">("all");
-  const [itemsPerPage, setItemsPerPage] = useState(15);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(MIN_PAGE_SIZE);
   const [currentPage, setCurrentPage] = useState(0);
 
   // Track which row's live URL was just copied for button feedback
@@ -2771,9 +2847,12 @@ function PagesListView({
 
   const totalPages = Math.ceil(filteredPages.length / itemsPerPage);
   const hasNextPage = currentPage < totalPages - 1;
+  const hasPrevPage = currentPage > 0;
 
-  const handleFirstPage = () => {
-    setCurrentPage(0);
+  const handlePrevPage = () => {
+    if (hasPrevPage) {
+      setCurrentPage((prev) => prev - 1);
+    }
   };
 
   const handleNextPage = () => {
@@ -2811,24 +2890,6 @@ function PagesListView({
             onClick={() => handleFilterChange("unlisted")}>
             Unlisted ({pages.filter((p) => p.unlisted).length})
           </button>
-          <div className="dashboard-items-per-page">
-            <label htmlFor="pages-per-page" className="dashboard-items-label">
-              Show:
-            </label>
-            <select
-              id="pages-per-page"
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(0);
-              }}
-              className="dashboard-items-select">
-              <option value={15}>15</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -2840,7 +2901,9 @@ function PagesListView({
           <span className="col-actions">Actions</span>
         </div>
 
-        {filteredPages.length === 0 ? (
+        {isLoading ? (
+          <div className="dashboard-list-empty">Loading pages...</div>
+        ) : filteredPages.length === 0 ? (
           <div className="dashboard-list-empty">
             {searchQuery ? "No pages match your search" : "No pages found"}
           </div>
@@ -2920,26 +2983,120 @@ function PagesListView({
         )}
       </div>
 
-      {/* Pagination */}
-      {filteredPages.length > itemsPerPage && (
+      {/* Pagination, with items-per-page alongside it since both control what the page holds */}
+      {filteredPages.length > MIN_PAGE_SIZE && (
         <div className="dashboard-pagination">
-          <button
-            onClick={handleFirstPage}
-            disabled={currentPage === 0}
-            className="dashboard-pagination-btn">
-            <CaretLeft size={16} />
-            First
-          </button>
-          <button
-            onClick={handleNextPage}
-            disabled={!hasNextPage}
-            className="dashboard-pagination-btn">
-            Next
-            <CaretRight size={16} />
-          </button>
+          {totalPages > 1 && (
+            <div className="dashboard-pagination-nav">
+              <button
+                onClick={() => setCurrentPage(0)}
+                disabled={!hasPrevPage}
+                className="dashboard-pagination-btn dashboard-pagination-first"
+                title="First page">
+                <CaretDoubleLeft size={16} />
+              </button>
+              <button
+                onClick={handlePrevPage}
+                disabled={!hasPrevPage}
+                className="dashboard-pagination-btn">
+                <CaretLeft size={16} />
+                Previous
+              </button>
+              <span className="dashboard-pagination-status">
+                Page {currentPage + 1} of {totalPages}
+              </span>
+              <button
+                onClick={handleNextPage}
+                disabled={!hasNextPage}
+                className="dashboard-pagination-btn">
+                Next
+                <CaretRight size={16} />
+              </button>
+            </div>
+          )}
+          <div className="dashboard-items-per-page">
+            <label htmlFor="pages-per-page" className="dashboard-items-label">
+              Show:
+            </label>
+            <select
+              id="pages-per-page"
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(0);
+              }}
+              className="dashboard-items-select">
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
     </div>
+  );
+}
+
+// Collapse state that survives a reload, the same way the sidebar width does.
+function usePersistedOpen(storageKey: string, defaultOpen: boolean) {
+  const [open, setOpen] = useState<boolean>(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw === null ? defaultOpen : raw === "1";
+    } catch {
+      return defaultOpen;
+    }
+  });
+
+  const toggle = useCallback(() => {
+    setOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(storageKey, next ? "1" : "0");
+      } catch {
+        // Persistence is best-effort; the toggle still works this session.
+      }
+      return next;
+    });
+  }, [storageKey]);
+
+  return [open, toggle] as const;
+}
+
+// Collapsible card wrapping the markdown body. The header keeps a word and
+// line denominator visible so a collapsed body still reports its size.
+function BodyCard({
+  open,
+  onToggle,
+  content,
+  showMeta = true,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  content: string;
+  // Write flow already reports stats in its footer, so it hides the header meta
+  showMeta?: boolean;
+  children: React.ReactNode;
+}) {
+  const words = content.trim() === "" ? 0 : content.trim().split(/\s+/).length;
+  const lines = content === "" ? 0 : content.split("\n").length;
+
+  return (
+    <section className={`dashboard-body-card ${open ? "open" : ""}`}>
+      <button type="button" className="dashboard-body-head" aria-expanded={open} onClick={onToggle}>
+        <CaretDown size={13} weight="bold" className="dashboard-body-caret" />
+        <span className="dashboard-body-title">Content</span>
+        {showMeta && (
+          <span className="dashboard-body-meta">
+            {words} words <span className="dashboard-body-meta-sep">·</span> {lines} lines
+          </span>
+        )}
+      </button>
+      {open && <div className="dashboard-body-inner">{children}</div>}
+    </section>
   );
 }
 
@@ -2969,7 +3126,7 @@ function EditorView({
   const [isSaving, setIsSaving] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   // Which frontmatter image field the upload modal fills (null when closed)
-  const [fmImageField, setFmImageField] = useState<"image" | "ogImage" | null>(null);
+  const [fmImageField, setFmImageField] = useState<FrontmatterImageField | null>(null);
   const versionControlEnabled = useQuery(api.versions.isEnabled);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem("dashboard-sidebar-width");
@@ -2977,6 +3134,7 @@ function EditorView({
   });
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const [bodyOpen, toggleBody] = usePersistedOpen("dashboard-editor-body-open", true);
 
   const handleCopy = async () => {
     await onCopy();
@@ -3041,22 +3199,30 @@ function EditorView({
 
   return (
     <div className="dashboard-editor">
+      {/* Two tiers: navigation plus the view switch lead, utilities trail.
+          Save lives here on desktop and in the sticky bar on mobile. */}
       <div className="dashboard-editor-toolbar">
-        <button className="dashboard-back-btn" onClick={onBack}>
-          <ArrowLeft size={16} />
-          <span>Back to {type === "post" ? "Posts" : "Pages"}</span>
-        </button>
+        <div className="dashboard-editor-lead">
+          <button className="dashboard-back-btn" onClick={onBack}>
+            <ArrowLeft size={16} />
+            <span>Back to {type === "post" ? "Posts" : "Pages"}</span>
+          </button>
+          <div className="dashboard-seg" role="group" aria-label="Editor view">
+            <button
+              className={`dashboard-seg-btn ${!showPreview ? "active" : ""}`}
+              aria-pressed={!showPreview}
+              onClick={() => setShowPreview(false)}>
+              Markdown
+            </button>
+            <button
+              className={`dashboard-seg-btn ${showPreview ? "active" : ""}`}
+              aria-pressed={showPreview}
+              onClick={() => setShowPreview(true)}>
+              Preview
+            </button>
+          </div>
+        </div>
         <div className="dashboard-editor-actions">
-          <button
-            className={`dashboard-view-toggle ${!showPreview ? "active" : ""}`}
-            onClick={() => setShowPreview(false)}>
-            Markdown
-          </button>
-          <button
-            className={`dashboard-view-toggle ${showPreview ? "active" : ""}`}
-            onClick={() => setShowPreview(true)}>
-            Preview
-          </button>
           <button className="dashboard-action-btn" onClick={handleCopy} title="Copy Markdown">
             {copied ? <Check size={16} /> : <Copy size={16} />}
             <span>{copied ? "Copied" : "Copy"}</span>
@@ -3090,7 +3256,7 @@ function EditorView({
             <span>Download .md</span>
           </button>
           <button
-            className="dashboard-action-btn success"
+            className="dashboard-action-btn success dashboard-save-inline"
             onClick={handleSave}
             disabled={isSaving}
             title="Save to Database">
@@ -3106,33 +3272,35 @@ function EditorView({
 
       <div className="dashboard-editor-container">
         <div className="dashboard-editor-content">
-          {showPreview ? (
-            <div className="dashboard-preview">
-              <div className="dashboard-preview-content">
-                <h1 className="blog-h1">{item.title}</h1>
-                {item.description && <p className="lead">{item.description}</p>}
-                {item.aiWritten && (
-                  <p className="post-ai-note" role="note">
-                    This post was written with AI and proofed by a human.
-                  </p>
-                )}
-                <div className="blog-post-content">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}>
-                    {item.content}
-                  </ReactMarkdown>
+          <BodyCard open={bodyOpen} onToggle={toggleBody} content={item.content}>
+            {showPreview ? (
+              <div className="dashboard-preview">
+                <div className="dashboard-preview-content">
+                  <h1 className="blog-h1">{item.title}</h1>
+                  {item.description && <p className="lead">{item.description}</p>}
+                  {item.aiWritten && (
+                    <p className="post-ai-note" role="note">
+                      This post was written with AI and proofed by a human.
+                    </p>
+                  )}
+                  <div className="blog-post-content">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}>
+                      {item.content}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <textarea
-              className="dashboard-textarea"
-              value={item.content}
-              onChange={(e) => setItem({ ...item, content: e.target.value })}
-              placeholder="Write your content here..."
-            />
-          )}
+            ) : (
+              <textarea
+                className="dashboard-textarea"
+                value={item.content}
+                onChange={(e) => setItem({ ...item, content: e.target.value })}
+                placeholder="Write your content here..."
+              />
+            )}
+          </BodyCard>
         </div>
 
         <div
@@ -3157,6 +3325,18 @@ function EditorView({
             <AdditionalFieldsPanel item={item} type={type} setItem={setItem} />
           </div>
         </div>
+      </div>
+
+      {/* Mobile only: Save can never scroll out of reach */}
+      <div className="dashboard-editor-savebar">
+        <button
+          className="dashboard-action-btn success"
+          onClick={handleSave}
+          disabled={isSaving}
+          title="Save to Database">
+          {isSaving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
+          <span>{isSaving ? "Saving..." : "Save"}</span>
+        </button>
       </div>
 
       {fmImageField !== null && (
@@ -3392,10 +3572,12 @@ function WriteSection({
   });
   // Store previous sidebar state before entering focus mode
   const [prevSidebarState, setPrevSidebarState] = useState<boolean | null>(null);
+  // Collapsing the body brings the frontmatter groups into reach on mobile
+  const [bodyOpen, toggleBody] = usePersistedOpen("dashboard:write:body-open", true);
   // Image upload modal state
   const [showImageUpload, setShowImageUpload] = useState(false);
   // Which frontmatter image field the upload modal fills (null when closed)
-  const [fmImageField, setFmImageField] = useState<"image" | "ogImage" | null>(null);
+  const [fmImageField, setFmImageField] = useState<FrontmatterImageField | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const richTextRef = useRef<HTMLDivElement>(null);
 
@@ -3811,19 +3993,22 @@ function WriteSection({
       <div className="dashboard-write-header">
         <div className="dashboard-write-title">
           <span>{contentType === "post" ? "Blog Post" : "Page"}</span>
-          <div className="dashboard-editor-mode-toggles">
+          <div className="dashboard-seg" role="group" aria-label="Editor mode">
             <button
-              className={`dashboard-view-toggle ${editorMode === "markdown" ? "active" : ""}`}
+              className={`dashboard-seg-btn ${editorMode === "markdown" ? "active" : ""}`}
+              aria-pressed={editorMode === "markdown"}
               onClick={() => handleModeChange("markdown")}>
               Markdown
             </button>
             <button
-              className={`dashboard-view-toggle ${editorMode === "richtext" ? "active" : ""}`}
+              className={`dashboard-seg-btn ${editorMode === "richtext" ? "active" : ""}`}
+              aria-pressed={editorMode === "richtext"}
               onClick={() => handleModeChange("richtext")}>
               Rich Text
             </button>
             <button
-              className={`dashboard-view-toggle ${editorMode === "preview" ? "active" : ""}`}
+              className={`dashboard-seg-btn ${editorMode === "preview" ? "active" : ""}`}
+              aria-pressed={editorMode === "preview"}
               onClick={() => handleModeChange("preview")}>
               Preview
             </button>
@@ -3872,7 +4057,7 @@ function WriteSection({
           <button
             onClick={handleSaveToDb}
             disabled={isSaving}
-            className="dashboard-action-btn success"
+            className="dashboard-action-btn success dashboard-save-inline"
             title="Save to Database">
             {isSaving ? (
               <SpinnerGap size={16} className="animate-spin" />
@@ -3897,18 +4082,19 @@ function WriteSection({
       <div className="dashboard-write-container">
         {/* Main Writing Area */}
         <div className="dashboard-write-main">
-          {editorMode === "markdown" && (
-            <textarea
-              ref={textareaRef}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              className="dashboard-write-textarea"
-              placeholder="Start writing your markdown body (frontmatter is managed in the form)..."
-              spellCheck={true}
-            />
-          )}
+          <BodyCard open={bodyOpen} onToggle={toggleBody} content={body} showMeta={false}>
+            {editorMode === "markdown" && (
+              <textarea
+                ref={textareaRef}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                className="dashboard-write-textarea"
+                placeholder="Start writing your markdown body (frontmatter is managed in the form)..."
+                spellCheck={true}
+              />
+            )}
 
-          {editorMode === "richtext" && (
+            {editorMode === "richtext" && (
             <div className="dashboard-quill-container">
               <div className="ql-toolbar dashboard-simple-toolbar">
                 <button
@@ -3982,19 +4168,20 @@ function WriteSection({
             </div>
           )}
 
-          {editorMode === "preview" && (
-            <div className="dashboard-preview">
-              <div className="dashboard-preview-content">
-                <div className="blog-post-content">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}>
-                    {body}
-                  </ReactMarkdown>
+            {editorMode === "preview" && (
+              <div className="dashboard-preview">
+                <div className="dashboard-preview-content">
+                  <div className="blog-post-content">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}>
+                      {body}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </BodyCard>
 
           <div className="dashboard-write-footer">
             <div className="dashboard-write-stats">
@@ -4019,15 +4206,19 @@ function WriteSection({
 
         {/* Frontmatter Sidebar */}
         <aside className={`dashboard-write-sidebar ${frontmatterCollapsed ? "collapsed" : ""}`}>
-          <div className="dashboard-write-sidebar-header">
+          <button
+            type="button"
+            className="dashboard-write-sidebar-header"
+            onClick={toggleFrontmatter}
+            aria-expanded={!frontmatterCollapsed}
+            title={frontmatterCollapsed ? "Expand frontmatter" : "Collapse frontmatter"}>
             <span>Frontmatter</span>
-            <button
-              onClick={toggleFrontmatter}
-              className="dashboard-write-sidebar-toggle"
-              title={frontmatterCollapsed ? "Expand" : "Collapse"}>
-              <SidebarSimple size={16} weight="regular" />
-            </button>
-          </div>
+            <SidebarSimple
+              size={16}
+              weight="regular"
+              className="dashboard-write-sidebar-toggle-icon"
+            />
+          </button>
           <div className="dashboard-write-fields fmf-panel">
             <FrontmatterForm
               kind={contentType}
@@ -4042,6 +4233,18 @@ function WriteSection({
             />
           </div>
         </aside>
+      </div>
+
+      {/* Mobile-only sticky save bar so Save is never scrolled away */}
+      <div className="dashboard-editor-savebar">
+        <button
+          onClick={handleSaveToDb}
+          disabled={isSaving}
+          className="dashboard-action-btn success"
+          title="Save to Database">
+          {isSaving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
+          <span>{isSaving ? "Saving..." : "Save to DB"}</span>
+        </button>
       </div>
 
       {/* Local storage warning */}
@@ -6256,8 +6459,9 @@ export default siteConfig;
             <Download size={16} />
             <span>Download</span>
           </button>
+          {/* Hidden on phones; the sticky bar at the end of the section takes over */}
           <button
-            className="dashboard-action-btn primary"
+            className="dashboard-action-btn primary dashboard-save-inline"
             onClick={handleSaveConfig}
             disabled={saving}
           >
@@ -7135,6 +7339,18 @@ export default siteConfig;
           the build-time default. Logo gallery images, social links, and custom nav items are
           managed in the file only.
         </p>
+      </div>
+
+      {/* Phones only: Save is otherwise 22 cards above wherever you just edited */}
+      <div className="dashboard-config-savebar">
+        <button
+          className="dashboard-action-btn primary"
+          onClick={handleSaveConfig}
+          disabled={saving}
+        >
+          <FloppyDisk size={16} />
+          <span>{saving ? "Saving..." : "Save"}</span>
+        </button>
       </div>
     </div>
   );

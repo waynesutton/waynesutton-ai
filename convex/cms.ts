@@ -1,5 +1,6 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
+import type { Infer } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
@@ -77,6 +78,47 @@ const pageDataValidator = v.object({
   docsSectionGroupIcon: v.optional(v.string()),
   docsLanding: v.optional(v.boolean()),
 });
+
+// The Convex client drops undefined values inside nested arguments, so a field
+// the editor emptied cannot be expressed in the `post` or `page` object. These
+// unions let the caller name the optional fields to delete instead. Only fields
+// that posts.listAll and pages.listAll return are listed, so a save can never
+// wipe a field the editor never loaded.
+const clearablePostField = v.union(
+  v.literal("image"),
+  v.literal("ogImage"),
+  v.literal("noOgImage"),
+  v.literal("excerpt"),
+  v.literal("readTime"),
+  v.literal("featuredOrder"),
+  v.literal("authorName"),
+  v.literal("authorImage"),
+);
+
+const clearablePageField = v.union(
+  v.literal("image"),
+  v.literal("ogImage"),
+  v.literal("noOgImage"),
+  v.literal("excerpt"),
+  v.literal("order"),
+  v.literal("featuredOrder"),
+  v.literal("authorName"),
+  v.literal("authorImage"),
+);
+
+type ClearablePostField = Infer<typeof clearablePostField>;
+type ClearablePageField = Infer<typeof clearablePageField>;
+
+// Convex deletes an optional field when it is patched with undefined
+function buildClearPatch<Field extends string>(
+  fields: Array<Field> | undefined,
+): { [K in Field]?: undefined } {
+  const patch: { [K in Field]?: undefined } = {};
+  for (const field of fields ?? []) {
+    patch[field] = undefined;
+  }
+  return patch;
+}
 
 function escapeFrontmatterString(value: string): string {
   return value.replace(/"/g, '\\"');
@@ -321,6 +363,7 @@ export const updatePost = mutation({
       docsSectionGroupIcon: v.optional(v.string()),
       docsLanding: v.optional(v.boolean()),
     }),
+    clearFields: v.optional(v.array(clearablePostField)),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -356,6 +399,7 @@ export const updatePost = mutation({
 
     await ctx.db.patch(args.id, {
       ...args.post,
+      ...buildClearPatch<ClearablePostField>(args.clearFields),
       lastSyncedAt: Date.now(),
     });
 
@@ -471,6 +515,7 @@ export const updatePage = mutation({
       docsSectionGroupIcon: v.optional(v.string()),
       docsLanding: v.optional(v.boolean()),
     }),
+    clearFields: v.optional(v.array(clearablePageField)),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -505,6 +550,7 @@ export const updatePage = mutation({
 
     await ctx.db.patch(args.id, {
       ...args.page,
+      ...buildClearPatch<ClearablePageField>(args.clearFields),
       lastSyncedAt: Date.now(),
     });
 

@@ -227,11 +227,11 @@ Useful optional fields:
 
 - **featured** and **featuredOrder** control the featured section
 - **excerpt** shows in card view
-- **image** sets the featured / header image
-- **ogImage** sets a different share image. **noOgImage** drops the share image
+- **image** sets the featured / header image. Upload or paste a URL. Clear removes it.
+- **ogImage** sets a different share image. **noOgImage** drops the share image. Clear removes the OG URL.
 - **unlisted** hides content from lists and search but keeps the URL working, with noindex for crawlers
 - **aiWritten** (posts only) shows a small note under the title that the post was written with AI and proofed by a human. Overrules the Drafts Inbox default.
-- **authorName** and **authorImage** override the byline
+- **authorName** and **authorImage** override the byline. Author image has Upload and Clear, same as the other image fields.
 - **contactForm** embeds the contact form
 
 ### Local files and sync

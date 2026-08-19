@@ -5,6 +5,16 @@ const MAX_CONTENT_LENGTH = 50_000; // 50KB
 const MAX_DEMO_ITEMS_PER_TABLE = 50; // Cap total demo items to prevent abuse
 const CLEANUP_BATCH_SIZE = 200;
 
+// The Convex client drops undefined values inside nested arguments, so a field
+// the editor emptied has to be named here for the patch to delete it. Limited to
+// the optional fields the demo mutations already accept.
+const clearableDemoField = v.union(
+  v.literal("image"),
+  v.literal("excerpt"),
+  v.literal("readTime"),
+  v.literal("authorName"),
+);
+
 // Strip dangerous HTML from markdown content
 function sanitizeContent(content: string): string {
   let sanitized = content;
@@ -183,6 +193,7 @@ export const updateDemoPost = mutation({
       excerpt: v.optional(v.string()),
       authorName: v.optional(v.string()),
     }),
+    clearFields: v.optional(v.array(clearableDemoField)),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -211,6 +222,9 @@ export const updateDemoPost = mutation({
       patch.excerpt = sanitizeContent(args.post.excerpt);
     if (args.post.authorName !== undefined)
       patch.authorName = sanitizeContent(args.post.authorName);
+    for (const field of args.clearFields ?? []) {
+      patch[field] = undefined;
+    }
     patch.lastSyncedAt = Date.now();
 
     await ctx.db.patch(args.id, patch);
@@ -229,6 +243,7 @@ export const updateDemoPage = mutation({
       image: v.optional(v.string()),
       authorName: v.optional(v.string()),
     }),
+    clearFields: v.optional(v.array(clearableDemoField)),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -252,6 +267,9 @@ export const updateDemoPage = mutation({
     if (args.page.image !== undefined) patch.image = args.page.image;
     if (args.page.authorName !== undefined)
       patch.authorName = sanitizeContent(args.page.authorName);
+    for (const field of args.clearFields ?? []) {
+      patch[field] = undefined;
+    }
     patch.lastSyncedAt = Date.now();
 
     await ctx.db.patch(args.id, patch);
