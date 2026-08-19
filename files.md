@@ -4,6 +4,12 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### Homepage Writings toggle named, Written with AI moved to Visibility (2026-08-19)
+
+- **New file** `prds/homepage-writings-toggle-and-ai-note.md`: PRD tracing what actually puts a post in the homepage Writings list (`featured: true` plus `published` and not `unlisted`, ordered by `featuredOrder`, read by `posts.getFeaturedPosts` through the `by_featured` index), why the existing Featured switch read as ambiguous against the blog hero and the card grid, and why the fix is copy and placement rather than a new frontmatter field.
+- **Modified** `src/components/FrontmatterForm.tsx`: imports `siteConfig` and derives a section label from `featuredTitle` (trailing colon stripped, falls back to "featured") so the Featured hint names the homepage section; the `aiWritten` block moved from the `advanced` group to `visibility`, after Unlisted.
+- **Modified** `content/pages/docs-frontmatter.md`: the `featured` and `featuredOrder` rows for posts and pages say homepage featured section, name `siteConfig.featuredTitle` as the heading source, and state the `published` and `unlisted` requirements.
+
 ### Slug edits never reached the database (2026-08-19)
 
 - **New file** `prds/slug-edit-not-saving.md`: PRD for a renamed post 404ing on production. Documents the production check that proved the rename never landed, the root cause (`doSavePost` and `doSavePage` build the payload by hand and never listed `slug`, and every field on the update mutations is `v.optional` so the omission passed type checking and argument validation), the audit of all four update payloads, and the redirect question left out of scope.

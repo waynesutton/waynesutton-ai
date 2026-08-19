@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { CaretDown, DotsSixVertical, UploadSimple, X } from "@phosphor-icons/react";
 import { useDragSort } from "../hooks/useDragSort";
+import siteConfig from "../config/siteConfig";
 
 // Frontmatter form for dashboard write and edit flows.
 // Styles live in src/styles/dashboard-forms.css (imported by Dashboard.tsx).
@@ -600,6 +601,11 @@ export function FrontmatterForm({
 
   const filledText = (raw: string): boolean => raw.trim() !== "";
 
+  // The homepage section title is configurable, so the Featured hint names it
+  // rather than saying "featured section" and leaving you to guess which one.
+  const homeSectionLabel =
+    siteConfig.featuredTitle.replace(/:\s*$/, "").trim() || "featured";
+
   // Field blocks per group. Conditional blocks are filtered out before
   // sorting; useDragSort tolerates ids missing from the saved order.
   const essentials: FieldBlock[] = [];
@@ -724,7 +730,7 @@ export function FrontmatterForm({
       node: (
         <SwitchRow
           label="Featured"
-          hint="Pins this to the featured section"
+          hint={`Shows this in the ${homeSectionLabel} section on the homepage`}
           checked={value.featured}
           onChange={(checked) =>
             patch({
@@ -788,6 +794,22 @@ export function FrontmatterForm({
           hint="Reachable at its URL but kept out of lists, search, RSS, and the sitemap"
           checked={value.unlisted}
           onChange={(checked) => patch({ unlisted: checked })}
+        />
+      ),
+    });
+  }
+
+  if (kind === "post" && !isHidden("aiWritten")) {
+    visibility.push({
+      id: "ai-written",
+      yamlKey: "aiWritten",
+      filled: value.aiWritten,
+      node: (
+        <SwitchRow
+          label="Written with AI"
+          hint="Shows a note under the title. Overrides the Drafts Inbox default."
+          checked={value.aiWritten}
+          onChange={(checked) => patch({ aiWritten: checked })}
         />
       ),
     });
@@ -905,22 +927,6 @@ export function FrontmatterForm({
           hint="Social previews show only the title and description"
           checked={value.noOgImage}
           onChange={(checked) => patch({ noOgImage: checked })}
-        />
-      ),
-    });
-  }
-
-  if (kind === "post" && !isHidden("aiWritten")) {
-    advanced.push({
-      id: "ai-written",
-      yamlKey: "aiWritten",
-      filled: value.aiWritten,
-      node: (
-        <SwitchRow
-          label="Written with AI"
-          hint="Shows a note under the title. Overrides the Drafts Inbox default."
-          checked={value.aiWritten}
-          onChange={(checked) => patch({ aiWritten: checked })}
         />
       ),
     });

@@ -98,11 +98,11 @@ Admin emails, OAuth secrets, and bootstrap keys must **not** appear in files you
 
 ### Where admin emails belong
 
-| OK (runtime only) | Not OK (do not commit) |
-|-------------------|-------------------------|
-| Convex dashboard → Settings → Environment Variables | `convex/*.ts`, `src/*.ts`, `siteConfig.ts` |
-| Convex dashboard → Data → `dashboardAdmins` | `package.json`, README, PRDs you push to GitHub |
-| CLI: `npx convex env set ... --prod` | `.env.production.local` (gitignored; OK locally) |
+| OK (runtime only)                                               | Not OK (do not commit)                                      |
+| --------------------------------------------------------------- | ----------------------------------------------------------- |
+| Convex dashboard → Settings → Environment Variables             | `convex/*.ts`, `src/*.ts`, `siteConfig.ts`                  |
+| Convex dashboard → Data → `dashboardAdmins`                     | `package.json`, README, PRDs you push to GitHub             |
+| CLI: `npx convex env set ... --prod`                            | `.env.production.local` (gitignored; OK locally)            |
 | CLI: `npx convex run authAdmin:...` with email in terminal only | Changelog, blog posts, `public/` unless intentional contact |
 
 ### Pre-commit sanity check (optional)
@@ -143,11 +143,11 @@ This env var is read at **request time** in [`convex/dashboardAuth.ts`](convex/d
 
 ### When to use it
 
-| Scenario | Use `DASHBOARD_PRIMARY_ADMIN_EMAIL`? |
-|----------|--------------------------------------|
-| Single human admin, simplest fork | **Yes** |
-| waynesutton.ai with **three** admins | **No** (use `dashboardAdmins` instead) |
-| Multiple admins | **No** (leave unset; use table + `grantDashboardAdmin`) |
+| Scenario                             | Use `DASHBOARD_PRIMARY_ADMIN_EMAIL`?                    |
+| ------------------------------------ | ------------------------------------------------------- |
+| Single human admin, simplest fork    | **Yes**                                                 |
+| waynesutton.ai with **three** admins | **No** (use `dashboardAdmins` instead)                  |
+| Multiple admins                      | **No** (leave unset; use table + `grantDashboardAdmin`) |
 
 ### How to set it (single-admin forks or testing)
 
@@ -181,10 +181,10 @@ Confirm in [dashboard.convex.dev](https://dashboard.convex.dev) → Settings →
 
 ### waynesutton.ai choice
 
-| Setting | Value |
-|---------|--------|
-| `DASHBOARD_PRIMARY_ADMIN_EMAIL` | **Unset** on prod (and dev unless you are testing strict mode) |
-| `dashboardAdmins` | Three rows, one per allowlisted GitHub primary email (Phase 3.2) |
+| Setting                         | Value                                                            |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `DASHBOARD_PRIMARY_ADMIN_EMAIL` | **Unset** on prod (and dev unless you are testing strict mode)   |
+| `dashboardAdmins`               | Three rows, one per allowlisted GitHub primary email (Phase 3.2) |
 
 If both are set by mistake, only `DASHBOARD_PRIMARY_ADMIN_EMAIL` wins and your other two admins will see the demo view.
 
@@ -258,13 +258,13 @@ Copy **Client ID** and **Client secret**. You will set them on Convex in Phase 3
 
 Skim [Convex Auth](https://labs.convex.dev/auth) and confirm your repo already has these pieces:
 
-| Step | File | Status in this repo |
-|------|------|---------------------|
-| Auth tables | `convex/schema.ts` | `...authTables` from `@convex-dev/auth/server` |
-| Configure providers | `convex/auth.ts` | `providers: [GitHub]` |
-| JWT trust | `convex/auth.config.ts` | `domain: process.env.CONVEX_SITE_URL` |
-| HTTP routes | `convex/http.ts` | `auth.addHttpRoutes(http)` |
-| React provider | `src/main.tsx` | `ConvexAuthProvider` wraps the app |
+| Step                | File                    | Status in this repo                            |
+| ------------------- | ----------------------- | ---------------------------------------------- |
+| Auth tables         | `convex/schema.ts`      | `...authTables` from `@convex-dev/auth/server` |
+| Configure providers | `convex/auth.ts`        | `providers: [GitHub]`                          |
+| JWT trust           | `convex/auth.config.ts` | `domain: process.env.CONVEX_SITE_URL`          |
+| HTTP routes         | `convex/http.ts`        | `auth.addHttpRoutes(http)`                     |
+| React provider      | `src/main.tsx`          | `ConvexAuthProvider` wraps the app             |
 
 Dashboard sign-in uses **Sign in with GitHub** through `useAuthActions()`.
 
@@ -433,14 +433,14 @@ npm run verify:deploy:prod -- https://<your-deployment-name>.convex.site
 
 **Manual browser checks on** `https://<your-deployment-name>.convex.site`:
 
-| Check                 | What to look for                                                            |
-| --------------------- | --------------------------------------------------------------------------- |
-| Homepage              | Posts load, Wayne Sutton branding                                           |
-| `/blog`               | Your posts                                                                  |
-| `/rss.xml`            | XML, correct titles                                                         |
-| `/dashboard`          | Sign in with **GitHub**                                                     |
+| Check                 | What to look for                                                                  |
+| --------------------- | --------------------------------------------------------------------------------- |
+| Homepage              | Posts load, Wayne Sutton branding                                                 |
+| `/blog`               | Your posts                                                                        |
+| `/rss.xml`            | XML, correct titles                                                               |
+| `/dashboard`          | Sign in with **GitHub**                                                           |
 | Dashboard after login | Full admin only for the three allowlisted emails; others see demo + denied banner |
-| `/stats`              | Loads if enabled in siteConfig                                              |
+| `/stats`              | Loads if enabled in siteConfig                                                    |
 
 ### 6.1 GitHub OAuth test (still on `.convex.site`)
 
@@ -513,16 +513,16 @@ npm run verify:deploy:prod -- https://www.waynesutton.ai
 
 ## Phase 9: Post-DNS verification (including auth after cutover)
 
-| Step | Action                                                                                                                                              |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 9.1  | `npm run verify:deploy:prod -- https://www.waynesutton.ai`                                                                                          |
-| 9.2  | Homepage, blog post, RSS, sitemap on custom domain                                                                                                  |
-| 9.3  | `https://www.waynesutton.ai/dashboard` → **GitHub** sign-in                                                                                         |
-| 9.4  | Confirm OAuth callback URL in GitHub app is still `https://<deployment>.convex.site/api/auth/callback/github` (unchanged after custom domain)       |
-| 9.5  | Test admin access once per allowlisted GitHub account (primary email must match a `dashboardAdmins` row) |
-| 9.6  | Negative test: sign in with a GitHub account that is **not** one of the three → demo view, no full dashboard |
-| 9.7  | Negative test: another `@convex.dev` GitHub email that is **not** in your three rows → must **not** receive admin |
-| 9.8  | Search (Cmd+K), Ask AI, stats heartbeat if you use them                                                                                             |
+| Step | Action                                                                                                                                        |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 9.1  | `npm run verify:deploy:prod -- https://www.waynesutton.ai`                                                                                    |
+| 9.2  | Homepage, blog post, RSS, sitemap on custom domain                                                                                            |
+| 9.3  | `https://www.waynesutton.ai/dashboard` → **GitHub** sign-in                                                                                   |
+| 9.4  | Confirm OAuth callback URL in GitHub app is still `https://<deployment>.convex.site/api/auth/callback/github` (unchanged after custom domain) |
+| 9.5  | Test admin access once per allowlisted GitHub account (primary email must match a `dashboardAdmins` row)                                      |
+| 9.6  | Negative test: sign in with a GitHub account that is **not** one of the three → demo view, no full dashboard                                  |
+| 9.7  | Negative test: another `@convex.dev` GitHub email that is **not** in your three rows → must **not** receive admin                             |
+| 9.8  | Search (Cmd+K), Ask AI, stats heartbeat if you use them                                                                                       |
 
 ### 9.1 Auth checklist after cutover
 
@@ -587,13 +587,13 @@ npm run verify:deploy:prod -- https://www.waynesutton.ai
 
 ## Rollback plan
 
-| Problem                      | Rollback                                                                     |
-| ---------------------------- | ---------------------------------------------------------------------------- |
-| Site broken after DNS change | Revert Cloudflare DNS to Netlify records                                     |
+| Problem                      | Rollback                                                                                                                                            |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Site broken after DNS change | Revert Cloudflare DNS to Netlify records                                                                                                            |
 | Auth broken                  | Verify GitHub callback on `.convex.site`; verify `AUTH_GITHUB_*`; confirm `DASHBOARD_PRIMARY_ADMIN_EMAIL` unset and three rows in `dashboardAdmins` |
-| Wrong user gets admin        | Remove stray `dashboardAdmins` rows; never use domain wildcards; only exact emails |
-| Wrong content                | Re-run `npm run sync:all:prod`                                               |
-| Bad deploy                   | Redeploy previous git commit: checkout known-good commit, `npm run deploy`   |
+| Wrong user gets admin        | Remove stray `dashboardAdmins` rows; never use domain wildcards; only exact emails                                                                  |
+| Wrong content                | Re-run `npm run sync:all:prod`                                                                                                                      |
+| Bad deploy                   | Redeploy previous git commit: checkout known-good commit, `npm run deploy`                                                                          |
 
 ---
 
