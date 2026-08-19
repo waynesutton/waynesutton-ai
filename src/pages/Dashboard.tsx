@@ -3,6 +3,7 @@ import "../styles/dashboard.css";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useQuery, useMutation, useAction } from "convex/react";
+import type { FunctionArgs } from "convex/server";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -735,6 +736,8 @@ const FORM_MANAGED_KEYS: ReadonlySet<string> = new Set([
   "tags",
   "featured",
   "featuredOrder",
+  "blogFeatured",
+  "unlisted",
   "order",
   "showInNav",
   "excerpt",
@@ -758,6 +761,8 @@ function itemToFrontmatter(item: ContentItem): FrontmatterValues {
     tags: item.tags ?? [],
     featured: item.featured ?? false,
     featuredOrder: item.featuredOrder,
+    blogFeatured: item.blogFeatured ?? false,
+    unlisted: item.unlisted ?? false,
     order: item.order,
     showInNav: item.showInNav ?? false,
     excerpt: item.excerpt ?? "",
@@ -788,6 +793,10 @@ function applyFrontmatterToItem(
     published: fm.published,
     featured: fm.featured,
     featuredOrder: fm.featuredOrder,
+    // Stored as an explicit false rather than removed. updatePost reads the
+    // discovery sync signal from the mutation argument, so an absent unlisted
+    // would leave a re-listed post out of llms.txt.
+    unlisted: fm.unlisted,
     excerpt: optionalString(fm.excerpt),
     image: optionalString(fm.image),
     ogImage: optionalString(fm.ogImage),
@@ -802,6 +811,7 @@ function applyFrontmatterToItem(
     next.tags = fm.tags;
     next.readTime = optionalString(fm.readTime);
     next.aiWritten = fm.aiWritten;
+    next.blogFeatured = fm.blogFeatured;
   } else {
     next.order = fm.order;
     next.showInNav = fm.showInNav;
@@ -846,6 +856,28 @@ function clearedFields<Field extends keyof ContentItem>(
 ): Array<Field> {
   return fields.filter((field) => item[field] === undefined);
 }
+
+// Every field the update mutations accept is v.optional, so leaving one out of a
+// payload is valid TypeScript and a mutation that succeeds while dropping the
+// edit. That is how a renamed slug saved with a success toast and never reached
+// the database. Stripping the optional marker keeps values nullable but makes
+// presence mandatory, so a forgotten field is a build error instead.
+// Extract<keyof T, string> rather than keyof T on purpose: a homomorphic mapped
+// type would copy the optional markers straight through, and -? would strip
+// undefined out of the value types along with them.
+type AllFieldsRequired<T> = { [K in Extract<keyof T, string>]: T[K] };
+type PostUpdateFields = AllFieldsRequired<FunctionArgs<typeof api.cms.updatePost>["post"]>;
+type PageUpdateFields = AllFieldsRequired<FunctionArgs<typeof api.cms.updatePage>["page"]>;
+type DemoPostUpdateFields = AllFieldsRequired<
+  FunctionArgs<typeof api.demo.updateDemoPost>["post"]
+>;
+type DemoPageUpdateFields = AllFieldsRequired<
+  FunctionArgs<typeof api.demo.updateDemoPage>["page"]
+>;
+
+// Slug is the only field the demo editor has to hide, since renaming demo
+// content is not something updateDemoPost or updateDemoPage supports
+const DEMO_EDITOR_HIDDEN_FIELDS: ReadonlyArray<keyof FrontmatterValues> = ["slug"];
 
 // Loading state component for auth
 function LoadingState() {
@@ -1544,60 +1576,63 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
     async (item: ContentItem) => {
       try {
         if (isDemo) {
+          const post: DemoPostUpdateFields = {
+            title: item.title,
+            description: item.description,
+            content: item.content,
+            date: item.date,
+            published: item.published,
+            tags: item.tags,
+            excerpt: item.excerpt,
+            image: item.image,
+            readTime: item.readTime,
+            authorName: item.authorName,
+          };
           await demoUpdatePostMutation({
             id: item._id as Id<"posts">,
-            post: {
-              title: item.title,
-              description: item.description,
-              content: item.content,
-              date: item.date,
-              published: item.published,
-              tags: item.tags,
-              excerpt: item.excerpt,
-              image: item.image,
-              readTime: item.readTime,
-              authorName: item.authorName,
-            },
+            post,
             clearFields: clearedFields(item, CLEARABLE_DEMO_POST_FIELDS),
           });
         } else {
+          const post: PostUpdateFields = {
+            slug: item.slug,
+            title: item.title,
+            description: item.description,
+            content: item.content,
+            date: item.date,
+            published: item.published,
+            tags: item.tags,
+            excerpt: item.excerpt,
+            image: item.image,
+            ogImage: item.ogImage,
+            noOgImage: item.noOgImage,
+            showImageAtTop: item.showImageAtTop,
+            readTime: item.readTime,
+            featured: item.featured,
+            featuredOrder: item.featuredOrder,
+            blogFeatured: item.blogFeatured,
+            unlisted: item.unlisted,
+            aiWritten: item.aiWritten,
+            authorName: item.authorName,
+            authorImage: item.authorImage,
+            layout: item.layout,
+            rightSidebar: item.rightSidebar,
+            aiChat: item.aiChat,
+            showFooter: item.showFooter,
+            footer: item.footer,
+            showSocialFooter: item.showSocialFooter,
+            newsletter: item.newsletter,
+            contactForm: item.contactForm,
+            docsSection: item.docsSection,
+            docsSectionGroup: item.docsSectionGroup,
+            docsSectionOrder: item.docsSectionOrder,
+            docsSectionGroupOrder: item.docsSectionGroupOrder,
+            docsSectionGroupIcon: item.docsSectionGroupIcon,
+            docsLanding: item.docsLanding,
+          };
           await updatePostMutation({
             id: item._id as Id<"posts">,
-            post: {
-              title: item.title,
-              description: item.description,
-              content: item.content,
-              date: item.date,
-              published: item.published,
-              tags: item.tags,
-              excerpt: item.excerpt,
-              image: item.image,
-              ogImage: item.ogImage,
-              noOgImage: item.noOgImage,
-              showImageAtTop: item.showImageAtTop,
-              readTime: item.readTime,
-              featured: item.featured,
-              featuredOrder: item.featuredOrder,
-              blogFeatured: item.blogFeatured,
-              unlisted: item.unlisted,
-              aiWritten: item.aiWritten,
-              authorName: item.authorName,
-              authorImage: item.authorImage,
-              layout: item.layout,
-              rightSidebar: item.rightSidebar,
-              aiChat: item.aiChat,
-              showFooter: item.showFooter,
-              footer: item.footer,
-              showSocialFooter: item.showSocialFooter,
-              newsletter: item.newsletter,
-              contactForm: item.contactForm,
-              docsSection: item.docsSection,
-              docsSectionGroup: item.docsSectionGroup,
-              docsSectionOrder: item.docsSectionOrder,
-              docsSectionGroupOrder: item.docsSectionGroupOrder,
-              docsSectionGroupIcon: item.docsSectionGroupIcon,
-              docsLanding: item.docsLanding,
-            },
+            post,
             clearFields: clearedFields(item, CLEARABLE_POST_FIELDS),
           });
         }
@@ -1614,53 +1649,56 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
     async (item: ContentItem) => {
       try {
         if (isDemo) {
+          const page: DemoPageUpdateFields = {
+            title: item.title,
+            content: item.content,
+            published: item.published,
+            excerpt: item.excerpt,
+            image: item.image,
+            authorName: item.authorName,
+          };
           await demoUpdatePageMutation({
             id: item._id as Id<"pages">,
-            page: {
-              title: item.title,
-              content: item.content,
-              published: item.published,
-              excerpt: item.excerpt,
-              image: item.image,
-              authorName: item.authorName,
-            },
+            page,
             clearFields: clearedFields(item, CLEARABLE_DEMO_PAGE_FIELDS),
           });
         } else {
+          const page: PageUpdateFields = {
+            slug: item.slug,
+            title: item.title,
+            content: item.content,
+            published: item.published,
+            order: item.order,
+            showInNav: item.showInNav,
+            excerpt: item.excerpt,
+            image: item.image,
+            ogImage: item.ogImage,
+            noOgImage: item.noOgImage,
+            showImageAtTop: item.showImageAtTop,
+            featured: item.featured,
+            featuredOrder: item.featuredOrder,
+            unlisted: item.unlisted,
+            authorName: item.authorName,
+            authorImage: item.authorImage,
+            layout: item.layout,
+            rightSidebar: item.rightSidebar,
+            aiChat: item.aiChat,
+            showFooter: item.showFooter,
+            footer: item.footer,
+            showSocialFooter: item.showSocialFooter,
+            newsletter: item.newsletter,
+            contactForm: item.contactForm,
+            textAlign: item.textAlign,
+            docsSection: item.docsSection,
+            docsSectionGroup: item.docsSectionGroup,
+            docsSectionOrder: item.docsSectionOrder,
+            docsSectionGroupOrder: item.docsSectionGroupOrder,
+            docsSectionGroupIcon: item.docsSectionGroupIcon,
+            docsLanding: item.docsLanding,
+          };
           await updatePageMutation({
             id: item._id as Id<"pages">,
-            page: {
-              title: item.title,
-              content: item.content,
-              published: item.published,
-              order: item.order,
-              showInNav: item.showInNav,
-              excerpt: item.excerpt,
-              image: item.image,
-              ogImage: item.ogImage,
-              noOgImage: item.noOgImage,
-              showImageAtTop: item.showImageAtTop,
-              featured: item.featured,
-              featuredOrder: item.featuredOrder,
-              unlisted: item.unlisted,
-              authorName: item.authorName,
-              authorImage: item.authorImage,
-              layout: item.layout,
-              rightSidebar: item.rightSidebar,
-              aiChat: item.aiChat,
-              showFooter: item.showFooter,
-              footer: item.footer,
-              showSocialFooter: item.showSocialFooter,
-              newsletter: item.newsletter,
-              contactForm: item.contactForm,
-              textAlign: item.textAlign,
-              docsSection: item.docsSection,
-              docsSectionGroup: item.docsSectionGroup,
-              docsSectionOrder: item.docsSectionOrder,
-              docsSectionGroupOrder: item.docsSectionGroupOrder,
-              docsSectionGroupIcon: item.docsSectionGroupIcon,
-              docsLanding: item.docsLanding,
-            },
+            page,
             clearFields: clearedFields(item, CLEARABLE_PAGE_FIELDS),
           });
         }
@@ -2254,6 +2292,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               onCopy={handleCopyMarkdown}
               onBack={() => setActiveSection(editingType === "post" ? "posts" : "pages")}
               onSave={editingType === "post" ? handleSavePost : handleSavePage}
+              isDemo={isDemo}
             />
           )}
 
@@ -3111,6 +3150,7 @@ function EditorView({
   onCopy,
   onBack,
   onSave,
+  isDemo = false,
 }: {
   item: ContentItem;
   type: "post" | "page";
@@ -3121,6 +3161,7 @@ function EditorView({
   onCopy: () => void;
   onBack: () => void;
   onSave: (item: ContentItem) => Promise<void>;
+  isDemo?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -3318,6 +3359,9 @@ function EditorView({
               kind={type}
               value={itemToFrontmatter(item)}
               onChange={(next) => setItem(applyFrontmatterToItem(item, type, next))}
+              // The demo update mutations do not accept slug, so an editable
+              // Slug field there is the same silent trap this editor just fixed
+              hiddenFields={isDemo ? DEMO_EDITOR_HIDDEN_FIELDS : undefined}
               onRequestImage={
                 siteConfig.media?.enabled ? (field) => setFmImageField(field) : undefined
               }
@@ -3888,6 +3932,8 @@ function WriteSection({
               excerpt: optionalString(frontmatter.excerpt),
               featured: frontmatter.featured ? true : undefined,
               featuredOrder: frontmatter.featuredOrder,
+              blogFeatured: frontmatter.blogFeatured ? true : undefined,
+              unlisted: frontmatter.unlisted ? true : undefined,
               authorName: optionalString(frontmatter.authorName),
               authorImage: optionalString(frontmatter.authorImage),
               aiWritten: frontmatter.aiWritten ? true : undefined,
@@ -3937,6 +3983,7 @@ function WriteSection({
               noOgImage: frontmatter.noOgImage ? true : undefined,
               featured: frontmatter.featured ? true : undefined,
               featuredOrder: frontmatter.featuredOrder,
+              unlisted: frontmatter.unlisted ? true : undefined,
               authorName: optionalString(frontmatter.authorName),
               authorImage: optionalString(frontmatter.authorImage),
             },
@@ -3978,12 +4025,13 @@ function WriteSection({
   const words = body.trim() ? body.trim().split(/\s+/).length : 0;
 
   // In demo mode, hide frontmatter fields the demo mutations silently drop
-  // (featured, ordering, nav placement, author image) so demo users can't
-  // enter values that never persist or surface demo content in the navbar.
+  // (featured, blog featured, unlisted, ordering, nav placement, author image)
+  // so demo users can't enter values that never persist or surface demo
+  // content in the navbar.
   const demoHiddenFields: ReadonlyArray<keyof FrontmatterValues> | undefined = isDemo
     ? contentType === "post"
-      ? ["featured", "featuredOrder", "authorImage"]
-      : ["featured", "featuredOrder", "order", "showInNav", "authorImage"]
+      ? ["featured", "featuredOrder", "blogFeatured", "unlisted", "authorImage"]
+      : ["featured", "featuredOrder", "unlisted", "order", "showInNav", "authorImage"]
     : undefined;
 
   return (

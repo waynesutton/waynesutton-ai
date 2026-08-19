@@ -4,6 +4,23 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-16)
 
+### Slug edits never reached the database (2026-08-19)
+
+- **New file** `prds/slug-edit-not-saving.md`: PRD for a renamed post 404ing on production. Documents the production check that proved the rename never landed, the root cause (`doSavePost` and `doSavePage` build the payload by hand and never listed `slug`, and every field on the update mutations is `v.optional` so the omission passed type checking and argument validation), the audit of all four update payloads, and the redirect question left out of scope.
+- **Modified** `src/pages/Dashboard.tsx`: `slug` added to the non-demo post and page update payloads; four `AllFieldsRequired<FunctionArgs<...>>` payload types make every field a mutation accepts mandatory to pass, so a dropped field is a build error; `EditorView` takes an `isDemo` prop and hides Slug in demo mode, where the demo mutations cannot change it.
+
+### Image URL fields looked filled when empty (2026-08-18)
+
+- **Modified** `src/components/FrontmatterForm.tsx`: the Featured image, Social share image, and Author image URL fields use prose placeholders instead of example paths, so an empty field no longer renders grey text that reads as a stored value.
+
+### Blog featured and Unlisted move into Visibility (2026-08-18)
+
+- **New file** `prds/visibility-group-blog-featured-unlisted.md`: PRD for moving the two visibility keys out of the collapsed Additional fields panel. Documents why they landed there (`FORM_MANAGED_KEYS` only claims keys that exist on `FrontmatterValues`), the `posts.listAll` gap that would have turned the new switch into a data loss bug, and why these two send an explicit `false` instead of using the `clearFields` path.
+- **Modified** `src/components/FrontmatterForm.tsx`: `blogFeatured` and `unlisted` added to `FrontmatterValues`, `createDefaultFrontmatter`, and `BOOLEAN_KEYS`; `serializeFrontmatter` prints each only when true; two `SwitchRow` blocks appended to the `visibility` group with Blog featured gated on `kind === "post"`.
+- **Modified** `src/pages/Dashboard.tsx`: both keys added to `FORM_MANAGED_KEYS` (which removes them from `AdditionalFieldsPanel`), read with `?? false` in `itemToFrontmatter`, written as plain booleans in `applyFrontmatterToItem`, sent as `? true : undefined` in the two Write create payloads, and hidden in `demoHiddenFields`.
+- **Modified** `convex/posts.ts`: `listAll` returns `blogFeatured` so the editor can read it.
+- **Modified** `convex/demo.ts`: `listAllPosts` returns `blogFeatured` to stay shape-identical with `posts.listAll`.
+
 ### Drafts Inbox input styling (2026-08-18)
 
 - **New file** `prds/drafts-inbox-input-styling.md`: PRD for the Drafts Inbox filter and voice agent notes boxes not matching the site fields. Documents the root cause (`.dashboard-import-input` is the bare input inside `.dashboard-import-input-group`, which owns the padding and height, but `dashboard.css` gave the bare class a frame so six places used it standalone and got a border with no padding), the six standalone usages, and the nested-frame side effect left out of scope.

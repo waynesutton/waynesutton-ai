@@ -20,6 +20,8 @@ export interface FrontmatterValues {
   tags: string[];
   featured: boolean;
   featuredOrder?: number;
+  blogFeatured: boolean;
+  unlisted: boolean;
   order?: number;
   showInNav: boolean;
   excerpt: string;
@@ -52,6 +54,8 @@ export function createDefaultFrontmatter(kind: FrontmatterKind): FrontmatterValu
     tags: [],
     featured: false,
     featuredOrder: undefined,
+    blogFeatured: false,
+    unlisted: false,
     order: undefined,
     showInNav: false,
     excerpt: "",
@@ -99,6 +103,12 @@ export function serializeFrontmatter(kind: FrontmatterKind, values: FrontmatterV
   }
   if (values.featuredOrder !== undefined) {
     lines.push(`featuredOrder: ${values.featuredOrder}`);
+  }
+  if (kind === "post" && values.blogFeatured) {
+    lines.push("blogFeatured: true");
+  }
+  if (values.unlisted) {
+    lines.push("unlisted: true");
   }
   if (values.excerpt.trim() !== "") {
     lines.push(`excerpt: ${yamlQuote(values.excerpt)}`);
@@ -199,7 +209,15 @@ const STRING_KEYS = [
   "authorImage",
 ] as const;
 
-const BOOLEAN_KEYS = ["published", "featured", "showInNav", "noOgImage", "aiWritten"] as const;
+const BOOLEAN_KEYS = [
+  "published",
+  "featured",
+  "blogFeatured",
+  "unlisted",
+  "showInNav",
+  "noOgImage",
+  "aiWritten",
+] as const;
 
 const NUMBER_KEYS = ["featuredOrder", "order"] as const;
 
@@ -743,6 +761,38 @@ export function FrontmatterForm({
     });
   }
 
+  if (kind === "post" && !isHidden("blogFeatured")) {
+    visibility.push({
+      id: "blog-featured",
+      yamlKey: "blogFeatured",
+      filled: value.blogFeatured,
+      node: (
+        <SwitchRow
+          label="Blog featured"
+          hint="Pins this as the hero post on the blog page"
+          checked={value.blogFeatured}
+          onChange={(checked) => patch({ blogFeatured: checked })}
+        />
+      ),
+    });
+  }
+
+  if (!isHidden("unlisted")) {
+    visibility.push({
+      id: "unlisted",
+      yamlKey: "unlisted",
+      filled: value.unlisted,
+      node: (
+        <SwitchRow
+          label="Unlisted"
+          hint="Reachable at its URL but kept out of lists, search, RSS, and the sitemap"
+          checked={value.unlisted}
+          onChange={(checked) => patch({ unlisted: checked })}
+        />
+      ),
+    });
+  }
+
   if (kind === "post") {
     taxonomy.push({
       id: "tags",
@@ -816,7 +866,7 @@ export function FrontmatterForm({
         id={`fmf-image-${kind}`}
         label="Featured image URL"
         value={value.image}
-        placeholder="/images/my-image.png"
+        placeholder="Paste an image path or URL"
         hint="Used for cards, headers, and as the default share image"
         onChange={(next) => patch({ image: next })}
         onRequestUpload={onRequestImage ? () => onRequestImage("image") : undefined}
@@ -834,7 +884,7 @@ export function FrontmatterForm({
           id={`fmf-og-image-${kind}`}
           label="Social share image (OG)"
           value={value.ogImage}
-          placeholder="/images/og/my-share-image.png"
+          placeholder="Paste a share image path or URL"
           hint="Overrides the featured image for social previews only"
           disabled={value.noOgImage}
           onChange={(next) => patch({ ogImage: next })}
@@ -972,7 +1022,7 @@ export function FrontmatterForm({
           id={`fmf-author-image-${kind}`}
           label="Author image URL"
           value={value.authorImage}
-          placeholder="/images/authors/jane.png"
+          placeholder="Paste an avatar path or URL"
           hint="Round avatar next to the author name. Upload or paste a URL."
           onChange={(next) => patch({ authorImage: next })}
           onRequestUpload={onRequestImage ? () => onRequestImage("authorImage") : undefined}
