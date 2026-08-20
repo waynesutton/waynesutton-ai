@@ -630,3 +630,34 @@ Convex agent skills for common tasks can be installed by running
 `npx convex ai-files install`.
 
 <!-- convex-ai-end -->
+
+## Cursor Cloud specific instructions
+
+Notes for cloud agents. Standard commands are in the sections above and in `package.json`. Only the non-obvious startup and run caveats are captured here.
+
+### Running the stack locally
+
+There is no Convex account in the cloud VM, so the backend runs against an anonymous local Convex backend:
+
+```bash
+CONVEX_AGENT_MODE=anonymous npx convex dev   # local backend on 127.0.0.1:3210, writes .env.local
+npm run dev                                   # Vite frontend on http://localhost:5173
+npm run sync                                  # push content/blog and content/pages into Convex
+```
+
+Run `npx convex dev` before `npm run dev`: it creates `.env.local` with `VITE_CONVEX_URL` (127.0.0.1:3210) and `VITE_CONVEX_SITE_URL` (127.0.0.1:3211). Convex functions must finish pushing (look for "Convex functions ready") before content queries resolve in the browser. The React client talks to the backend directly over websocket, so posts and pages render even though the Vite proxy routes (`/rss.xml`, `/sitemap.xml`, `/api/*`) do not rewrite to the local site port (the proxy target replaces `.cloud` with `.site`, which does not apply to localhost). Hit those HTTP endpoints directly on `127.0.0.1:3211` instead.
+
+### Known limitation: audio TTS blocks the anonymous push
+
+`convex/audioGeneration.ts` does `await import("kokoro-js")`, which pulls in `onnxruntime-node`. Convex freshly installs external deps into a temp dir and their native binaries are about 383 MiB, over the anonymous local backend's hard 42.92 MiB module limit (not configurable via `MAX_PUSH_BYTES` or a CLI flag). So `CONVEX_AGENT_MODE=anonymous npx convex dev` fails with `ModulesTooLarge`, and adding `kokoro-js` to `convex.json` `externalPackages` does not help (it still installs the full binaries). This is a limitation of the anonymous local backend only. The app targets Convex Cloud, where external packages have a much larger allowance.
+
+To run the full backend locally you have two options:
+
+- Preferred: set a Convex deploy key (`CONVEX_DEPLOY_KEY`) for the dev deployment and run `npx convex dev` (no anonymous mode). Everything works, including audio.
+- Local-only workaround: temporarily change the line `const { KokoroTTS } = await import("kokoro-js");` in `convex/audioGeneration.ts` to load through `new Function("s","return import(s)")` (the same indirection already used for `piper-wasm` in that file) so esbuild does not bundle the native module. The rest of the product (posts, pages, search, dashboard, sync, HTTP endpoints) then pushes and runs. Audio generation itself still cannot run on the local backend. Revert this before committing.
+
+### Other gotchas
+
+- Frontmatter dates must be quoted strings, for example `date: "2026-08-20"`. An unquoted `date: 2026-08-20` is parsed as a YAML Date object and `npm run sync` rejects it as an unsupported Convex type.
+- `npm run typecheck` passes. `npm run lint` runs but currently reports pre-existing errors in `convex/drafts.ts` and `convex/embeddings.ts` and a warning in `src/hooks/usePageTracking.ts`, so it exits non-zero on an unmodified checkout (`--max-warnings 0`).
+- `npm run sync` also regenerates tracked `public/raw/*.md` files from current content. Discard those regenerated files if you only meant to push content.
