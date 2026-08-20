@@ -879,7 +879,7 @@ export function FrontmatterForm({
       node: (
         <SelectRow
           label="Listen audio"
-          hint="Site default is on. Off hides the player. On forces it."
+          hint="Save a published post to generate the reading. Off hides the player. On forces it. Site default is on."
           value={
             value.audio === true ? "on" : value.audio === false ? "off" : "default"
           }

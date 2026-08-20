@@ -7703,7 +7703,8 @@ export default siteConfig;
             </select>
           </div>
           <p className="config-hint">
-            Source of truth for the Drafts Inbox listen toggle. A post can opt
+            Source of truth for the Drafts Inbox listen toggle. Saving or
+            syncing a published post generates its reading. A post can opt
             out with audio: false.
           </p>
         </div>

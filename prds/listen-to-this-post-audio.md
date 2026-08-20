@@ -51,6 +51,7 @@ Do not touch `convex/voiceAgent.ts`. Do not add a second config store. Convex on
 
 ## Edge cases and gotchas
 
+- Existing published posts do not get a file until you save them in the dashboard or sync the markdown. Setting `audio: true` (or leaving it omitted while the site default is on) and saving is enough
 - Existing `draftSettings` rows lack the new fields; they are optional and fall back to site defaults (on, female)
 - Inbox publish reuses an existing post without re-stamping, same as `aiWritten`; generation still runs if the published post should have audio
 - Draft markdown `audio` / `audioVoice` wins over defaults
