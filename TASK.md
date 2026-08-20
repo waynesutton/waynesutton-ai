@@ -34,7 +34,7 @@
 - [ ] Browser pass on the open live link: confirm the open icon shows on published post and page rows (including published unlisted), is absent on drafts, and that the editor toolbar Open button loads the live URL (PRD: prds/dashboard-open-live-link.md)
 - [ ] X integration manual setup: create an X developer app (OAuth 2.0, confidential client), set callback URL to https://<deployment>.convex.site/x/callback, then set X_CLIENT_ID and X_CLIENT_SECRET in the API Keys dashboard section or Convex env vars (dev + prod)
 - [ ] Manual setup from prds/finish-updating-guide.md: GitHub OAuth apps (dev + prod), OPENAI_API_KEY, pipeline keys, optional webhooks
-- [ ] Finish prod cutover manual steps: prod JWT keys, GitHub OAuth creds, OPENAI_API_KEY, seed dashboard admins, delete Netlify site (finish guide section 8 steps 1 to 3)
+- [ ] Finish prod cutover manual steps: prod JWT keys, GitHub OAuth creds, OPENAI_API_KEY, seed dashboard admins, delete the leftover Netlify Git integration (`waynesutton`). That site still posts four PR checks. Do not put `netlify.toml` back to green them. Hosting is Convex static hosting. (finish guide section 8 steps 1 to 3)
 - [ ] Optional: add www.waynesutton.ai as a Convex custom domain (or DNS redirect to apex) so www stops failing TLS
 - [ ] Publish blogskill/SKILL.md to the waynesutton/blogskill repo
 - [ ] Revoke the dev verify-test API key and delete the dev pipeline-verification-draft test post
@@ -60,9 +60,9 @@
 
 ## Completed
 
-- [x] Netlify deploy-preview CI on the listen-to-this-post PR (2026-08-20)
-  - Four GitHub checks were one leftover Netlify deploy. Preview ran `npx convex deploy` with no deploy key and failed in ~20s
-  - Restored a static-only `netlify.toml` (Vite build, headers, redirects, no Convex deploy, no deleted edge functions)
+- [x] Remove leftover `netlify.toml` from `main` (2026-08-20)
+  - It landed with the listen-to-this-post merge to green leftover Netlify Git checks
+  - Hosting is Convex static hosting. Those checks go away when the `waynesutton` Netlify site is disconnected
 
 - [x] Listen-to-this-post audio for published posts (2026-08-20) (PRD: prds/listen-to-this-post-audio.md)
   - Site Config owns `audio.enabledDefault` (on) and `audio.defaultVoice` (female) through the existing runtimeOverrides store. Drafts Inbox shows the same two fields and writes them in one mutation with the inbox mirror

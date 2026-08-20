@@ -4,9 +4,9 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-20)
 
-### Netlify deploy-preview CI (2026-08-20)
+### Remove leftover netlify.toml (2026-08-20)
 
-- **New file** `netlify.toml`: static-only leftover Git integration. `npm ci --include=dev && npm run build`, publish `dist`, header and redirect rules. Does not run `npx convex deploy` and does not load the archived edge functions.
+- **Deleted** `netlify.toml`: it was restored on `main` to green leftover Netlify Git checks. Hosting is Convex static hosting. Do not add this file back.
 
 ### Listen-to-this-post audio (2026-08-20)
 
