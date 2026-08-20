@@ -60,6 +60,10 @@
 
 ## Completed
 
+- [x] Netlify deploy-preview CI on the listen-to-this-post PR (2026-08-20)
+  - Four GitHub checks were one leftover Netlify deploy. Preview ran `npx convex deploy` with no deploy key and failed in ~20s
+  - Restored a static-only `netlify.toml` (Vite build, headers, redirects, no Convex deploy, no deleted edge functions)
+
 - [x] Listen-to-this-post audio for published posts (2026-08-20) (PRD: prds/listen-to-this-post-audio.md)
   - Site Config owns `audio.enabledDefault` (on) and `audio.defaultVoice` (female) through the existing runtimeOverrides store. Drafts Inbox shows the same two fields and writes them in one mutation with the inbox mirror
   - Per-post `audio` / `audioVoice` frontmatter overrides, same omitted-means-default style as `aiWritten`. Inbox publish stamps defaults unless the draft markdown already set them

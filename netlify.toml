@@ -1,0 +1,73 @@
+# Leftover Git integration. Production is Convex self-hosting.
+# Deploy previews only build the static Vite app. Do not run
+# `npx convex deploy` here: preview contexts have no deploy key,
+# and a PR must not push functions.
+
+[build]
+  command = "npm ci --include=dev && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[context.production]
+  command = "npm ci --include=dev && npm run build"
+
+[context.deploy-preview]
+  command = "npm ci --include=dev && npm run build"
+
+[context.branch-deploy]
+  command = "npm ci --include=dev && npm run build"
+
+[[redirects]]
+  from = "/raw/*"
+  to = "/raw/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Robots-Tag = "index, follow"
+
+[[headers]]
+  for = "/dashboard/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/write"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/newsletter-admin"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/raw/*"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = "public, max-age=3600"
