@@ -1,6 +1,8 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireDashboardAdmin } from "./dashboardAuth";
+import { writeAudioDefaults } from "./audioDefaults";
+import { isAudioVoice } from "./lib/audioText";
 
 // Storage key for dashboard-saved config overrides in the siteConfig table
 const OVERRIDES_KEY = "runtimeOverrides";
@@ -48,13 +50,33 @@ export const savePartialOverrides = mutation({
       await ctx.db.patch(existing._id, {
         value: { ...current, ...args.overrides },
       });
-      return null;
+    } else {
+      await ctx.db.insert("siteConfig", {
+        key: OVERRIDES_KEY,
+        value: args.overrides,
+      });
     }
 
-    await ctx.db.insert("siteConfig", {
-      key: OVERRIDES_KEY,
-      value: args.overrides,
-    });
+    // Inbox reads the same audio defaults. Keep the mirror in this transaction.
+    const audio = args.overrides.audio;
+    if (typeof audio === "object" && audio !== null) {
+      const audioRecord = audio as Record<string, unknown>;
+      if (
+        typeof audioRecord.enabledDefault === "boolean" ||
+        isAudioVoice(audioRecord.defaultVoice)
+      ) {
+        await writeAudioDefaults(ctx, {
+          enabledDefault:
+            typeof audioRecord.enabledDefault === "boolean"
+              ? audioRecord.enabledDefault
+              : true,
+          defaultVoice: isAudioVoice(audioRecord.defaultVoice)
+            ? audioRecord.defaultVoice
+            : "female",
+        });
+      }
+    }
+
     return null;
   },
 });

@@ -2,6 +2,8 @@ import { query, mutation, internalMutation, internalQuery } from "./_generated/s
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
+import { schedulePostAudioIfNeeded } from "./audio";
+import { audioVoiceValidator } from "./audioDefaults";
 
 const ADMIN_POST_QUERY_LIMIT = 2000;
 const PUBLIC_POST_QUERY_LIMIT = 1000;
@@ -70,6 +72,8 @@ export const listAll = query({
       authorImage: v.optional(v.string()),
       unlisted: v.optional(v.boolean()),
       aiWritten: v.optional(v.boolean()),
+      audio: v.optional(v.boolean()),
+      audioVoice: v.optional(audioVoiceValidator),
       source: v.optional(v.union(v.literal("dashboard"), v.literal("sync"), v.literal("demo"))),
     }),
   ),
@@ -105,6 +109,8 @@ export const listAll = query({
       authorImage: post.authorImage,
       unlisted: post.unlisted,
       aiWritten: post.aiWritten,
+      audio: post.audio,
+      audioVoice: post.audioVoice,
       source: post.source,
     }));
   },
@@ -314,6 +320,13 @@ export const getPostBySlug = query({
       aiWritten: v.optional(v.boolean()),
       docsSection: v.optional(v.boolean()),
       slides: v.optional(v.boolean()),
+      audio: v.optional(v.boolean()),
+      audioVoice: v.optional(audioVoiceValidator),
+      audioDuration: v.optional(v.number()),
+      audioStatus: v.optional(
+        v.union(v.literal("pending"), v.literal("ready"), v.literal("failed")),
+      ),
+      audioUrl: v.union(v.string(), v.null()),
     }),
     v.null(),
   ),
@@ -360,6 +373,13 @@ export const getPostBySlug = query({
       aiWritten: post.aiWritten,
       docsSection: post.docsSection,
       slides: post.slides,
+      audio: post.audio,
+      audioVoice: post.audioVoice,
+      audioDuration: post.audioDuration,
+      audioStatus: post.audioStatus,
+      audioUrl: post.audioStorageId
+        ? await ctx.storage.getUrl(post.audioStorageId)
+        : null,
     };
   },
 });
@@ -472,6 +492,8 @@ export const syncPosts = internalMutation({
         contactForm: v.optional(v.boolean()),
         unlisted: v.optional(v.boolean()),
         aiWritten: v.optional(v.boolean()),
+        audio: v.optional(v.boolean()),
+        audioVoice: v.optional(audioVoiceValidator),
         docsSection: v.optional(v.boolean()),
         docsSectionGroup: v.optional(v.string()),
         docsSectionOrder: v.optional(v.number()),
@@ -532,6 +554,8 @@ export const syncPosts = internalMutation({
           contactForm: post.contactForm,
           unlisted: post.unlisted,
           aiWritten: post.aiWritten,
+          audio: post.audio,
+          audioVoice: post.audioVoice,
           docsSection: post.docsSection,
           docsSectionGroup: post.docsSectionGroup,
           docsSectionOrder: post.docsSectionOrder,
@@ -540,13 +564,19 @@ export const syncPosts = internalMutation({
           docsLanding: post.docsLanding,
           lastSyncedAt: now,
         });
+        if (post.published) {
+          await schedulePostAudioIfNeeded(ctx, existing._id);
+        }
         updated++;
       } else {
         // Create new post
-        await ctx.db.insert("posts", {
+        const postId = await ctx.db.insert("posts", {
           ...post,
           lastSyncedAt: now,
         });
+        if (post.published) {
+          await schedulePostAudioIfNeeded(ctx, postId);
+        }
         created++;
       }
     }
@@ -597,6 +627,8 @@ export const syncPostsPublic = mutation({
         contactForm: v.optional(v.boolean()),
         unlisted: v.optional(v.boolean()),
         aiWritten: v.optional(v.boolean()),
+        audio: v.optional(v.boolean()),
+        audioVoice: v.optional(audioVoiceValidator),
         docsSection: v.optional(v.boolean()),
         docsSectionGroup: v.optional(v.string()),
         docsSectionOrder: v.optional(v.number()),
@@ -684,6 +716,8 @@ export const syncPostsPublic = mutation({
           contactForm: post.contactForm,
           unlisted: post.unlisted,
           aiWritten: post.aiWritten,
+          audio: post.audio,
+          audioVoice: post.audioVoice,
           docsSection: post.docsSection,
           docsSectionGroup: post.docsSectionGroup,
           docsSectionOrder: post.docsSectionOrder,
@@ -693,14 +727,20 @@ export const syncPostsPublic = mutation({
           source: "sync",
           lastSyncedAt: now,
         });
+        if (post.published) {
+          await schedulePostAudioIfNeeded(ctx, existing._id);
+        }
         updated++;
       } else {
         // Create new post with source: "sync"
-        await ctx.db.insert("posts", {
+        const postId = await ctx.db.insert("posts", {
           ...post,
           source: "sync",
           lastSyncedAt: now,
         });
+        if (post.published) {
+          await schedulePostAudioIfNeeded(ctx, postId);
+        }
         created++;
       }
     }

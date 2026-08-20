@@ -5,6 +5,8 @@ import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
 import { scheduleDiscoverySyncIfEnabled } from "./agentReady/autoSync";
+import { schedulePostAudioIfNeeded } from "./audio";
+import { audioVoiceValidator } from "./audioDefaults";
 
 // Shared validator for post data
 const postDataValidator = v.object({
@@ -36,6 +38,8 @@ const postDataValidator = v.object({
   contactForm: v.optional(v.boolean()),
   unlisted: v.optional(v.boolean()),
   aiWritten: v.optional(v.boolean()),
+  audio: v.optional(v.boolean()),
+  audioVoice: v.optional(audioVoiceValidator),
   docsSection: v.optional(v.boolean()),
   docsSectionGroup: v.optional(v.string()),
   docsSectionOrder: v.optional(v.number()),
@@ -93,6 +97,8 @@ const clearablePostField = v.union(
   v.literal("featuredOrder"),
   v.literal("authorName"),
   v.literal("authorImage"),
+  v.literal("audio"),
+  v.literal("audioVoice"),
 );
 
 const clearablePageField = v.union(
@@ -176,6 +182,8 @@ function buildPostFrontmatter(post: Doc<"posts">): Array<string> {
     frontmatter.push(`unlisted: ${post.unlisted}`);
   if (post.aiWritten !== undefined)
     frontmatter.push(`aiWritten: ${post.aiWritten}`);
+  if (post.audio !== undefined) frontmatter.push(`audio: ${post.audio}`);
+  if (post.audioVoice) frontmatter.push(`audioVoice: ${post.audioVoice}`);
   if (post.docsSection !== undefined)
     frontmatter.push(`docsSection: ${post.docsSection}`);
   if (post.docsSectionGroup)
@@ -283,6 +291,10 @@ export const createPost = mutation({
       });
     }
 
+    if (args.post.published) {
+      await schedulePostAudioIfNeeded(ctx, postId);
+    }
+
     return postId;
   },
 });
@@ -317,6 +329,10 @@ export const createPostInternal = internalMutation({
           description: args.post.description,
         },
       });
+    }
+
+    if (args.post.published) {
+      await schedulePostAudioIfNeeded(ctx, postId);
     }
 
     return postId;
@@ -356,6 +372,8 @@ export const updatePost = mutation({
       contactForm: v.optional(v.boolean()),
       unlisted: v.optional(v.boolean()),
       aiWritten: v.optional(v.boolean()),
+      audio: v.optional(v.boolean()),
+      audioVoice: v.optional(audioVoiceValidator),
       docsSection: v.optional(v.boolean()),
       docsSectionGroup: v.optional(v.string()),
       docsSectionOrder: v.optional(v.number()),
@@ -421,6 +439,10 @@ export const updatePost = mutation({
           ? `/${existing.slug}`
           : undefined,
     });
+
+    if (next.published) {
+      await schedulePostAudioIfNeeded(ctx, args.id);
+    }
 
     return null;
   },

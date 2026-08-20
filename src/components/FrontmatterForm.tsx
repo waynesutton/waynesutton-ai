@@ -30,6 +30,8 @@ export interface FrontmatterValues {
   ogImage: string;
   noOgImage: boolean;
   aiWritten: boolean;
+  audio?: boolean;
+  audioVoice?: "male" | "female";
   readTime: string;
   authorName: string;
   authorImage: string;
@@ -64,6 +66,8 @@ export function createDefaultFrontmatter(kind: FrontmatterKind): FrontmatterValu
     ogImage: "",
     noOgImage: false,
     aiWritten: false,
+    audio: undefined,
+    audioVoice: undefined,
     readTime: "",
     authorName: "",
     authorImage: "",
@@ -125,6 +129,15 @@ export function serializeFrontmatter(kind: FrontmatterKind, values: FrontmatterV
   }
   if (kind === "post" && values.aiWritten) {
     lines.push("aiWritten: true");
+  }
+  if (kind === "post" && values.audio === true) {
+    lines.push("audio: true");
+  }
+  if (kind === "post" && values.audio === false) {
+    lines.push("audio: false");
+  }
+  if (kind === "post" && values.audioVoice) {
+    lines.push(`audioVoice: ${values.audioVoice}`);
   }
   if (kind === "post" && values.readTime.trim() !== "") {
     lines.push(`readTime: ${yamlQuote(values.readTime)}`);
@@ -280,6 +293,15 @@ export function parseFrontmatterDocument(
       if (rawValue.startsWith("[")) {
         values.tags = parseInlineList(rawValue);
       }
+    } else if (key === "audio") {
+      if (rawValue === "true" || rawValue === "false") {
+        values.audio = rawValue === "true";
+      }
+    } else if (key === "audioVoice") {
+      const voice = unquote(rawValue);
+      if (voice === "male" || voice === "female") {
+        values.audioVoice = voice;
+      }
     } else if ((BOOLEAN_KEYS as readonly string[]).includes(key)) {
       values[key as BooleanKey] = rawValue === "true";
     } else if ((NUMBER_KEYS as readonly string[]).includes(key)) {
@@ -353,6 +375,40 @@ function SortableFields({
 
 // Full-width settings row: label and hint lead, switch trails, whole row taps.
 // Reads as a settings list instead of a checkbox pile on narrow screens.
+function SelectRow({
+  label,
+  hint,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="fmf-switch-row">
+      <span className="fmf-switch-row-text">
+        <span className="fmf-switch-row-label">{label}</span>
+        {hint !== undefined && <span className="fmf-switch-row-hint">{hint}</span>}
+      </span>
+      <select
+        className="fmf-select"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function SwitchRow({
   label,
   hint,
@@ -810,6 +866,60 @@ export function FrontmatterForm({
           hint="Shows a note under the title. Overrides the Drafts Inbox default."
           checked={value.aiWritten}
           onChange={(checked) => patch({ aiWritten: checked })}
+        />
+      ),
+    });
+  }
+
+  if (kind === "post" && !isHidden("audio")) {
+    visibility.push({
+      id: "audio",
+      yamlKey: "audio",
+      filled: value.audio !== undefined,
+      node: (
+        <SelectRow
+          label="Listen audio"
+          hint="Save a published post to generate the reading. Off hides the player. On forces it. Site default is on."
+          value={
+            value.audio === true ? "on" : value.audio === false ? "off" : "default"
+          }
+          options={[
+            { value: "default", label: "Site default" },
+            { value: "on", label: "On" },
+            { value: "off", label: "Off" },
+          ]}
+          onChange={(next) =>
+            patch({
+              audio:
+                next === "on" ? true : next === "off" ? false : undefined,
+            })
+          }
+        />
+      ),
+    });
+  }
+
+  if (kind === "post" && !isHidden("audioVoice")) {
+    visibility.push({
+      id: "audio-voice",
+      yamlKey: "audioVoice",
+      filled: value.audioVoice !== undefined,
+      node: (
+        <SelectRow
+          label="Audio voice"
+          hint="Omit to use the site default voice."
+          value={value.audioVoice ?? "default"}
+          options={[
+            { value: "default", label: "Site default" },
+            { value: "female", label: "Female" },
+            { value: "male", label: "Male" },
+          ]}
+          onChange={(next) =>
+            patch({
+              audioVoice:
+                next === "male" || next === "female" ? next : undefined,
+            })
+          }
         />
       ),
     });

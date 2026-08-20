@@ -35,6 +35,14 @@ export default defineSchema({
     contactForm: v.optional(v.boolean()), // Enable contact form on this post
     unlisted: v.optional(v.boolean()), // Hide from listings but allow direct access via slug
     aiWritten: v.optional(v.boolean()), // Show "written with AI and proofed by a human" note under the title
+    audio: v.optional(v.boolean()), // Show listen-to-this-post player (overrides siteConfig.audio.enabledDefault)
+    audioVoice: v.optional(v.union(v.literal("male"), v.literal("female"))), // Voice override (overrides siteConfig.audio.defaultVoice)
+    audioStorageId: v.optional(v.id("_storage")), // Generated reading stored in Convex file storage
+    audioDuration: v.optional(v.number()), // Duration in seconds
+    audioContentHash: v.optional(v.string()), // Hash of title + stripped body + voice; skip regen when unchanged
+    audioStatus: v.optional(
+      v.union(v.literal("pending"), v.literal("ready"), v.literal("failed")),
+    ),
     docsSection: v.optional(v.boolean()), // Include in docs navigation
     docsSectionGroup: v.optional(v.string()), // Sidebar group name in docs
     docsSectionOrder: v.optional(v.number()), // Order within group (lower = first)
@@ -461,8 +469,30 @@ export default defineSchema({
   draftSettings: defineTable({
     key: v.string(), // "inbox"
     aiWrittenDefault: v.boolean(), // Stamp aiWritten on new posts from the inbox
+    // Mirror of siteConfig.audio. Written in the same mutation as runtime overrides.
+    audioEnabledDefault: v.optional(v.boolean()),
+    audioDefaultVoice: v.optional(v.union(v.literal("male"), v.literal("female"))),
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
+
+  // Queued listen-to-this-post TTS jobs
+  audioJobs: defineTable({
+    postId: v.id("posts"),
+    voice: v.union(v.literal("male"), v.literal("female")),
+    contentHash: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    storageId: v.optional(v.id("_storage")),
+    duration: v.optional(v.number()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_status", ["status"])
+    .index("by_post_and_hash", ["postId", "contentHash"]),
 
   // Agent blog pipeline: record of published drafts
   publishLog: defineTable({
