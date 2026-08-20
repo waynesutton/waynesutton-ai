@@ -134,11 +134,19 @@ export default function AgentReadySection() {
               ))}
             </div>
 
+            {!local.enabled && (
+              <p className="agent-ready-hint agent-ready-hint-warning">
+                Show widget is off, so position and theme have nothing to apply to.
+                Turn it on to see the widget on the public site.
+              </p>
+            )}
+
             <div className="agent-ready-select-row">
               <label className="agent-ready-select">
                 <span>Position</span>
                 <select
                   value={local.position}
+                  disabled={!local.enabled}
                   onChange={(e) => setLocal({ ...local, position: e.target.value })}
                 >
                   {POSITION_OPTIONS.map((opt) => (
@@ -152,6 +160,7 @@ export default function AgentReadySection() {
                 <span>Widget theme</span>
                 <select
                   value={local.widgetTheme}
+                  disabled={!local.enabled}
                   onChange={(e) => setLocal({ ...local, widgetTheme: e.target.value })}
                 >
                   {THEME_OPTIONS.map((opt) => (

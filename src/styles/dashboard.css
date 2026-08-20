@@ -15,13 +15,37 @@
    ───────────────────────────────────────────── */
 
 :root {
+  /* Inter first now that it is self hosted (see the import in Dashboard.tsx) */
   --db-font:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+    "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
   --db-radius-sm: 8px;
   --db-radius: 10px;
   --db-radius-lg: 12px;
   --db-radius-full: 999px;
+
+  /* Type scale. Every dashboard text rule should pull from these rather than
+     inventing a size, so the whole surface stays on one ramp. */
+  --db-text-title: 1.5rem; /* 24px */
+  --db-text-title-lh: 2rem; /* 32px */
+  --db-text-title-md: 1rem; /* 16px */
+  --db-text-title-md-lh: 1.25rem; /* 20px */
+  --db-text-body: 0.875rem; /* 14px */
+  --db-text-body-lh: 1.25rem; /* 20px */
+  --db-text-label: 0.75rem; /* 12px */
+  --db-text-label-lh: 1rem; /* 16px */
+
+  /* Control metrics */
+  --db-btn-height: 36px;
+  --db-btn-padding-x: 12px;
+  --db-badge-height: 20px;
+  --db-badge-padding-x: 6px;
+  --db-card-padding: 12px;
+
+  /* Icon sizes, for components that read them from CSS */
+  --db-icon-sm: 16px;
+  --db-icon-md: 20px;
+  --db-icon-lg: 24px;
 
   /* Light defaults (match FOUC bootstrap) */
   --text-tertiary: #71717a;
@@ -131,6 +155,58 @@
   --db-danger-bg: rgba(185, 28, 28, 0.08);
   --db-info: #1e40af;
   --db-info-bg: rgba(30, 64, 175, 0.08);
+}
+
+/* ─────────────────────────────────────────────
+   1b. Type ramp
+   The global --font-size-* scale is in px, so it ignores the font size control
+   in the header. Re-pointing the two sizes the dashboard actually uses at rem
+   values does two things at once: existing rules land on the 14/12 ramp, and
+   they start responding to S/M/L/XL.
+   ───────────────────────────────────────────── */
+
+.dashboard-layout {
+  --font-size-sm: var(--db-text-body); /* 14px body */
+  --font-size-xs: var(--db-text-label); /* 12px label and caption */
+  font-size: var(--db-text-body);
+  line-height: var(--db-text-body-lh);
+}
+
+/* Section titles. The 24/32 title is the page-level heading; card headings stay
+   on the 16/20 medium title so a card never competes with the page. */
+.dashboard-layout .dashboard-content h2,
+.dashboard-layout .dashboard-section-title {
+  font-family: var(--db-font);
+  font-size: var(--db-text-title);
+  line-height: var(--db-text-title-lh);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.dashboard-layout .dashboard-content h3,
+.dashboard-layout .dashboard-config-card h3,
+.dashboard-layout .dashboard-form-block > h3 {
+  font-family: var(--db-font);
+  font-size: var(--db-text-title-md);
+  line-height: var(--db-text-title-md-lh);
+  font-weight: 600;
+}
+
+/* Labels and captions */
+.dashboard-layout .config-field > label,
+.dashboard-layout .dashboard-form-label {
+  font-size: var(--db-text-label);
+  line-height: var(--db-text-label-lh);
+  font-weight: 500;
+}
+
+.dashboard-layout .config-field-note,
+.dashboard-layout .config-hint,
+.dashboard-layout .dashboard-import-hint,
+.dashboard-layout .dashboard-config-note {
+  font-size: var(--db-text-label);
+  line-height: var(--db-text-label-lh);
+  font-weight: 400;
 }
 
 /* ─────────────────────────────────────────────
@@ -393,6 +469,13 @@
   max-width: 1320px;
 }
 
+/* Docs needs room for the topic sidebar plus an 860px reading column */
+.dashboard-layout .dashboard-docs {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
 /* Demo + auth banners: themed, not hardcoded amber-on-white */
 .dashboard-layout .dashboard-demo-banner {
   background: var(--db-warning-bg);
@@ -421,16 +504,17 @@
   align-items: center;
   justify-content: center;
   gap: 0.4375rem;
-  min-height: 36px;
-  padding: 0.4375rem 0.875rem;
+  min-height: var(--db-btn-height);
+  padding: 0.4375rem var(--db-btn-padding-x);
   border: 1px solid var(--db-border);
-  border-radius: var(--db-radius-sm);
+  /* Pill buttons, matching the reference dashboard */
+  border-radius: var(--db-radius-full);
   background: var(--db-surface);
   color: var(--text-primary);
   font-family: var(--db-font);
-  font-size: var(--font-size-sm);
+  font-size: var(--db-text-body);
   font-weight: 500;
-  line-height: 1.2;
+  line-height: var(--db-text-body-lh);
   cursor: pointer;
   box-shadow: none;
   transition:
@@ -459,6 +543,19 @@
   opacity: 0.45;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* The view toggle is a joined pair, so it keeps a segmented shape: the outer
+   edges go full pill and the seam stays square. */
+.dashboard-layout .dashboard-view-toggle:first-of-type {
+  border-radius: var(--db-radius-full) 0 0 var(--db-radius-full);
+  padding-left: 1rem;
+}
+
+.dashboard-layout .dashboard-view-toggle:nth-of-type(2) {
+  border-radius: 0 var(--db-radius-full) var(--db-radius-full) 0;
+  border-left: none;
+  padding-right: 1rem;
 }
 
 /* Primary: accent fill, pill like the reference CTAs */
@@ -567,6 +664,35 @@
   background: var(--db-surface);
   border-color: var(--text-tertiary);
   box-shadow: 0 0 0 3px var(--db-border-soft);
+}
+
+/* The import input lives inside .dashboard-import-input-group, and the group
+   draws the frame. The shared input rule above would add a second frame, so on
+   wide screens the field renders a box inside a box. The mobile block drops the
+   group frame instead and lets the input keep its own, so scope this to desktop. */
+@media (min-width: 769px) {
+  .dashboard-layout .dashboard-import-input-group {
+    border-color: var(--db-border);
+    border-radius: var(--db-radius-sm);
+    background: var(--db-inset);
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .dashboard-layout .dashboard-import-input-group:focus-within {
+    background: var(--db-surface);
+    border-color: var(--text-tertiary);
+    box-shadow: 0 0 0 3px var(--db-border-soft);
+  }
+
+  .dashboard-layout .dashboard-import-input-group .dashboard-import-input,
+  .dashboard-layout .dashboard-import-input-group .dashboard-import-input:focus {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
 }
 
 .dashboard-layout .dashboard-items-select {
@@ -743,14 +869,18 @@
   color: var(--text-tertiary);
 }
 
-/* Status + source badges: themed semantic pills */
+/* Status + source badges: themed semantic pills on the 20px badge metric */
 .dashboard-layout .status-badge,
 .dashboard-layout .source-badge {
-  padding: 0.1875rem 0.5625rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--db-badge-height);
+  padding: 0 var(--db-badge-padding-x);
   border-radius: var(--db-radius-full);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  font-size: var(--db-text-label);
+  line-height: var(--db-text-label-lh);
+  font-weight: 500;
+  letter-spacing: 0.01em;
   text-transform: none;
 }
 
@@ -795,7 +925,7 @@
 .dashboard-layout .dashboard-newsletter-stat-card,
 .dashboard-layout .drafts-list-pane,
 .dashboard-layout .drafts-detail-pane,
-.dashboard-layout .dashboard-docs-nav {
+.dashboard-layout .dashboard-docs-sidebar {
   background: var(--db-surface);
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-lg);
@@ -811,6 +941,43 @@
 .dashboard-layout .dashboard-config-card,
 .dashboard-layout .dashboard-sync-card {
   padding: 1.5rem;
+}
+
+/* Config grid. auto-fill at 280px let four label-and-input columns share a
+   1200px page, which is narrower than the fields want. Two columns is the
+   readable ceiling, and cards size to their own content instead of stretching
+   to match the tallest sibling in the row. */
+.dashboard-layout .dashboard-config-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .dashboard-layout .dashboard-config-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Card heading: a hairline rule reads better than a full border here */
+.dashboard-layout .dashboard-config-card > h3 {
+  margin: 0 0 0.875rem;
+  padding-bottom: 0.625rem;
+  border-bottom: 1px solid var(--db-border-soft);
+}
+
+/* Block form wrappers read as cards, so a heading plus its field is one unit */
+.dashboard-layout .dashboard-form-block {
+  padding: 1.25rem;
+  background: var(--db-surface);
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-lg);
+}
+
+@media (max-width: 480px) {
+  .dashboard-layout .dashboard-form-block {
+    padding: 1rem;
+  }
 }
 
 /* The Config save bar is a phone affordance; the header Save serves desktop */
@@ -1680,8 +1847,10 @@
   }
 
   /* ── Docs on a phone ──
-     The topic strip already scrolls horizontally; the pills were 40px. */
-  .dashboard-layout .dashboard-docs-nav-item {
+     The sidebar and the article swap places, so both need thumb-sized rows. */
+  .dashboard-layout .dashboard-docs-nav-item,
+  .dashboard-layout .dashboard-docs-back-btn,
+  .dashboard-layout .dashboard-docs-search {
     min-height: 44px;
   }
 
@@ -1808,7 +1977,7 @@
 
   /* ── Editor on a phone ──
      Tier one wraps, tier two becomes one horizontal scroll row of pills
-     (same affordance as .dashboard-docs-nav), and Save moves to a sticky
+     (a horizontal scroll row of pills), and Save moves to a sticky
      bar so it is always one thumb away. */
 
   /* Natural height so the sticky save bar has a page to stick to */

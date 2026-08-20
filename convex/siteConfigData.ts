@@ -26,6 +26,40 @@ export const getOverrides = query({
 });
 
 /**
+ * Merges config overrides into the saved document, one top-level key at a time.
+ * Dashboard sections each own a slice of the config (Site Config, Homepage), so a
+ * full replace would let one section wipe another's saved values. Admin only.
+ */
+export const savePartialOverrides = mutation({
+  args: {
+    overrides: v.record(v.string(), v.any()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireDashboardAdmin(ctx);
+
+    const existing = await ctx.db
+      .query("siteConfig")
+      .withIndex("by_key", (q) => q.eq("key", OVERRIDES_KEY))
+      .unique();
+
+    if (existing) {
+      const current = (existing.value ?? {}) as Record<string, unknown>;
+      await ctx.db.patch(existing._id, {
+        value: { ...current, ...args.overrides },
+      });
+      return null;
+    }
+
+    await ctx.db.insert("siteConfig", {
+      key: OVERRIDES_KEY,
+      value: args.overrides,
+    });
+    return null;
+  },
+});
+
+/**
  * Saves config overrides from the dashboard Config section.
  * Upserts a single document keyed by OVERRIDES_KEY. Admin only.
  */

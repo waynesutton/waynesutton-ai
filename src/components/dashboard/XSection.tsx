@@ -149,7 +149,7 @@ export function XSection({
 
       {/* Compose */}
       {status?.connected && (
-        <div className="dashboard-import-form">
+        <div className="dashboard-form-block">
           <h3>Compose a post</h3>
           <textarea
             className="dashboard-field-textarea x-compose-textarea"
@@ -179,7 +179,7 @@ export function XSection({
       )}
 
       {/* Import a post as a blog draft */}
-      <div className="dashboard-import-form">
+      <div className="dashboard-form-block">
         <h3>Draft a blog post from an X post</h3>
         <p className="dashboard-import-hint">
           Paste a post link and the writing agent expands it into a draft in your

@@ -42,6 +42,16 @@
   line-height: 1.5;
 }
 
+/* Shown when Show widget is off, so the position and theme controls read as
+   inert rather than broken */
+.agent-ready-hint-warning {
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
 /* Toggle grid */
 .agent-ready-toggle-grid {
   display: grid;

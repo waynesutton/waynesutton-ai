@@ -18,6 +18,12 @@ interface PostListProps {
   viewMode?: "list" | "cards";
   columns?: 2 | 3; // Number of columns for card view (default: 3)
   showExcerpts?: boolean; // Show excerpts in card view (default: true)
+  // Display options. Defaults reproduce the original output so the blog page,
+  // tag pages, author pages, and related posts are unaffected.
+  showReadTime?: boolean;
+  showDate?: boolean;
+  showYearHeadings?: boolean;
+  underlineTitles?: boolean;
 }
 
 // Group posts by year
@@ -40,6 +46,10 @@ export default function PostList({
   viewMode = "list",
   columns = 3,
   showExcerpts = true,
+  showReadTime = true,
+  showDate = true,
+  showYearHeadings = true,
+  underlineTitles = false,
 }: PostListProps) {
   // Sort posts by date descending
   const sortedPosts = [...posts].sort(
@@ -74,14 +84,18 @@ export default function PostList({
                   {post.excerpt || post.description}
                 </p>
               )}
-              <div className="post-card-meta">
-                {post.readTime && (
-                  <span className="post-card-read-time">{post.readTime}</span>
-                )}
-                <span className="post-card-date">
-                  {format(parseISO(post.date), "MMMM d, yyyy")}
-                </span>
-              </div>
+              {(showReadTime || showDate) && (
+                <div className="post-card-meta">
+                  {showReadTime && post.readTime && (
+                    <span className="post-card-read-time">{post.readTime}</span>
+                  )}
+                  {showDate && (
+                    <span className="post-card-date">
+                      {format(parseISO(post.date), "MMMM d, yyyy")}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </Link>
         ))}
@@ -89,32 +103,49 @@ export default function PostList({
     );
   }
 
-  // List view: group by year
+  // List view
+  const listClass = underlineTitles
+    ? "post-list post-list-underlined"
+    : "post-list";
+
+  const renderRow = (post: Post) => (
+    <li key={post._id} className="post-item">
+      <Link to={`/${post.slug}`} className="post-link">
+        <span className="post-title">{post.title}</span>
+        {(showReadTime || showDate) && (
+          <span className="post-meta">
+            {showReadTime && post.readTime && (
+              <span className="post-read-time">{post.readTime}</span>
+            )}
+            {showDate && (
+              <span className="post-date">
+                {format(parseISO(post.date), "MMMM d")}
+              </span>
+            )}
+          </span>
+        )}
+      </Link>
+    </li>
+  );
+
+  // Flat list when year headings are off
+  if (!showYearHeadings) {
+    return (
+      <div className={listClass}>
+        <ul className="posts">{sortedPosts.map(renderRow)}</ul>
+      </div>
+    );
+  }
+
   const groupedPosts = groupByYear(sortedPosts);
   const years = Object.keys(groupedPosts).sort((a, b) => Number(b) - Number(a));
 
   return (
-    <div className="post-list">
+    <div className={listClass}>
       {years.map((year) => (
         <div key={year} className="post-year-group">
           <h2 className="year-heading">{year}</h2>
-          <ul className="posts">
-            {groupedPosts[year].map((post) => (
-              <li key={post._id} className="post-item">
-                <Link to={`/${post.slug}`} className="post-link">
-                  <span className="post-title">{post.title}</span>
-                  <span className="post-meta">
-                    {post.readTime && (
-                      <span className="post-read-time">{post.readTime}</span>
-                    )}
-                    <span className="post-date">
-                      {format(parseISO(post.date), "MMMM d")}
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <ul className="posts">{groupedPosts[year].map(renderRow)}</ul>
         </div>
       ))}
     </div>

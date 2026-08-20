@@ -173,7 +173,7 @@ export function ApiKeysSection({
       </div>
 
       {/* Create key */}
-      <div className="dashboard-import-form">
+      <div className="dashboard-form-block">
         <div className="dashboard-import-input-group">
           <input
             className="dashboard-import-input"

@@ -54,12 +54,51 @@ export interface HomePostsReadMoreConfig {
 }
 
 // Posts display configuration
-// Controls where the post list appears
+// Controls where the post list appears, and how the homepage list looks.
+// Every homeShow* key is optional and defaults to the long-standing behavior,
+// so a site that never sets them renders exactly as before.
 export interface PostsDisplayConfig {
   showOnHome: boolean; // Show post list on homepage
   showOnBlogPage: boolean; // Show post list on /blog page (requires blogPage.enabled)
   homePostsLimit?: number; // Limit number of posts shown on homepage (undefined = show all)
   homePostsReadMore?: HomePostsReadMoreConfig; // Optional "read more" link configuration
+  homeTitle?: string; // Optional heading above the homepage post list (empty = no heading)
+  homeViewMode?: "list" | "cards"; // Homepage post list view (default: list)
+  homeShowViewToggle?: boolean; // Show a list/cards toggle on the homepage list (default: false)
+  homeShowReadTime?: boolean; // Show read time on homepage rows (default: true)
+  homeShowDate?: boolean; // Show the date on homepage rows (default: true)
+  homeShowYearHeadings?: boolean; // Group homepage rows under year headings (default: true)
+  homeUnderlineTitles?: boolean; // Underline homepage post titles, like the featured list (default: false)
+}
+
+// One homepage category section. Posts that carry `tag` are listed under
+// `title`, so grouping is driven by frontmatter tags with no extra config per
+// post. Modeled on the topic lists on leerob.com.
+export interface HomeCategorySection {
+  title: string; // Heading above the list
+  tag: string; // Frontmatter tag to match (case insensitive)
+  limit?: number; // Max posts to show (default: 8)
+  columns?: 1 | 2; // Column count on desktop (default: 2)
+  showDate?: boolean; // Show the post date on each row (default: false)
+}
+
+// Homepage category sections configuration
+export interface HomeCategoriesConfig {
+  enabled: boolean; // Render the sections
+  position: "above-posts" | "below-posts"; // Where they sit relative to the post list
+  sections: Array<HomeCategorySection>;
+}
+
+// Wide 16:9 image on the homepage, with a width scaler so it can be pulled in
+// narrower than the content column without cropping.
+export interface HomeHeroImageConfig {
+  enabled: boolean;
+  src: string; // Image URL or /images/... path
+  alt?: string; // Empty alt is fine for a decorative banner
+  href?: string; // Optional link wrapper
+  position: "top" | "bottom" | "both"; // Above the header, below the content, or both
+  width: number; // Percent of the content column, 30 to 100
+  rounded?: boolean; // Rounded corners (default: true)
 }
 
 // Hardcoded navigation item configuration
@@ -349,6 +388,15 @@ export interface SiteConfig {
   featuredViewMode: "cards" | "list";
   featuredTitle: string; // Featured section title (e.g., "Get started:", "Featured", "Popular")
   showViewToggle: boolean;
+  // Hide the homepage featured section entirely. Featured data is untouched, so
+  // `featured: true` still orders the blog page. Default: true (shown).
+  featuredSectionEnabled?: boolean;
+
+  // Homepage category sections, grouped by post tag
+  homeCategories?: HomeCategoriesConfig;
+
+  // Homepage 16:9 banner image with a width scaler
+  homeHeroImage?: HomeHeroImageConfig;
 
   // Logo gallery configuration
   logoGallery: LogoGalleryConfig;
@@ -482,6 +530,27 @@ export const siteConfig: SiteConfig = {
   featuredTitle: "Writings",
   // Allow users to toggle between list and card views
   showViewToggle: true,
+  // Set to false to hide the featured section. Useful when the homepage post
+  // list below it is doing the same job.
+  featuredSectionEnabled: true,
+
+  // Homepage category sections. Add a section per tag you want grouped.
+  homeCategories: {
+    enabled: false,
+    position: "above-posts",
+    sections: [],
+  },
+
+  // Homepage 16:9 banner. width is a percent of the content column.
+  homeHeroImage: {
+    enabled: false,
+    src: "",
+    alt: "",
+    href: "",
+    position: "top",
+    width: 100,
+    rounded: true,
+  },
 
   // Logo gallery configuration
   // Set enabled to false to hide, or remove/replace sample images with your own
@@ -598,6 +667,15 @@ export const siteConfig: SiteConfig = {
       text: "Read more blog posts", // Customizable link text
       link: "/blog", // URL to link to (usually "/blog")
     },
+    // How the homepage list looks. Match these to the featured section above if
+    // you turn featuredSectionEnabled off and want the same reading experience.
+    homeTitle: "", // Heading above the list (empty = no heading)
+    homeViewMode: "list", // "list" or "cards"
+    homeShowViewToggle: false, // Let readers switch between list and cards
+    homeShowReadTime: true, // Show read time on each row
+    homeShowDate: true, // Show the date on each row
+    homeShowYearHeadings: true, // Group rows under year headings
+    homeUnderlineTitles: false, // Underline titles like the featured list
   },
 
   // Links for footer section

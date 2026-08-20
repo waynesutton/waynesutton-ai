@@ -19,6 +19,8 @@ import { useTheme } from "../context/ThemeContext";
 import PostList from "../components/PostList";
 import FeaturedCards from "../components/FeaturedCards";
 import LogoMarquee from "../components/LogoMarquee";
+import HomeCategories from "../components/HomeCategories";
+import HomeHeroImage from "../components/HomeHeroImage";
 import GitHubContributions from "../components/GitHubContributions";
 import Footer from "../components/Footer";
 import SocialFooter from "../components/SocialFooter";
@@ -217,8 +219,65 @@ function InlineCopyButton({ command }: { command: string }) {
   );
 }
 
-// Local storage key for view mode preference
+// Local storage keys for view mode preferences. The featured section and the
+// homepage post list each keep their own, so toggling one never moves the other.
 const VIEW_MODE_KEY = "featured-view-mode";
+const HOME_POSTS_VIEW_MODE_KEY = "home-posts-view-mode";
+
+// Shared list/cards toggle for the featured section and the homepage post list
+function ViewToggleButton({
+  viewMode,
+  onToggle,
+}: {
+  viewMode: "list" | "cards";
+  onToggle: () => void;
+}) {
+  const label = `Switch to ${viewMode === "list" ? "card" : "list"} view`;
+  return (
+    <button
+      className="view-toggle-button"
+      onClick={onToggle}
+      aria-label={label}
+      data-tooltip={label}
+    >
+      {viewMode === "list" ? (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="3" y="3" width="7" height="7" />
+          <rect x="14" y="3" width="7" height="7" />
+          <rect x="3" y="14" width="7" height="7" />
+          <rect x="14" y="14" width="7" height="7" />
+        </svg>
+      ) : (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+      )}
+    </button>
+  );
+}
 
 // Strip HTML comments from content, preserving special placeholders
 // Removes <!-- ... --> but keeps <!-- newsletter --> and <!-- contactform -->
@@ -297,10 +356,15 @@ export default function Home() {
   const { signOut } = useAuthActions();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  // Fetch published posts from Convex (only if showing on home)
+  // Category sections group the same rows the post list uses, so one query
+  // feeds both. Fetch when either feature is on.
+  const homeCategories = siteConfig.homeCategories;
+  const categoriesEnabled = homeCategories?.enabled === true;
+
+  // Fetch published posts from Convex (only if the homepage needs them)
   const posts = useQuery(
     api.posts.getAllPosts,
-    siteConfig.postsDisplay.showOnHome ? {} : "skip",
+    siteConfig.postsDisplay.showOnHome || categoriesEnabled ? {} : "skip",
   );
 
   // Fetch featured posts and pages from Convex (for list view)
@@ -316,6 +380,11 @@ export default function Home() {
   // State for view mode toggle (list or cards)
   const [viewMode, setViewMode] = useState<"list" | "cards">(
     siteConfig.featuredViewMode,
+  );
+
+  // Homepage post list has its own view mode, independent of the featured section
+  const [postsViewMode, setPostsViewMode] = useState<"list" | "cards">(
+    siteConfig.postsDisplay.homeViewMode ?? "list",
   );
 
   // Get code theme based on current theme
@@ -347,6 +416,20 @@ export default function Home() {
     const newMode = viewMode === "list" ? "cards" : "list";
     setViewMode(newMode);
     localStorage.setItem(VIEW_MODE_KEY, newMode);
+  };
+
+  useEffect(() => {
+    if (!siteConfig.postsDisplay.homeShowViewToggle) return;
+    const saved = localStorage.getItem(HOME_POSTS_VIEW_MODE_KEY);
+    if (saved === "list" || saved === "cards") {
+      setPostsViewMode(saved);
+    }
+  }, []);
+
+  const togglePostsViewMode = () => {
+    const newMode = postsViewMode === "list" ? "cards" : "list";
+    setPostsViewMode(newMode);
+    localStorage.setItem(HOME_POSTS_VIEW_MODE_KEY, newMode);
   };
 
   // Render logo gallery based on position config
@@ -381,10 +464,15 @@ export default function Home() {
   };
 
   const featuredList = getFeaturedList();
-  const hasFeaturedContent = featuredList.length > 0;
+  // The section can be switched off in config without unfeaturing anything, so
+  // `featured: true` still drives blog page ordering and the frontmatter toggle
+  const showFeaturedSection =
+    siteConfig.featuredSectionEnabled !== false && featuredList.length > 0;
 
   // Check if posts should be shown on homepage
   const showPostsOnHome = siteConfig.postsDisplay.showOnHome;
+  const postsDisplay = siteConfig.postsDisplay;
+  const homePostsTitle = postsDisplay.homeTitle?.trim();
   const dashboardNotice = new URLSearchParams(location.search).get("dashboardNotice");
   const showNotAdminNotice = dashboardNotice === "not-admin";
   const isAuthenticated = useQuery(api.authAdmin.isCurrentUserAuthenticated);
@@ -439,6 +527,9 @@ export default function Home() {
           </div>
         </div>
       )}
+      {/* Optional 16:9 banner above everything */}
+      <HomeHeroImage config={siteConfig.homeHeroImage} slot="top" />
+
       {/* Header section with intro */}
       <header className="home-header">
         {/* Optional site logo */}
@@ -659,53 +750,15 @@ export default function Home() {
           )}
 
         {/* Featured section with optional view toggle */}
-        {hasFeaturedContent && (
+        {showFeaturedSection && (
           <div className="home-featured">
             <div className="home-featured-header">
               <p className="home-featured-intro">{siteConfig.featuredTitle}</p>
               {siteConfig.showViewToggle && (
-                <button
-                  className="view-toggle-button"
-                  onClick={toggleViewMode}
-                  aria-label={`Switch to ${viewMode === "list" ? "card" : "list"} view`}
-                  data-tooltip={`Switch to ${viewMode === "list" ? "card" : "list"} view`}
-                >
-                  {viewMode === "list" ? (
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <rect x="3" y="3" width="7" height="7" />
-                      <rect x="14" y="3" width="7" height="7" />
-                      <rect x="3" y="14" width="7" height="7" />
-                      <rect x="14" y="14" width="7" height="7" />
-                    </svg>
-                  ) : (
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="8" y1="6" x2="21" y2="6" />
-                      <line x1="8" y1="12" x2="21" y2="12" />
-                      <line x1="8" y1="18" x2="21" y2="18" />
-                      <line x1="3" y1="6" x2="3.01" y2="6" />
-                      <line x1="3" y1="12" x2="3.01" y2="12" />
-                      <line x1="3" y1="18" x2="3.01" y2="18" />
-                    </svg>
-                  )}
-                </button>
+                <ViewToggleButton
+                  viewMode={viewMode}
+                  onToggle={toggleViewMode}
+                />
               )}
             </div>
 
@@ -730,6 +783,11 @@ export default function Home() {
       {/* Logo gallery (below-featured position) */}
       {renderLogoGallery("below-featured")}
 
+      {/* Tag-driven category sections, above the post list */}
+      {categoriesEnabled && homeCategories?.position !== "below-posts" && posts && (
+        <HomeCategories config={homeCategories} posts={posts} />
+      )}
+
       {/* Blog posts section - conditionally shown based on config */}
       {showPostsOnHome && (
         <section id="posts" className="home-posts">
@@ -737,12 +795,32 @@ export default function Home() {
             <p className="no-posts">No posts yet. Check back soon!</p>
           ) : (
             <>
+              {(homePostsTitle || postsDisplay.homeShowViewToggle) && (
+                <div className="home-posts-header">
+                  {homePostsTitle ? (
+                    <p className="home-posts-title">{homePostsTitle}</p>
+                  ) : (
+                    <span />
+                  )}
+                  {postsDisplay.homeShowViewToggle && (
+                    <ViewToggleButton
+                      viewMode={postsViewMode}
+                      onToggle={togglePostsViewMode}
+                    />
+                  )}
+                </div>
+              )}
               <PostList
                 posts={
-                  siteConfig.postsDisplay.homePostsLimit
-                    ? posts.slice(0, siteConfig.postsDisplay.homePostsLimit)
+                  postsDisplay.homePostsLimit
+                    ? posts.slice(0, postsDisplay.homePostsLimit)
                     : posts
                 }
+                viewMode={postsViewMode}
+                showReadTime={postsDisplay.homeShowReadTime !== false}
+                showDate={postsDisplay.homeShowDate !== false}
+                showYearHeadings={postsDisplay.homeShowYearHeadings !== false}
+                underlineTitles={postsDisplay.homeUnderlineTitles === true}
               />
               {/* Show "read more" link if enabled and there are more posts than the limit */}
               {siteConfig.postsDisplay.homePostsReadMore?.enabled &&
@@ -760,6 +838,11 @@ export default function Home() {
             </>
           )}
         </section>
+      )}
+
+      {/* Tag-driven category sections, below the post list */}
+      {categoriesEnabled && homeCategories?.position === "below-posts" && posts && (
+        <HomeCategories config={homeCategories} posts={posts} />
       )}
 
       {/* GitHub contributions graph - above logo gallery */}
@@ -785,6 +868,9 @@ export default function Home() {
       {/* Social footer section */}
       {siteConfig.socialFooter?.enabled &&
         siteConfig.socialFooter.showOnHomepage && <SocialFooter />}
+
+      {/* Optional 16:9 banner below everything */}
+      <HomeHeroImage config={siteConfig.homeHeroImage} slot="bottom" />
     </div>
   );
 }

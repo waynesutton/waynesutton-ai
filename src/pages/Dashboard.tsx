@@ -1,3 +1,6 @@
+// Inter, self hosted. Imported here rather than in index.html so it ships in the
+// lazy-loaded dashboard chunk and never costs the public site a font request.
+import "@fontsource-variable/inter";
 import "../styles/dashboard-forms.css";
 import "../styles/dashboard.css";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
@@ -75,12 +78,16 @@ import {
   XLogo,
   SquaresFour,
   List,
+  ArrowUp,
+  ArrowDown,
+  Plus,
 } from "@phosphor-icons/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { useDragSort } from "../hooks/useDragSort";
 import { DraftsInbox } from "../components/dashboard/DraftsInbox";
 import { ApiKeysSection } from "../components/dashboard/ApiKeysSection";
 import { XSection } from "../components/dashboard/XSection";
+import { HomepageSection } from "../components/dashboard/HomepageSection";
 import AgentReadySection from "../components/AgentReadySection";
 import DashboardDocsSection from "../components/DashboardDocsSection";
 import siteConfig from "../config/siteConfig";
@@ -89,6 +96,7 @@ import AIChatView from "../components/AIChatView";
 import VersionHistoryModal from "../components/VersionHistoryModal";
 import { MediaLibrary } from "../components/MediaLibrary";
 import { ImageUploadModal } from "../components/ImageUploadModal";
+import type { LogoItem } from "../components/LogoMarquee";
 import {
   FrontmatterForm,
   createDefaultFrontmatter,
@@ -568,6 +576,7 @@ type DashboardSection =
   | "newsletter-stats"
   | "import"
   | "config"
+  | "homepage"
   | "index-html"
   | "stats"
   | "sync"
@@ -1318,6 +1327,14 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // A shared `?docs=<topic>` link opens the Docs section directly. The param is
+  // left in place so DashboardDocsSection can read which topic to show.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("docs")) {
+      setActiveSection("docs");
+    }
+  }, []);
+
   // Handle the X OAuth callback landing (?x=connected|denied|error), then
   // clean the param so refreshes do not repeat the toast
   useEffect(() => {
@@ -1912,6 +1929,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
       items: [
         { id: "api-keys" as const, label: "API Keys", icon: Key },
         { id: "config" as const, label: "Site Config", icon: Gear },
+        { id: "homepage" as const, label: "Homepage", icon: House },
         { id: "agent-ready" as const, label: "Agent Ready", icon: Broadcast },
         { id: "x" as const, label: "X", icon: XLogo },
         { id: "index-html" as const, label: "Index HTML", icon: FileText },
@@ -2123,6 +2141,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               {activeSection === "newsletter-stats" && "Email Stats"}
               {activeSection === "import" && "Import URL"}
               {activeSection === "config" && "Site Config"}
+              {activeSection === "homepage" && "Homepage"}
               {activeSection === "index-html" && "Index HTML"}
               {activeSection === "stats" && "Analytics"}
               {activeSection === "sync" && "Sync Content"}
@@ -2369,6 +2388,14 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
                 addToast={addToast}
                 onNavigateToIndexHtml={() => setActiveSection("index-html")}
               />
+            ))}
+
+          {/* Homepage */}
+          {activeSection === "homepage" &&
+            (isDemo ? (
+              <DemoSectionGate section="Homepage" />
+            ) : (
+              <HomepageSection addToast={addToast} />
             ))}
 
           {/* Index HTML */}
@@ -5565,21 +5592,39 @@ function ImportURLSection({ addToast }: { addToast: (message: string, type?: Toa
         <p>Import articles directly to the database using Firecrawl</p>
       </div>
 
-      <div className="dashboard-import-form">
-        <div className="dashboard-import-input-group">
-          <LinkIcon size={18} />
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://example.com/article"
-            className="dashboard-import-input"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && url.trim() && !isLoading) {
-                handleImport();
-              }
-            }}
-          />
+      <div className="dashboard-form-block">
+        <div className="dashboard-form-row">
+          <div className="dashboard-import-input-group">
+            <LinkIcon size={18} />
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com/article"
+              className="dashboard-import-input"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && url.trim() && !isLoading) {
+                  handleImport();
+                }
+              }}
+            />
+          </div>
+          <button
+            className="dashboard-import-btn"
+            onClick={handleImport}
+            disabled={isLoading || !url.trim()}>
+            {isLoading ? (
+              <>
+                <SpinnerGap size={16} className="animate-spin" />
+                <span>Importing...</span>
+              </>
+            ) : (
+              <>
+                <CloudArrowDown size={16} />
+                <span>Import to Database</span>
+              </>
+            )}
+          </button>
         </div>
         <label className="dashboard-import-checkbox">
           <input
@@ -5589,22 +5634,6 @@ function ImportURLSection({ addToast }: { addToast: (message: string, type?: Toa
           />
           <span>Publish immediately</span>
         </label>
-        <button
-          className="dashboard-import-btn"
-          onClick={handleImport}
-          disabled={isLoading || !url.trim()}>
-          {isLoading ? (
-            <>
-              <SpinnerGap size={16} className="animate-spin" />
-              <span>Importing...</span>
-            </>
-          ) : (
-            <>
-              <CloudArrowDown size={16} />
-              <span>Import to Database</span>
-            </>
-          )}
-        </button>
       </div>
 
       {lastImported && (
@@ -6011,6 +6040,7 @@ function ConfigSection({
     featuredViewMode: siteConfig.featuredViewMode,
     featuredTitle: siteConfig.featuredTitle,
     showViewToggle: siteConfig.showViewToggle,
+    featuredSectionEnabled: siteConfig.featuredSectionEnabled !== false,
     // Blog page
     blogPageEnabled: siteConfig.blogPage.enabled,
     blogPageShowInNav: siteConfig.blogPage.showInNav,
@@ -6026,6 +6056,14 @@ function ConfigSection({
     homePostsReadMoreEnabled: siteConfig.postsDisplay.homePostsReadMore?.enabled || false,
     homePostsReadMoreText: siteConfig.postsDisplay.homePostsReadMore?.text || "",
     homePostsReadMoreLink: siteConfig.postsDisplay.homePostsReadMore?.link || "",
+    // Homepage post list appearance
+    homePostsTitle: siteConfig.postsDisplay.homeTitle || "",
+    homePostsViewMode: siteConfig.postsDisplay.homeViewMode || "list",
+    homePostsShowViewToggle: siteConfig.postsDisplay.homeShowViewToggle === true,
+    homePostsShowReadTime: siteConfig.postsDisplay.homeShowReadTime !== false,
+    homePostsShowDate: siteConfig.postsDisplay.homeShowDate !== false,
+    homePostsShowYearHeadings: siteConfig.postsDisplay.homeShowYearHeadings !== false,
+    homePostsUnderlineTitles: siteConfig.postsDisplay.homeUnderlineTitles === true,
     // Right sidebar
     rightSidebarEnabled: siteConfig.rightSidebar.enabled,
     rightSidebarMinWidth: siteConfig.rightSidebar.minWidth || 1135,
@@ -6113,12 +6151,51 @@ function ConfigSection({
     relatedPostsShowViewToggle: siteConfig.relatedPosts?.showViewToggle !== false,
   });
 
+  // Logo gallery images live outside the flat `config` object because they are an
+  // array of objects. siteConfig allows bare strings, so normalize on the way in
+  // and always write back the object form.
+  const [logoImages, setLogoImages] = useState<Array<LogoItem>>(() =>
+    (siteConfig.logoGallery?.images ?? []).map((image) =>
+      typeof image === "string" ? { src: image } : { ...image },
+    ),
+  );
+  const [logoPickerOpen, setLogoPickerOpen] = useState(false);
+  const [logoUrlDraft, setLogoUrlDraft] = useState("");
+
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
-  const saveOverridesMutation = useMutation(api.siteConfigData.saveOverrides);
+  // Partial merge so saving here cannot wipe keys owned by the Homepage section
+  const saveOverridesMutation = useMutation(api.siteConfigData.savePartialOverrides);
 
   const handleChange = (key: string, value: string | number | boolean) => {
     setConfig({ ...config, [key]: value });
+  };
+
+  const addLogoImage = (src: string) => {
+    const trimmed = src.trim();
+    if (!trimmed) return;
+    setLogoImages((current) => [...current, { src: trimmed }]);
+  };
+
+  const updateLogoImage = (index: number, patch: Partial<LogoItem>) => {
+    setLogoImages((current) =>
+      current.map((logo, i) => (i === index ? { ...logo, ...patch } : logo)),
+    );
+  };
+
+  const removeLogoImage = (index: number) => {
+    setLogoImages((current) => current.filter((_, i) => i !== index));
+  };
+
+  // Swap with the neighbour rather than splice so a single click is one step
+  const moveLogoImage = (index: number, direction: -1 | 1) => {
+    setLogoImages((current) => {
+      const target = index + direction;
+      if (target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   };
 
   // Builds the runtime overrides object saved to Convex. Mirrors generateConfigCode()
@@ -6135,8 +6212,14 @@ function ConfigSection({
       featuredViewMode: config.featuredViewMode,
       featuredTitle: config.featuredTitle,
       showViewToggle: config.showViewToggle,
+      featuredSectionEnabled: config.featuredSectionEnabled,
       logoGallery: {
         enabled: config.logoGalleryEnabled,
+        // Arrays replace rather than merge, so the dashboard list is the source
+        // of truth for logos once it has been saved
+        images: logoImages.map((logo) =>
+          logo.href ? { src: logo.src, href: logo.href } : { src: logo.src },
+        ),
         position: config.logoGalleryPosition,
         speed: config.logoGallerySpeed,
         title: config.logoGalleryTitle,
@@ -6175,6 +6258,13 @@ function ConfigSection({
           text: config.homePostsReadMoreText,
           link: config.homePostsReadMoreLink,
         },
+        homeTitle: config.homePostsTitle,
+        homeViewMode: config.homePostsViewMode as "list" | "cards",
+        homeShowViewToggle: config.homePostsShowViewToggle,
+        homeShowReadTime: config.homePostsShowReadTime,
+        homeShowDate: config.homePostsShowDate,
+        homeShowYearHeadings: config.homePostsShowYearHeadings,
+        homeUnderlineTitles: config.homePostsUnderlineTitles,
       },
       links: {
         docs: config.linksDocs,
@@ -6300,11 +6390,15 @@ export const siteConfig: SiteConfig = {
   featuredViewMode: "${config.featuredViewMode}",
   featuredTitle: "${config.featuredTitle}",
   showViewToggle: ${config.showViewToggle},
+  featuredSectionEnabled: ${config.featuredSectionEnabled},
   
-  // Logo gallery - customize images array as needed
   logoGallery: {
     enabled: ${config.logoGalleryEnabled},
-    images: [], // Add your logo images here - see original siteConfig.ts for format
+    images: ${JSON.stringify(
+      logoImages.map((logo) => (logo.href ? { src: logo.src, href: logo.href } : { src: logo.src })),
+      null,
+      6,
+    )},
     position: "${config.logoGalleryPosition}",
     speed: ${config.logoGallerySpeed},
     title: "${config.logoGalleryTitle}",
@@ -6355,6 +6449,13 @@ export const siteConfig: SiteConfig = {
       text: "${config.homePostsReadMoreText}",
       link: "${config.homePostsReadMoreLink}",
     },
+    homeTitle: "${config.homePostsTitle}",
+    homeViewMode: "${config.homePostsViewMode}",
+    homeShowViewToggle: ${config.homePostsShowViewToggle},
+    homeShowReadTime: ${config.homePostsShowReadTime},
+    homeShowDate: ${config.homePostsShowDate},
+    homeShowYearHeadings: ${config.homePostsShowYearHeadings},
+    homeUnderlineTitles: ${config.homePostsUnderlineTitles},
   },
   
   links: {
@@ -6688,11 +6789,111 @@ export default siteConfig;
               min={0}
             />
           </div>
+          {config.showPostsOnHome && (
+            <>
+              <div className="config-field">
+                <label>Homepage list heading (blank = none)</label>
+                <input
+                  type="text"
+                  value={config.homePostsTitle}
+                  placeholder="Posts"
+                  onChange={(e) => handleChange("homePostsTitle", e.target.value)}
+                />
+              </div>
+              <div className="config-field">
+                <label>Homepage list view</label>
+                <select
+                  value={config.homePostsViewMode}
+                  onChange={(e) => handleChange("homePostsViewMode", e.target.value)}>
+                  <option value="list">List</option>
+                  <option value="cards">Gallery</option>
+                </select>
+              </div>
+              <div className="config-field checkbox">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.homePostsShowViewToggle}
+                    onChange={(e) =>
+                      handleChange("homePostsShowViewToggle", e.target.checked)
+                    }
+                  />
+                  <span>Show list/gallery toggle</span>
+                </label>
+              </div>
+              <div className="config-field checkbox">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.homePostsShowReadTime}
+                    onChange={(e) =>
+                      handleChange("homePostsShowReadTime", e.target.checked)
+                    }
+                  />
+                  <span>Show read time</span>
+                </label>
+              </div>
+              <div className="config-field checkbox">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.homePostsShowDate}
+                    onChange={(e) => handleChange("homePostsShowDate", e.target.checked)}
+                  />
+                  <span>Show published date</span>
+                </label>
+              </div>
+              <div className="config-field checkbox">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.homePostsShowYearHeadings}
+                    onChange={(e) =>
+                      handleChange("homePostsShowYearHeadings", e.target.checked)
+                    }
+                  />
+                  <span>Group by year</span>
+                </label>
+              </div>
+              <div className="config-field checkbox">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={config.homePostsUnderlineTitles}
+                    onChange={(e) =>
+                      handleChange("homePostsUnderlineTitles", e.target.checked)
+                    }
+                  />
+                  <span>Underline titles</span>
+                </label>
+              </div>
+              <span className="config-field-note">
+                Turn these on to make the homepage list read like the featured
+                section, then hide the featured section below.
+              </span>
+            </>
+          )}
         </div>
 
         {/* Featured Section */}
         <div className="dashboard-config-card">
           <h3>Featured Section</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.featuredSectionEnabled}
+                onChange={(e) =>
+                  handleChange("featuredSectionEnabled", e.target.checked)
+                }
+              />
+              <span>Show featured section on homepage</span>
+            </label>
+          </div>
+          <span className="config-field-note">
+            Hiding it leaves the featured flag alone, so posts keep their order on
+            the blog page.
+          </span>
           <div className="config-field">
             <label>Featured Title</label>
             <input
@@ -7159,10 +7360,114 @@ export default siteConfig;
               max={20}
             />
           </div>
+          <div className="config-field">
+            <label>Logos ({logoImages.length})</label>
+            {logoImages.length === 0 ? (
+              <p className="config-field-note">
+                No logos yet. Upload one or paste an image URL below.
+              </p>
+            ) : (
+              <ul className="config-logo-list">
+                {logoImages.map((logo, index) => (
+                  <li key={`${logo.src}-${index}`} className="config-logo-row">
+                    <div className="config-logo-thumb">
+                      <img src={logo.src} alt="" loading="lazy" />
+                    </div>
+                    <div className="config-logo-fields">
+                      <input
+                        type="text"
+                        value={logo.src}
+                        aria-label={`Logo ${index + 1} image URL`}
+                        placeholder="/images/logos/logo.svg"
+                        onChange={(e) => updateLogoImage(index, { src: e.target.value })}
+                      />
+                      <input
+                        type="text"
+                        value={logo.href || ""}
+                        aria-label={`Logo ${index + 1} link`}
+                        placeholder="Optional link, e.g. https://example.com"
+                        onChange={(e) => updateLogoImage(index, { href: e.target.value })}
+                      />
+                    </div>
+                    <div className="config-logo-actions">
+                      <button
+                        type="button"
+                        className="config-logo-btn"
+                        onClick={() => moveLogoImage(index, -1)}
+                        disabled={index === 0}
+                        aria-label={`Move logo ${index + 1} up`}>
+                        <ArrowUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="config-logo-btn"
+                        onClick={() => moveLogoImage(index, 1)}
+                        disabled={index === logoImages.length - 1}
+                        aria-label={`Move logo ${index + 1} down`}>
+                        <ArrowDown size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="config-logo-btn danger"
+                        onClick={() => removeLogoImage(index)}
+                        aria-label={`Remove logo ${index + 1}`}>
+                        <Trash size={14} />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="config-field">
+            <label>Add a logo</label>
+            <div className="config-logo-add">
+              <input
+                type="text"
+                value={logoUrlDraft}
+                placeholder="Paste an image URL or /images/logos/... path"
+                onChange={(e) => setLogoUrlDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && logoUrlDraft.trim()) {
+                    e.preventDefault();
+                    addLogoImage(logoUrlDraft);
+                    setLogoUrlDraft("");
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="dashboard-action-btn"
+                disabled={!logoUrlDraft.trim()}
+                onClick={() => {
+                  addLogoImage(logoUrlDraft);
+                  setLogoUrlDraft("");
+                }}>
+                <Plus size={16} />
+                Add
+              </button>
+              <button
+                type="button"
+                className="dashboard-action-btn"
+                onClick={() => setLogoPickerOpen(true)}>
+                <Image size={16} />
+                Upload
+              </button>
+            </div>
+          </div>
           <span className="config-field-note">
-            Logo images are configured in the logoGallery.images array in siteConfig.ts
+            Save Config to publish this list. It replaces logoGallery.images in siteConfig.ts.
           </span>
         </div>
+
+        <ImageUploadModal
+          isOpen={logoPickerOpen}
+          onClose={() => setLogoPickerOpen(false)}
+          onSelectUrl={(url) => {
+            addLogoImage(url);
+            setLogoPickerOpen(false);
+          }}
+        />
 
         {/* Newsletter Signup Locations */}
         <div className="dashboard-config-card">
