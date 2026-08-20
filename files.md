@@ -4,10 +4,6 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-20)
 
-### Netlify deploy-preview CI (2026-08-20)
-
-- **New file** `netlify.toml`: static-only leftover Git integration. `npm ci --include=dev && npm run build`, publish `dist`, header and redirect rules. Does not run `npx convex deploy` and does not load the archived edge functions.
-
 ### Listen-to-this-post audio (2026-08-20)
 
 - **New file** `convex/audioDefaults.ts`: read and write `siteConfig.audio` plus the `draftSettings` inbox mirror in one mutation. Site settings win. Inbox and Config both call this.

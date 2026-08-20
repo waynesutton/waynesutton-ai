@@ -18,6 +18,12 @@ Each entry:
 
 <!-- Add new lessons below this line -->
 
+## 2026-08-20 - Do not restore Netlify to green leftover Git checks
+
+**What happened**: Four PR checks failed. They were all one leftover Netlify deploy preview (`waynesutton`). I put `netlify.toml` back so the preview would build a static Vite app.
+**Root cause**: Treated leftover GitHub checks as the hosting model. This app ships with `@convex-dev/self-hosting`. `netlify.toml` was archived on purpose.
+**Rule going forward**: Hosting is Convex static hosting. Do not add `netlify.toml` or Netlify edge functions to make CI green. Those four checks go away when the leftover Netlify Git integration is disconnected. Until then they can fail.
+
 ## 2026-04-14: Trust installed package exports over docs for preview releases
 
 **What happened**: Updated `convex/auth.ts` to use `password` and `github` from `@robelest/convex-auth/providers` per the docs at `auth.estifanos.com`. Bundler failed: the installed `0.0.4-preview.25` only exports PascalCase `Password` (a class) and `OAuth` (a factory). No first-party `github` provider ships yet. Also tried calling `Password()` without `new`, which failed at push analysis.
