@@ -293,6 +293,13 @@ export interface CompatibilityConfig {
   legacyDocs?: boolean;
 }
 
+// Listen-to-this-post audio. Site settings are the source of truth.
+// Per-post frontmatter `audio` / `audioVoice` override these defaults.
+export interface AudioConfig {
+  enabledDefault: boolean; // Show a player on new posts unless the post opts out
+  defaultVoice: "male" | "female";
+}
+
 // Media library configuration
 // Controls image upload and CDN storage via ConvexFS and Bunny.net
 export interface MediaConfig {
@@ -500,6 +507,9 @@ export interface SiteConfig {
 
   // Related posts configuration (optional)
   relatedPosts?: RelatedPostsConfig;
+
+  // Listen-to-this-post audio (optional)
+  audio?: AudioConfig;
 }
 
 // Default site configuration
@@ -993,6 +1003,12 @@ export const siteConfig: SiteConfig = {
   relatedPosts: {
     defaultViewMode: "thumbnails", // Default view: "list" or "thumbnails"
     showViewToggle: true, // Show toggle button to switch between views
+  },
+
+  // Listen-to-this-post audio. On for every new post unless frontmatter sets audio: false.
+  audio: {
+    enabledDefault: true,
+    defaultVoice: "female",
   },
 };
 

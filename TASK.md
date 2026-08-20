@@ -2,6 +2,7 @@
 
 ## To Do
 
+- [ ] Listen-to-this-post audio: browser pass. In Config, confirm Post audio defaults to on and female, save, then open Drafts Inbox and confirm the same toggle and voice. Flip them in the inbox and confirm Config shows the same values after a reload. Publish a Grok / inbox draft and confirm a player appears under the title (or "Audio not ready" while generating). Set `audio: false` on a post and confirm the player hides. (PRD: prds/listen-to-this-post-audio.md)
 - [ ] Put the two missing posts in the homepage Writings list once the bundle is deployed: open `grok-bot-is-a-desk-of-named-bots-not-one-chatbot` and `grokbot-agentmail-blog-covnex-setup`, turn Featured on in Visibility, set Featured order 5 and 6, save, and confirm both appear on the homepage in list and card view. Also confirm Written with AI now sits in Visibility and Advanced no longer lists `aiWritten` (PRD: prds/homepage-writings-toggle-and-ai-note.md)
 - [ ] Run `npm run sync` (and `npm run sync:prod` when ready) so the clarified `featured` rows reach the frontmatter docs page (PRD: prds/homepage-writings-toggle-and-ai-note.md)
 - [ ] Deploy the static bundle so the slug fix reaches the live dashboard, then rename the post at `/the-walk-already-had-the-idea` to the slug you want and confirm the new URL loads. `npx convex deploy --yes` then `npx @convex-dev/self-hosting deploy --skip-convex`, since `npm run deploy` has an interactive prompt that dies in a non-interactive shell (PRD: prds/slug-edit-not-saving.md)
@@ -58,6 +59,13 @@
 - [ ] Decide phase 3 of the dashboard overhaul: homepage category sections (there is no category concept in the schema, only tags and the docs group fields, so this needs a call on tag driven vs a new frontmatter field vs hand curated in config), the homepage 16:9 image with a resize scaler, and whether to apply the supplied dashboard design spec (it is a single light palette while this dashboard themes four ways off `--db-*` tokens, and Inter is named in the font stack but never loaded) (PRD: prds/homepage-and-dashboard-overhaul.md)
 
 ## Completed
+
+- [x] Listen-to-this-post audio for published posts (2026-08-20) (PRD: prds/listen-to-this-post-audio.md)
+  - Site Config owns `audio.enabledDefault` (on) and `audio.defaultVoice` (female) through the existing runtimeOverrides store. Drafts Inbox shows the same two fields and writes them in one mutation with the inbox mirror
+  - Per-post `audio` / `audioVoice` frontmatter overrides, same omitted-means-default style as `aiWritten`. Inbox publish stamps defaults unless the draft markdown already set them
+  - Publish, dashboard save, and sync enqueue Kokoro-82M (`af_heart` / `am_adam`) into Convex file storage. Content hash skips regen. Kokoro OOM retries in a fresh isolate (q4, then optional Piper). Failed generation does not block publish
+  - Player under the title on `Post.tsx`: Listen/Pause, progress, duration, voice label. Hidden when audio is off or there is no file. Pending shows "Audio not ready". Failed can fall back to the Web Speech API
+  - Browser pass left in To Do: this environment has no live Convex deployment to generate or play a file
 
 - [x] Dashboard form layouts, Docs split view, Logo Gallery management, Homepage section, dashboard design system (2026-08-19 08:15 UTC) (PRD: prds/homepage-and-dashboard-overhaul.md)
   - [x] Fixed the desktop bug logged in this file: `.dashboard-import-form` is a flex row above 768px, and three sections used it as a generic block wrapper, so headings sat beside inputs. Added `dashboard-form-block` (column, card framed) and `dashboard-form-row` (the inner field plus button line) and moved X compose, X draft-from-post, API Keys, and Import URL onto them. Import URL kept its row because it genuinely is one

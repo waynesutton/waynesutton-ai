@@ -18,6 +18,7 @@ import { XLogo, LinkedinLogo } from "@phosphor-icons/react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import SlidePresentation from "../components/SlidePresentation";
 import siteConfig from "../config/siteConfig";
+import PostAudioPlayer from "../components/PostAudioPlayer";
 
 // Local storage key for related posts view mode preference
 const RELATED_POSTS_VIEW_MODE_KEY = "related-posts-view-mode";
@@ -803,6 +804,13 @@ export default function Post({
               <p className="docs-article-description">{post.description}</p>
             )}
             {post.aiWritten && <AiWrittenNote />}
+            <PostAudioPlayer
+              audio={post.audio}
+              audioVoice={post.audioVoice}
+              audioUrl={post.audioUrl}
+              audioDuration={post.audioDuration}
+              audioStatus={post.audioStatus}
+            />
           </header>
           <BlogPost content={post.content} slug={post.slug} pageType="post" />
 
@@ -959,6 +967,13 @@ export default function Post({
               <p className="post-description">{post.description}</p>
             )}
             {post.aiWritten && <AiWrittenNote />}
+            <PostAudioPlayer
+              audio={post.audio}
+              audioVoice={post.audioVoice}
+              audioUrl={post.audioUrl}
+              audioDuration={post.audioDuration}
+              audioStatus={post.audioStatus}
+            />
           </header>
           {/* Blog post content - raw markdown or rendered */}
           <BlogPost content={post.content} slug={post.slug} pageType="post" />

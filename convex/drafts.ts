@@ -10,6 +10,9 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
 import { scheduleDiscoverySyncIfEnabled } from "./agentReady/autoSync";
+import { readAudioDefaults } from "./audioDefaults";
+import { schedulePostAudioIfNeeded } from "./audio";
+import { parseAudioFrontmatter } from "./lib/audioText";
 
 // Shared validators for draft payloads
 const draftTypeValidator = v.union(
@@ -198,6 +201,10 @@ async function materializeDraft(
         wasPublic && !isPublic ? `/${existingPost.slug}` : undefined,
     });
 
+    if (published) {
+      await schedulePostAudioIfNeeded(ctx, existingPost._id);
+    }
+
     return existingPost.slug;
   }
 
@@ -211,7 +218,11 @@ async function materializeDraft(
     .withIndex("by_key", (q) => q.eq("key", INBOX_SETTINGS_KEY))
     .unique();
 
-  await ctx.db.insert("posts", {
+  // Audio defaults come from site settings. Draft markdown wins when set.
+  const audioDefaults = await readAudioDefaults(ctx);
+  const audioFromMarkdown = parseAudioFrontmatter(body);
+
+  const postId = await ctx.db.insert("posts", {
     slug,
     title,
     description,
@@ -220,6 +231,8 @@ async function materializeDraft(
     published,
     unlisted: unlisted ? true : undefined,
     aiWritten: settings?.aiWrittenDefault === true ? true : undefined,
+    audio: audioFromMarkdown.audio ?? audioDefaults.enabledDefault,
+    audioVoice: audioFromMarkdown.audioVoice ?? audioDefaults.defaultVoice,
     tags: overrides?.tags ?? draft.tags ?? [],
     source: "dashboard",
     lastSyncedAt: now,
@@ -245,6 +258,10 @@ async function materializeDraft(
     await scheduleDiscoverySyncIfEnabled(ctx, {
       publish: { title, path: `/${slug}`, description },
     });
+  }
+
+  if (published) {
+    await schedulePostAudioIfNeeded(ctx, postId);
   }
 
   return slug;

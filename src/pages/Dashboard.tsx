@@ -617,6 +617,8 @@ interface ContentItem {
   contactForm?: boolean;
   unlisted?: boolean;
   aiWritten?: boolean;
+  audio?: boolean;
+  audioVoice?: "male" | "female";
   showFooter?: boolean;
   footer?: string;
   showSocialFooter?: boolean;
@@ -655,6 +657,8 @@ const postFrontmatterFields: FrontmatterFieldDef[] = [
   { key: "blogFeatured", label: "Blog Featured", type: "checkbox", required: false },
   { key: "unlisted", label: "Unlisted", type: "checkbox", required: false },
   { key: "aiWritten", label: "Written with AI", type: "checkbox", required: false },
+  { key: "audio", label: "Listen audio", type: "checkbox", required: false },
+  { key: "audioVoice", label: "Audio voice", type: "select", options: ["", "female", "male"], required: false },
   // Content options
   { key: "excerpt", label: "Excerpt", type: "textarea", required: false },
   { key: "image", label: "Image URL", type: "text", required: false },
@@ -754,6 +758,8 @@ const FORM_MANAGED_KEYS: ReadonlySet<string> = new Set([
   "ogImage",
   "noOgImage",
   "aiWritten",
+  "audio",
+  "audioVoice",
   "readTime",
   "authorName",
   "authorImage",
@@ -779,6 +785,8 @@ function itemToFrontmatter(item: ContentItem): FrontmatterValues {
     ogImage: item.ogImage ?? "",
     noOgImage: item.noOgImage ?? false,
     aiWritten: item.aiWritten ?? false,
+    audio: item.audio,
+    audioVoice: item.audioVoice,
     readTime: item.readTime ?? "",
     authorName: item.authorName ?? "",
     authorImage: item.authorImage ?? "",
@@ -820,6 +828,8 @@ function applyFrontmatterToItem(
     next.tags = fm.tags;
     next.readTime = optionalString(fm.readTime);
     next.aiWritten = fm.aiWritten;
+    next.audio = fm.audio;
+    next.audioVoice = fm.audioVoice;
     next.blogFeatured = fm.blogFeatured;
   } else {
     next.order = fm.order;
@@ -842,6 +852,8 @@ const CLEARABLE_POST_FIELDS = [
   "featuredOrder",
   "authorName",
   "authorImage",
+  "audio",
+  "audioVoice",
 ] as const;
 
 const CLEARABLE_PAGE_FIELDS = [
@@ -1301,7 +1313,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
   const adminPages = useQuery(api.pages.listAll, isDemo ? "skip" : {});
   const demoPosts = useQuery(api.demo.listAllPosts, isDemo ? {} : "skip");
   const demoPages = useQuery(api.demo.listAllPages, isDemo ? {} : "skip");
-  const posts: typeof adminPosts = isDemo ? demoPosts : adminPosts;
+  const posts = isDemo ? demoPosts : adminPosts;
   const pages: typeof adminPages = isDemo ? demoPages : adminPages;
 
   // CMS mutations for CRUD operations (admin)
@@ -1630,6 +1642,8 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
             blogFeatured: item.blogFeatured,
             unlisted: item.unlisted,
             aiWritten: item.aiWritten,
+            audio: item.audio,
+            audioVoice: item.audioVoice,
             authorName: item.authorName,
             authorImage: item.authorImage,
             layout: item.layout,
@@ -3964,6 +3978,8 @@ function WriteSection({
               authorName: optionalString(frontmatter.authorName),
               authorImage: optionalString(frontmatter.authorImage),
               aiWritten: frontmatter.aiWritten ? true : undefined,
+              audio: frontmatter.audio,
+              audioVoice: frontmatter.audioVoice,
             },
           });
         }
@@ -6149,6 +6165,8 @@ function ConfigSection({
     // Related posts
     relatedPostsDefaultViewMode: siteConfig.relatedPosts?.defaultViewMode || "thumbnails",
     relatedPostsShowViewToggle: siteConfig.relatedPosts?.showViewToggle !== false,
+    audioEnabledDefault: siteConfig.audio?.enabledDefault !== false,
+    audioDefaultVoice: siteConfig.audio?.defaultVoice === "male" ? "male" : "female",
   });
 
   // Logo gallery images live outside the flat `config` object because they are an
@@ -6349,6 +6367,10 @@ function ConfigSection({
       relatedPosts: {
         defaultViewMode: config.relatedPostsDefaultViewMode,
         showViewToggle: config.relatedPostsShowViewToggle,
+      },
+      audio: {
+        enabledDefault: config.audioEnabledDefault,
+        defaultVoice: config.audioDefaultVoice === "male" ? "male" : "female",
       },
     };
   };
@@ -6565,6 +6587,11 @@ export const siteConfig: SiteConfig = {
   relatedPosts: {
     defaultViewMode: "${config.relatedPostsDefaultViewMode}",
     showViewToggle: ${config.relatedPostsShowViewToggle},
+  },
+
+  audio: {
+    enabledDefault: ${config.audioEnabledDefault},
+    defaultVoice: "${config.audioDefaultVoice}",
   },
 };
 
@@ -7645,6 +7672,39 @@ export default siteConfig;
           <p className="config-hint">
             Controls the display of related posts at the bottom of blog posts. Thumbnails view shows
             image, title, description and author.
+          </p>
+        </div>
+
+        <div className="dashboard-config-card">
+          <h3>Post audio</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.audioEnabledDefault}
+                onChange={(e) => handleChange("audioEnabledDefault", e.target.checked)}
+              />
+              <span>Audio player on new posts</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Default voice</label>
+            <select
+              value={config.audioDefaultVoice}
+              onChange={(e) =>
+                handleChange(
+                  "audioDefaultVoice",
+                  e.target.value === "male" ? "male" : "female",
+                )
+              }
+            >
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+            </select>
+          </div>
+          <p className="config-hint">
+            Source of truth for the Drafts Inbox listen toggle. A post can opt
+            out with audio: false.
           </p>
         </div>
 

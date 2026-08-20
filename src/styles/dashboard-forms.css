@@ -338,6 +338,18 @@
   outline-offset: 2px;
 }
 
+.fmf-select {
+  flex-shrink: 0;
+  max-width: 160px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-color);
+  font-size: 13px;
+}
+
 /* Toggle switches */
 
 .fmf-switch {

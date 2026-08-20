@@ -75,6 +75,7 @@ export function DraftsInbox({
   const [voiceRules, setVoiceRules] = useState<string | null>(null);
   const [confirmClearVoice, setConfirmClearVoice] = useState(false);
   const [aiWrittenSaving, setAiWrittenSaving] = useState(false);
+  const [audioSaving, setAudioSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Id<"drafts"> | null>(null);
   const [filter, setFilter] = useState("");
@@ -131,6 +132,8 @@ export function DraftsInbox({
   const saveVoiceProfile = useMutation(api.drafts.saveVoiceProfile);
   const aiWrittenDefault = useQuery(api.drafts.getAiWrittenDefault);
   const setAiWrittenDefault = useMutation(api.drafts.setAiWrittenDefault);
+  const audioDefaults = useQuery(api.audioDefaults.getAudioDefaults);
+  const setAudioDefaults = useMutation(api.audioDefaults.setAudioDefaults);
   const openReviewPr = useAction(api.githubReview.openReviewPr);
   const requestReindex = useAction(api.voiceAgent.requestReindex);
 
@@ -288,6 +291,40 @@ export function DraftsInbox({
     })();
   };
 
+  const handleAudioToggle = (enabledDefault: boolean) => {
+    if (audioSaving) return;
+    setAudioSaving(true);
+    void (async () => {
+      try {
+        await setAudioDefaults({ enabledDefault });
+      } catch (error) {
+        addToast(
+          error instanceof Error ? error.message : "Could not save setting",
+          "error",
+        );
+      } finally {
+        setAudioSaving(false);
+      }
+    })();
+  };
+
+  const handleAudioVoice = (defaultVoice: "male" | "female") => {
+    if (audioSaving) return;
+    setAudioSaving(true);
+    void (async () => {
+      try {
+        await setAudioDefaults({ defaultVoice });
+      } catch (error) {
+        addToast(
+          error instanceof Error ? error.message : "Could not save setting",
+          "error",
+        );
+      } finally {
+        setAudioSaving(false);
+      }
+    })();
+  };
+
   const agentBadge = (draft: {
     agentStatus?: "pending" | "running" | "done" | "failed";
   }) => {
@@ -421,6 +458,41 @@ export function DraftsInbox({
         <p className="drafts-panel-hint" id="drafts-ai-written-hint">
           New posts from this inbox get a small note under the title. Frontmatter
           on the post can turn it off.
+        </p>
+      </div>
+
+      <div className="drafts-ai-setting">
+        <label className="fmf-switch">
+          <input
+            type="checkbox"
+            checked={audioDefaults?.enabledDefault === true}
+            disabled={audioDefaults === undefined || audioSaving}
+            aria-describedby="drafts-audio-hint"
+            onChange={(e) => handleAudioToggle(e.target.checked)}
+          />
+          <span className="fmf-switch-track" aria-hidden="true">
+            <span className="fmf-switch-thumb" />
+          </span>
+          <span className="fmf-switch-label">Listen audio</span>
+        </label>
+        <label className="drafts-panel-hint" htmlFor="drafts-audio-voice">
+          Default voice
+          <select
+            id="drafts-audio-voice"
+            className="dashboard-field-input"
+            value={audioDefaults?.defaultVoice ?? "female"}
+            disabled={audioDefaults === undefined || audioSaving}
+            onChange={(e) =>
+              handleAudioVoice(e.target.value === "male" ? "male" : "female")
+            }
+          >
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+          </select>
+        </label>
+        <p className="drafts-panel-hint" id="drafts-audio-hint">
+          Same setting as Site Config. New inbox posts get a player unless the
+          draft markdown sets audio.
         </p>
       </div>
 

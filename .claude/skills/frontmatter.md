@@ -39,6 +39,8 @@ Location: `content/blog/*.md`
 | contactForm | boolean | false | Enable contact form |
 | unlisted | boolean | false | Hide from listings but allow direct access via slug |
 | aiWritten | boolean | - | Posts only. `true` shows a note under the title that the post was written with AI and proofed by a human. Overrules the Drafts Inbox default. Omitted means no note. |
+| audio | boolean | - | Posts only. `true` shows the listen player. `false` hides it. Omitted uses the site default (`siteConfig.audio.enabledDefault`, on by default). |
+| audioVoice | string | - | Posts only. `male` or `female`. Omitted uses `siteConfig.audio.defaultVoice` (female). |
 | showFooter | boolean | - | Override footer display |
 | footer | string | - | Custom footer markdown |
 | showSocialFooter | boolean | - | Override social footer |
