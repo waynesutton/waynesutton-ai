@@ -72,6 +72,9 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   // Raw markdown file serving
   rawMarkdown: { kind: "token bucket", rate: 60, period: MINUTE, capacity: 20 },
 
+  // vCard download
+  vcard: { kind: "token bucket", rate: 60, period: MINUTE, capacity: 20 },
+
   // MCP server JSON-RPC endpoint (matches the old Netlify 50/min limit)
   mcp: { kind: "token bucket", rate: 50, period: MINUTE, capacity: 15 },
 });
@@ -84,7 +87,7 @@ type RateLimitName =
   | "heartbeat" | "pageView" | "newsletterSubscribe"
   | "draftsApi" | "webhookInbound" | "xCallback"
   | "apiPosts" | "apiPost" | "sitemap" | "rssFeed" | "rawMarkdown"
-  | "mcp";
+  | "mcp" | "vcard";
 
 // Internal mutation for rate limiting from HTTP actions.
 // HTTP actions cannot call rateLimiter.limit() directly because it needs

@@ -21,6 +21,7 @@ dotenv.config();
 
 const CONTENT_DIR = path.join(process.cwd(), "content", "blog");
 const PAGES_DIR = path.join(process.cwd(), "content", "pages");
+const PROJECTS_DIR = path.join(process.cwd(), "content", "projects");
 const RAW_OUTPUT_DIR = path.join(process.cwd(), "public", "raw");
 
 interface PostFrontmatter {
@@ -100,6 +101,35 @@ interface ParsedPost {
   docsSectionGroupIcon?: string; // Phosphor icon name for sidebar group
   docsLanding?: boolean; // Use as /docs landing page
   slides?: boolean; // Enable slide presentation mode (--- separates slides)
+}
+
+interface ProjectFrontmatter {
+  title: string;
+  slug: string;
+  description: string;
+  date: string;
+  published: boolean;
+  tags: string[];
+  url?: string;
+  image?: string;
+  featured?: boolean;
+  featuredOrder?: number;
+  kind?: "project" | "craft";
+}
+
+interface ParsedProject {
+  slug: string;
+  title: string;
+  description: string;
+  content: string;
+  date: string;
+  published: boolean;
+  tags: string[];
+  url?: string;
+  image?: string;
+  featured?: boolean;
+  featuredOrder?: number;
+  kind: "project" | "craft";
 }
 
 // Page frontmatter (for static pages like About, Projects, Contact)
@@ -338,6 +368,53 @@ function getAllPageFiles(): string[] {
     .map((file) => path.join(PAGES_DIR, file));
 }
 
+function parseProjectFile(filePath: string): ParsedProject | null {
+  try {
+    const fileContent = fs.readFileSync(filePath, "utf-8");
+    const { data, content } = matter(fileContent);
+    const frontmatter = data as Partial<ProjectFrontmatter>;
+
+    if (!frontmatter.title || !frontmatter.date || !frontmatter.slug) {
+      console.warn(`Skipping ${filePath}: missing required frontmatter fields`);
+      return null;
+    }
+
+    const kind =
+      frontmatter.kind === "craft" || frontmatter.kind === "project"
+        ? frontmatter.kind
+        : "project";
+
+    return {
+      slug: frontmatter.slug,
+      title: frontmatter.title,
+      description: frontmatter.description || "",
+      content: content.trim(),
+      date: frontmatter.date,
+      published: frontmatter.published ?? false,
+      tags: frontmatter.tags || [],
+      url: frontmatter.url,
+      image: frontmatter.image,
+      featured: frontmatter.featured,
+      featuredOrder: frontmatter.featuredOrder,
+      kind,
+    };
+  } catch (error) {
+    console.error(`Error parsing project ${filePath}:`, error);
+    return null;
+  }
+}
+
+function getAllProjectFiles(): string[] {
+  if (!fs.existsSync(PROJECTS_DIR)) {
+    return [];
+  }
+
+  const files = fs.readdirSync(PROJECTS_DIR);
+  return files
+    .filter((file) => file.endsWith(".md"))
+    .map((file) => path.join(PROJECTS_DIR, file));
+}
+
 // Main sync function
 async function syncPosts() {
   console.log("Starting post sync...\n");
@@ -418,6 +495,37 @@ async function syncPosts() {
         console.log(`  Deleted: ${pageResult.deleted}`);
       } catch (error) {
         console.error("Error syncing pages:", error);
+        process.exit(1);
+      }
+    }
+  }
+
+  // Sync projects if content/projects exists. Does not change blog or pages sync.
+  const projectFiles = getAllProjectFiles();
+  if (projectFiles.length > 0) {
+    const projects: ParsedProject[] = [];
+    console.log(`\nFound ${projectFiles.length} project files\n`);
+    for (const filePath of projectFiles) {
+      const project = parseProjectFile(filePath);
+      if (project) {
+        projects.push(project);
+        console.log(`Parsed project: ${project.title} (${project.slug})`);
+      }
+    }
+
+    if (projects.length > 0) {
+      console.log(`\nSyncing ${projects.length} projects to Convex...\n`);
+      try {
+        const projectResult = await client.mutation(
+          api.projects.syncProjectsPublic,
+          { projects },
+        );
+        console.log("Projects sync complete!");
+        console.log(`  Created: ${projectResult.created}`);
+        console.log(`  Updated: ${projectResult.updated}`);
+        console.log(`  Deleted: ${projectResult.deleted}`);
+      } catch (error) {
+        console.error("Error syncing projects:", error);
         process.exit(1);
       }
     }

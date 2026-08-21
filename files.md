@@ -2,6 +2,30 @@
 
 A brief description of each file in the codebase.
 
+## Recent session updates (2026-08-21)
+
+### Haptics, vCard, projects/craft gallery (2026-08-21)
+
+- **New file** `src/lib/haptics.ts`: `haptic()` wraps `navigator.vibrate`. No-op when missing or blocked.
+- **New file** `convex/vcard.ts`: default vCard fields, `getVcardFields` internal query, `buildVcardText` helper. Photo is URI only.
+- **New file** `convex/projects.ts`: admin list, public list by published+kind, CRUD, markdown sync.
+- **New file** `convex/lib/reservedSlugs.ts`: blocks `projects` and `craft` on post/page create and slug change.
+- **New file** `src/pages/Projects.tsx`: public gallery with tag chips and list/thumbs toggle.
+- **New file** `src/components/dashboard/ProjectsSection.tsx`: dashboard CRUD for the projects table.
+- **New file** `content/projects/example-project.md`: unpublished example. Do not invent published work.
+- **New file** `prds/aniket-portfolio-haptics-vcard-projects.md`: first-slice PRD.
+- **Modified** `convex/schema.ts`: additive `projects` table and indexes.
+- **Modified** `convex/http.ts`: GET `/vcard.vcf` before the `/` catch-all; sitemap `/projects` and `/craft`.
+- **Modified** `convex/rateLimits.ts`: `vcard` token bucket.
+- **Modified** `convex/cms.ts`: reserved slug checks.
+- **Modified** `src/config/siteConfig.ts`: `projectsPage`, `vcard`, footer/social `showOnProjects`.
+- **Modified** `src/pages/Dashboard.tsx`: Projects nav section plus Config cards for projectsPage and vCard.
+- **Modified** `src/components/Layout.tsx`: Projects nav item, vCard download, nav haptics.
+- **Modified** `src/components/ThemeToggle.tsx`, `src/components/CopyPageDropdown.tsx`, `src/pages/Home.tsx`, `src/pages/Post.tsx`: haptic on copy and theme toggle.
+- **Modified** `src/App.tsx`: `/projects` and `/craft` routes.
+- **Modified** `src/styles/global.css`: gallery and vCard chrome styles.
+- **Modified** `scripts/sync-posts.ts`, `scripts/export-db-posts.ts`: projects folder in and out. Blog and pages sync unchanged.
+
 ## Recent session updates (2026-08-20)
 
 ### Netlify deploy-preview CI (2026-08-20)

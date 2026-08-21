@@ -8,6 +8,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { FilePdf } from "@phosphor-icons/react";
+import { haptic } from "../lib/haptics";
 
 // Maximum URL length for query parameters (conservative limit)
 const MAX_URL_LENGTH = 6000;
@@ -251,6 +252,7 @@ export default function CopyPageDropdown(props: CopyPageDropdownProps) {
   const writeToClipboard = async (text: string): Promise<boolean> => {
     try {
       await navigator.clipboard.writeText(text);
+      haptic();
       return true;
     } catch (error) {
       // Fallback for older browsers or permission issues
@@ -263,6 +265,7 @@ export default function CopyPageDropdown(props: CopyPageDropdownProps) {
         textarea.select();
         document.execCommand("copy");
         document.body.removeChild(textarea);
+        haptic();
         return true;
       } catch {
         console.error("Failed to copy to clipboard:", error);

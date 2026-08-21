@@ -4,6 +4,7 @@ import type { Infer } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
+import { assertSlugNotReserved } from "./lib/reservedSlugs";
 import { scheduleDiscoverySyncIfEnabled } from "./agentReady/autoSync";
 import { schedulePostAudioIfNeeded } from "./audio";
 import { audioVoiceValidator } from "./audioDefaults";
@@ -263,6 +264,7 @@ export const createPost = mutation({
   returns: v.id("posts"),
   handler: async (ctx, args) => {
     await requireDashboardAdmin(ctx);
+    assertSlugNotReserved(args.post.slug);
 
     // Check if slug already exists
     const existing = await ctx.db
@@ -313,6 +315,8 @@ export const createPostInternal = internalMutation({
     if (existing) {
       throw new ConvexError(`Post with slug "${args.post.slug}" already exists`);
     }
+
+    assertSlugNotReserved(args.post.slug);
 
     const postId = await ctx.db.insert("posts", {
       ...args.post,
@@ -395,6 +399,7 @@ export const updatePost = mutation({
     // If slug is being changed, check for conflicts
     const newSlug = args.post.slug;
     if (newSlug && newSlug !== existing.slug) {
+      assertSlugNotReserved(newSlug);
       const slugConflict = await ctx.db
         .query("posts")
         .withIndex("by_slug", (q) => q.eq("slug", newSlug))
@@ -479,6 +484,7 @@ export const createPage = mutation({
   returns: v.id("pages"),
   handler: async (ctx, args) => {
     await requireDashboardAdmin(ctx);
+    assertSlugNotReserved(args.page.slug);
 
     // Check if slug already exists
     const existing = await ctx.db
@@ -551,6 +557,7 @@ export const updatePage = mutation({
     // If slug is being changed, check for conflicts
     const newSlug = args.page.slug;
     if (newSlug && newSlug !== existing.slug) {
+      assertSlugNotReserved(newSlug);
       const slugConflict = await ctx.db
         .query("pages")
         .withIndex("by_slug", (q) => q.eq("slug", newSlug))

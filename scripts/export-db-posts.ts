@@ -17,6 +17,7 @@ dotenv.config();
 
 const BLOG_OUTPUT_DIR = path.join(process.cwd(), "content", "blog");
 const PAGES_OUTPUT_DIR = path.join(process.cwd(), "content", "pages");
+const PROJECTS_OUTPUT_DIR = path.join(process.cwd(), "content", "projects");
 
 const convexUrl = process.env.VITE_CONVEX_URL;
 if (!convexUrl) {
@@ -92,6 +93,23 @@ interface Page {
   docsSectionGroupOrder?: number;
   docsSectionGroupIcon?: string;
   docsLanding?: boolean;
+  source?: "dashboard" | "sync";
+}
+
+interface Project {
+  _id: string;
+  slug: string;
+  title: string;
+  description: string;
+  content: string;
+  date: string;
+  published: boolean;
+  tags: string[];
+  url?: string;
+  image?: string;
+  featured?: boolean;
+  featuredOrder?: number;
+  kind: "project" | "craft";
   source?: "dashboard" | "sync";
 }
 
@@ -204,6 +222,27 @@ function generatePageMarkdown(page: Page): string {
   return `${frontmatter.join("\n")}\n\n${page.content}`;
 }
 
+function generateProjectMarkdown(project: Project): string {
+  const frontmatter: string[] = ["---"];
+  frontmatter.push(`title: "${project.title.replace(/"/g, '\\"')}"`);
+  frontmatter.push(`slug: "${project.slug}"`);
+  frontmatter.push(
+    `description: "${project.description.replace(/"/g, '\\"')}"`,
+  );
+  frontmatter.push(`date: "${project.date}"`);
+  frontmatter.push(`published: ${project.published}`);
+  frontmatter.push(`tags: [${project.tags.map((t) => `"${t}"`).join(", ")}]`);
+  frontmatter.push(`kind: "${project.kind}"`);
+  if (project.url) frontmatter.push(`url: "${project.url}"`);
+  if (project.image) frontmatter.push(`image: "${project.image}"`);
+  if (project.featured !== undefined)
+    frontmatter.push(`featured: ${project.featured}`);
+  if (project.featuredOrder !== undefined)
+    frontmatter.push(`featuredOrder: ${project.featuredOrder}`);
+  frontmatter.push("---");
+  return `${frontmatter.join("\n")}\n\n${project.content}`;
+}
+
 async function main() {
   console.log("Exporting dashboard content to markdown files...\n");
 
@@ -245,15 +284,36 @@ async function main() {
     exportedPages++;
   }
 
+  if (!fs.existsSync(PROJECTS_OUTPUT_DIR)) {
+    fs.mkdirSync(PROJECTS_OUTPUT_DIR, { recursive: true });
+  }
+
+  const projects = (await client.query(api.projects.listAll)) as Project[];
+  const dashboardProjects = projects.filter((p) => p.source === "dashboard");
+
+  console.log(
+    `\nFound ${dashboardProjects.length} dashboard projects to export\n`,
+  );
+
+  let exportedProjects = 0;
+  for (const project of dashboardProjects) {
+    const markdown = generateProjectMarkdown(project);
+    const filePath = path.join(PROJECTS_OUTPUT_DIR, `${project.slug}.md`);
+    fs.writeFileSync(filePath, markdown, "utf-8");
+    console.log(`  Exported: ${project.slug}.md`);
+    exportedProjects++;
+  }
+
   console.log("\n-------------------------------------------");
   console.log(`Export complete!`);
   console.log(`  Posts exported: ${exportedPosts}`);
   console.log(`  Pages exported: ${exportedPages}`);
+  console.log(`  Projects exported: ${exportedProjects}`);
   console.log("-------------------------------------------\n");
 
-  if (exportedPosts + exportedPages > 0) {
+  if (exportedPosts + exportedPages + exportedProjects > 0) {
     console.log("Next steps:");
-    console.log("  1. Review the exported files in content/blog/ and content/pages/");
+    console.log("  1. Review the exported files in content/blog/, content/pages/, and content/projects/");
     console.log("  2. Run 'npm run sync' to sync them back (they will keep source: 'sync')");
     console.log("  3. Delete the dashboard originals if you want to switch to file-based workflow");
   }

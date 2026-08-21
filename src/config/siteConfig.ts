@@ -45,6 +45,28 @@ export interface BlogPageConfig {
   showViewToggle: boolean; // Show toggle button to switch between views
 }
 
+// Projects gallery configuration
+// One table for kind=project and kind=craft. /craft is a kind filter.
+export interface ProjectsPageConfig {
+  enabled: boolean; // Enable the /projects and /craft routes
+  showInNav: boolean; // Show Projects link in navigation
+  title: string; // Page title for the projects gallery
+  order?: number; // Nav order (lower = first)
+  defaultView: "list" | "thumbs"; // Default gallery view
+  showViewToggle: boolean; // Show list/thumbs toggle
+}
+
+// Downloadable vCard fields for GET /vcard.vcf
+export interface VcardConfig {
+  givenName: string;
+  familyName: string;
+  jobTitle: string;
+  company: string;
+  website: string;
+  email?: string;
+  photoUrl?: string;
+}
+
 // Homepage posts read more link configuration
 // Optional link shown below limited post list on homepage
 export interface HomePostsReadMoreConfig {
@@ -145,6 +167,7 @@ export interface FooterConfig {
   showOnPosts: boolean; // Default: show footer on blog posts
   showOnPages: boolean; // Default: show footer on static pages
   showOnBlogPage: boolean; // Show footer on /blog page
+  showOnProjects: boolean; // Show footer on /projects and /craft
   defaultContent?: string; // Default markdown content if no frontmatter footer field provided
 }
 
@@ -368,6 +391,7 @@ export interface SocialFooterConfig {
   showOnPosts: boolean; // Default: show social footer on blog posts
   showOnPages: boolean; // Default: show social footer on static pages
   showOnBlogPage: boolean; // Show social footer on /blog page
+  showOnProjects: boolean; // Show social footer on /projects and /craft
   showInHeader: boolean; // Show social icons in header (left of search icon)
   socialLinks: SocialLink[]; // Array of social links to display
   copyright: {
@@ -419,6 +443,12 @@ export interface SiteConfig {
 
   // Blog page configuration
   blogPage: BlogPageConfig;
+
+  // Projects gallery configuration
+  projectsPage: ProjectsPageConfig;
+
+  // vCard download fields
+  vcard: VcardConfig;
 
   // Hardcoded navigation items for React routes (like /stats, /write)
   hardcodedNavItems: HardcodedNavItem[];
@@ -646,6 +676,27 @@ export const siteConfig: SiteConfig = {
     showViewToggle: true, // Show toggle button to switch between list and card views
   },
 
+  // Projects gallery. /craft is the same table filtered by kind=craft.
+  projectsPage: {
+    enabled: true,
+    showInNav: true,
+    title: "Projects",
+    order: 3,
+    defaultView: "list",
+    showViewToggle: true,
+  },
+
+  // Fields used by GET /vcard.vcf and the download button
+  vcard: {
+    givenName: "Wayne",
+    familyName: "Sutton",
+    jobTitle: "Developer Community Lead",
+    company: "Convex",
+    website: "https://waynesutton.ai",
+    email: "",
+    photoUrl: "/images/wayne-sutton.jpeg",
+  },
+
   // Hardcoded navigation items for React routes
   // Add React route pages (like /stats, /write) that should appear in navigation
   // Set showInNav: false to hide from nav while keeping the route accessible
@@ -723,6 +774,7 @@ export const siteConfig: SiteConfig = {
     showOnPosts: true, // Default: show footer on blog posts (override with frontmatter)
     showOnPages: true, // Default: show footer on static pages (override with frontmatter)
     showOnBlogPage: true, // Show footer on /blog page
+    showOnProjects: true, // Show footer on /projects and /craft
     // Default footer markdown (fallback if footer.md doesn't exist - edit content/pages/footer.md instead)
     defaultContent: undefined,
   },
@@ -792,6 +844,7 @@ export const siteConfig: SiteConfig = {
     showOnPosts: true, // Default: show social footer on blog posts
     showOnPages: true, // Default: show social footer on static pages
     showOnBlogPage: true, // Show social footer on /blog page
+    showOnProjects: true, // Show social footer on /projects and /craft
     showInHeader: true, // Show social icons in header (left of search icon)
     socialLinks: [
       {

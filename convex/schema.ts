@@ -77,6 +77,31 @@ export default defineSchema({
       filterFields: ["published"],
     }),
 
+  // Portfolio items. kind is "project" or "craft" in one table.
+  projects: defineTable({
+    slug: v.string(),
+    title: v.string(),
+    description: v.string(),
+    content: v.string(),
+    date: v.string(),
+    published: v.boolean(),
+    tags: v.array(v.string()),
+    url: v.optional(v.string()),
+    image: v.optional(v.string()),
+    featured: v.optional(v.boolean()),
+    featuredOrder: v.optional(v.number()),
+    kind: v.union(v.literal("project"), v.literal("craft")),
+    lastSyncedAt: v.number(),
+    source: v.optional(
+      v.union(v.literal("dashboard"), v.literal("sync"), v.literal("demo")),
+    ),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_published", ["published"])
+    .index("by_kind", ["kind"])
+    .index("by_published_and_kind", ["published", "kind"])
+    .index("by_featured", ["featured"]),
+
   // Static pages (about, projects, contact, etc.)
   pages: defineTable({
     slug: v.string(),

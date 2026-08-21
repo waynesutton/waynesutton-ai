@@ -2,7 +2,7 @@ import { ReactNode, useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { MagnifyingGlass, SignIn, Sparkle } from "@phosphor-icons/react";
+import { IdentificationCard, MagnifyingGlass, SignIn, Sparkle } from "@phosphor-icons/react";
 import ThemeToggle from "./ThemeToggle";
 import FontToggle from "./FontToggle";
 import SearchModal from "./SearchModal";
@@ -12,6 +12,7 @@ import ScrollToTop, { ScrollToTopConfig } from "./ScrollToTop";
 import { useSidebarOptional } from "../context/SidebarContext";
 import siteConfig from "../config/siteConfig";
 import { platformIcons } from "./SocialFooter";
+import { haptic } from "../lib/haptics";
 
 // Scroll-to-top configuration - enabled by default
 // Customize threshold (pixels) to control when button appears
@@ -139,6 +140,14 @@ export default function Layout({ children }: LayoutProps) {
     });
   }
 
+  if (siteConfig.projectsPage.enabled && siteConfig.projectsPage.showInNav) {
+    navItems.push({
+      slug: "projects",
+      title: siteConfig.projectsPage.title,
+      order: siteConfig.projectsPage.order ?? 3,
+    });
+  }
+
   // Add Docs link if enabled
   if (siteConfig.docsSection?.enabled && siteConfig.docsSection?.showInNav) {
     navItems.push({
@@ -254,6 +263,15 @@ export default function Layout({ children }: LayoutProps) {
           >
             <MagnifyingGlass size={18} weight="bold" />
           </button>
+          <a
+            href="/vcard.vcf"
+            download
+            className="search-button vcard-download"
+            aria-label="Download contact card"
+            title="Download contact card"
+          >
+            <IdentificationCard size={18} weight="bold" />
+          </a>
           {/* Font toggle */}
           <FontToggle />
           {/* Theme toggle */}
@@ -270,6 +288,7 @@ export default function Layout({ children }: LayoutProps) {
               key={item.slug}
               to={`/${item.slug}`}
               className="page-nav-link"
+              onClick={() => haptic()}
             >
               {item.title}
             </Link>
@@ -331,6 +350,15 @@ export default function Layout({ children }: LayoutProps) {
           >
             <MagnifyingGlass size={18} weight="bold" />
           </button>
+          <a
+            href="/vcard.vcf"
+            download
+            className="search-button vcard-download"
+            aria-label="Download contact card"
+            title="Download contact card"
+          >
+            <IdentificationCard size={18} weight="bold" />
+          </a>
           {/* Font toggle */}
           <FontToggle />
           {/* Theme toggle */}
@@ -356,11 +384,22 @@ export default function Layout({ children }: LayoutProps) {
               key={item.slug}
               to={`/${item.slug}`}
               className="mobile-nav-link"
-              onClick={closeMobileMenu}
+              onClick={() => {
+                haptic();
+                closeMobileMenu();
+              }}
             >
               {item.title}
             </Link>
           ))}
+          <a
+            href="/vcard.vcf"
+            download
+            className="mobile-nav-link"
+            onClick={closeMobileMenu}
+          >
+            Download contact card
+          </a>
         </nav>
       </MobileMenu>
 
@@ -369,6 +408,8 @@ export default function Layout({ children }: LayoutProps) {
         className={
           location.pathname === "/stats" ||
           location.pathname === "/blog" ||
+          location.pathname === "/projects" ||
+          location.pathname === "/craft" ||
           isDocsPage
             ? "main-content-wide"
             : "main-content"

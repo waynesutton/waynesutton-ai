@@ -19,6 +19,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import SlidePresentation from "../components/SlidePresentation";
 import siteConfig from "../config/siteConfig";
 import PostAudioPlayer from "../components/PostAudioPlayer";
+import { haptic } from "../lib/haptics";
 
 // Local storage key for related posts view mode preference
 const RELATED_POSTS_VIEW_MODE_KEY = "related-posts-view-mode";
@@ -737,6 +738,7 @@ export default function Post({
   const handleCopyLink = async () => {
     const url = window.location.href;
     await navigator.clipboard.writeText(url);
+    haptic();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

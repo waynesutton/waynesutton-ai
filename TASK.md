@@ -2,6 +2,8 @@
 
 ## To Do
 
+- [ ] Browser pass on Aniket-style portfolio: on a phone, copy a code block, toggle theme, and tap Projects in nav and confirm a short vibrate (no-op on desktop). Open /vcard.vcf and confirm a contact card downloads. In Dashboard, create a published project with tags, confirm it shows on /projects in list and thumbs, and that /craft stays empty until a craft item is published. Confirm Config Projects Page and vCard cards save. (PRD: prds/aniket-portfolio-haptics-vcard-projects.md)
+
 - [ ] Listen-to-this-post audio: browser pass. In Config, confirm Post audio defaults to on and female, save, then open Drafts Inbox and confirm the same toggle and voice. Flip them in the inbox and confirm Config shows the same values after a reload. Publish a Grok / inbox draft and confirm a player appears under the title (or "Audio not ready" while generating). Set `audio: false` on a post and confirm the player hides. (PRD: prds/listen-to-this-post-audio.md)
 - [ ] Put the two missing posts in the homepage Writings list once the bundle is deployed: open `grok-bot-is-a-desk-of-named-bots-not-one-chatbot` and `grokbot-agentmail-blog-covnex-setup`, turn Featured on in Visibility, set Featured order 5 and 6, save, and confirm both appear on the homepage in list and card view. Also confirm Written with AI now sits in Visibility and Advanced no longer lists `aiWritten` (PRD: prds/homepage-writings-toggle-and-ai-note.md)
 - [ ] Run `npm run sync` (and `npm run sync:prod` when ready) so the clarified `featured` rows reach the frontmatter docs page (PRD: prds/homepage-writings-toggle-and-ai-note.md)
@@ -59,6 +61,13 @@
 - [ ] Decide phase 3 of the dashboard overhaul: homepage category sections (there is no category concept in the schema, only tags and the docs group fields, so this needs a call on tag driven vs a new frontmatter field vs hand curated in config), the homepage 16:9 image with a resize scaler, and whether to apply the supplied dashboard design spec (it is a single light palette while this dashboard themes four ways off `--db-*` tokens, and Inter is named in the font stack but never loaded) (PRD: prds/homepage-and-dashboard-overhaul.md)
 
 ## Completed
+
+- [x] Aniket-style portfolio first slice: haptics, vCard, projects/craft gallery (2026-08-21 08:00 UTC) (PRD: prds/aniket-portfolio-haptics-vcard-projects.md)
+  - `navigator.vibrate` helper on copy, theme toggle, and primary nav taps. No-op when unsupported. No sound
+  - GET /vcard.vcf registered before the static catch-all, rate limited, plain-text vCard 3.0 with optional PHOTO;VALUE=URI. Fields from siteConfig / Dashboard. Download button in chrome
+  - Additive `projects` table with kind project|craft, markdown sync from content/projects, public /projects and /craft, dashboard CRUD, projectsPage settings cloned from blogPage
+  - Sitemap lists /projects and /craft. Footer and social gained showOnProjects. Reserved slugs block posts/pages from stealing projects or craft
+  - Unpublished example only. Did not invent published Wayne projects. Left OG, markdown pipeline, auth, VFS, and /api/posts alone
 
 - [x] Netlify deploy-preview CI on the listen-to-this-post PR (2026-08-20)
   - Four GitHub checks were one leftover Netlify deploy. Preview ran `npx convex deploy` with no deploy key and failed in ~20s

@@ -81,6 +81,7 @@ import {
   ArrowUp,
   ArrowDown,
   Plus,
+  Briefcase,
 } from "@phosphor-icons/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { useDragSort } from "../hooks/useDragSort";
@@ -88,6 +89,7 @@ import { DraftsInbox } from "../components/dashboard/DraftsInbox";
 import { ApiKeysSection } from "../components/dashboard/ApiKeysSection";
 import { XSection } from "../components/dashboard/XSection";
 import { HomepageSection } from "../components/dashboard/HomepageSection";
+import { ProjectsSection } from "../components/dashboard/ProjectsSection";
 import AgentReadySection from "../components/AgentReadySection";
 import DashboardDocsSection from "../components/DashboardDocsSection";
 import siteConfig from "../config/siteConfig";
@@ -564,6 +566,7 @@ type DashboardSection =
   | "overview"
   | "posts"
   | "pages"
+  | "projects"
   | "post-editor"
   | "page-editor"
   | "write-post"
@@ -1891,6 +1894,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
         { id: "overview" as const, label: "Overview", icon: SquaresFour },
         { id: "posts" as const, label: "Posts", icon: Article },
         { id: "pages" as const, label: "Pages", icon: Files },
+        { id: "projects" as const, label: "Projects", icon: Briefcase },
       ],
     },
     {
@@ -2143,6 +2147,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               {activeSection === "overview" && "Overview"}
               {activeSection === "posts" && "Posts"}
               {activeSection === "pages" && "Pages"}
+              {activeSection === "projects" && "Projects"}
               {activeSection === "post-editor" && "Edit Post"}
               {activeSection === "page-editor" && "Edit Page"}
               {activeSection === "write-post" && "Write Post"}
@@ -2312,6 +2317,14 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               isLoading={pages === undefined}
             />
           )}
+
+          {/* Projects gallery */}
+          {activeSection === "projects" &&
+            (isDemo ? (
+              <DemoSectionGate section="Projects" />
+            ) : (
+              <ProjectsSection addToast={addToast} />
+            ))}
 
           {/* Post/Page Editor */}
           {(activeSection === "post-editor" || activeSection === "page-editor") && editingItem && (
@@ -6065,6 +6078,20 @@ function ConfigSection({
     blogPageViewMode: siteConfig.blogPage.viewMode,
     blogPageShowViewToggle: siteConfig.blogPage.showViewToggle,
     blogPageOrder: siteConfig.blogPage.order,
+    // Projects page
+    projectsPageEnabled: siteConfig.projectsPage.enabled,
+    projectsPageShowInNav: siteConfig.projectsPage.showInNav,
+    projectsPageTitle: siteConfig.projectsPage.title,
+    projectsPageOrder: siteConfig.projectsPage.order ?? 3,
+    projectsPageDefaultView: siteConfig.projectsPage.defaultView,
+    projectsPageShowViewToggle: siteConfig.projectsPage.showViewToggle,
+    vcardGivenName: siteConfig.vcard.givenName,
+    vcardFamilyName: siteConfig.vcard.familyName,
+    vcardJobTitle: siteConfig.vcard.jobTitle,
+    vcardCompany: siteConfig.vcard.company,
+    vcardWebsite: siteConfig.vcard.website,
+    vcardEmail: siteConfig.vcard.email || "",
+    vcardPhotoUrl: siteConfig.vcard.photoUrl || "",
     // Posts display
     showPostsOnHome: siteConfig.postsDisplay.showOnHome,
     showPostsOnBlogPage: siteConfig.postsDisplay.showOnBlogPage,
@@ -6089,6 +6116,7 @@ function ConfigSection({
     footerShowOnPosts: siteConfig.footer.showOnPosts,
     footerShowOnPages: siteConfig.footer.showOnPages,
     footerShowOnBlogPage: siteConfig.footer.showOnBlogPage,
+    footerShowOnProjects: siteConfig.footer.showOnProjects,
     footerDefaultContent: siteConfig.footer.defaultContent || "",
     // AI Chat
     aiChatEnabledOnWritePage: siteConfig.aiChat.enabledOnWritePage,
@@ -6136,6 +6164,7 @@ function ConfigSection({
     socialFooterShowOnPosts: siteConfig.socialFooter?.showOnPosts || false,
     socialFooterShowOnPages: siteConfig.socialFooter?.showOnPages || false,
     socialFooterShowOnBlogPage: siteConfig.socialFooter?.showOnBlogPage || false,
+    socialFooterShowOnProjects: siteConfig.socialFooter?.showOnProjects ?? true,
     socialFooterCopyrightSiteName: siteConfig.socialFooter?.copyright?.siteName || "",
     socialFooterCopyrightShowYear: siteConfig.socialFooter?.copyright?.showYear || false,
     // Logo gallery
@@ -6267,6 +6296,23 @@ function ConfigSection({
         viewMode: config.blogPageViewMode,
         showViewToggle: config.blogPageShowViewToggle,
       },
+      projectsPage: {
+        enabled: config.projectsPageEnabled,
+        showInNav: config.projectsPageShowInNav,
+        title: config.projectsPageTitle,
+        order: config.projectsPageOrder,
+        defaultView: config.projectsPageDefaultView as "list" | "thumbs",
+        showViewToggle: config.projectsPageShowViewToggle,
+      },
+      vcard: {
+        givenName: config.vcardGivenName,
+        familyName: config.vcardFamilyName,
+        jobTitle: config.vcardJobTitle,
+        company: config.vcardCompany,
+        website: config.vcardWebsite,
+        email: config.vcardEmail,
+        photoUrl: config.vcardPhotoUrl,
+      },
       postsDisplay: {
         showOnHome: config.showPostsOnHome,
         showOnBlogPage: config.showPostsOnBlogPage,
@@ -6305,6 +6351,7 @@ function ConfigSection({
         showOnPosts: config.footerShowOnPosts,
         showOnPages: config.footerShowOnPages,
         showOnBlogPage: config.footerShowOnBlogPage,
+        showOnProjects: config.footerShowOnProjects,
         defaultContent: config.footerDefaultContent,
       },
       homepage: {
@@ -6338,6 +6385,7 @@ function ConfigSection({
         showOnPosts: config.socialFooterShowOnPosts,
         showOnPages: config.socialFooterShowOnPages,
         showOnBlogPage: config.socialFooterShowOnBlogPage,
+        showOnProjects: config.socialFooterShowOnProjects,
         copyright: {
           siteName: config.socialFooterCopyrightSiteName,
           showYear: config.socialFooterCopyrightShowYear,
@@ -6455,6 +6503,25 @@ export const siteConfig: SiteConfig = {
     viewMode: "${config.blogPageViewMode}",
     showViewToggle: ${config.blogPageShowViewToggle},
   },
+
+  projectsPage: {
+    enabled: ${config.projectsPageEnabled},
+    showInNav: ${config.projectsPageShowInNav},
+    title: "${config.projectsPageTitle}",
+    order: ${config.projectsPageOrder},
+    defaultView: "${config.projectsPageDefaultView}",
+    showViewToggle: ${config.projectsPageShowViewToggle},
+  },
+
+  vcard: {
+    givenName: ${JSON.stringify(config.vcardGivenName)},
+    familyName: ${JSON.stringify(config.vcardFamilyName)},
+    jobTitle: ${JSON.stringify(config.vcardJobTitle)},
+    company: ${JSON.stringify(config.vcardCompany)},
+    website: ${JSON.stringify(config.vcardWebsite)},
+    email: ${JSON.stringify(config.vcardEmail)},
+    photoUrl: ${JSON.stringify(config.vcardPhotoUrl)},
+  },
   
   hardcodedNavItems: [
     { slug: "stats", title: "Stats", order: 10, showInNav: ${config.statsPageShowInNav} },
@@ -6504,6 +6571,7 @@ export const siteConfig: SiteConfig = {
     showOnPosts: ${config.footerShowOnPosts},
     showOnPages: ${config.footerShowOnPages},
     showOnBlogPage: ${config.footerShowOnBlogPage},
+    showOnProjects: ${config.footerShowOnProjects},
     defaultContent: \`${config.footerDefaultContent}\`,
   },
   
@@ -6540,6 +6608,7 @@ export const siteConfig: SiteConfig = {
     showOnPosts: ${config.socialFooterShowOnPosts},
     showOnPages: ${config.socialFooterShowOnPages},
     showOnBlogPage: ${config.socialFooterShowOnBlogPage},
+    showOnProjects: ${config.socialFooterShowOnProjects},
     socialLinks: [], // Add your social links here - see original siteConfig.ts for format
     copyright: { siteName: "${config.socialFooterCopyrightSiteName}", showYear: ${config.socialFooterCopyrightShowYear} },
   },
@@ -6784,6 +6853,141 @@ export default siteConfig;
           </div>
         </div>
 
+        {/* Projects Page Settings */}
+        <div className="dashboard-config-card">
+          <h3>Projects Page</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.projectsPageEnabled}
+                onChange={(e) => handleChange("projectsPageEnabled", e.target.checked)}
+              />
+              <span>Enable /projects and /craft</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.projectsPageShowInNav}
+                onChange={(e) => handleChange("projectsPageShowInNav", e.target.checked)}
+              />
+              <span>Show in navigation</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Projects title</label>
+            <input
+              type="text"
+              value={config.projectsPageTitle}
+              onChange={(e) => handleChange("projectsPageTitle", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Nav order</label>
+            <input
+              type="number"
+              value={config.projectsPageOrder}
+              onChange={(e) =>
+                handleChange("projectsPageOrder", parseInt(e.target.value) || 0)
+              }
+            />
+          </div>
+          <div className="config-field">
+            <label>Default view</label>
+            <select
+              value={config.projectsPageDefaultView}
+              onChange={(e) => handleChange("projectsPageDefaultView", e.target.value)}
+            >
+              <option value="list">List</option>
+              <option value="thumbs">Thumbs</option>
+            </select>
+            <span className="config-hint">
+              View new visitors see first on /projects
+            </span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.projectsPageShowViewToggle}
+                onChange={(e) =>
+                  handleChange("projectsPageShowViewToggle", e.target.checked)
+                }
+              />
+              <span>Show view toggle icons</span>
+            </label>
+          </div>
+        </div>
+
+        {/* vCard download fields */}
+        <div className="dashboard-config-card">
+          <h3>vCard</h3>
+          <p className="config-field-note">
+            Used by GET /vcard.vcf and the header download button.
+          </p>
+          <div className="config-field">
+            <label>Given name</label>
+            <input
+              type="text"
+              value={config.vcardGivenName}
+              onChange={(e) => handleChange("vcardGivenName", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Family name</label>
+            <input
+              type="text"
+              value={config.vcardFamilyName}
+              onChange={(e) => handleChange("vcardFamilyName", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Job title</label>
+            <input
+              type="text"
+              value={config.vcardJobTitle}
+              onChange={(e) => handleChange("vcardJobTitle", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Company</label>
+            <input
+              type="text"
+              value={config.vcardCompany}
+              onChange={(e) => handleChange("vcardCompany", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Website</label>
+            <input
+              type="text"
+              value={config.vcardWebsite}
+              onChange={(e) => handleChange("vcardWebsite", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Email</label>
+            <input
+              type="email"
+              value={config.vcardEmail}
+              onChange={(e) => handleChange("vcardEmail", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Photo url</label>
+            <input
+              type="text"
+              value={config.vcardPhotoUrl}
+              onChange={(e) => handleChange("vcardPhotoUrl", e.target.value)}
+            />
+            <span className="config-hint">
+              Written as PHOTO;VALUE=URI. Leave empty to skip a photo.
+            </span>
+          </div>
+        </div>
+
         {/* Posts Display */}
         <div className="dashboard-config-card">
           <h3>Posts Display</h3>
@@ -6991,6 +7195,16 @@ export default siteConfig;
                 onChange={(e) => handleChange("footerShowOnPages", e.target.checked)}
               />
               <span>Show on pages</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.footerShowOnProjects}
+                onChange={(e) => handleChange("footerShowOnProjects", e.target.checked)}
+              />
+              <span>Show on projects</span>
             </label>
           </div>
           <p className="config-field-note" style={{ marginTop: "0.75rem" }}>
@@ -7305,6 +7519,16 @@ export default siteConfig;
                 onChange={(e) => handleChange("socialFooterShowOnPosts", e.target.checked)}
               />
               <span>Show on posts</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.socialFooterShowOnProjects}
+                onChange={(e) => handleChange("socialFooterShowOnProjects", e.target.checked)}
+              />
+              <span>Show on projects</span>
             </label>
           </div>
           <div className="config-field">

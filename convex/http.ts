@@ -22,6 +22,7 @@ import {
   cleanEmailBody,
 } from "./lib/agentMailMessage";
 import type { EmailDoorConfig } from "./lib/agentMailMessage";
+import { buildVcardText } from "./vcard";
 
 function rateLimitedResponse(retryAfter?: number): Response {
   return new Response(
@@ -270,6 +271,17 @@ http.route({
     <priority>0.6</priority>
   </url>`,
       ),
+      // Portfolio gallery
+      `  <url>
+    <loc>${SITE_URL}/projects</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`,
+      `  <url>
+    <loc>${SITE_URL}/craft</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>`,
     ];
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1577,6 +1589,51 @@ const serveStaticWithMeta = httpAction(async (ctx, request) => {
       "X-Content-Type-Options": "nosniff",
     },
   });
+});
+
+// vCard download. Must be an explicit path: the catch-all 404s on extensions.
+http.route({
+  path: "/vcard.vcf",
+  method: "GET",
+  handler: httpAction(async (ctx) => {
+    const rl = await ctx.runMutation(internal.rateLimits.checkHttpRateLimit, {
+      name: "vcard",
+    });
+    if (!rl.ok) return rateLimitedResponse(rl.retryAfter);
+
+    const fields = await ctx.runQuery(internal.vcard.getVcardFields, {});
+    const body = buildVcardText(fields, SITE_URL);
+    const filename = `${fields.givenName}-${fields.familyName}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    return new Response(body, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/x-vcard; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${filename || "contact"}-vcard.vcf"`,
+        "Cache-Control": "public, max-age=300",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }),
+});
+
+http.route({
+  path: "/vcard.vcf",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }),
 });
 
 // Registered last so every explicit route above takes precedence; this is

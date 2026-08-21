@@ -1,6 +1,7 @@
 import { useTheme } from "../context/ThemeContext";
 import { Moon, Sun, Cloud } from "lucide-react";
 import { Half2Icon } from "@radix-ui/react-icons";
+import { haptic } from "../lib/haptics";
 
 // Theme toggle component using same icons as Better Todo app
 // Icons: Moon (dark), Sun (light), Half2Icon (tan), Cloud (cloud)
@@ -38,7 +39,10 @@ export default function ThemeToggle() {
 
   return (
     <button
-      onClick={toggleTheme}
+      onClick={() => {
+        haptic();
+        toggleTheme();
+      }}
       className="theme-toggle"
       aria-label={`Current theme: ${getLabel()}. Click to toggle.`}
       title={`Theme: ${getLabel()}`}

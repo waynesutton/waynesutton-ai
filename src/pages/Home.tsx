@@ -16,6 +16,7 @@ import diff from "react-syntax-highlighter/dist/esm/languages/prism/diff";
 import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
 import { Copy, Check } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import { haptic } from "../lib/haptics";
 import PostList from "../components/PostList";
 import FeaturedCards from "../components/FeaturedCards";
 import LogoMarquee from "../components/LogoMarquee";
@@ -178,9 +179,10 @@ function CodeCopyButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(code);
+      haptic();
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -203,6 +205,7 @@ function InlineCopyButton({ command }: { command: string }) {
     e.preventDefault();
     e.stopPropagation();
     await navigator.clipboard.writeText(command);
+    haptic();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -331,9 +334,14 @@ function HeadingAnchor({ id }: { id: string }) {
   const handleClick = () => {
     // Copy URL to clipboard, but allow default scroll behavior
     const url = `${window.location.origin}${window.location.pathname}#${id}`;
-    navigator.clipboard.writeText(url).catch(() => {
-      // Silently fail if clipboard API is not available
-    });
+    navigator.clipboard.writeText(url).then(
+      () => {
+        haptic();
+      },
+      () => {
+        // Silently fail if clipboard API is not available
+      },
+    );
   };
 
   return (
