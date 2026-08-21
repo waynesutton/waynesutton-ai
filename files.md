@@ -2,6 +2,12 @@
 
 A brief description of each file in the codebase.
 
+## Recent session updates (2026-08-21)
+
+### Convex setup and deploy guide (2026-08-21)
+
+- **New file** `prds/how-to-setup-and-deploy-convex.md`: How to set up a Convex app and how this site deploys. Variable names and placeholders only. No keys or private values.
+
 ## Recent session updates (2026-08-20)
 
 ### Netlify deploy-preview CI (2026-08-20)

@@ -60,6 +60,11 @@
 
 ## Completed
 
+- [x] Convex setup and deploy guide (2026-08-21) (PRD: prds/how-to-setup-and-deploy-convex.md)
+  - How to stand up a Convex app, then how this repo ships: functions, static hosting, and content sync
+  - Laptop path vs this cloud agent (deploy key, `--yes`, `--skip-convex`)
+  - Env var names only. No keys, tokens, emails, or inbox addresses
+
 - [x] Netlify deploy-preview CI on the listen-to-this-post PR (2026-08-20)
   - Four GitHub checks were one leftover Netlify deploy. Preview ran `npx convex deploy` with no deploy key and failed in ~20s
   - Restored a static-only `netlify.toml` (Vite build, headers, redirects, no Convex deploy, no deleted edge functions)
