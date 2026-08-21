@@ -364,7 +364,7 @@ export const listPublishedInternal = internalQuery({
   handler: async (ctx) => {
     const published = await ctx.db
       .query("projects")
-      .withIndex("by_published", (q) => q.eq("published", true))
+      .withIndex("by_published_and_kind", (q) => q.eq("published", true))
       .take(PUBLIC_PROJECT_QUERY_LIMIT);
 
     let hasProjects = false;

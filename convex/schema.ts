@@ -97,7 +97,6 @@ export default defineSchema({
     ),
   })
     .index("by_slug", ["slug"])
-    .index("by_published", ["published"])
     .index("by_kind", ["kind"])
     .index("by_published_and_kind", ["published", "kind"])
     .index("by_featured", ["featured"]),
