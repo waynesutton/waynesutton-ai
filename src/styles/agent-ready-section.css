@@ -23,7 +23,7 @@
 
 .agent-ready-panel {
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   padding: 1.25rem;
 }
@@ -47,7 +47,7 @@
 .agent-ready-hint-warning {
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   color: var(--text-secondary);
 }
@@ -66,7 +66,7 @@
   gap: 0.65rem;
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--bg-primary);
   cursor: pointer;
   min-height: 44px;
@@ -82,7 +82,7 @@
   flex-shrink: 0;
   width: 34px;
   height: 20px;
-  border-radius: 10px;
+  border-radius: 999px;
   background: var(--bg-hover);
   border: 1px solid var(--border-color);
   position: relative;
@@ -163,7 +163,7 @@
   appearance: none;
   padding: 0.55rem 2rem 0.55rem 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 0.85rem;
@@ -190,7 +190,7 @@
 .agent-ready-save-button {
   padding: 0.55rem 1.1rem;
   border: 1px solid var(--accent);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--accent);
   color: var(--bg-primary);
   font-size: 0.85rem;
@@ -220,7 +220,7 @@
   margin: 0;
   padding: 0.85rem 1rem;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 0.8rem;

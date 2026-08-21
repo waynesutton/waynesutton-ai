@@ -157,7 +157,7 @@ export const sendPostNewsletter = internalAction({
           <p style="font-size: 16px; color: #444; line-height: 1.6; margin-bottom: 24px;">${escapeHtml(post.description)}</p>
           ${post.excerpt ? `<p style="font-size: 14px; color: #666; line-height: 1.5; margin-bottom: 24px;">${escapeHtml(post.excerpt)}</p>` : ""}
           <p style="margin-bottom: 32px;">
-            <a href="${postUrl}" style="display: inline-block; padding: 12px 24px; background: #1a1a1a; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 500;">Read more</a>
+            <a href="${postUrl}" style="display: inline-block; padding: 12px 24px; background: #1a1a1a; color: #fff; text-decoration: none; border-radius: 4px; font-weight: 500;">Read more</a>
           </p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
           <p style="font-size: 12px; color: #888;">
@@ -290,7 +290,7 @@ export const sendWeeklyDigest = internalAction({
     const postsHtml = recentPosts
       .map(
         (post) => `
-        <div style="margin-bottom: 24px; padding: 16px; background: #f9f9f9; border-radius: 8px;">
+        <div style="margin-bottom: 24px; padding: 16px; background: #f9f9f9; border-radius: 4px;">
           <h3 style="font-size: 18px; color: #1a1a1a; margin: 0 0 8px 0;">
             <a href="${args.siteUrl}/${post.slug}" style="color: #1a1a1a; text-decoration: none;">${escapeHtml(post.title)}</a>
           </h3>
@@ -455,7 +455,7 @@ export const sendWeeklyStatsSummary = internalAction({
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="font-size: 20px; color: #1a1a1a; margin-bottom: 16px;">Weekly Newsletter Stats</h2>
-            <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 4px; margin-bottom: 24px;">
               <p style="font-size: 14px; color: #444; line-height: 1.8; margin: 0;">
                 <strong>Active Subscribers:</strong> ${stats.activeSubscribers}<br />
                 <strong>Total Subscribers:</strong> ${stats.totalSubscribers}<br />
