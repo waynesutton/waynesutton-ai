@@ -50,5 +50,5 @@ The site has posts and pages but no portfolio gallery, no downloadable contact c
 - [ ] `/projects` lists kind=project; `/craft` lists kind=craft
 - [ ] Dashboard can create/edit a project with tags and list/thumbs setting
 - [ ] Nav shows Projects when `projectsPage.showInNav`
-- [ ] Typecheck passes
+- [x] Typecheck passes
 - [ ] Existing blog, pages, OG, auth, and API routes untouched

@@ -14,7 +14,8 @@ A brief description of each file in the codebase.
 - **New file** `src/components/dashboard/ProjectsSection.tsx`: dashboard CRUD for the projects table.
 - **New file** `content/projects/example-project.md`: unpublished example. Do not invent published work.
 - **New file** `prds/aniket-portfolio-haptics-vcard-projects.md`: first-slice PRD.
-- **Modified** `convex/schema.ts`: additive `projects` table and indexes.
+- **Modified** `convex/schema.ts`: additive `projects` table. Indexes `by_slug`, `by_kind`, `by_published_and_kind` (also used for published-only queries), `by_featured`.
+- **Modified** `convex/_generated/api.d.ts`: registered `projects`, `vcard`, and `lib/reservedSlugs` so typecheck can see the new functions without a live `convex dev` deploy.
 - **Modified** `convex/http.ts`: GET `/vcard.vcf` before the `/` catch-all; sitemap `/projects` and `/craft`.
 - **Modified** `convex/rateLimits.ts`: `vcard` token bucket.
 - **Modified** `convex/cms.ts`: reserved slug checks.
