@@ -42,7 +42,6 @@ npm run sync                   # Sync markdown to Convex
 
 - Default auth mode: `convex-auth`
 - Default hosting mode: `convex-self-hosted`
-- Legacy compatibility mode: Netlify hosting only
 
 ## Workflows
 
@@ -71,8 +70,6 @@ npm run sync:all:prod          # Sync content + wiki + discovery to prod
 npx convex deploy              # Deploy Convex functions
 npm run deploy                 # Deploy static assets via Convex self-hosting
 ```
-
-Netlify build command: `npm ci --include=dev && npx convex deploy --cmd 'npm run build'`
 
 ## AI assistance
 
@@ -137,8 +134,6 @@ content/
   blog/           # Markdown blog posts
   pages/          # Static pages
 convex/           # Convex functions and schema
-netlify/
-  edge-functions/ # RSS, sitemap, API proxies
 public/
   images/         # Static images
   raw/            # Generated raw markdown files

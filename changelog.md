@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Homepage post list is now configurable, so it can carry the whole homepage without the featured Writings section. Site Config gained a heading field, a list or gallery default, an optional list/gallery toggle for visitors, and switches for read time, published date, year grouping, and underlined titles, all under Posts Display and only shown once Show posts on homepage is on. The list also picked up its own CSS with a phone pass, so titles wrap instead of overflowing and the section reads as separate from the intro. Its view preference is remembered separately from the featured section, so toggling one never moves the other. PRD: `prds/homepage-and-dashboard-overhaul.md` (2026-08-19).
 - Show featured section on homepage switch in the Site Config Featured Section card. The Writings heading and its list used to be unconditional whenever any post was featured, which clashed with Show posts on homepage. Turning it off hides the section only: posts keep `featured: true`, so blog page ordering, the editor Featured toggle, and featured order are all untouched. PRD: `prds/homepage-and-dashboard-overhaul.md` (2026-08-19).
 
+### Removed
+
+- Leftover Netlify Git files after the site was disconnected. `netlify.toml` and `public/_redirects` are gone, plus the old Netlify-build how-to. The `netlify/` edge-function folder was already gone. Live docs no longer list a Netlify build command. The Netlify logo and footer link stay; those are site content. PRD: `prds/remove-netlify-leftovers.md` (2026-08-21).
+
 ### Changed
 
 - Dashboard Docs is now a split view. The topic list was a wrapping strip of twelve pills above the article; it is now a sidebar on the left, grouped and searchable, with the article on the right. The topic you are reading is in the URL as `?docs=<id>`, so it survives a reload and can be linked to someone directly. Under 900px it shows the topic list first, then the article with a back button. PRD: `prds/homepage-and-dashboard-overhaul.md` (2026-08-19).
