@@ -145,16 +145,16 @@ export interface RightSidebarConfig {
   minWidth?: number; // Minimum viewport width to show sidebar (default: 1135)
 }
 
-// Footer configuration
-// Footer content can be set in frontmatter (footer field) or use defaultContent here
-// Footer can be enabled/disabled globally and per-page via frontmatter showFooter field
+// Closing note (not the site footer)
+// Markdown sign-off above the icon bar. Copy lives in content/pages/footer.md
+// or a per-page frontmatter `footer` field. The icon bar is socialFooter.
 export interface FooterConfig {
-  enabled: boolean; // Global toggle for footer
-  showOnHomepage: boolean; // Show footer on homepage
-  showOnPosts: boolean; // Default: show footer on blog posts
-  showOnPages: boolean; // Default: show footer on static pages
-  showOnBlogPage: boolean; // Show footer on /blog page
-  defaultContent?: string; // Default markdown content if no frontmatter footer field provided
+  enabled: boolean; // Global toggle for the closing note
+  showOnHomepage: boolean; // Show closing note on homepage
+  showOnPosts: boolean; // Default: show closing note on blog posts
+  showOnPages: boolean; // Default: show closing note on static pages
+  showOnBlogPage: boolean; // Show closing note on /blog page
+  defaultContent?: string; // Default markdown if no frontmatter footer field provided
 }
 
 // Homepage configuration
@@ -369,15 +369,15 @@ export interface SocialLink {
   url: string; // Full URL (e.g., "https://github.com/username")
 }
 
-// Social footer configuration
-// Displays social icons on left and copyright on right
-// Appears below the main footer on homepage, blog posts, and pages
+// Footer (icon bar)
+// Social icons, llms.txt / AGENTS.md, and copyright. This is the site footer.
+// The markdown Connect with me line is FooterConfig (closing note), not this.
 export interface SocialFooterConfig {
-  enabled: boolean; // Global toggle for social footer
-  showOnHomepage: boolean; // Show social footer on homepage
-  showOnPosts: boolean; // Default: show social footer on blog posts
-  showOnPages: boolean; // Default: show social footer on static pages
-  showOnBlogPage: boolean; // Show social footer on /blog page
+  enabled: boolean; // Global toggle for the footer
+  showOnHomepage: boolean; // Show footer on homepage
+  showOnPosts: boolean; // Default: show footer on blog posts
+  showOnPages: boolean; // Default: show footer on static pages
+  showOnBlogPage: boolean; // Show footer on /blog page
   showInHeader: boolean; // Show social icons in header (left of search icon)
   socialLinks: SocialLink[]; // Array of social links to display
   copyright: {
@@ -449,7 +449,7 @@ export interface SiteConfig {
   // Right sidebar configuration
   rightSidebar: RightSidebarConfig;
 
-  // Footer configuration
+  // Closing note (markdown above the Footer icon bar)
   footer: FooterConfig;
 
   // Homepage configuration
@@ -729,11 +729,12 @@ export const siteConfig: SiteConfig = {
     minWidth: 1135, // Minimum viewport width in pixels to show sidebar
   },
 
-  // Footer configuration
-  // Footer content is loaded from content/pages/footer.md (synced via npm run sync)
-  // Use showFooter: false in frontmatter to hide footer on specific posts/pages
+  // Closing note from content/pages/footer.md ("Connect with me on ...").
+  // This is not the site footer. The Footer is socialFooter (icon bar).
+  // Same master switch pattern as newsletter.enabled. Use showFooter: false
+  // in frontmatter to hide the closing note on a single post or page.
   footer: {
-    enabled: true, // Global toggle for footer
+    enabled: false, // Global toggle for the closing note
     showOnHomepage: true, // Show footer on homepage
     showOnPosts: true, // Default: show footer on blog posts (override with frontmatter)
     showOnPages: true, // Default: show footer on static pages (override with frontmatter)
@@ -803,9 +804,8 @@ export const siteConfig: SiteConfig = {
     description: "Send us a message and we'll get back to you.",
   },
 
-  // Social footer configuration
-  // Displays social icons on left and copyright on right
-  // Can work with or without the main footer
+  // Footer: icon bar with social links and copyright
+  // Can work with or without the closing note
   // Use showSocialFooter: false in frontmatter to hide on specific posts/pages
   socialFooter: {
     enabled: true, // Global toggle for social footer

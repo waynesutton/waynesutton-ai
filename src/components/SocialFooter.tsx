@@ -27,13 +27,13 @@ export const platformIcons: Record<SocialLink["platform"], Icon> = {
   website: Globe,
 };
 
-// Social footer component
-// Displays social icons on left and copyright on right
-// Visibility controlled by siteConfig.socialFooter settings and frontmatter showSocialFooter field
+// Footer (icon bar)
+// Social icons on the left, llms.txt / AGENTS.md in the center, copyright on the right
+// Visibility: siteConfig.socialFooter and frontmatter showSocialFooter
 export default function SocialFooter() {
   const { socialFooter } = siteConfig;
 
-  // Don't render if social footer is globally disabled
+  // Don't render if the footer is globally disabled
   if (!socialFooter?.enabled) {
     return null;
   }

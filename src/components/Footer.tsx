@@ -185,10 +185,10 @@ const footerSanitizeSchema = {
   },
 };
 
-// Footer component
-// Renders markdown content from frontmatter footer field
-// Falls back to siteConfig.footer.defaultContent if no frontmatter footer provided
-// Visibility controlled by siteConfig.footer settings and frontmatter showFooter field
+// Closing note
+// Renders markdown from the frontmatter footer field, or siteConfig.footer.defaultContent
+// This is not the site footer. The icon bar is SocialFooter.
+// Visibility: siteConfig.footer and frontmatter showFooter
 interface FooterProps {
   content?: string; // Markdown content from frontmatter
 }
@@ -211,7 +211,7 @@ export default function Footer({ content }: FooterProps) {
     }
   };
 
-  // Don't render if footer is globally disabled
+  // Don't render if the closing note is globally disabled
   if (!footer.enabled) {
     return null;
   }

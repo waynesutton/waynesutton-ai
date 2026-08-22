@@ -77,6 +77,16 @@
 
 ## Completed
 
+- [x] Rename the Connect with me markdown to Closing note (2026-08-22 19:25 UTC) (PRD: prds/rename-closing-note.md)
+  - Site Config card is Closing note. Icon bar card is Footer
+  - Editor labels: Show closing note, Closing note, Show footer
+  - Code keys still `footer` and `socialFooter`
+
+- [x] Hide the markdown Connect with me footer and drop Male/Female voice labels on the listen player (2026-08-22 19:15 UTC) (PRD: prds/hide-markdown-footer-and-voice-label.md)
+  - `footer.enabled: false` in siteConfig, same master switch as newsletter
+  - Dashboard Config card renamed Markdown footer so it is distinct from Social Footer
+  - PostAudioPlayer no longer prints Female voice or Male voice. Browser fallback says Browser voice only
+
 - [x] Category sections as page navigation (2026-08-22 09:50 UTC) (PRD: prds/category-section-nav-pages.md)
   - Per-section Show in nav and Show on homepage. Nav-only sections stay out of `/`
   - Header and mobile menu read live overrides and link to `/tags/{tag}`

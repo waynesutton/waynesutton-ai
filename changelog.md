@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The Connect with me markdown is off. That block is a Closing note, not the footer. Switch it with `footer.enabled` in siteConfig or Enable closing note in Site Config. The Footer card is the icon bar. PRD: `prds/hide-markdown-footer-and-voice-label.md`, `prds/rename-closing-note.md` (2026-08-22).
+- Site Config and the post/page editor no longer call that markdown a footer. Closing note is the Connect with me line. Footer is the icon bar. Code keys stay `footer` and `socialFooter`. PRD: `prds/rename-closing-note.md` (2026-08-22).
+
+### Removed
+
+- Male voice and Female voice labels on the listen player. Posts still play audio. Duration stays. Browser fallback says Browser voice with no gender. PRD: `prds/hide-markdown-footer-and-voice-label.md` (2026-08-22).
+
 ### Added
 
 - Category sections can join the site header. Check Show in nav on a Homepage section and the heading appears next to Blog, opening the full list at `/tags/{tag}`. Uncheck Show on homepage to keep it in the header only. Nav order follows the section list. Group posts can stay off. Homepage headings link through, and a truncated list gets View all. Tag pages dropped the Back arrow and the tag icon, sit in the wide column, and pick up Blog footer, social, newsletter, and view-toggle settings. PRD: `prds/category-section-nav-pages.md` (2026-08-22).

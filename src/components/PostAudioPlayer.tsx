@@ -176,8 +176,6 @@ export default function PostAudioPlayer({
     return null;
   }
 
-  const voiceLabel = voice === "male" ? "Male voice" : "Female voice";
-
   if (!audioUrl) {
     if (audioStatus === "pending") {
       return (
@@ -223,9 +221,7 @@ export default function PostAudioPlayer({
           >
             {playing ? "Pause" : "Listen"}
           </button>
-          <p className="post-audio-status">
-            Browser voice · {voiceLabel.toLowerCase()}
-          </p>
+          <p className="post-audio-status">Browser voice</p>
         </div>
       );
     }
@@ -286,7 +282,6 @@ export default function PostAudioPlayer({
           <span>
             {formatTime(current)} / {formatTime(duration || audioDuration || 0)}
           </span>
-          <span>{voiceLabel}</span>
         </div>
       </div>
     </div>

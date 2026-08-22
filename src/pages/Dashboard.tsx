@@ -677,10 +677,10 @@ const postFrontmatterFields: FrontmatterFieldDef[] = [
   { key: "layout", label: "Layout", type: "select", options: ["", "sidebar"], required: false },
   { key: "rightSidebar", label: "Right Sidebar", type: "checkbox", required: false },
   { key: "aiChat", label: "AI Chat", type: "checkbox", required: false },
-  // Footer options
-  { key: "showFooter", label: "Show Footer", type: "checkbox", required: false },
-  { key: "footer", label: "Footer Content", type: "textarea", required: false },
-  { key: "showSocialFooter", label: "Show Social Footer", type: "checkbox", required: false },
+  // Footer options (closing note vs icon bar)
+  { key: "showFooter", label: "Show closing note", type: "checkbox", required: false },
+  { key: "footer", label: "Closing note", type: "textarea", required: false },
+  { key: "showSocialFooter", label: "Show footer", type: "checkbox", required: false },
   // Features
   { key: "newsletter", label: "Newsletter", type: "checkbox", required: false },
   { key: "contactForm", label: "Contact Form", type: "checkbox", required: false },
@@ -726,10 +726,10 @@ const pageFrontmatterFields: FrontmatterFieldDef[] = [
   { key: "layout", label: "Layout", type: "select", options: ["", "sidebar"], required: false },
   { key: "rightSidebar", label: "Right Sidebar", type: "checkbox", required: false },
   { key: "aiChat", label: "AI Chat", type: "checkbox", required: false },
-  // Footer options
-  { key: "showFooter", label: "Show Footer", type: "checkbox", required: false },
-  { key: "footer", label: "Footer Content", type: "textarea", required: false },
-  { key: "showSocialFooter", label: "Show Social Footer", type: "checkbox", required: false },
+  // Footer options (closing note vs icon bar)
+  { key: "showFooter", label: "Show closing note", type: "checkbox", required: false },
+  { key: "footer", label: "Closing note", type: "textarea", required: false },
+  { key: "showSocialFooter", label: "Show footer", type: "checkbox", required: false },
   // Features
   { key: "newsletter", label: "Newsletter", type: "checkbox", required: false },
   { key: "contactForm", label: "Contact Form", type: "checkbox", required: false },
@@ -7043,9 +7043,9 @@ export default siteConfig;
           </div>
         </div>
 
-        {/* Footer Settings */}
+        {/* Closing note (not the site footer) */}
         <div className="dashboard-config-card">
-          <h3>Footer</h3>
+          <h3>Closing note</h3>
           <div className="config-field checkbox">
             <label>
               <input
@@ -7053,7 +7053,7 @@ export default siteConfig;
                 checked={config.footerEnabled}
                 onChange={(e) => handleChange("footerEnabled", e.target.checked)}
               />
-              <span>Enable footer</span>
+              <span>Enable closing note</span>
             </label>
           </div>
           <div className="config-field checkbox">
@@ -7087,8 +7087,10 @@ export default siteConfig;
             </label>
           </div>
           <p className="config-field-note" style={{ marginTop: "0.75rem" }}>
-            Footer content is managed via <code>content/pages/footer.md</code>. Run{" "}
-            <code>npm run sync</code> to update.
+            This is not the site footer. It is the Connect with me markdown
+            above the Footer icon bar. Same switch as newsletter. Copy lives in{" "}
+            <code>content/pages/footer.md</code>. Run <code>npm run sync</code>{" "}
+            after editing it.
           </p>
         </div>
 
@@ -7357,9 +7359,9 @@ export default siteConfig;
           </div>
         </div>
 
-        {/* Social Footer */}
+        {/* Footer (icon bar) */}
         <div className="dashboard-config-card">
-          <h3>Social Footer</h3>
+          <h3>Footer</h3>
           <div className="config-field checkbox">
             <label>
               <input
@@ -7367,7 +7369,7 @@ export default siteConfig;
                 checked={config.socialFooterEnabled}
                 onChange={(e) => handleChange("socialFooterEnabled", e.target.checked)}
               />
-              <span>Enable social footer</span>
+              <span>Enable footer</span>
             </label>
           </div>
           <div className="config-field checkbox">
