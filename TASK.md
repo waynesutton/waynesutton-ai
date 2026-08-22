@@ -62,6 +62,11 @@
 
 ## Completed
 
+- [x] Convex setup and deploy guide (2026-08-21) (PRD: prds/how-to-setup-and-deploy-convex.md)
+  - How to stand up a Convex app, then how this repo ships: functions, static hosting, and content sync
+  - Laptop path vs this cloud agent (deploy key, `--yes`, `--skip-convex`)
+  - Env var names only. No keys, tokens, emails, or inbox addresses
+
 - [x] Unify box and button border-radius to 0.25rem (2026-08-21) (PRD: prds/unify-border-radius.md)
   - Added `--radius: 0.25rem` and pointed `--border-radius-*` plus `--db-radius*` at it
   - Replaced hardcoded 3px-20px box and button radii in the four CSS files
