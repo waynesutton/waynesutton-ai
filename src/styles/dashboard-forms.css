@@ -38,7 +38,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   color: var(--text-tertiary);
   cursor: grab;
   opacity: 0;
@@ -82,7 +82,7 @@
   color: var(--text-primary);
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius);
   outline: none;
   transition:
     border-color 0.15s ease,
@@ -150,7 +150,7 @@
   color: var(--text-secondary);
   background: var(--db-surface, var(--bg-primary));
   border: 1px solid var(--db-border, var(--border-color));
-  border-radius: var(--db-radius-sm, 8px);
+  border-radius: var(--db-radius-sm);
   cursor: pointer;
   white-space: nowrap;
   box-shadow: none;
@@ -188,7 +188,7 @@
 
 .fmf-group {
   border: 1px solid var(--db-border, var(--border-color));
-  border-radius: var(--db-radius, 10px);
+  border-radius: var(--db-radius);
   background: var(--db-surface, var(--bg-secondary));
   overflow: hidden;
 }
@@ -344,7 +344,7 @@
   min-height: 32px;
   padding: 4px 8px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-color);
   font-size: 13px;
@@ -423,7 +423,7 @@
   padding: 0.35rem;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
 
 .fmf-tags:focus-within {
@@ -498,7 +498,7 @@
   color: var(--text-secondary);
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius);
   cursor: pointer;
   text-align: left;
 }
@@ -524,7 +524,7 @@
   color: var(--text-secondary);
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius);
   overflow-x: auto;
   white-space: pre;
 }
@@ -817,7 +817,7 @@
   padding: 14px;
   background: var(--db-surface, var(--bg-secondary));
   border: 1px solid var(--db-border, var(--border-color));
-  border-radius: var(--db-radius-lg, 12px);
+  border-radius: var(--db-radius-lg);
 }
 
 .dashboard-docs-search {
@@ -827,7 +827,7 @@
   padding: 0 10px;
   min-height: 36px;
   border: 1px solid var(--db-border, var(--border-color));
-  border-radius: var(--db-radius-sm, 8px);
+  border-radius: var(--db-radius-sm);
   background: var(--db-inset, var(--bg-primary));
   color: var(--text-muted);
 }
@@ -897,7 +897,7 @@
   color: var(--text-primary);
   background: var(--db-surface, var(--bg-secondary));
   border: 1px solid var(--db-border, var(--border-color));
-  border-radius: var(--db-radius-full, 999px);
+  border-radius: var(--radius);
   cursor: pointer;
 }
 
@@ -916,7 +916,7 @@
   color: var(--text-secondary);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--db-radius-sm, 8px);
+  border-radius: var(--db-radius-sm);
   cursor: pointer;
   transition:
     background 0.12s ease,
@@ -981,7 +981,7 @@
   color: var(--text-primary);
   background: var(--db-surface, var(--bg-secondary));
   border: 1px solid var(--accent);
-  border-radius: var(--db-radius, 10px);
+  border-radius: var(--db-radius);
 }
 
 .dashboard-docs-toolbar {

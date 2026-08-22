@@ -2,6 +2,8 @@
 
 ## To Do
 
+- [ ] Browser pass on the 0.25rem radius lock: open the homepage, a post, /blog, search (Cmd+K), and /dashboard in all four themes. Cards, buttons, and inputs should look slightly squared. Avatars, tags, status badges, and switches should still be round/pill. PRD: prds/unify-border-radius.md
+
 - [ ] Listen-to-this-post audio: browser pass. In Config, confirm Post audio defaults to on and female, save, then open Drafts Inbox and confirm the same toggle and voice. Flip them in the inbox and confirm Config shows the same values after a reload. Publish a Grok / inbox draft and confirm a player appears under the title (or "Audio not ready" while generating). Set `audio: false` on a post and confirm the player hides. (PRD: prds/listen-to-this-post-audio.md)
 - [ ] Put the two missing posts in the homepage Writings list once the bundle is deployed: open `grok-bot-is-a-desk-of-named-bots-not-one-chatbot` and `grokbot-agentmail-blog-covnex-setup`, turn Featured on in Visibility, set Featured order 5 and 6, save, and confirm both appear on the homepage in list and card view. Also confirm Written with AI now sits in Visibility and Advanced no longer lists `aiWritten` (PRD: prds/homepage-writings-toggle-and-ai-note.md)
 - [ ] Run `npm run sync` (and `npm run sync:prod` when ready) so the clarified `featured` rows reach the frontmatter docs page (PRD: prds/homepage-writings-toggle-and-ai-note.md)
@@ -59,6 +61,14 @@
 - [ ] Decide phase 3 of the dashboard overhaul: homepage category sections (there is no category concept in the schema, only tags and the docs group fields, so this needs a call on tag driven vs a new frontmatter field vs hand curated in config), the homepage 16:9 image with a resize scaler, and whether to apply the supplied dashboard design spec (it is a single light palette while this dashboard themes four ways off `--db-*` tokens, and Inter is named in the font stack but never loaded) (PRD: prds/homepage-and-dashboard-overhaul.md)
 
 ## Completed
+
+- [x] Unify box and button border-radius to 0.25rem (2026-08-21) (PRD: prds/unify-border-radius.md)
+  - Added `--radius: 0.25rem` and pointed `--border-radius-*` plus `--db-radius*` at it
+  - Replaced hardcoded 3px-20px box and button radii in the four CSS files
+  - Left circles, pills, flush seams, and the 10px GitHub cells alone
+  - Dashboard action buttons are no longer pills; tags, badges, and switches still are
+  - Post author images now match the other circular avatars
+  - Browser pass left in To Do
 
 - [x] Remove leftover Netlify files after disconnecting the site (2026-08-21) (PRD: prds/remove-netlify-leftovers.md)
   - Deleted `netlify.toml`, `public/_redirects`, and `prds/netlify-deploy-fix.md`

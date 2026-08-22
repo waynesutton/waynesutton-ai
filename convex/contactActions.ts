@@ -60,7 +60,7 @@ function buildContactHtml(f: ContactFields): string {
 <tr><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:600">Source:</td><td style="padding:8px 0;border-bottom:1px solid #eee">${s}</td></tr>
 </table>
 <h3 style="font-size:16px;color:#1a1a1a;margin:24px 0 8px 0">Message:</h3>
-<div style="background:#f9f9f9;padding:16px;border-radius:6px;white-space:pre-wrap">${m}</div>
+<div style="background:#f9f9f9;padding:16px;border-radius:4px;white-space:pre-wrap">${m}</div>
 </div>`;
 }
 

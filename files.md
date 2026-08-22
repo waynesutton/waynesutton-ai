@@ -4,6 +4,13 @@ A brief description of each file in the codebase.
 
 ## Recent session updates (2026-08-21)
 
+### Unify box and button radius to 0.25rem (2026-08-21)
+
+- **New file** `prds/unify-border-radius.md`: PRD for one radius token, with the keep-list for circles, pills, flush seams, and the 10px GitHub contribution cells.
+- **Modified** `src/styles/global.css`: `--radius: 0.25rem`; sm/md/lg tokens alias it; hardcoded box and button radii use the token; post author images are circular.
+- **Modified** `src/styles/dashboard.css`, `src/styles/dashboard-forms.css`, `src/styles/agent-ready-section.css`: dashboard and form boxes/buttons use `--radius`; switches, tags, and status badges stay pills.
+- **Modified** `convex/contactActions.ts`, `convex/newsletterActions.ts`: email boxes and the read-more button use 4px so they match the site (email clients prefer px over rem).
+
 ### Remove leftover Netlify files (2026-08-21)
 
 - **Deleted** `netlify.toml`: leftover Git integration after the Netlify site was disconnected.
@@ -47,7 +54,7 @@ A brief description of each file in the codebase.
 - **Modified** `src/components/DashboardDocsSection.tsx`: rebuilt as a split view. Grouped, filterable topic sidebar plus a reading column, topic written to `?docs=<id>` with `history.replaceState` so it survives a reload and can be linked, and a master then detail fallback with a back button under 900px.
 - **Modified** `src/pages/Dashboard.tsx`: Logo Gallery image management (add by URL or upload, inline `src` and `href` edit, reorder, remove) with the array now sent through `buildOverrides` and serialized by `generateConfigCode`; the Homepage section registered in the sidebar; `?docs=` opens the Docs section on mount; Site Config switched to `savePartialOverrides`; Import URL moved onto the stacking form wrapper; `@fontsource-variable/inter` imported here so Inter ships in the lazy dashboard chunk rather than on every public page.
 - **Modified** `src/components/dashboard/XSection.tsx` and `src/components/dashboard/ApiKeysSection.tsx`: moved off `dashboard-import-form`, which is a flex row above 768px, onto `dashboard-form-block`, so headings and prose sit above their fields instead of beside them.
-- **Modified** `src/styles/dashboard.css`: `--db-text-*` type ramp in rem plus button, badge, and icon metric tokens; inside `.dashboard-layout`, `--font-size-sm` and `--font-size-xs` re-pointed at the body and label tokens so existing rules land on the ramp and respond to the font size control; pill buttons with a segmented exception for the view toggle pair; badges on the 20px metric; two column config grid with `align-items: start`, one column under 900px; docs section widened to 1200px.
+- **Modified** `src/styles/dashboard.css`: `--db-text-*` type ramp in rem plus button, badge, and icon metric tokens; inside `.dashboard-layout`, `--font-size-sm` and `--font-size-xs` re-pointed at the body and label tokens so existing rules land on the ramp and respond to the font size control; `--db-radius*` now resolve to `--radius` (`0.25rem`) so dashboard boxes and buttons match the public site; badges stay `--db-radius-full`; two column config grid with `align-items: start`, one column under 900px; docs section widened to 1200px.
 - **Modified** `src/styles/dashboard-forms.css`: `dashboard-form-block` and `dashboard-form-row` wrappers, and the docs split view styles (sidebar, search, topic groups, toolbar, back button) replacing the old pill strip.
 - **Modified** `src/styles/global.css`: styles for the homepage banner and category sections, the Site Config logo list rows, and the Homepage section dashboard controls.
 - **Modified** `package.json`: added `@fontsource-variable/inter` for self hosted Inter, so the dashboard needs no font CDN.
