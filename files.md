@@ -2,6 +2,62 @@
 
 A brief description of each file in the codebase.
 
+## Recent session updates (2026-08-22)
+
+### Category sections as page navigation (2026-08-22)
+
+- **New file** `prds/category-section-nav-pages.md`: Per-section Show in nav and Show on homepage, reuse `/tags/:tag`, Blog-like tag pages.
+- **New file** `src/utils/homeCategories.ts`: Shared resolver, tag path, nav items, section match.
+- **Modified** `src/config/siteConfig.ts`: `showInNav` and `showOnHome` on `HomeCategorySection`.
+- **Modified** `src/components/dashboard/HomepageSection.tsx`: Show in nav and Show on homepage checkboxes, persist both, hydrate from live overrides.
+- **Modified** `src/components/Layout.tsx`: Category nav items from live config, current-page mark, wide column for `/tags/`.
+- **Modified** `src/components/HomeCategories.tsx`: Heading links to the tag archive. View all when the limit truncates.
+- **Modified** `src/pages/TagPage.tsx`: Blog chrome, category title, no Back arrow.
+- **Modified** `src/pages/Home.tsx`: Uses the shared category resolver.
+- **Modified** `src/styles/global.css`: Heading link, View all, current nav item.
+
+### Homepage category section inputs (2026-08-22)
+
+- **New file** `prds/homepage-category-section-inputs.md`: Native browser fields in the Category sections card, and homepage categories not picking up a dashboard save until bootstrap.
+- **Modified** `src/components/dashboard/HomepageSection.tsx`: heading, tag, limit, and columns use dashboard field classes. Tag field lists published tags and shows match count.
+- **Modified** `src/pages/Home.tsx`: homepage category sections read live `getOverrides` so a Save shows on `/`.
+- **Modified** `src/styles/global.css`: category option fields keep a compact width and the Show date checkbox uses the accent.
+
+### Vertical homepage banner (2026-08-22)
+
+- **New file** `prds/homepage-vertical-banner.md`: Wide 16:9 vs vertical beside intro, left/right, GIF and SVG on both.
+- **New file** `src/utils/imageUpload.ts`: Shared accept list and MIME inference so SVG still uploads when `file.type` is empty.
+- **Modified** `src/config/siteConfig.ts`: `homeHeroImage` gained `layout` (`banner` | `aside`) and `side` (`left` | `right`). Media `allowedTypes` includes `image/svg+xml`.
+- **Modified** `src/components/HomeHeroImage.tsx`: Banner slots stay top/bottom. Aside slot sits beside the intro. SVG uses contain so it is not cropped.
+- **Modified** `src/pages/Home.tsx`: Intro and aside image share a two column split. Banner layout still uses `display: contents` so the wrapper does not change spacing.
+- **Modified** `src/styles/global.css`: Split grid, natural height for aside, 16:9 cover for banner, contain for SVG banners, stack under 768px.
+- **Modified** `src/components/dashboard/HomepageSection.tsx`: Layout and side selects. Preview matches the chosen layout.
+- **Modified** `convex/files.ts`, `src/components/ImageUploadModal.tsx`, `src/components/MediaLibrary.tsx`, `src/pages/Dashboard.tsx`: SVG on the upload allowlist.
+
+### Remove Back and align Copy page (2026-08-22)
+
+- **New file** `prds/remove-back-align-copy-page.md`: Why the Back row was lifting the article and how Copy page moved onto the title row.
+- **Modified** `src/pages/Post.tsx`: Back and `.post-nav` removed from post and page views. Copy page and Present always sit in `.post-title-row`.
+- **Modified** `src/pages/Blog.tsx`: Empty leftover nav removed.
+- **Modified** `src/styles/global.css`: Title row wraps; Copy page stays right aligned.
+
+### Blog list meta and newsletter placements (2026-08-22)
+
+- **New file** `prds/blog-list-meta-and-newsletter-placements.md`: Why some `/blog` rows missed min read, and why newsletter location toggles did not cover pages.
+- **New file** `convex/lib/readTime.ts`: Word-count read time shared by list queries, CMS save, and draft publish.
+- **New file** `src/utils/newsletter.ts`: One helper for location switches plus frontmatter override.
+- **Modified** `convex/posts.ts`, `convex/cms.ts`, `convex/drafts.ts`: Fill missing `readTime` so every list row can show it.
+- **Modified** `src/config/siteConfig.ts`, `src/pages/Dashboard.tsx`, `src/pages/Blog.tsx`, `src/pages/Post.tsx`, `src/pages/Home.tsx`, `src/pages/TagPage.tsx`, `src/pages/AuthorPage.tsx`, `src/components/NewsletterSignup.tsx`, `src/components/BlogPost.tsx`: Blog list flags and independent newsletter locations including pages and position.
+
+### OA and Issuant UI polish (2026-08-22)
+
+- **New file** `prds/oa-issuant-ui-polish.md`: What we took from Open Analytics and Issuant, and what we left alone (fonts, radius, layout).
+- **Modified** `src/styles/global.css`: focus ring tokens, overflow clip, 16px phone inputs, toast motion without a left stripe, public form focus and press, heading `text-wrap: balance`.
+- **Modified** `src/styles/dashboard.css`: accent input rings, button press, card hairline hover, toast and modal motion, reduced-motion.
+- **Modified** `src/pages/Dashboard.tsx`: toast `role="status"`, Save labels stay put, demo banner status.
+- **Modified** `src/components/AIChatView.tsx`: attachment errors as an inline notice.
+- **Modified** `src/components/dashboard/HomepageSection.tsx`, `src/components/AgentReadySection.tsx`: Save keeps its name.
+
 ## Recent session updates (2026-08-21)
 
 ### Convex setup and deploy guide (2026-08-21)
@@ -34,7 +90,7 @@ A brief description of each file in the codebase.
 
 - **New file** `convex/audioDefaults.ts`: read and write `siteConfig.audio` plus the `draftSettings` inbox mirror in one mutation. Site settings win. Inbox and Config both call this.
 - **New file** `convex/audio.ts`: enqueue helper, job payload query, finalize and fail mutations. Skips unpublished posts, opted-out posts, and unchanged content hashes.
-- **New file** `convex/audioGeneration.ts`: Node action. Kokoro-82M via `kokoro-js` (`af_heart` female, `am_adam` male), WAV stored in Convex `_storage`. OOM retries in a fresh isolate (q4, then optional Piper WASM).
+- **New file** `convex/audioGeneration.ts`: Node action. WAV stored in Convex `_storage`. Shipped with Kokoro-82M via `kokoro-js`; replaced on 2026-08-22 with the OpenAI speech API after the native ONNX dependency proved too large to bundle into a Convex action.
 - **New file** `convex/lib/audioText.ts`: strip markdown to speech text, parse draft `audio` / `audioVoice`, content hash, sentence chunking.
 - **New file** `src/components/PostAudioPlayer.tsx`: listen player under the post title. No autoplay. Hidden when audio is off or there is no file.
 - **New file** `prds/listen-to-this-post-audio.md`: PRD for the feature.
@@ -43,7 +99,16 @@ A brief description of each file in the codebase.
 - **Modified** `convex/drafts.ts`, `convex/cms.ts`, `convex/posts.ts`: stamp inbox defaults on fresh publish; enqueue generation on publish and sync.
 - **Modified** `src/config/siteConfig.ts`, `src/pages/Dashboard.tsx`, `src/components/dashboard/DraftsInbox.tsx`, `src/components/FrontmatterForm.tsx`, `src/pages/Post.tsx`, `src/styles/global.css`, `src/styles/dashboard-forms.css`: defaults, Config card, inbox toggles, frontmatter overrides, player styles.
 - **Modified** `scripts/sync-posts.ts`, `.claude/skills/frontmatter.md`, `content/pages/docs-frontmatter.md`: parse and document `audio` / `audioVoice`.
-- **Modified** `package.json`: added `kokoro-js`.
+- **Modified** `package.json`: added `kokoro-js` (removed again on 2026-08-22; see below).
+
+### Post audio moved to the OpenAI speech API (2026-08-22)
+
+- **New file** `prds/audio-tts-openai-migration.md`: PRD. Why Kokoro cannot run in a Convex action (208MB of native ONNX binaries, 169MB zipped against a 43MB platform limit) and what replaced it.
+- **Modified** `convex/audioGeneration.ts`: synthesis now calls `gpt-4o-mini-tts` with `response_format: "pcm"` and joins the raw 24kHz chunks before writing one WAV header. `generateAudioPiper` and the Float32 sample readers are gone.
+- **Modified** `convex/lib/audioText.ts`: `kokoroVoiceId` is now `ttsVoiceId` returning `nova` (female) or `onyx` (male); chunk ceiling raised to 3500 characters to sit under the 4096 API input limit.
+- **Modified** `convex/audio.ts`: `failAudioJob` no longer takes `retryWithPiper`; an API call has no out-of-memory case to retry.
+- **Modified** `package.json`, `package-lock.json`: removed `kokoro-js`, which also cleared 3 high-severity advisories from the ONNX and sharp subtree.
+- **Modified** `src/components/PostAudioPlayer.tsx`: the Web Speech API fallback (shown when generation failed) now queues ~200 character sentence-aligned utterances instead of one long one, with a 10s pause/resume nudge, because Chrome abandons a long utterance after roughly 15 seconds. It also prepends the `h1` and strips `pre` and `code` so it reads the same text the server does.
 
 ## Recent session updates (2026-08-19)
 
@@ -1191,11 +1256,11 @@ A brief description of each file in the codebase.
 | File          | Description                                                                                                                                                                                                                                                                                                                                                       |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Home.tsx`    | Landing page with featured content and optional post list. Fetches home intro content from `content/pages/home.md` (slug: `home-intro`) for synced markdown intro text. Supports configurable post limit (homePostsLimit) and optional "read more" link (homePostsReadMore) via siteConfig.postsDisplay. Falls back to siteConfig.bio if home-intro page not found. Home intro content uses blog heading styles (blog-h1 through blog-h6) with clickable anchor links, matching blog post typography. Includes helper functions (generateSlug, getTextContent, HeadingAnchor) for heading ID generation and anchor links. Featured section title configurable via siteConfig.featuredTitle (default: "Get started:"). |
-| `Blog.tsx`    | Dedicated blog page with featured layout: hero post (first blogFeatured), featured row (remaining blogFeatured in 2 columns with excerpts), and regular posts (3 columns without excerpts). Supports list/card view toggle. Includes back button in navigation                                                                                                    |
-| `Post.tsx`    | Individual blog post or page view with optional left sidebar (TOC) and right sidebar (CopyPageDropdown). Includes back button (hidden when used as homepage), tag links, related posts section in footer for blog posts with thumbnail/list view toggle, footer component with markdown support (fetches footer.md content from Convex), and social footer. Published posts can show a listen-to-this-post player under the title via `PostAudioPlayer`. Supports 3-column layout at 1135px+. Can display image at top when showImageAtTop: true. Can be used as custom homepage via siteConfig.homepage (update SITE_URL/SITE_NAME when forking). SEO: Dynamic canonical URL, hreflang tags, og:url consistency, and twitter:site meta tags. DOM order optimized for SEO (article before sidebar, CSS order for visual layout). Related posts view mode persists in localStorage. |
+| `Blog.tsx`    | Dedicated blog page with featured layout: hero post (first blogFeatured), featured row (remaining blogFeatured in 2 columns with excerpts), and regular posts (3 columns without excerpts). Supports list/card view toggle. |
+| `Post.tsx`    | Individual blog post or page view with optional left sidebar (TOC) and right sidebar. Title and Copy page share one row (Present joins that row when slides are on). Tag links, related posts with thumbnail/list toggle, footer, and social footer. Published posts can show a listen-to-this-post player under the title via `PostAudioPlayer`. Supports 3-column layout at 1135px+. Can display image at top when showImageAtTop: true. Can be used as custom homepage via siteConfig.homepage (update SITE_URL/SITE_NAME when forking). SEO: Dynamic canonical URL, hreflang tags, og:url consistency, and twitter:site meta tags. DOM order optimized for SEO (article before sidebar, CSS order for visual layout). Related posts view mode persists in localStorage. |
 | `Stats.tsx`   | Real-time analytics dashboard with visitor stats and GitHub stars. Configurable via `siteConfig.statsPage` to enable/disable public access and navigation visibility. Shows disabled message when `enabled: false` (similar to NewsletterAdmin pattern).                                                                                                                                                                 |
 | `DocsPage.tsx` | Docs landing page component for `/docs` route. Renders the page/post with `docsLanding: true` in DocsLayout. Fetches landing content via `getDocsLandingPage` and `getDocsLandingPost` queries. Includes Footer component (respects showFooter frontmatter), AI chat support (aiChatEnabled), and fallback to first docs item if no landing page is set. |
-| `TagPage.tsx` | Tag archive page displaying posts filtered by a specific tag. Includes view mode toggle (list/cards) with localStorage persistence                                                                                                                                                                                                                                |
+| `TagPage.tsx` | Tag archive at `/tags/:tag`. Uses Blog chrome (title, count, list/cards, footer, newsletter). Category sections with Show in nav land here and use the section title. No Back arrow. |
 | `AuthorPage.tsx` | Author archive page displaying posts by a specific author. Includes view mode toggle (list/cards) with localStorage persistence. Author name clickable in posts links to this page. |
 | `Write.tsx`   | Three-column markdown writing page with Cursor docs-style UI, frontmatter reference with copy buttons, theme toggle, font switcher (serif/sans/monospace), localStorage persistence, and optional AI Agent mode (toggleable via siteConfig.aiChat.enabledOnWritePage). When enabled, Agent replaces the textarea with AIChatView component. Includes scroll prevention when switching to Agent mode to prevent page jump. Title changes to "Agent" when in AI chat mode. |
 | `Dashboard.tsx` | Centralized dashboard at `/dashboard` for content management and site configuration. **Cloud CMS Features:** Direct database save ("Save to DB" button), source tracking (Dashboard vs Synced badges), delete confirmation modal with warning, CRUD operations for dashboard-created content, sync warning modal for synced content (warns that local file changes will overwrite dashboard edits with download/copy options). **Content Management:** Posts and Pages list views with filtering, search, pagination, items per page selector, source badges, delete buttons (dashboard content only); Post/Page editor with markdown editor, live preview, "Save Changes" button, draggable/resizable frontmatter sidebar (200px-600px), independent scrolling, download markdown, export to markdown, all 30+ frontmatter fields synchronized with schema; Write Post/Page sections with three editor modes (Markdown, Rich Text, Preview), full-screen writing interface. **Rich Text Editor:** lightweight `contentEditable` editor with simple toolbar (bold, italic, strike, headings, lists, quote), image insertion support, automatic HTML-to-Markdown conversion on mode switch, theme-aware styling. **AI Agent:** Tab-based UI for Chat and Image Generation, multi-model selector (Claude Sonnet 4, GPT-4o, Gemini 2.0 Flash), image generation with Nano Banana models, aspect ratio selection, download button, and MD/HTML copy options with code preview. **Other Features:** Newsletter management (all Newsletter Admin features integrated); Content import (direct database import via Firecrawl, no file sync needed); Site configuration (Config Generator UI with Version Control toggle); Index HTML editor; Analytics (real-time stats dashboard); Sync commands UI with sync server integration; Header sync buttons; Dashboard search; Toast notifications; Command modal; Version history modal for viewing diffs and restoring previous versions; Mobile responsive design. Uses Convex queries for real-time data, localStorage for preferences, ReactMarkdown for preview. Optional WorkOS authentication via siteConfig.dashboard.requireAuth. |
@@ -1206,7 +1271,7 @@ A brief description of each file in the codebase.
 
 | File                      | Description                                                                                                                                                                                                                                                                                                                                                           |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Layout.tsx`              | Page wrapper with logo in header (top-left), search button, theme toggle, mobile menu (left-aligned on mobile), and scroll-to-top. Combines Blog link, hardcoded nav items, and markdown pages for navigation. Logo reads from siteConfig.innerPageLogo. Displays social icons in header (left of search) when siteConfig.socialFooter.showInHeader is true.                                                                                                               |
+| `Layout.tsx`              | Page wrapper with logo in header, search, theme toggle, mobile menu, and scroll-to-top. Combines Blog, Docs, category Show in nav items, hardcoded routes, and markdown pages. Live `homeCategories` overrides feed the category links. `/tags/` uses the wide column. Logo reads from siteConfig.innerPageLogo. Social icons in header when siteConfig.socialFooter.showInHeader is true. |
 | `ThemeToggle.tsx`         | Theme switcher (dark/light/tan/cloud)                                                                                                                                                                                                                                                                                                                                 |
 | `PostAudioPlayer.tsx`     | Listen-to-this-post player under the post title. Play/pause, progress, duration, and voice label. Hidden when `audio` is false or there is no file. Pending shows Audio not ready. Failed generation can fall back to the Web Speech API. No autoplay. |
 | `PostList.tsx`            | Year-grouped blog post list or card grid (supports list/cards view modes, columns prop for 2/3 column grids, showExcerpts prop to control excerpt visibility, plus showReadTime, showDate, showYearHeadings, and underlineTitles props used by the configurable homepage list)                                                                                                                                                                                                         |
@@ -1218,8 +1283,8 @@ A brief description of each file in the codebase.
 | `SearchModal.tsx`         | Full text search modal with keyboard navigation. Supports keyword and semantic search modes (toggle with Tab). Semantic mode conditionally shown when `siteConfig.semanticSearch.enabled: true`. When semantic disabled (default), shows keyword search only without mode toggle.                                                                                                                                                                                                                                                                                                                       |
 | `FeaturedCards.tsx`       | Card grid for featured posts/pages with excerpts                                                                                                                                                                                                                                                                                                                      |
 | `LogoMarquee.tsx`         | Scrolling logo gallery with clickable links. Image list is editable from the dashboard Site Config Logo Gallery card, which becomes the source of truth once saved                                                                                                                                                                                                     |
-| `HomeCategories.tsx`      | Tag driven category sections on the homepage. Each section names a title and a tag, with an item limit, one or two columns, and an optional date. Filters the rows `posts.getAllPosts` already returns, so it adds no query. Configured in the dashboard Homepage section via `siteConfig.homeCategories`                                                               |
-| `HomeHeroImage.tsx`       | 16:9 homepage banner with a stored width percentage as the scaler, optional link, and rounded corners. A `slot` prop lets one config render at the top, the bottom, or both. Configured in the dashboard Homepage section via `siteConfig.homeHeroImage`                                                                                                               |
+| `HomeCategories.tsx`      | Tag driven category sections on the homepage. Each section names a title and a tag, with an item limit, one or two columns, an optional date, Show on homepage, and Show in nav. Headings link to `/tags/{tag}`. Truncated lists get View all. Filters the rows `posts.getAllPosts` already returns. Configured in the dashboard Homepage section via `siteConfig.homeCategories` |
+| `HomeHeroImage.tsx`       | Homepage image. Wide 16:9 banner (top, bottom, or both) or a vertical portrait beside the intro (left or right). PNG, JPG, GIF, WebP, SVG. Configured in the dashboard Homepage section via `siteConfig.homeHeroImage`                                                                                                               |
 | `MobileMenu.tsx`          | Slide-out drawer menu for mobile navigation with hamburger button. Shows social icons below nav links when `socialFooter.showInHeader` enabled (mobile only, not in header). Includes sidebar table of contents when page has sidebar layout. Uses `platformIcons` from SocialFooter.                                                                                                                                    |
 | `ScrollToTop.tsx`         | Configurable scroll-to-top button with Phosphor ArrowUp icon                                                                                                                                                                                                                                                                                                          |
 | `GitHubContributions.tsx` | GitHub activity graph with theme-aware colors and year navigation                                                                                                                                                                                                                                                                                                     |
@@ -1248,6 +1313,8 @@ A brief description of each file in the codebase.
 | File                 | Description                                                                                                   |
 | -------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `extractHeadings.ts` | Parses markdown content to extract headings (H1-H6), generates slugs, filters out headings inside code blocks |
+| `homeCategories.ts`  | Live `homeCategories` resolver, `/tags/{tag}` path helper, nav items for Show in nav, match a tag to a section |
+| `imageUpload.ts`     | Shared image picker accept list and MIME inference for PNG, JPG, GIF, WebP, and SVG                           |
 | `workos.ts`          | WorkOS configuration utility. Exports isWorkOSConfigured boolean (checks if VITE_WORKOS_CLIENT_ID and VITE_WORKOS_REDIRECT_URI are set) and workosConfig object with clientId and redirectUri. Used throughout app to conditionally enable WorkOS features. |
 
 ### Hooks (`src/hooks/`)
@@ -1269,10 +1336,11 @@ A brief description of each file in the codebase.
 | File               | Description                                                                                                        |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | `schema.ts`        | Database schema (posts, pages, viewCounts, pageViews, activeSessions, aiChats, aiGeneratedImages, newsletterSubscribers, newsletterSentPosts, contactMessages, askAISessions, contentVersions, versionControlSettings, audioJobs) with indexes for tag queries (by_tags), AI queries, blog featured posts (by_blogFeatured), source tracking (by_source), vector search (by_embedding), version history (by_content, by_createdAt), and audio jobs (`by_post_and_hash`, `by_status`). Posts include optional `audio`, `audioVoice`, storage id, duration, content hash, and status. draftSettings mirrors inbox audio defaults. |
-| `audio.ts`         | Enqueue listen-to-this-post TTS when a published post should have audio and the content hash changed. Job payload query, finalize, and fail (optional Piper retry). |
+| `audio.ts`         | Enqueue listen-to-this-post TTS when a published post should have audio and the content hash changed. Job payload query, finalize, and fail. |
 | `audioDefaults.ts` | Site settings plus inbox mirror for `enabledDefault` and `defaultVoice`. One write path so the inbox is never a second store. |
-| `audioGeneration.ts` | Node action: Kokoro-82M via `kokoro-js`, WAV in Convex file storage, q4 then optional Piper on OOM. |
+| `audioGeneration.ts` | Node action: OpenAI `gpt-4o-mini-tts` speech, raw PCM chunks joined into one WAV in Convex file storage. Requires `OPENAI_API_KEY`. |
 | `lib/audioText.ts` | Strip markdown to speech text, parse draft audio frontmatter, hash title + body + voice, chunk sentences. |
+| `lib/readTime.ts` | Word-count reading time. Used when a post has no stored `readTime`. |
 | `cms.ts`           | CRUD mutations for dashboard cloud CMS: createPost, updatePost, deletePost, createPage, updatePage, deletePage, exportPostAsMarkdown, exportPageAsMarkdown. Posts/pages created via dashboard have `source: "dashboard"` (protected from sync overwrites). Captures versions before updates when version control is enabled. Markdown export now uses shared frontmatter helpers for post and page files. |
 | `importAction.ts`  | Queued Firecrawl worker for Dashboard URL import. Consumes the scheduled import-job snapshot, scrapes the source URL, normalizes markdown, and finalizes the job through shared helpers. Requires FIRECRAWL_API_KEY environment variable. |
 | `importJobs.ts`    | Public request or status functions and internal completion or failure helpers for queued Dashboard URL imports. Now includes the internal mutation that creates the imported post and completes the job in one transaction. |
@@ -1303,7 +1371,7 @@ A brief description of each file in the codebase.
 | `askAI.ts`         | Ask AI session management: createSession mutation (creates streaming session with question/model in DB), getStreamBody query (for database fallback), getSessionByStreamId internal query (retrieves question/model for HTTP action). Uses Persistent Text Streaming component. |
 | `askAI.node.ts`    | Ask AI HTTP action for streaming responses (Node.js runtime). Retrieves question from database, performs vector search using existing semantic search embeddings, generates AI response via Anthropic Claude or OpenAI GPT-4o, streams via appendChunk. Includes CORS headers and source citations. |
 | `fs.ts`            | ConvexFS instance configuration with Bunny.net Edge Storage integration. Conditionally creates ConvexFS instance only when BUNNY_API_KEY, BUNNY_STORAGE_ZONE, and BUNNY_CDN_HOSTNAME environment variables are set. Exports `isBunnyConfigured` boolean and `fs` instance (or null if not configured). |
-| `files.ts`         | File management mutations and queries for media library: commitFile (upload with validation), listFiles (paginated), deleteFile, deleteFiles (bulk), setFileExpiration, getFileInfo, getDownloadUrl, getFileCount, isConfigured. Validates file types (PNG, JPG, GIF, WebP) and size (10MB max). |
+| `files.ts`         | File management mutations and queries for media library: commitFile (upload with validation), listFiles (paginated), deleteFile, deleteFiles (bulk), setFileExpiration, getFileInfo, getDownloadUrl, getFileCount, isConfigured. Validates file types (PNG, JPG, GIF, WebP, SVG) and size (10MB max). |
 | `convex.config.ts` | Convex app configuration with aggregate component registrations (pageViewsByPath, totalPageViews, uniqueVisitors, uniquePaths), persistentTextStreaming component, and ConvexFS component for media storage. |
 | `tsconfig.json`    | Convex TypeScript configuration                                                                                    |
 

@@ -69,6 +69,9 @@ export interface PostsDisplayConfig {
   homeShowDate?: boolean; // Show the date on homepage rows (default: true)
   homeShowYearHeadings?: boolean; // Group homepage rows under year headings (default: true)
   homeUnderlineTitles?: boolean; // Underline homepage post titles, like the featured list (default: false)
+  blogShowReadTime?: boolean; // Show read time on /blog, tag, and author lists (default: true)
+  blogShowDate?: boolean; // Show the date on /blog, tag, and author lists (default: true)
+  blogShowYearHeadings?: boolean; // Group /blog, tag, and author lists by year (default: true)
 }
 
 // One homepage category section. Posts that carry `tag` are listed under
@@ -80,6 +83,8 @@ export interface HomeCategorySection {
   limit?: number; // Max posts to show (default: 8)
   columns?: 1 | 2; // Column count on desktop (default: 2)
   showDate?: boolean; // Show the post date on each row (default: false)
+  showOnHome?: boolean; // List this section on the homepage (default: true)
+  showInNav?: boolean; // Add this heading to site nav, linking to /tags/{tag}
 }
 
 // Homepage category sections configuration
@@ -89,15 +94,19 @@ export interface HomeCategoriesConfig {
   sections: Array<HomeCategorySection>;
 }
 
-// Wide 16:9 image on the homepage, with a width scaler so it can be pulled in
-// narrower than the content column without cropping.
+export type HomeHeroLayout = "banner" | "aside";
+export type HomeHeroSide = "left" | "right";
+
+// Homepage image. Banner is the wide 16:9 strip. Aside is a portrait beside the intro.
 export interface HomeHeroImageConfig {
   enabled: boolean;
-  src: string; // Image URL or /images/... path
+  src: string; // Image URL or /images/... path. PNG, JPG, GIF, WebP, SVG
   alt?: string; // Empty alt is fine for a decorative banner
   href?: string; // Optional link wrapper
-  position: "top" | "bottom" | "both"; // Above the header, below the content, or both
-  width: number; // Percent of the content column, 30 to 100
+  layout?: HomeHeroLayout; // banner (default) or aside (vertical beside intro)
+  side?: HomeHeroSide; // aside only. Default right
+  position: "top" | "bottom" | "both"; // banner only. Above the header, below the content, or both
+  width: number; // Banner: percent of the content column, 30 to 100. Aside: image column width
   rounded?: boolean; // Rounded corners (default: true)
 }
 
@@ -199,6 +208,7 @@ export interface NewsletterConfig {
     home: NewsletterSignupPlacement; // Homepage signup
     blogPage: NewsletterSignupPlacement; // Blog page (/blog) signup
     posts: NewsletterSignupPlacement; // Individual blog posts (can override via frontmatter)
+    pages: NewsletterSignupPlacement; // Static pages (can override via frontmatter)
   };
 }
 
@@ -551,12 +561,14 @@ export const siteConfig: SiteConfig = {
     sections: [],
   },
 
-  // Homepage 16:9 banner. width is a percent of the content column.
+  // Homepage image. layout banner is the 16:9 strip. aside sits beside the intro.
   homeHeroImage: {
     enabled: false,
     src: "",
     alt: "",
     href: "",
+    layout: "banner",
+    side: "right",
     position: "top",
     width: 100,
     rounded: true,
@@ -686,6 +698,9 @@ export const siteConfig: SiteConfig = {
     homeShowDate: true, // Show the date on each row
     homeShowYearHeadings: true, // Group rows under year headings
     homeUnderlineTitles: false, // Underline titles like the featured list
+    blogShowReadTime: true, // Show read time on /blog, tag, and author lists
+    blogShowDate: true, // Show the date on /blog, tag, and author lists
+    blogShowYearHeadings: true, // Group /blog, tag, and author lists by year
   },
 
   // Links for footer section
@@ -768,6 +783,12 @@ export const siteConfig: SiteConfig = {
         position: "below-content",
         title: "Enjoyed this post?",
         description: "Subscribe for more updates.",
+      },
+      pages: {
+        enabled: true,
+        position: "below-content",
+        title: "Stay Updated",
+        description: "Get new posts delivered to your inbox.",
       },
     },
   },
@@ -895,7 +916,13 @@ export const siteConfig: SiteConfig = {
     enabled: true,
     provider: "convex",
     maxFileSize: 10, // Max file size in MB
-    allowedTypes: ["image/png", "image/jpeg", "image/gif", "image/webp"],
+    allowedTypes: [
+      "image/png",
+      "image/jpeg",
+      "image/gif",
+      "image/webp",
+      "image/svg+xml",
+    ],
   },
 
   // Image lightbox configuration

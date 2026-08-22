@@ -32,6 +32,48 @@ function shouldShowPlayer(audio?: boolean): boolean {
   return siteConfig.audio?.enabledDefault !== false;
 }
 
+/** Title plus body, minus code blocks, matching what the server reads aloud. */
+function collectFallbackText(): string {
+  const root = document.querySelector(".post-content, .docs-article");
+  const title = document.querySelector("h1")?.textContent?.trim() ?? "";
+  if (!root) {
+    return title || document.title;
+  }
+  const clone = root.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll("pre, code").forEach((node) => node.remove());
+  const body = (clone.textContent ?? "").replace(/\s+/g, " ").trim();
+  if (title.length > 0 && body.length > 0) {
+    return `${title}. ${body}`;
+  }
+  return title.length > 0 ? title : body;
+}
+
+/**
+ * Chrome abandons a single long utterance partway through, so the fallback
+ * queues many short ones instead of handing it the whole post at once.
+ */
+function splitForSpeech(text: string, maxChars = 200): Array<string> {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length === 0) {
+    return [];
+  }
+  const chunks: Array<string> = [];
+  let current = "";
+  for (const sentence of normalized.split(/(?<=[.!?])\s+/)) {
+    const next = current.length === 0 ? sentence : `${current} ${sentence}`;
+    if (next.length > maxChars && current.length > 0) {
+      chunks.push(current);
+      current = sentence;
+    } else {
+      current = next;
+    }
+  }
+  if (current.length > 0) {
+    chunks.push(current);
+  }
+  return chunks;
+}
+
 function pickBrowserVoice(voice: AudioVoice): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !window.speechSynthesis) {
     return null;
@@ -92,6 +134,22 @@ export default function PostAudioPlayer({
     };
   }, [stopBrowserSpeech]);
 
+  // Chrome stalls a queued speech run after roughly 15 seconds of audio.
+  // Nudging it on a timer keeps a long post going to the end.
+  useEffect(() => {
+    if (!playing || audioUrl) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      const synth = window.speechSynthesis;
+      if (synth && synth.speaking && !synth.paused) {
+        synth.pause();
+        synth.resume();
+      }
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [playing, audioUrl]);
+
   useEffect(() => {
     const node = audioRef.current;
     if (!node) {
@@ -143,16 +201,23 @@ export default function PostAudioPlayer({
                 setPlaying(false);
                 return;
               }
-              const utterance = new SpeechSynthesisUtterance(
-                document.querySelector(".post-content, .docs-article")
-                  ?.textContent ?? document.title,
-              );
-              const browserVoice = pickBrowserVoice(voice);
-              if (browserVoice) {
-                utterance.voice = browserVoice;
+              const chunks = splitForSpeech(collectFallbackText());
+              if (chunks.length === 0) {
+                return;
               }
-              utterance.onend = () => setPlaying(false);
-              window.speechSynthesis.speak(utterance);
+              // Clear anything left over from a previous run before queueing.
+              window.speechSynthesis.cancel();
+              const browserVoice = pickBrowserVoice(voice);
+              chunks.forEach((chunk, index) => {
+                const utterance = new SpeechSynthesisUtterance(chunk);
+                if (browserVoice) {
+                  utterance.voice = browserVoice;
+                }
+                if (index === chunks.length - 1) {
+                  utterance.onend = () => setPlaying(false);
+                }
+                window.speechSynthesis.speak(utterance);
+              });
               setPlaying(true);
             }}
           >

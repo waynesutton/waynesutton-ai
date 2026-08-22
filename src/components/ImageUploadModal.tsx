@@ -11,6 +11,11 @@ import {
   ArrowsOut,
   Check,
 } from "@phosphor-icons/react";
+import {
+  IMAGE_UPLOAD_ACCEPT,
+  isAllowedImageFile,
+  resolveImageContentType,
+} from "../utils/imageUpload";
 
 // Derive the .site URL from Convex URL for uploads
 const getSiteUrl = () => {
@@ -179,10 +184,11 @@ export function ImageUploadModal({ isOpen, onClose, onInsert, onSelectUrl }: Ima
     setUploadProgress("Uploading...");
 
     try {
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
+      // Validate file type. SVG is image/svg+xml; some browsers leave type empty.
+      if (!isAllowedImageFile(file)) {
         throw new Error("File must be an image");
       }
+      const contentType = resolveImageContentType(file);
 
       // Validate file size (10MB max)
       if (file.size > 10 * 1024 * 1024) {
@@ -203,7 +209,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert, onSelectUrl }: Ima
         // Upload blob to ConvexFS endpoint
         const res = await fetch(`${siteUrl}/fs/upload`, {
           method: "POST",
-          headers: { "Content-Type": file.type },
+          headers: { "Content-Type": contentType },
           body: file,
         });
 
@@ -218,7 +224,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert, onSelectUrl }: Ima
         const result = await commitFile({
           blobId,
           filename: file.name,
-          contentType: file.type,
+          contentType,
           size: file.size,
           width: dimensions.width,
           height: dimensions.height,
@@ -229,7 +235,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert, onSelectUrl }: Ima
         const { key, url: signedUploadUrl } = await generateR2UploadUrl({});
         const uploadRes = await fetch(signedUploadUrl, {
           method: "PUT",
-          headers: { "Content-Type": file.type },
+          headers: { "Content-Type": contentType },
           body: file,
         });
         if (!uploadRes.ok) {
@@ -246,7 +252,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert, onSelectUrl }: Ima
         const uploadUrl = await generateDirectUploadUrl({});
         const uploadRes = await fetch(uploadUrl, {
           method: "POST",
-          headers: { "Content-Type": file.type },
+          headers: { "Content-Type": contentType },
           body: file,
         });
         if (!uploadRes.ok) {
@@ -427,7 +433,7 @@ export function ImageUploadModal({ isOpen, onClose, onInsert, onSelectUrl }: Ima
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
+                accept={IMAGE_UPLOAD_ACCEPT}
                 onChange={handleFileChange}
                 style={{ display: "none" }}
               />

@@ -1,12 +1,17 @@
 # Listen to this post audio
 
 Created: 2026-08-20 02:45 UTC
-Last Updated: 2026-08-20 03:15 UTC
-Status: Done
+Last Updated: 2026-08-22 08:16 UTC
+Status: Done (synthesis engine superseded)
+
+> Superseded on 2026-08-22: the Kokoro and Piper synthesis described below could not run
+> inside a Convex action. Its native ONNX dependency is roughly 4x over the platform
+> bundle limit. Speech is now generated with the OpenAI speech API. See
+> `prds/audio-tts-openai-migration.md`. Everything else in this PRD still holds.
 
 ## Summary
 
-Add a listen-to-this-post player on published posts. Speech is generated with Kokoro-82M (Apache 2.0) and stored in Convex file storage. Site settings own the defaults. The Drafts Inbox shows the same defaults and writes the same store.
+Add a listen-to-this-post player on published posts. Speech is generated from the post text and stored in Convex file storage. Site settings own the defaults. The Drafts Inbox shows the same defaults and writes the same store.
 
 ## Problem
 
@@ -22,8 +27,8 @@ On publish or sync of a post that should have audio, enqueue a Node action:
 
 1. Strip markdown to plain text (title + body, drop code fences and images)
 2. Skip if `audioContentHash` matches
-3. Synthesize with Kokoro-82M via `kokoro-js` (`af_heart` female, `am_adam` male)
-4. If Kokoro OOMs, retry Piper in a fresh isolate
+3. Synthesize the speech (now the OpenAI speech API, `nova` female, `onyx` male)
+4. On failure, fail the job without blocking publish
 5. Store a WAV in Convex `_storage` and save `storageId`, duration, and hash on the post
 
 Failed generation does not block publish. The player hides when `audio` is false or there is no file. Pending shows a quiet "Audio not ready" line. Failed generation can fall back to the Web Speech API (no file stored).
@@ -34,7 +39,7 @@ Failed generation does not block publish. The player hides when `audio` is false
 - `convex/lib/audioText.ts` - markdown strip, frontmatter parse, content hash
 - `convex/audioDefaults.ts` - read/write site settings + inbox mirror
 - `convex/audio.ts` - enqueue helper, job mutations, public post audio query pieces
-- `convex/audioGeneration.ts` - Kokoro action + Piper fallback action
+- `convex/audioGeneration.ts` - synthesis action
 - `convex/siteConfigData.ts` - keep inbox in sync when Config saves `audio`
 - `convex/drafts.ts` - stamp defaults on fresh inbox publish, enqueue generation
 - `convex/cms.ts` / `convex/posts.ts` - validators, list/get/sync, enqueue on publish
@@ -55,8 +60,7 @@ Do not touch `convex/voiceAgent.ts`. Do not add a second config store. Convex on
 - Existing `draftSettings` rows lack the new fields; they are optional and fall back to site defaults (on, female)
 - Inbox publish reuses an existing post without re-stamping, same as `aiWritten`; generation still runs if the published post should have audio
 - Draft markdown `audio` / `audioVoice` wins over defaults
-- Kokoro is large; q8 first, then a fresh Piper isolate, then fail the job
-- `am_adam` is the documented Kokoro male id (lower grade than `am_michael`; keep the requested id)
+- Local model inference does not fit in a Convex action; synthesis has to be an API call
 - Never store signed storage URLs; resolve with `ctx.storage.getUrl` on read
 - No email addresses in UI or posts
 
@@ -73,5 +77,4 @@ Do not touch `convex/voiceAgent.ts`. Do not add a second config store. Convex on
 ## Related
 
 - Existing inbox default: `prds/ai-written-banner.md`
-- Kokoro: https://github.com/hexgrad/kokoro
-- kokoro-js: https://www.npmjs.com/package/kokoro-js
+- Synthesis engine change: `prds/audio-tts-openai-migration.md`

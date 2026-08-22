@@ -2,7 +2,22 @@
 
 ## To Do
 
+- [ ] Category sections as page nav: in Dashboard Homepage, check Show in nav on a section with a real tag, Save, confirm the heading appears in desktop and mobile nav and opens `/tags/{tag}` with the section title, no Back arrow, and the wide column. Uncheck Show on homepage (leave Show in nav on) and confirm `/` no longer lists that section while the header link stays. Uncheck Show in nav and confirm the nav link leaves while the tag URL still loads. Group posts off should keep the nav link. A homepage limit smaller than the tag count should show View all. PRD: prds/category-section-nav-pages.md
+
+- [ ] Browser pass on homepage category inputs: Dashboard Homepage, Category sections heading and tag should look like other config fields (accent focus, not a blue ring). Turn Group posts on, pick a real tag from the list, Save, open `/`, confirm the section and matching posts show. A fake tag should show "No published posts" in the card and nothing on `/`. PRD: prds/homepage-category-section-inputs.md
+
+- [ ] Browser pass on the vertical homepage banner: Homepage section, pick Vertical beside intro, side Right, save, reload `/`. Image sits right of the intro at natural height. Flip to Left. Paste a `.gif` and a `.svg` in both Wide 16:9 and Vertical. GIF animates. SVG is not cropped. Upload an SVG through the picker. At 768px the split stacks. PRD: prds/homepage-vertical-banner.md
+
+- [ ] Browser pass on Back removal after static deploy: open a post with a hero image, About, and /blog at desktop width. Confirm no Back arrow, title shares a row with Copy page, the dropdown still opens, and the 404 page still has Back to home. Unshipped until the next static deploy. PRD: prds/remove-back-align-copy-page.md
+
+- [ ] Browser pass on blog list meta and newsletter placements: every `/blog` row shows min read when the Blog Page checkbox is on (including dashboard-written posts). Uncheck Show on pages, Save Config, reload a static page and confirm the signup is gone while posts still show it. Flip homepage position to below intro and confirm it moves. PRD: prds/blog-list-meta-and-newsletter-placements.md
+
+- [ ] Browser pass on OA/Issuant UI polish: homepage, a post, newsletter/contact, /dashboard in all four themes. Check focus rings (accent, not grey), 1px button press, no toast left stripe, Save keeps its label while spinning, phone inputs stay at 16px with no iOS zoom, and chat attachment errors show an inline notice instead of a browser alert. PRD: prds/oa-issuant-ui-polish.md
+
 - [ ] Browser pass on the 0.25rem radius lock: open the homepage, a post, /blog, search (Cmd+K), and /dashboard in all four themes. Cards, buttons, and inputs should look slightly squared. Avatars, tags, status badges, and switches should still be round/pill. PRD: prds/unify-border-radius.md
+
+- [ ] Set a real `OPENAI_API_KEY` on the dev deployment so post audio can generate locally. It is currently the literal string `unset`, so every job fails with a 401. Prod already has a real key. `npx convex env set OPENAI_API_KEY <key>` (PRD: prds/audio-tts-openai-migration.md)
+- [ ] Audio browser pass after the key is set: publish a post with audio on, confirm a WAV lands in Convex storage and the player plays it end to end with no seam between chunks, then confirm a second save with unchanged text does not regenerate. Posts that already have an `audioContentHash` from the old Kokoro attempt will not regenerate on their own; re-save or re-sync to force one (PRD: prds/audio-tts-openai-migration.md)
 
 - [ ] Listen-to-this-post audio: browser pass. In Config, confirm Post audio defaults to on and female, save, then open Drafts Inbox and confirm the same toggle and voice. Flip them in the inbox and confirm Config shows the same values after a reload. Publish a Grok / inbox draft and confirm a player appears under the title (or "Audio not ready" while generating). Set `audio: false` on a post and confirm the player hides. (PRD: prds/listen-to-this-post-audio.md)
 - [ ] Put the two missing posts in the homepage Writings list once the bundle is deployed: open `grok-bot-is-a-desk-of-named-bots-not-one-chatbot` and `grokbot-agentmail-blog-covnex-setup`, turn Featured on in Visibility, set Featured order 5 and 6, save, and confirm both appear on the homepage in list and card view. Also confirm Written with AI now sits in Visibility and Advanced no longer lists `aiWritten` (PRD: prds/homepage-writings-toggle-and-ai-note.md)
@@ -62,6 +77,60 @@
 
 ## Completed
 
+- [x] Category sections as page navigation (2026-08-22 09:50 UTC) (PRD: prds/category-section-nav-pages.md)
+  - Per-section Show in nav and Show on homepage. Nav-only sections stay out of `/`
+  - Header and mobile menu read live overrides and link to `/tags/{tag}`
+  - Homepage headings link through; truncated lists get View all
+  - Tag pages use Blog chrome: section title, no Back arrow, wide column, Blog footer and newsletter
+  - Dashboard Homepage form hydrates from the last Save so a reload keeps the checkboxes
+
+- [x] Homepage category section headings match the year labels (2026-08-22 08:58 UTC)
+  - Same muted color, size, weight, uppercase, and letter spacing as `.year-heading`
+
+- [x] Match Category section dashboard inputs to the site fields, and make homepage categories read live saved config (2026-08-22 09:25 UTC) (PRD: prds/homepage-category-section-inputs.md)
+  - Heading, tag, limit, and columns now use dashboard field styles (accent focus ring)
+  - Tag field lists published tags and shows how many posts match
+  - Homepage subscribes to saved `homeCategories` so a Save shows on `/`
+
+- [x] Vertical homepage banner beside the intro, left or right, with GIF and SVG on both layouts (2026-08-22 09:10 UTC) (PRD: prds/homepage-vertical-banner.md)
+  - Layout: Wide 16:9 banner (top/bottom/both) or Vertical beside intro (left/right)
+  - Vertical uses natural height, no 16:9 crop. Image column capped so the intro keeps room
+  - PNG, JPG, GIF, WebP, SVG. GIFs animate. SVGs render as `<img>` so they stay sharp and do not run scripts
+  - Upload allowlist now includes `image/svg+xml`
+
+- [x] Remove Back from post and page views and put Copy page on the title row (2026-08-22 08:40 UTC) (PRD: prds/remove-back-align-copy-page.md)
+  - Dropped the Back arrow and the empty `.post-nav` chrome on posts, pages, and `/blog`
+  - Copy page (and Present when slides are on) now sits on the same row as the title, right aligned
+  - Long titles wrap; Copy page stays on the right. 404 still has Back to home. Tag and author pages unchanged
+  - Verified on localhost:5173 for About and a hero-image post, including the Copy page dropdown opening. Unshipped until static deploy
+
+- [x] Make blog list min-read consistent and make newsletter location toggles cover every surface (2026-08-22 08:45 UTC) (PRD: prds/blog-list-meta-and-newsletter-placements.md)
+  - Missing `readTime` is calculated from word count in list queries, CMS save, and draft publish
+  - Blog Page card now has Show read time, Show published date, and Group by year for `/blog`, tag, and author lists
+  - Newsletter locations: homepage, blog page, posts, and pages, each with a position select
+  - `newsletter: false` hides; `newsletter: true` shows even if that location is off
+
+- [x] OA/Issuant interaction polish without changing fonts or radius (2026-08-22 08:23 UTC) (PRD: prds/oa-issuant-ui-polish.md)
+  - Accent focus rings at 14/28% mix, 1px press on buttons, card hover darkens the hairline only
+  - Phone inputs forced to 16px so iOS does not zoom; `overflow-x: clip`, tap highlight off
+  - Toasts lost the 3px left stripe and hardcoded colors; success pulses, error shakes, then they retire
+  - Save buttons keep their label and add a spinner; chat attachment errors use an inline notice, not `alert()`
+
+- [x] Fix the browser speech fallback reading only part of a post (2026-08-22 08:33 UTC) (PRD: prds/audio-tts-openai-migration.md)
+  - Reported as "audio is not reading the entire content". It was not the TTS pipeline: all 3 dev jobs failed with the `unset` key 401, prod has zero jobs, and no post is `audioStatus: "ready"`, so no generated file exists. The player was falling back to the Web Speech API
+  - Chrome abandons a single long utterance after roughly 15 seconds. The fallback now splits into ~200 character sentence-aligned utterances and queues them, with a 10s `pause()`/`resume()` nudge while playing, scoped so it never touches file playback
+  - The fallback also skipped the title and read code blocks aloud. It now prepends the `h1` and strips `pre` and `code`, matching `stripPostToSpeechText`
+  - Verified: typecheck and eslint clean on the changed file. Real audio still needs a dev key
+
+- [x] Fix the blocked Convex push and move post audio to the OpenAI speech API (2026-08-22 08:16 UTC) (PRD: prds/audio-tts-openai-migration.md)
+  - `npx convex dev` could not bundle, so nothing could be pushed. Surface cause was a missing `npm install` after commit `4ecca4e` added `kokoro-js`
+  - Real cause underneath: `kokoro-js` pulls `onnxruntime-node`, 208MB of native `.node` binaries that esbuild cannot load. Marking it external hit `ModulesTooLarge` at 169MB zipped against a 43MB limit, about 4x over. Local ONNX inference cannot run in a Convex action
+  - Synthesis swapped to `gpt-4o-mini-tts` with `response_format: "pcm"`, so raw 24kHz chunks concatenate into one seamless WAV. `openai` was already an external package with a key, so no new dependency
+  - Voices `nova` (female) and `onyx` (male). Piper fallback and `retryWithPiper` removed; an HTTP call has no OOM to recover from
+  - Everything else in the audio feature is untouched: schema, job queue, content hash, config store, frontmatter overrides, storage, player
+  - Removing `kokoro-js` also cleared 3 high-severity advisories from the ONNX and sharp subtree
+  - Verified: typecheck, `convex dev --once` push, lint (only 4 pre-existing problems elsewhere), convex-doctor 91/100
+
 - [x] Convex setup and deploy guide (2026-08-21) (PRD: prds/how-to-setup-and-deploy-convex.md)
   - How to stand up a Convex app, then how this repo ships: functions, static hosting, and content sync
   - Laptop path vs this cloud agent (deploy key, `--yes`, `--skip-convex`)
@@ -88,7 +157,7 @@
 - [x] Listen-to-this-post audio for published posts (2026-08-20) (PRD: prds/listen-to-this-post-audio.md)
   - Site Config owns `audio.enabledDefault` (on) and `audio.defaultVoice` (female) through the existing runtimeOverrides store. Drafts Inbox shows the same two fields and writes them in one mutation with the inbox mirror
   - Per-post `audio` / `audioVoice` frontmatter overrides, same omitted-means-default style as `aiWritten`. Inbox publish stamps defaults unless the draft markdown already set them
-  - Publish, dashboard save, and sync enqueue Kokoro-82M (`af_heart` / `am_adam`) into Convex file storage. Content hash skips regen. Kokoro OOM retries in a fresh isolate (q4, then optional Piper). Failed generation does not block publish
+  - Publish, dashboard save, and sync enqueue synthesis into Convex file storage. Content hash skips regen. Failed generation does not block publish. (Superseded 2026-08-22: the Kokoro-82M and Piper engine shipped here could not bundle into a Convex action and was replaced with the OpenAI speech API. PRD: prds/audio-tts-openai-migration.md)
   - Player under the title on `Post.tsx`: Listen/Pause, progress, duration, voice label. Hidden when audio is off or there is no file. Pending shows "Audio not ready". Failed can fall back to the Web Speech API
   - Browser pass left in To Do: this environment has no live Convex deployment to generate or play a file
 

@@ -16,6 +16,11 @@ import {
   Square,
   SelectionAll,
 } from "@phosphor-icons/react";
+import {
+  IMAGE_UPLOAD_ACCEPT,
+  isAllowedImageFile,
+  resolveImageContentType,
+} from "../utils/imageUpload";
 
 // Derive the .site URL from Convex URL for uploads
 const getSiteUrl = () => {
@@ -121,8 +126,8 @@ export function MediaLibrary() {
       setUploadProgress(`Uploading ${file.name} (${i + 1}/${files.length})...`);
 
       try {
-        // Validate file type
-        if (!file.type.startsWith("image/")) {
+        const contentType = resolveImageContentType(file);
+        if (!isAllowedImageFile(file)) {
           throw new Error(`${file.name} is not an image`);
         }
 
@@ -137,7 +142,7 @@ export function MediaLibrary() {
         if (mediaProvider === "convexfs") {
           const res = await fetch(`${siteUrl}/fs/upload`, {
             method: "POST",
-            headers: { "Content-Type": file.type },
+            headers: { "Content-Type": contentType },
             body: file,
           });
 
@@ -151,7 +156,7 @@ export function MediaLibrary() {
           await commitFile({
             blobId,
             filename: file.name,
-            contentType: file.type,
+            contentType,
             size: file.size,
             width: dimensions.width,
             height: dimensions.height,
@@ -160,7 +165,7 @@ export function MediaLibrary() {
           const { key, url } = await generateR2UploadUrl({});
           const uploadRes = await fetch(url, {
             method: "PUT",
-            headers: { "Content-Type": file.type },
+            headers: { "Content-Type": contentType },
             body: file,
           });
           if (!uploadRes.ok) {
@@ -181,7 +186,7 @@ export function MediaLibrary() {
           const uploadUrl = await generateDirectUploadUrl({});
           const uploadRes = await fetch(uploadUrl, {
             method: "POST",
-            headers: { "Content-Type": file.type },
+            headers: { "Content-Type": contentType },
             body: file,
           });
           if (!uploadRes.ok) {
@@ -482,7 +487,7 @@ export function MediaLibrary() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/png,image/jpeg,image/gif,image/webp"
+          accept={IMAGE_UPLOAD_ACCEPT}
           multiple
           onChange={handleFileChange}
           style={{ display: "none" }}

@@ -67,6 +67,7 @@ export default function AIChatView({
   const [isUploading, setIsUploading] = useState(false);
   const [linkInputValue, setLinkInputValue] = useState("");
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [composerError, setComposerError] = useState<string | null>(null);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -112,6 +113,12 @@ export default function AIChatView({
       }
     }
   }, [chat?.messages]);
+
+  useEffect(() => {
+    if (!composerError) return;
+    const timer = setTimeout(() => setComposerError(null), 6000);
+    return () => clearTimeout(timer);
+  }, [composerError]);
 
   useEffect(() => {
     if (typeof chat?.generating === "boolean" && !isStopped) {
@@ -187,21 +194,21 @@ export default function AIChatView({
       (a) => a.type === "image",
     ).length;
     if (currentImageCount >= 3) {
-      alert("Maximum 3 images per message");
+      setComposerError("Maximum 3 images per message.");
       return;
     }
 
     // Validate file type
     const validTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"];
     if (!validTypes.includes(file.type)) {
-      alert("Please upload a PNG, JPEG, GIF, or WebP image");
+      setComposerError("Upload a PNG, JPEG, GIF, or WebP image.");
       return;
     }
 
     // Validate file size (3MB max)
     const maxSize = 3 * 1024 * 1024;
     if (file.size > maxSize) {
-      alert("Image must be smaller than 3MB");
+      setComposerError("Image must be smaller than 3MB.");
       return;
     }
 
@@ -238,7 +245,7 @@ export default function AIChatView({
       ]);
     } catch (error) {
       console.error("Error uploading image:", error);
-      alert("Failed to upload image");
+      setComposerError("Upload failed. Try again.");
     } finally {
       setIsUploading(false);
     }
@@ -253,7 +260,7 @@ export default function AIChatView({
       (a) => a.type === "link",
     ).length;
     if (currentLinkCount >= 3) {
-      alert("Maximum 3 links per message");
+      setComposerError("Maximum 3 links per message.");
       return;
     }
 
@@ -270,7 +277,7 @@ export default function AIChatView({
       setLinkInputValue("");
       setShowLinkModal(false);
     } catch {
-      alert("Please enter a valid URL");
+      setComposerError("Enter a valid URL.");
     }
   };
 
@@ -561,7 +568,7 @@ export default function AIChatView({
 
         {/* Error state */}
         {error && (
-          <div className="ai-chat-message ai-chat-message-assistant ai-chat-error">
+          <div className="ai-chat-message ai-chat-message-assistant ai-chat-error" role="status">
             <div className="ai-chat-message-content">
               <p style={{ margin: 0 }}>{error}</p>
             </div>
@@ -617,6 +624,11 @@ export default function AIChatView({
         className="ai-chat-input-container"
         onClick={handleInputContainerClick}
       >
+        {composerError && (
+          <div className="ai-chat-notice" role="status">
+            <p>{composerError}</p>
+          </div>
+        )}
         <div className="ai-chat-input-wrapper">
           {!hideAttachments && (
             <div className="ai-chat-input-actions">

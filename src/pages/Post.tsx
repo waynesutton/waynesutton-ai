@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import BlogPost from "../components/BlogPost";
@@ -19,6 +19,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import SlidePresentation from "../components/SlidePresentation";
 import siteConfig from "../config/siteConfig";
 import PostAudioPlayer from "../components/PostAudioPlayer";
+import {
+  newsletterPosition,
+  shouldShowNewsletter,
+} from "../utils/newsletter";
 
 // Local storage key for related posts view mode preference
 const RELATED_POSTS_VIEW_MODE_KEY = "related-posts-view-mode";
@@ -46,11 +50,10 @@ interface PostProps {
 
 export default function Post({
   slug: propSlug,
-  isHomepage = false,
+  isHomepage: _isHomepage = false,
   homepageType: _homepageType,
 }: PostProps = {}) {
   const { slug: routeSlug } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
   const location = useLocation();
   const { setHeadings, setActiveId } = useSidebar();
 
@@ -554,28 +557,6 @@ export default function Post({
       <div
         className={`post-page ${hasAnySidebar ? "post-page-with-sidebar" : ""}`}
       >
-        <nav
-          className={`post-nav ${hasAnySidebar ? "post-nav-with-sidebar" : ""}`}
-        >
-          {/* Hide back-button when sidebars are enabled or when used as homepage */}
-          {!hasAnySidebar && !isHomepage && (
-            <button onClick={() => navigate("/")} className="back-button">
-              <ArrowLeft size={16} />
-              <span>Back</span>
-            </button>
-          )}
-          {/* Only show CopyPageDropdown in nav if no sidebars are enabled */}
-          {!hasAnySidebar && (
-            <CopyPageDropdown
-              title={page.title}
-              content={page.content}
-              url={window.location.href}
-              slug={page.slug}
-              description={page.excerpt}
-            />
-          )}
-        </nav>
-
         <div
           className={`${hasAnySidebar ? "post-content-with-sidebar" : ""} ${hasOnlyRightSidebar ? "post-content-right-sidebar-only" : ""}`}
         >
@@ -597,38 +578,25 @@ export default function Post({
             <header className="post-header">
               <div className="post-title-row">
                 <h1 className="post-title">{page.title}</h1>
-                {/* Show CopyPageDropdown aligned with title when sidebars are enabled */}
-                {hasAnySidebar && (
-                  <div className="post-header-actions">
-                    {page.slides && (
-                      <button
-                        className="slide-present-btn"
-                        onClick={() => setShowSlides(true)}
-                      >
-                        <Presentation size={16} />
-                        <span>Present</span>
-                      </button>
-                    )}
-                    <CopyPageDropdown
-                      title={page.title}
-                      content={page.content}
-                      url={window.location.href}
-                      slug={page.slug}
-                      description={page.excerpt}
-                    />
-                  </div>
-                )}
+                <div className="post-header-actions">
+                  {page.slides && (
+                    <button
+                      className="slide-present-btn"
+                      onClick={() => setShowSlides(true)}
+                    >
+                      <Presentation size={16} />
+                      <span>Present</span>
+                    </button>
+                  )}
+                  <CopyPageDropdown
+                    title={page.title}
+                    content={page.content}
+                    url={window.location.href}
+                    slug={page.slug}
+                    description={page.excerpt}
+                  />
+                </div>
               </div>
-              {page.slides && !hasAnySidebar && (
-                <button
-                  className="slide-present-btn"
-                  onClick={() => setShowSlides(true)}
-                  style={{ marginTop: "8px" }}
-                >
-                  <Presentation size={16} />
-                  <span>Present</span>
-                </button>
-              )}
               {/* Author avatar and name for pages (optional) */}
               {(page.authorImage || page.authorName) && (
                 <div className="post-meta-header">
@@ -670,13 +638,29 @@ export default function Post({
                 <ContactForm source={`page:${page.slug}`} />
               )}
 
-            {/* Newsletter signup - respects frontmatter override (only if not inline) */}
-            {siteConfig.newsletter?.enabled &&
-              (page.newsletter !== undefined
-                ? page.newsletter
-                : siteConfig.newsletter.signup.posts.enabled) &&
-              !page.content.includes("<!-- newsletter -->") && (
-                <NewsletterSignup source="post" postSlug={page.slug} />
+            {/* Newsletter signup - location from Site Config, frontmatter can override */}
+            {shouldShowNewsletter(
+              siteConfig.newsletter?.signup.pages,
+              page.newsletter,
+            ) &&
+              !page.content.includes("<!-- newsletter -->") &&
+              newsletterPosition(
+                siteConfig.newsletter?.signup.pages,
+                "below-content",
+              ) === "below-content" && (
+                <NewsletterSignup source="page" postSlug={page.slug} />
+              )}
+
+            {shouldShowNewsletter(
+              siteConfig.newsletter?.signup.pages,
+              page.newsletter,
+            ) &&
+              !page.content.includes("<!-- newsletter -->") &&
+              newsletterPosition(
+                siteConfig.newsletter?.signup.pages,
+                "below-content",
+              ) === "above-footer" && (
+                <NewsletterSignup source="page" postSlug={page.slug} />
               )}
 
             {/* Footer - shown inside article at bottom for pages */}
@@ -848,31 +832,6 @@ export default function Post({
     <div
       className={`post-page ${hasAnySidebar ? "post-page-with-sidebar" : ""}`}
     >
-      <nav
-        className={`post-nav ${hasAnySidebar ? "post-nav-with-sidebar" : ""}`}
-      >
-        {/* Hide back-button when sidebars are enabled or when used as homepage */}
-        {!hasAnySidebar && !isHomepage && (
-          <button onClick={() => navigate("/")} className="back-button">
-            <ArrowLeft size={16} />
-            <span>Back</span>
-          </button>
-        )}
-        {/* Only show CopyPageDropdown in nav if no sidebars are enabled */}
-        {!hasAnySidebar && (
-          <CopyPageDropdown
-            title={post.title}
-            content={post.content}
-            url={window.location.href}
-            slug={post.slug}
-            description={post.description}
-            date={post.date}
-            tags={post.tags}
-            readTime={post.readTime}
-          />
-        )}
-      </nav>
-
       <div
         className={`${hasAnySidebar ? "post-content-with-sidebar" : ""} ${hasOnlyRightSidebar ? "post-content-right-sidebar-only" : ""}`}
       >
@@ -894,30 +853,27 @@ export default function Post({
           <header className="post-header">
             <div className="post-title-row">
               <h1 className="post-title">{post.title}</h1>
-              {/* Show CopyPageDropdown aligned with title when sidebars are enabled */}
-              {hasAnySidebar && (
-                <div className="post-header-actions">
-                  {post.slides && (
-                    <button
-                      className="slide-present-btn"
-                      onClick={() => setShowSlides(true)}
-                    >
-                      <Presentation size={16} />
-                      <span>Present</span>
-                    </button>
-                  )}
-                  <CopyPageDropdown
-                    title={post.title}
-                    content={post.content}
-                    url={window.location.href}
-                    slug={post.slug}
-                    description={post.description}
-                    date={post.date}
-                    tags={post.tags}
-                    readTime={post.readTime}
-                  />
-                </div>
-              )}
+              <div className="post-header-actions">
+                {post.slides && (
+                  <button
+                    className="slide-present-btn"
+                    onClick={() => setShowSlides(true)}
+                  >
+                    <Presentation size={16} />
+                    <span>Present</span>
+                  </button>
+                )}
+                <CopyPageDropdown
+                  title={post.title}
+                  content={post.content}
+                  url={window.location.href}
+                  slug={post.slug}
+                  description={post.description}
+                  date={post.date}
+                  tags={post.tags}
+                  readTime={post.readTime}
+                />
+              </div>
             </div>
             <div className="post-meta-header">
               {/* Author avatar and name (optional) */}
@@ -948,18 +904,6 @@ export default function Post({
                 <>
                   <span className="post-meta-separator">·</span>
                   <span className="post-read-time">{post.readTime}</span>
-                </>
-              )}
-              {post.slides && !hasAnySidebar && (
-                <>
-                  <span className="post-meta-separator">·</span>
-                  <button
-                    className="slide-present-btn"
-                    onClick={() => setShowSlides(true)}
-                  >
-                    <Presentation size={16} />
-                    <span>Present</span>
-                  </button>
                 </>
               )}
             </div>
@@ -1167,12 +1111,16 @@ export default function Post({
               </div>
             )}
 
-            {/* Newsletter signup - respects frontmatter override (only if not inline) */}
-            {siteConfig.newsletter?.enabled &&
-              (post.newsletter !== undefined
-                ? post.newsletter
-                : siteConfig.newsletter.signup.posts.enabled) &&
-              !post.content.includes("<!-- newsletter -->") && (
+            {/* Newsletter signup - location from Site Config, frontmatter can override */}
+            {shouldShowNewsletter(
+              siteConfig.newsletter?.signup.posts,
+              post.newsletter,
+            ) &&
+              !post.content.includes("<!-- newsletter -->") &&
+              newsletterPosition(
+                siteConfig.newsletter?.signup.posts,
+                "below-content",
+              ) === "below-content" && (
                 <NewsletterSignup source="post" postSlug={post.slug} />
               )}
 
@@ -1183,6 +1131,18 @@ export default function Post({
                 <ContactForm source={`post:${post.slug}`} />
               )}
           </footer>
+
+          {shouldShowNewsletter(
+            siteConfig.newsletter?.signup.posts,
+            post.newsletter,
+          ) &&
+            !post.content.includes("<!-- newsletter -->") &&
+            newsletterPosition(
+              siteConfig.newsletter?.signup.posts,
+              "below-content",
+            ) === "above-footer" && (
+              <NewsletterSignup source="post" postSlug={post.slug} />
+            )}
 
           {/* Footer - shown inside article at bottom for posts */}
           {siteConfig.footer.enabled &&

@@ -67,6 +67,9 @@
   --db-danger-bg: rgba(185, 28, 28, 0.08);
   --db-info: #1d4ed8;
   --db-info-bg: rgba(29, 78, 216, 0.08);
+
+  --db-ring: var(--focus-ring);
+  --db-ring-input: var(--focus-ring-input);
 }
 
 :root[data-theme="light"] {
@@ -181,6 +184,7 @@
   line-height: var(--db-text-title-lh);
   font-weight: 600;
   letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 .dashboard-layout .dashboard-content h3,
@@ -372,10 +376,11 @@
   box-shadow: none;
 }
 
-.dashboard-layout .dashboard-search:focus-within {
+.dashboard-layout .dashboard-search:focus-within,
+.dashboard-layout .dashboard-newsletter-search:focus-within {
   background: var(--db-surface);
-  border-color: var(--text-tertiary);
-  box-shadow: 0 0 0 3px var(--db-border-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--db-ring-input);
 }
 
 /* Icon buttons in the header */
@@ -519,7 +524,21 @@
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    transform 0.1s ease-out;
+}
+
+.dashboard-layout .dashboard-action-btn:active:not(:disabled),
+.dashboard-layout .dashboard-back-btn:active:not(:disabled),
+.dashboard-layout .dashboard-import-btn:active:not(:disabled),
+.dashboard-layout .dashboard-pagination-btn:active:not(:disabled),
+.dashboard-layout .dashboard-sync-card-btn:active:not(:disabled),
+.dashboard-layout .copy-sync-server-btn:active:not(:disabled),
+.dashboard-layout .dashboard-link-button:active:not(:disabled),
+.dashboard-layout .dashboard-sync-btn:active:not(:disabled),
+.dashboard-layout .dashboard-theme-btn:active:not(:disabled),
+.dashboard-layout .dashboard-font-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .dashboard-layout .dashboard-action-btn:hover:not(:disabled),
@@ -661,8 +680,8 @@
 .dashboard-layout .dashboard-field-textarea:focus {
   outline: none;
   background: var(--db-surface);
-  border-color: var(--text-tertiary);
-  box-shadow: 0 0 0 3px var(--db-border-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--db-ring-input);
 }
 
 /* The import input lives inside .dashboard-import-input-group, and the group
@@ -682,8 +701,8 @@
 
   .dashboard-layout .dashboard-import-input-group:focus-within {
     background: var(--db-surface);
-    border-color: var(--text-tertiary);
-    box-shadow: 0 0 0 3px var(--db-border-soft);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--db-ring-input);
   }
 
   .dashboard-layout .dashboard-import-input-group .dashboard-import-input,
@@ -703,8 +722,8 @@
 
 .dashboard-layout .dashboard-items-select:focus {
   outline: none;
-  border-color: var(--text-tertiary);
-  box-shadow: 0 0 0 3px var(--db-border-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--db-ring-input);
 }
 
 /* Frontmatter form inputs pick up the inset treatment */
@@ -720,8 +739,8 @@
 .fmf-textarea:focus,
 .fmf-select:focus {
   background: var(--db-surface);
-  border-color: var(--text-tertiary);
-  box-shadow: 0 0 0 3px var(--db-border-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--db-ring-input);
 }
 
 /* ─────────────────────────────────────────────
@@ -929,6 +948,13 @@
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-lg);
   box-shadow: none;
+  transition: border-color 0.2s ease;
+}
+
+.dashboard-layout .dashboard-config-card:hover,
+.dashboard-layout .dashboard-sync-card:hover,
+.dashboard-layout .dashboard-form-block:hover {
+  border-color: color-mix(in srgb, var(--text-primary) 28%, transparent);
 }
 
 .dashboard-layout .dashboard-ai-tab.active,
@@ -1035,7 +1061,8 @@
 
 .dashboard-layout .dashboard-textarea:focus {
   outline: none;
-  border-color: var(--text-tertiary);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--db-ring-input);
 }
 
 /* Toolbar tier one: where you came from and which view you are in */
@@ -1193,6 +1220,18 @@
   font-family: var(--db-font);
 }
 
+.dashboard-toast.success {
+  animation:
+    toastSlideIn 0.28s cubic-bezier(0.5, 1, 0.89, 1),
+    toastSuccessPulse 0.32s ease-out 0.12s;
+}
+
+.dashboard-toast.error {
+  animation:
+    toastSlideIn 0.28s cubic-bezier(0.5, 1, 0.89, 1),
+    toastErrorShake 0.28s ease-out 0.08s;
+}
+
 .dashboard-toast.success .dashboard-toast-icon {
   color: var(--db-success);
 }
@@ -1212,6 +1251,16 @@
 .dashboard-modal-backdrop {
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(2px);
+  animation: dbBackdropIn 0.15s ease-out;
+}
+
+@keyframes dbBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .dashboard-modal {
@@ -1227,6 +1276,11 @@
   border-radius: var(--db-radius-sm);
   font-family: var(--db-font);
   font-weight: 500;
+  transition: transform 0.1s ease-out;
+}
+
+.dashboard-modal-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .dashboard-modal-btn.primary {
@@ -1263,6 +1317,7 @@
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+  text-wrap: balance;
 }
 
 .db-insight {
@@ -2061,6 +2116,14 @@
     max-height: 70vh;
     padding: 1rem;
   }
+
+  .dashboard-layout input:not([type="checkbox"]):not([type="radio"]):not(
+      [type="range"]
+    ):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  .dashboard-layout textarea,
+  .dashboard-layout select {
+    font-size: 16px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2081,5 +2144,28 @@
 
   .dashboard-layout .dashboard-filter-tab {
     white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-layout .dashboard-action-btn:active:not(:disabled),
+  .dashboard-layout .dashboard-back-btn:active:not(:disabled),
+  .dashboard-layout .dashboard-import-btn:active:not(:disabled),
+  .dashboard-layout .dashboard-pagination-btn:active:not(:disabled),
+  .dashboard-layout .dashboard-sync-card-btn:active:not(:disabled),
+  .dashboard-layout .copy-sync-server-btn:active:not(:disabled),
+  .dashboard-layout .dashboard-link-button:active:not(:disabled),
+  .dashboard-layout .dashboard-sync-btn:active:not(:disabled),
+  .dashboard-layout .dashboard-theme-btn:active:not(:disabled),
+  .dashboard-layout .dashboard-font-btn:active:not(:disabled),
+  .dashboard-modal-btn:active:not(:disabled) {
+    transform: none;
+  }
+
+  .dashboard-toast,
+  .dashboard-toast.success,
+  .dashboard-toast.error,
+  .dashboard-modal-backdrop {
+    animation: none;
   }
 }

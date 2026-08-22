@@ -137,7 +137,7 @@ function ToastNotification({
   useEffect(() => {
     const timer = setTimeout(() => {
       onDismiss(toast.id);
-    }, 4000);
+    }, 5500);
     return () => clearTimeout(timer);
   }, [toast.id, onDismiss]);
 
@@ -156,10 +156,13 @@ function ToastNotification({
   };
 
   return (
-    <div className={`dashboard-toast ${toast.type}`}>
+    <div className={`dashboard-toast ${toast.type}`} role="status">
       <span className="dashboard-toast-icon">{getIcon()}</span>
       <span className="dashboard-toast-message">{toast.message}</span>
-      <button className="dashboard-toast-close" onClick={() => onDismiss(toast.id)}>
+      <button
+        className="dashboard-toast-close"
+        onClick={() => onDismiss(toast.id)}
+        aria-label="Dismiss">
         <X size={14} />
       </button>
     </div>
@@ -177,7 +180,7 @@ function ToastContainer({
   if (toasts.length === 0) return null;
 
   return (
-    <div className="dashboard-toast-container">
+    <div className="dashboard-toast-container" aria-live="polite" aria-relevant="additions">
       {toasts.map((toast) => (
         <ToastNotification key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}
@@ -539,11 +542,12 @@ function SyncWarningModal({
             <button
               className="dashboard-modal-btn warning"
               onClick={onSaveAnyway}
-              disabled={isSaving}>
+              disabled={isSaving}
+              aria-busy={isSaving}>
               {isSaving ? (
                 <>
                   <SpinnerGap size={16} className="animate-spin" />
-                  <span>Saving...</span>
+                  <span>Save Anyway</span>
                 </>
               ) : (
                 <>
@@ -2261,7 +2265,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
 
         {/* Demo mode banner */}
         {isDemo && (
-          <div className="dashboard-demo-banner">
+          <div className="dashboard-demo-banner" role="status">
             <Info size={16} weight="bold" />
             <span>
               Demo mode: your content resets every 30 minutes. Admins have full access.{" "}
@@ -3341,13 +3345,14 @@ function EditorView({
             className="dashboard-action-btn success dashboard-save-inline"
             onClick={handleSave}
             disabled={isSaving}
+            aria-busy={isSaving}
             title="Save to Database">
             {isSaving ? (
               <SpinnerGap size={16} className="animate-spin" />
             ) : (
               <FloppyDisk size={16} />
             )}
-            <span>{isSaving ? "Saving..." : "Save"}</span>
+            <span>Save</span>
           </button>
         </div>
       </div>
@@ -3418,9 +3423,10 @@ function EditorView({
           className="dashboard-action-btn success"
           onClick={handleSave}
           disabled={isSaving}
+          aria-busy={isSaving}
           title="Save to Database">
           {isSaving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
-          <span>{isSaving ? "Saving..." : "Save"}</span>
+          <span>Save</span>
         </button>
       </div>
 
@@ -4149,13 +4155,14 @@ function WriteSection({
             onClick={handleSaveToDb}
             disabled={isSaving}
             className="dashboard-action-btn success dashboard-save-inline"
-            title="Save to Database">
+            title="Save to Database"
+            aria-busy={isSaving}>
             {isSaving ? (
               <SpinnerGap size={16} className="animate-spin" />
             ) : (
               <FloppyDisk size={16} />
             )}
-            <span>{isSaving ? "Saving..." : "Save to DB"}</span>
+            <span>Save to DB</span>
           </button>
           <button
             onClick={toggleFocusMode}
@@ -4332,9 +4339,10 @@ function WriteSection({
           onClick={handleSaveToDb}
           disabled={isSaving}
           className="dashboard-action-btn success"
-          title="Save to Database">
+          title="Save to Database"
+          aria-busy={isSaving}>
           {isSaving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
-          <span>{isSaving ? "Saving..." : "Save to DB"}</span>
+          <span>Save to DB</span>
         </button>
       </div>
 
@@ -6080,6 +6088,9 @@ function ConfigSection({
     homePostsShowDate: siteConfig.postsDisplay.homeShowDate !== false,
     homePostsShowYearHeadings: siteConfig.postsDisplay.homeShowYearHeadings !== false,
     homePostsUnderlineTitles: siteConfig.postsDisplay.homeUnderlineTitles === true,
+    blogPostsShowReadTime: siteConfig.postsDisplay.blogShowReadTime !== false,
+    blogPostsShowDate: siteConfig.postsDisplay.blogShowDate !== false,
+    blogPostsShowYearHeadings: siteConfig.postsDisplay.blogShowYearHeadings !== false,
     // Right sidebar
     rightSidebarEnabled: siteConfig.rightSidebar.enabled,
     rightSidebarMinWidth: siteConfig.rightSidebar.minWidth || 1135,
@@ -6096,8 +6107,13 @@ function ConfigSection({
     // Newsletter
     newsletterEnabled: siteConfig.newsletter?.enabled || false,
     newsletterHomeEnabled: siteConfig.newsletter?.signup?.home?.enabled || false,
+    newsletterHomePosition: siteConfig.newsletter?.signup?.home?.position || "above-footer",
     newsletterBlogPageEnabled: siteConfig.newsletter?.signup?.blogPage?.enabled || false,
+    newsletterBlogPagePosition: siteConfig.newsletter?.signup?.blogPage?.position || "above-footer",
     newsletterPostsEnabled: siteConfig.newsletter?.signup?.posts?.enabled || false,
+    newsletterPostsPosition: siteConfig.newsletter?.signup?.posts?.position || "below-content",
+    newsletterPagesEnabled: siteConfig.newsletter?.signup?.pages?.enabled !== false,
+    newsletterPagesPosition: siteConfig.newsletter?.signup?.pages?.position || "below-content",
     // Stats page
     statsPageEnabled: siteConfig.statsPage?.enabled || false,
     statsPageShowInNav: siteConfig.statsPage?.showInNav || false,
@@ -6283,6 +6299,9 @@ function ConfigSection({
         homeShowDate: config.homePostsShowDate,
         homeShowYearHeadings: config.homePostsShowYearHeadings,
         homeUnderlineTitles: config.homePostsUnderlineTitles,
+        blogShowReadTime: config.blogPostsShowReadTime,
+        blogShowDate: config.blogPostsShowDate,
+        blogShowYearHeadings: config.blogPostsShowYearHeadings,
       },
       links: {
         docs: config.linksDocs,
@@ -6321,9 +6340,38 @@ function ConfigSection({
       newsletter: {
         enabled: config.newsletterEnabled,
         signup: {
-          home: { enabled: config.newsletterHomeEnabled },
-          blogPage: { enabled: config.newsletterBlogPageEnabled },
-          posts: { enabled: config.newsletterPostsEnabled },
+          home: {
+            enabled: config.newsletterHomeEnabled,
+            position: config.newsletterHomePosition as "above-footer" | "below-intro",
+            title: siteConfig.newsletter?.signup.home.title ?? "Stay Updated",
+            description:
+              siteConfig.newsletter?.signup.home.description ??
+              "Get new posts delivered to your inbox.",
+          },
+          blogPage: {
+            enabled: config.newsletterBlogPageEnabled,
+            position: config.newsletterBlogPagePosition as "above-footer" | "below-posts",
+            title: siteConfig.newsletter?.signup.blogPage.title ?? "Subscribe",
+            description:
+              siteConfig.newsletter?.signup.blogPage.description ??
+              "Get notified when new posts are published.",
+          },
+          posts: {
+            enabled: config.newsletterPostsEnabled,
+            position: config.newsletterPostsPosition as "below-content" | "above-footer",
+            title: siteConfig.newsletter?.signup.posts.title ?? "Enjoyed this post?",
+            description:
+              siteConfig.newsletter?.signup.posts.description ??
+              "Subscribe for more updates.",
+          },
+          pages: {
+            enabled: config.newsletterPagesEnabled,
+            position: config.newsletterPagesPosition as "below-content" | "above-footer",
+            title: siteConfig.newsletter?.signup.pages?.title ?? "Stay Updated",
+            description:
+              siteConfig.newsletter?.signup.pages?.description ??
+              "Get new posts delivered to your inbox.",
+          },
         },
       },
       contactForm: {
@@ -6478,6 +6526,9 @@ export const siteConfig: SiteConfig = {
     homeShowDate: ${config.homePostsShowDate},
     homeShowYearHeadings: ${config.homePostsShowYearHeadings},
     homeUnderlineTitles: ${config.homePostsUnderlineTitles},
+    blogShowReadTime: ${config.blogPostsShowReadTime},
+    blogShowDate: ${config.blogPostsShowDate},
+    blogShowYearHeadings: ${config.blogPostsShowYearHeadings},
   },
   
   links: {
@@ -6521,9 +6572,10 @@ export const siteConfig: SiteConfig = {
   newsletter: {
     enabled: ${config.newsletterEnabled},
     signup: {
-      home: { enabled: ${config.newsletterHomeEnabled}, position: "above-footer", title: "Stay Updated", description: "Get new posts delivered to your inbox." },
-      blogPage: { enabled: ${config.newsletterBlogPageEnabled}, position: "above-footer", title: "Subscribe", description: "Get notified when new posts are published." },
-      posts: { enabled: ${config.newsletterPostsEnabled}, position: "below-content", title: "Enjoyed this post?", description: "Subscribe for more updates." },
+      home: { enabled: ${config.newsletterHomeEnabled}, position: "${config.newsletterHomePosition}", title: "Stay Updated", description: "Get new posts delivered to your inbox." },
+      blogPage: { enabled: ${config.newsletterBlogPageEnabled}, position: "${config.newsletterBlogPagePosition}", title: "Subscribe", description: "Get notified when new posts are published." },
+      posts: { enabled: ${config.newsletterPostsEnabled}, position: "${config.newsletterPostsPosition}", title: "Enjoyed this post?", description: "Subscribe for more updates." },
+      pages: { enabled: ${config.newsletterPagesEnabled}, position: "${config.newsletterPagesPosition}", title: "Stay Updated", description: "Get new posts delivered to your inbox." },
     },
   },
   
@@ -6579,7 +6631,7 @@ export const siteConfig: SiteConfig = {
   media: {
     enabled: ${config.mediaEnabled},
     maxFileSize: ${config.mediaMaxFileSize},
-    allowedTypes: ["image/png", "image/jpeg", "image/gif", "image/webp"],
+    allowedTypes: ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"],
   },
 
   // Related posts configuration
@@ -6640,9 +6692,10 @@ export default siteConfig;
             className="dashboard-action-btn primary dashboard-save-inline"
             onClick={handleSaveConfig}
             disabled={saving}
+            aria-busy={saving}
           >
-            <FloppyDisk size={16} />
-            <span>{saving ? "Saving..." : "Save"}</span>
+            {saving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
+            <span>Save</span>
           </button>
         </div>
       </div>
@@ -6782,6 +6835,46 @@ export default siteConfig;
               Hide to lock the blog to the default view mode
             </span>
           </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.blogPostsShowReadTime}
+                onChange={(e) =>
+                  handleChange("blogPostsShowReadTime", e.target.checked)
+                }
+              />
+              <span>Show read time</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.blogPostsShowDate}
+                onChange={(e) =>
+                  handleChange("blogPostsShowDate", e.target.checked)
+                }
+              />
+              <span>Show published date</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.blogPostsShowYearHeadings}
+                onChange={(e) =>
+                  handleChange("blogPostsShowYearHeadings", e.target.checked)
+                }
+              />
+              <span>Group by year</span>
+            </label>
+          </div>
+          <span className="config-field-note">
+            These three apply to /blog, tag pages, and author pages. Homepage
+            list controls stay under Posts Display.
+          </span>
         </div>
 
         {/* Posts Display */}
@@ -7499,6 +7592,12 @@ export default siteConfig;
         {/* Newsletter Signup Locations */}
         <div className="dashboard-config-card">
           <h3>Newsletter Signup Locations</h3>
+          <span className="config-field-note">
+            Uncheck a location to hide the box there. Frontmatter{" "}
+            <code>newsletter: false</code> always hides it.{" "}
+            <code>newsletter: true</code> on a post or page shows it even if
+            that location is off. Save Config, then reload the public page.
+          </span>
           <div className="config-field checkbox">
             <label>
               <input
@@ -7509,6 +7608,19 @@ export default siteConfig;
               <span>Show on homepage</span>
             </label>
           </div>
+          {config.newsletterHomeEnabled && (
+            <div className="config-field">
+              <label>Homepage position</label>
+              <select
+                value={config.newsletterHomePosition}
+                onChange={(e) =>
+                  handleChange("newsletterHomePosition", e.target.value)
+                }>
+                <option value="above-footer">Above footer</option>
+                <option value="below-intro">Below intro</option>
+              </select>
+            </div>
+          )}
           <div className="config-field checkbox">
             <label>
               <input
@@ -7519,6 +7631,19 @@ export default siteConfig;
               <span>Show on blog page</span>
             </label>
           </div>
+          {config.newsletterBlogPageEnabled && (
+            <div className="config-field">
+              <label>Blog page position</label>
+              <select
+                value={config.newsletterBlogPagePosition}
+                onChange={(e) =>
+                  handleChange("newsletterBlogPagePosition", e.target.value)
+                }>
+                <option value="above-footer">Above footer</option>
+                <option value="below-posts">Below posts</option>
+              </select>
+            </div>
+          )}
           <div className="config-field checkbox">
             <label>
               <input
@@ -7529,6 +7654,42 @@ export default siteConfig;
               <span>Show on posts</span>
             </label>
           </div>
+          {config.newsletterPostsEnabled && (
+            <div className="config-field">
+              <label>Post position</label>
+              <select
+                value={config.newsletterPostsPosition}
+                onChange={(e) =>
+                  handleChange("newsletterPostsPosition", e.target.value)
+                }>
+                <option value="below-content">Below content</option>
+                <option value="above-footer">Above footer</option>
+              </select>
+            </div>
+          )}
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.newsletterPagesEnabled}
+                onChange={(e) => handleChange("newsletterPagesEnabled", e.target.checked)}
+              />
+              <span>Show on pages</span>
+            </label>
+          </div>
+          {config.newsletterPagesEnabled && (
+            <div className="config-field">
+              <label>Page position</label>
+              <select
+                value={config.newsletterPagesPosition}
+                onChange={(e) =>
+                  handleChange("newsletterPagesPosition", e.target.value)
+                }>
+                <option value="below-content">Below content</option>
+                <option value="above-footer">Above footer</option>
+              </select>
+            </div>
+          )}
         </div>
 
         {/* MCP Server */}
@@ -7761,9 +7922,10 @@ export default siteConfig;
           className="dashboard-action-btn primary"
           onClick={handleSaveConfig}
           disabled={saving}
+          aria-busy={saving}
         >
-          <FloppyDisk size={16} />
-          <span>{saving ? "Saving..." : "Save"}</span>
+          {saving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
+          <span>Save</span>
         </button>
       </div>
     </div>

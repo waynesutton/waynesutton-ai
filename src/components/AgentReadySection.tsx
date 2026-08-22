@@ -178,8 +178,9 @@ export default function AgentReadySection() {
                 className="agent-ready-save-button"
                 onClick={handleSave}
                 disabled={!dirty || saveState === "saving"}
+                aria-busy={saveState === "saving"}
               >
-                {saveState === "saving" ? "Saving..." : "Save widget settings"}
+                Save widget settings
               </button>
               {saveState === "saved" && (
                 <span className="agent-ready-save-status">Saved</span>

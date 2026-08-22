@@ -51,6 +51,7 @@ import ContactForm from "./ContactForm";
 import DiffCodeBlock from "./DiffCodeBlock";
 import siteConfig from "../config/siteConfig";
 import { useSearchHighlighting } from "../hooks/useSearchHighlighting";
+import { shouldShowNewsletter } from "../utils/newsletter";
 
 // Whitelisted domains for iframe embeds (YouTube and Twitter/X only)
 const ALLOWED_IFRAME_DOMAINS = [
@@ -842,11 +843,14 @@ export default function BlogPost({
         <article ref={articleRef} className="blog-post-content">
           {segments.map((segment, index) => {
             if (segment.type === "newsletter") {
-              // Newsletter signup inline
-              return siteConfig.newsletter?.enabled ? (
+              const placement =
+                pageType === "page"
+                  ? siteConfig.newsletter?.signup.pages
+                  : siteConfig.newsletter?.signup.posts;
+              return shouldShowNewsletter(placement) ? (
                 <NewsletterSignup
                   key={`newsletter-${index}`}
-                  source={pageType === "page" ? "post" : "post"}
+                  source={pageType === "page" ? "page" : "post"}
                   postSlug={slug}
                 />
               ) : null;

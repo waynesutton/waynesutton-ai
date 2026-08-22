@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import {
   ArrowUp,
@@ -15,7 +15,10 @@ import siteConfig from "../../config/siteConfig";
 import type {
   HomeCategorySection,
   HomeHeroImageConfig,
+  HomeHeroLayout,
+  HomeHeroSide,
 } from "../../config/siteConfig";
+import { resolveHomeCategories } from "../../utils/homeCategories";
 
 type ToastType = "success" | "error" | "info" | "warning";
 
@@ -24,13 +27,15 @@ const DEFAULT_HERO: HomeHeroImageConfig = {
   src: "",
   alt: "",
   href: "",
+  layout: "banner",
+  side: "right",
   position: "top",
   width: 100,
   rounded: true,
 };
 
 /**
- * Homepage dashboard section: the 16:9 banner with a width scaler, and
+ * Homepage dashboard section: banner or vertical image beside the intro, plus
  * tag-driven category sections. Saves through savePartialOverrides so it only
  * writes the two homepage keys and leaves the rest of Site Config alone.
  */
@@ -56,10 +61,30 @@ export function HomepageSection({
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   const savePartialOverrides = useMutation(
     api.siteConfigData.savePartialOverrides,
   );
+  const publishedTags = useQuery(api.posts.getAllTags);
+  const configOverrides = useQuery(api.siteConfigData.getOverrides);
+
+  // Seed from live overrides once so a reload shows the last Save, not the file
+  useEffect(() => {
+    if (hydrated || configOverrides === undefined) return;
+    const resolved = resolveHomeCategories(configOverrides);
+    setCategoriesEnabled(resolved.enabled);
+    setCategoriesPosition(resolved.position);
+    setSections(resolved.sections.map((section) => ({ ...section })));
+    const savedHero = configOverrides?.homeHeroImage;
+    if (savedHero && typeof savedHero === "object" && !Array.isArray(savedHero)) {
+      setHero((current) => ({
+        ...current,
+        ...(savedHero as Partial<HomeHeroImageConfig>),
+      }));
+    }
+    setHydrated(true);
+  }, [configOverrides, hydrated]);
 
   const updateSection = (
     index: number,
@@ -95,6 +120,8 @@ export function HomepageSection({
           limit: section.limit && section.limit > 0 ? section.limit : undefined,
           columns: section.columns ?? 2,
           showDate: section.showDate === true,
+          showOnHome: section.showOnHome !== false,
+          showInNav: section.showInNav === true,
         }));
 
       await savePartialOverrides({
@@ -104,6 +131,8 @@ export function HomepageSection({
             src: hero.src.trim(),
             alt: hero.alt?.trim() ?? "",
             href: hero.href?.trim() ?? "",
+            layout: hero.layout === "aside" ? "aside" : "banner",
+            side: hero.side === "left" ? "left" : "right",
             position: hero.position,
             width: hero.width,
             rounded: hero.rounded !== false,
@@ -115,7 +144,24 @@ export function HomepageSection({
           },
         },
       });
-      addToast("Homepage saved. Changes go live on next page load.", "success");
+      addToast("Homepage saved.", "success");
+      const navCount = cleanSections.filter((s) => s.showInNav).length;
+      const homeCount = cleanSections.filter(
+        (s) => s.showOnHome !== false,
+      ).length;
+      if (!categoriesEnabled && cleanSections.length > 0) {
+        addToast(
+          navCount > 0
+            ? "Sections are hidden on the homepage until Group posts is on. Nav links still show."
+            : "Category sections are saved but hidden until Group posts is on.",
+          "info",
+        );
+      } else if (categoriesEnabled && homeCount === 0 && navCount > 0) {
+        addToast(
+          "Nothing will show on the homepage. Nav links still show.",
+          "info",
+        );
+      }
     } catch {
       addToast("Failed to save homepage settings", "error");
     } finally {
@@ -126,7 +172,7 @@ export function HomepageSection({
   return (
     <div className="dashboard-config-section">
       <div className="dashboard-config-grid">
-        {/* 16:9 banner */}
+        {/* Homepage image: wide 16:9 strip or vertical beside the intro */}
         <div className="dashboard-config-card">
           <h3>Banner image</h3>
           <div className="config-field checkbox">
@@ -138,13 +184,23 @@ export function HomepageSection({
                   setHero({ ...hero, enabled: e.target.checked })
                 }
               />
-              <span>Show a 16:9 banner on the homepage</span>
+              <span>Show an image on the homepage</span>
             </label>
           </div>
 
           {hero.src && (
-            <div className="home-hero-preview">
-              <img src={hero.src} alt="" style={{ width: `${hero.width}%` }} />
+            <div
+              className={`home-hero-preview ${hero.layout === "aside" ? "is-aside" : "is-banner"} ${hero.src.split("?")[0].toLowerCase().endsWith(".svg") ? "is-svg" : ""}`}
+            >
+              <img
+                src={hero.src}
+                alt=""
+                style={
+                  hero.layout === "aside"
+                    ? undefined
+                    : { width: `${hero.width}%` }
+                }
+              />
             </div>
           )}
 
@@ -154,7 +210,7 @@ export function HomepageSection({
               <input
                 type="text"
                 value={hero.src}
-                placeholder="/images/banner.jpg or https://..."
+                placeholder="/images/banner.jpg, .gif, or .svg"
                 onChange={(e) => setHero({ ...hero, src: e.target.value })}
               />
               <button
@@ -167,7 +223,31 @@ export function HomepageSection({
               </button>
             </div>
             <span className="config-field-note">
-              Any aspect ratio works. It is cropped to 16:9 on display.
+              PNG, JPG, GIF, WebP, and SVG. GIFs animate. SVGs stay sharp.
+            </span>
+          </div>
+
+          <div className="config-field">
+            <label>Layout</label>
+            <select
+              value={hero.layout === "aside" ? "aside" : "banner"}
+              onChange={(e) => {
+                const layout = e.target.value as HomeHeroLayout;
+                setHero({
+                  ...hero,
+                  layout,
+                  width:
+                    layout === "aside" && hero.width >= 90 ? 40 : hero.width,
+                });
+              }}
+            >
+              <option value="banner">Wide 16:9 banner</option>
+              <option value="aside">Vertical beside intro</option>
+            </select>
+            <span className="config-field-note">
+              {hero.layout === "aside"
+                ? "Portrait sits next to the intro. No 16:9 crop."
+                : "Wide strip. Any aspect ratio is cropped to 16:9. SVG is not cropped."}
             </span>
           </div>
 
@@ -176,7 +256,7 @@ export function HomepageSection({
             <input
               type="text"
               value={hero.alt ?? ""}
-              placeholder="Leave blank for a decorative banner"
+              placeholder="Leave blank for a decorative image"
               onChange={(e) => setHero({ ...hero, alt: e.target.value })}
             />
           </div>
@@ -191,22 +271,37 @@ export function HomepageSection({
             />
           </div>
 
-          <div className="config-field">
-            <label>Position</label>
-            <select
-              value={hero.position}
-              onChange={(e) =>
-                setHero({
-                  ...hero,
-                  position: e.target.value as HomeHeroImageConfig["position"],
-                })
-              }
-            >
-              <option value="top">Top</option>
-              <option value="bottom">Bottom</option>
-              <option value="both">Top and bottom</option>
-            </select>
-          </div>
+          {hero.layout === "aside" ? (
+            <div className="config-field">
+              <label>Side</label>
+              <select
+                value={hero.side === "left" ? "left" : "right"}
+                onChange={(e) =>
+                  setHero({ ...hero, side: e.target.value as HomeHeroSide })
+                }
+              >
+                <option value="right">Right</option>
+                <option value="left">Left</option>
+              </select>
+            </div>
+          ) : (
+            <div className="config-field">
+              <label>Position</label>
+              <select
+                value={hero.position}
+                onChange={(e) =>
+                  setHero({
+                    ...hero,
+                    position: e.target.value as HomeHeroImageConfig["position"],
+                  })
+                }
+              >
+                <option value="top">Top</option>
+                <option value="bottom">Bottom</option>
+                <option value="both">Top and bottom</option>
+              </select>
+            </div>
+          )}
 
           <div className="config-field">
             <label>Width: {hero.width}%</label>
@@ -221,7 +316,9 @@ export function HomepageSection({
               }
             />
             <span className="config-field-note">
-              Desktop only. Phones always use the full content width.
+              {hero.layout === "aside"
+                ? "Desktop image column. Capped so the intro always has room. Phones stack."
+                : "Desktop only. Phones always use the full content width."}
             </span>
           </div>
 
@@ -252,6 +349,12 @@ export function HomepageSection({
               <span>Group posts into sections by tag</span>
             </label>
           </div>
+          <span className="config-field-note">
+            Each section lists published posts that carry that tag. Show on
+            homepage and Show in nav are separate: a section can sit in the
+            header only, on `/` only, or both. A tag with no posts hides the
+            homepage heading.
+          </span>
 
           <div className="config-field">
             <label>Position</label>
@@ -275,11 +378,17 @@ export function HomepageSection({
             </p>
           ) : (
             <ul className="home-section-list">
-              {sections.map((section, index) => (
+              {sections.map((section, index) => {
+                const tagKey = section.tag.trim().toLowerCase();
+                const tagMatch = publishedTags?.find(
+                  (entry) => entry.tag.toLowerCase() === tagKey,
+                );
+                return (
                 <li key={index} className="home-section-row">
                   <div className="home-section-fields">
                     <input
                       type="text"
+                      className="dashboard-field-input"
                       value={section.title}
                       placeholder="Section heading, e.g. Notes"
                       aria-label={`Section ${index + 1} heading`}
@@ -289,6 +398,8 @@ export function HomepageSection({
                     />
                     <input
                       type="text"
+                      className="dashboard-field-input"
+                      list="home-category-tags"
                       value={section.tag}
                       placeholder="Post tag, e.g. convex"
                       aria-label={`Section ${index + 1} tag`}
@@ -296,11 +407,19 @@ export function HomepageSection({
                         updateSection(index, { tag: e.target.value })
                       }
                     />
+                    {tagKey ? (
+                      <span className="config-field-note">
+                        {tagMatch
+                          ? `${tagMatch.count} published ${tagMatch.count === 1 ? "post" : "posts"}`
+                          : "No published posts with this tag"}
+                      </span>
+                    ) : null}
                     <div className="home-section-options">
                       <label>
                         <span>Limit</span>
                         <input
                           type="number"
+                          className="dashboard-field-input"
                           min={1}
                           max={50}
                           value={section.limit ?? 8}
@@ -314,6 +433,7 @@ export function HomepageSection({
                       <label>
                         <span>Columns</span>
                         <select
+                          className="dashboard-items-select"
                           value={String(section.columns ?? 2)}
                           onChange={(e) =>
                             updateSection(index, {
@@ -335,7 +455,44 @@ export function HomepageSection({
                         />
                         <span>Show date</span>
                       </label>
+                      <label className="home-section-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={section.showOnHome !== false}
+                          onChange={(e) =>
+                            updateSection(index, {
+                              showOnHome: e.target.checked,
+                            })
+                          }
+                        />
+                        <span>Show on homepage</span>
+                      </label>
+                      <label className="home-section-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={section.showInNav === true}
+                          onChange={(e) =>
+                            updateSection(index, {
+                              showInNav: e.target.checked,
+                            })
+                          }
+                        />
+                        <span>Show in nav</span>
+                      </label>
                     </div>
+                    {section.showInNav && tagKey ? (
+                      <span className="config-field-note">
+                        {section.showOnHome === false
+                          ? `Header only. Nav link: /tags/${tagKey}`
+                          : `Nav link: /tags/${tagKey}`}
+                      </span>
+                    ) : null}
+                    {section.showOnHome === false &&
+                    section.showInNav !== true ? (
+                      <span className="config-field-note">
+                        Hidden on the homepage and not in nav.
+                      </span>
+                    ) : null}
                   </div>
                   <div className="config-logo-actions">
                     <button
@@ -368,9 +525,15 @@ export function HomepageSection({
                     </button>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
+          <datalist id="home-category-tags">
+            {(publishedTags ?? []).map((entry) => (
+              <option key={entry.tag} value={entry.tag} />
+            ))}
+          </datalist>
 
           <button
             type="button"
@@ -378,7 +541,15 @@ export function HomepageSection({
             onClick={() =>
               setSections((current) => [
                 ...current,
-                { title: "", tag: "", limit: 8, columns: 2, showDate: false },
+                {
+                  title: "",
+                  tag: "",
+                  limit: 8,
+                  columns: 2,
+                  showDate: false,
+                  showOnHome: true,
+                  showInNav: false,
+                },
               ])
             }
           >
@@ -398,13 +569,14 @@ export function HomepageSection({
           className="dashboard-action-btn primary"
           onClick={() => void handleSave()}
           disabled={saving}
+          aria-busy={saving}
         >
           {saving ? (
             <SpinnerGap size={16} className="animate-spin" />
           ) : (
             <FloppyDisk size={16} />
           )}
-          {saving ? "Saving..." : "Save homepage"}
+          <span>Save homepage</span>
         </button>
       </div>
 

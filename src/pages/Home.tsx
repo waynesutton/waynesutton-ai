@@ -20,13 +20,18 @@ import PostList from "../components/PostList";
 import FeaturedCards from "../components/FeaturedCards";
 import LogoMarquee from "../components/LogoMarquee";
 import HomeCategories from "../components/HomeCategories";
-import HomeHeroImage from "../components/HomeHeroImage";
+import HomeHeroImage, { isHeroAside } from "../components/HomeHeroImage";
 import GitHubContributions from "../components/GitHubContributions";
 import Footer from "../components/Footer";
 import SocialFooter from "../components/SocialFooter";
 import NewsletterSignup from "../components/NewsletterSignup";
 import DiffCodeBlock from "../components/DiffCodeBlock";
 import siteConfig from "../config/siteConfig";
+import {
+  newsletterPosition,
+  shouldShowNewsletter,
+} from "../utils/newsletter";
+import { resolveHomeCategories } from "../utils/homeCategories";
 
 // Sanitize schema for home intro markdown
 const homeSanitizeSchema = {
@@ -357,9 +362,10 @@ export default function Home() {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Category sections group the same rows the post list uses, so one query
-  // feeds both. Fetch when either feature is on.
-  const homeCategories = siteConfig.homeCategories;
-  const categoriesEnabled = homeCategories?.enabled === true;
+  // feeds both. Live overrides win so a dashboard save shows up on `/`.
+  const configOverrides = useQuery(api.siteConfigData.getOverrides);
+  const homeCategories = resolveHomeCategories(configOverrides);
+  const categoriesEnabled = homeCategories.enabled === true;
 
   // Fetch published posts from Convex (only if the homepage needs them)
   const posts = useQuery(
@@ -499,6 +505,13 @@ export default function Home() {
     }
   };
 
+  const asideHero = isHeroAside(siteConfig.homeHeroImage);
+  const asideSide = siteConfig.homeHeroImage?.side === "left" ? "left" : "right";
+  const asideCol = Math.min(
+    56,
+    Math.max(30, siteConfig.homeHeroImage?.width || 40),
+  );
+
   return (
     <div className="home">
       {showNotAdminNotice && (
@@ -527,9 +540,18 @@ export default function Home() {
           </div>
         </div>
       )}
-      {/* Optional 16:9 banner above everything */}
+      {/* Wide 16:9 strip. Hidden when the image sits beside the intro. */}
       <HomeHeroImage config={siteConfig.homeHeroImage} slot="top" />
 
+      {/* Aside layout: intro and portrait in one row. Banner layout: pass through. */}
+      <div
+        className={asideHero ? `home-hero-split side-${asideSide}` : "home-hero-stack"}
+        style={
+          asideHero
+            ? ({ "--home-hero-aside-col": `${asideCol}%` } as React.CSSProperties)
+            : undefined
+        }
+      >
       {/* Header section with intro */}
       <header className="home-header">
         {/* Optional site logo */}
@@ -743,11 +765,9 @@ export default function Home() {
         )}
 
         {/* Newsletter signup (below-intro position) */}
-        {siteConfig.newsletter?.enabled &&
-          siteConfig.newsletter.signup.home.enabled &&
-          siteConfig.newsletter.signup.home.position === "below-intro" && (
-            <NewsletterSignup source="home" />
-          )}
+        {shouldShowNewsletter(siteConfig.newsletter?.signup.home) &&
+          newsletterPosition(siteConfig.newsletter?.signup.home, "above-footer") ===
+            "below-intro" && <NewsletterSignup source="home" />}
 
         {/* Featured section with optional view toggle */}
         {showFeaturedSection && (
@@ -779,6 +799,8 @@ export default function Home() {
           </div>
         )}
       </header>
+        <HomeHeroImage config={siteConfig.homeHeroImage} slot="aside" />
+      </div>
 
       {/* Logo gallery (below-featured position) */}
       {renderLogoGallery("below-featured")}
@@ -854,11 +876,9 @@ export default function Home() {
       {renderLogoGallery("above-footer")}
 
       {/* Newsletter signup (above-footer position) */}
-      {siteConfig.newsletter?.enabled &&
-        siteConfig.newsletter.signup.home.enabled &&
-        siteConfig.newsletter.signup.home.position === "above-footer" && (
-          <NewsletterSignup source="home" />
-        )}
+      {shouldShowNewsletter(siteConfig.newsletter?.signup.home) &&
+        newsletterPosition(siteConfig.newsletter?.signup.home, "above-footer") ===
+          "above-footer" && <NewsletterSignup source="home" />}
 
       {/* Footer section */}
       {siteConfig.footer.enabled && siteConfig.footer.showOnHomepage && (
@@ -869,7 +889,7 @@ export default function Home() {
       {siteConfig.socialFooter?.enabled &&
         siteConfig.socialFooter.showOnHomepage && <SocialFooter />}
 
-      {/* Optional 16:9 banner below everything */}
+      {/* Wide 16:9 strip. Hidden when the image sits beside the intro. */}
       <HomeHeroImage config={siteConfig.homeHeroImage} slot="bottom" />
     </div>
   );

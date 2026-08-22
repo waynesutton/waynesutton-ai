@@ -1,12 +1,12 @@
 export type AudioVoice = "male" | "female";
 
-export const FEMALE_KOKORO_VOICE = "af_heart" as const;
-export const MALE_KOKORO_VOICE = "am_adam" as const;
+export const FEMALE_TTS_VOICE = "nova" as const;
+export const MALE_TTS_VOICE = "onyx" as const;
 
-export function kokoroVoiceId(
+export function ttsVoiceId(
   voice: AudioVoice,
-): typeof FEMALE_KOKORO_VOICE | typeof MALE_KOKORO_VOICE {
-  return voice === "male" ? MALE_KOKORO_VOICE : FEMALE_KOKORO_VOICE;
+): typeof FEMALE_TTS_VOICE | typeof MALE_TTS_VOICE {
+  return voice === "male" ? MALE_TTS_VOICE : FEMALE_TTS_VOICE;
 }
 
 export function isAudioVoice(value: unknown): value is AudioVoice {
@@ -95,7 +95,11 @@ export function stripPostToSpeechText(title: string, markdown: string): string {
   return `${titleText}.\n\n${body}`;
 }
 
-export function splitSpeechChunks(text: string, maxChars = 420): Array<string> {
+/**
+ * `gpt-4o-mini-tts` caps input at 2000 tokens, so the default sits near 900
+ * tokens of English prose with room for longer words.
+ */
+export function splitSpeechChunks(text: string, maxChars = 3500): Array<string> {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (normalized.length === 0) {
     return [];

@@ -7,6 +7,10 @@ import Footer from "../components/Footer";
 import SocialFooter from "../components/SocialFooter";
 import NewsletterSignup from "../components/NewsletterSignup";
 import siteConfig from "../config/siteConfig";
+import {
+  newsletterPosition,
+  shouldShowNewsletter,
+} from "../utils/newsletter";
 
 // Local storage key for blog view mode preference
 const BLOG_VIEW_MODE_KEY = "blog-view-mode";
@@ -90,12 +94,6 @@ export default function Blog() {
 
   return (
     <div className={blogPageClass}>
-      <nav className="post-nav">
-        {/* Navigation with back button commented out  <button onClick={() => navigate("/")} className="back-button">
-          <ArrowLeft size={16} />
-          <span>Back</span>
-        </button>*/}
-      </nav>
       {/* Blog page header */}
       <header className="blog-header">
         <div className="blog-header-top">
@@ -182,6 +180,8 @@ export default function Blog() {
             viewMode="cards"
             columns={2}
             showExcerpts={true}
+            showReadTime={siteConfig.postsDisplay.blogShowReadTime !== false}
+            showDate={siteConfig.postsDisplay.blogShowDate !== false}
           />
         </section>
       )}
@@ -198,17 +198,20 @@ export default function Blog() {
               viewMode={viewMode}
               columns={3}
               showExcerpts={false}
+              showReadTime={siteConfig.postsDisplay.blogShowReadTime !== false}
+              showDate={siteConfig.postsDisplay.blogShowDate !== false}
+              showYearHeadings={
+                siteConfig.postsDisplay.blogShowYearHeadings !== false
+              }
             />
           )}
         </section>
       )}
 
       {/* Newsletter signup (below-posts position) */}
-      {siteConfig.newsletter?.enabled &&
-        siteConfig.newsletter.signup.blogPage.enabled &&
-        siteConfig.newsletter.signup.blogPage.position === "below-posts" && (
-          <NewsletterSignup source="blog-page" />
-        )}
+      {shouldShowNewsletter(siteConfig.newsletter?.signup.blogPage) &&
+        newsletterPosition(siteConfig.newsletter?.signup.blogPage, "above-footer") ===
+          "below-posts" && <NewsletterSignup source="blog-page" />}
       {/* Message when posts are disabled on blog page */}
       {!showPosts && (
         <p className="blog-disabled-message">
@@ -218,11 +221,9 @@ export default function Blog() {
       )}
 
       {/* Newsletter signup (above-footer position) */}
-      {siteConfig.newsletter?.enabled &&
-        siteConfig.newsletter.signup.blogPage.enabled &&
-        siteConfig.newsletter.signup.blogPage.position === "above-footer" && (
-          <NewsletterSignup source="blog-page" />
-        )}
+      {shouldShowNewsletter(siteConfig.newsletter?.signup.blogPage) &&
+        newsletterPosition(siteConfig.newsletter?.signup.blogPage, "above-footer") ===
+          "above-footer" && <NewsletterSignup source="blog-page" />}
 
       {/* Footer section */}
       {showFooter && <Footer content={footerPage?.content} />}

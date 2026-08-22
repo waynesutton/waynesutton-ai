@@ -7,6 +7,7 @@ import { requireDashboardAdmin } from "./dashboardAuth";
 import { scheduleDiscoverySyncIfEnabled } from "./agentReady/autoSync";
 import { schedulePostAudioIfNeeded } from "./audio";
 import { audioVoiceValidator } from "./audioDefaults";
+import { resolveReadTime } from "./lib/readTime";
 
 // Shared validator for post data
 const postDataValidator = v.object({
@@ -276,6 +277,7 @@ export const createPost = mutation({
 
     const postId = await ctx.db.insert("posts", {
       ...args.post,
+      readTime: resolveReadTime(args.post.readTime, args.post.content),
       source: "dashboard",
       lastSyncedAt: Date.now(),
     });
@@ -316,6 +318,7 @@ export const createPostInternal = internalMutation({
 
     const postId = await ctx.db.insert("posts", {
       ...args.post,
+      readTime: resolveReadTime(args.post.readTime, args.post.content),
       source: "dashboard",
       lastSyncedAt: Date.now(),
     });
@@ -418,6 +421,12 @@ export const updatePost = mutation({
     await ctx.db.patch(args.id, {
       ...args.post,
       ...buildClearPatch<ClearablePostField>(args.clearFields),
+      readTime: resolveReadTime(
+        (args.clearFields ?? []).includes("readTime")
+          ? undefined
+          : (args.post.readTime ?? existing.readTime),
+        args.post.content ?? existing.content,
+      ),
       lastSyncedAt: Date.now(),
     });
 

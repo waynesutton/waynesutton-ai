@@ -12,6 +12,10 @@ import ScrollToTop, { ScrollToTopConfig } from "./ScrollToTop";
 import { useSidebarOptional } from "../context/SidebarContext";
 import siteConfig from "../config/siteConfig";
 import { platformIcons } from "./SocialFooter";
+import {
+  categoryNavItems,
+  resolveHomeCategories,
+} from "../utils/homeCategories";
 
 // Scroll-to-top configuration - enabled by default
 // Customize threshold (pixels) to control when button appears
@@ -29,6 +33,8 @@ export default function Layout({ children }: LayoutProps) {
   // Fetch published pages for navigation
   const pages = useQuery(api.pages.getAllPages);
   const isDashboardAdmin = useQuery(api.authAdmin.isCurrentUserDashboardAdmin);
+  const configOverrides = useQuery(api.siteConfigData.getOverrides);
+  const homeCategories = resolveHomeCategories(configOverrides);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAskAIOpen, setIsAskAIOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -148,6 +154,11 @@ export default function Layout({ children }: LayoutProps) {
     });
   }
 
+  // Category sections opted into nav, same list as Blog. Live overrides win.
+  for (const item of categoryNavItems(homeCategories)) {
+    navItems.push(item);
+  }
+
   // Add hardcoded nav items (React routes like /stats, /write)
   if (siteConfig.hardcodedNavItems && siteConfig.hardcodedNavItems.length > 0) {
     siteConfig.hardcodedNavItems.forEach((item) => {
@@ -265,15 +276,20 @@ export default function Layout({ children }: LayoutProps) {
         {/* Page navigation links (visible on desktop only) */}
         <nav className="page-nav desktop-only">
           {/* Nav links sorted by order (Blog + pages combined) */}
-          {navItems.map((item) => (
-            <Link
-              key={item.slug}
-              to={`/${item.slug}`}
-              className="page-nav-link"
-            >
-              {item.title}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const href = `/${item.slug}`;
+            const isCurrent = location.pathname === href;
+            return (
+              <Link
+                key={item.slug}
+                to={href}
+                className="page-nav-link"
+                aria-current={isCurrent ? "page" : undefined}
+              >
+                {item.title}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Desktop search and theme (visible on desktop only) */}
@@ -351,24 +367,30 @@ export default function Layout({ children }: LayoutProps) {
       >
         {/* Page navigation links in mobile menu (same order as desktop) */}
         <nav className="mobile-nav-links">
-          {navItems.map((item) => (
-            <Link
-              key={item.slug}
-              to={`/${item.slug}`}
-              className="mobile-nav-link"
-              onClick={closeMobileMenu}
-            >
-              {item.title}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const href = `/${item.slug}`;
+            const isCurrent = location.pathname === href;
+            return (
+              <Link
+                key={item.slug}
+                to={href}
+                className="mobile-nav-link"
+                aria-current={isCurrent ? "page" : undefined}
+                onClick={closeMobileMenu}
+              >
+                {item.title}
+              </Link>
+            );
+          })}
         </nav>
       </MobileMenu>
 
-      {/* Use wider layout for stats, blog, and docs pages, normal layout for other pages */}
+      {/* Wider column for stats, blog, tag archives, and docs */}
       <main
         className={
           location.pathname === "/stats" ||
           location.pathname === "/blog" ||
+          location.pathname.startsWith("/tags/") ||
           isDocsPage
             ? "main-content-wide"
             : "main-content"

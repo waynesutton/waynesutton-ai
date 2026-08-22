@@ -2,7 +2,7 @@
 
 ---
 Type: page
-Date: 2026-08-18
+Date: 2026-08-22
 ---
 
 ## Frontmatter Options
@@ -25,8 +25,8 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 | `noOgImage`             | No       | Set `true` for a text-only share preview (no image). Social previews show just the title and description. Same effect as `ogImage: false`.                                                             |
 | `showImageAtTop`        | No       | Set `true` to display the image at the top of the post above the header (default: `false`)                                                                                                             |
 | `excerpt`               | No       | Short text for card view                                                                                                                                                                               |
-| `featured`              | No       | `true` to show in featured section                                                                                                                                                                     |
-| `featuredOrder`         | No       | Order in featured (lower = first)                                                                                                                                                                      |
+| `featured`              | No       | `true` to show in the homepage featured section (its heading comes from `siteConfig.featuredTitle`). Requires `published: true` and no `unlisted: true`.                                                |
+| `featuredOrder`         | No       | Order in the homepage featured section (lower = first)                                                                                                                                                 |
 | `authorName`            | No       | Author display name shown next to date                                                                                                                                                                 |
 | `authorImage`           | No       | Round author avatar image URL                                                                                                                                                                          |
 | `layout`                | No       | Set to `"sidebar"` for docs-style layout with TOC                                                                                                                                                      |
@@ -39,6 +39,9 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 | `newsletter`            | No       | Override newsletter signup display (`true` to show, `false` to hide)                                                                                                                                   |
 | `contactForm`           | No       | Enable contact form on this post                                                                                                                                                                       |
 | `unlisted`              | No       | Hide from listings but allow direct access via slug. Set `true` to hide from blog listings, featured sections, tag pages, search results, related posts, sitemap, RSS, and API listings. The post remains accessible via direct link and serves a `noindex, nofollow` robots meta tag so search engines skip it. |
+| `aiWritten`             | No       | Posts only. Set `true` to show a small note under the title: "This post was written with AI and proofed by a human." Set `false` to hide it. This field overrules the Drafts Inbox Written with AI default. Omitted means no note. |
+| `audio`                 | No       | Posts only. `true` shows the listen player under the title and, on save or sync of a published post, generates the reading. `false` hides it. Omitted uses the Site Config default, which is on. Works on existing posts the same way: set it and save, or add it to the markdown file and run sync. |
+| `audioVoice`            | No       | Posts only. `male` or `female`. Omitted uses the Site Config default voice (female). Changing the voice on a published post regenerates the file on the next save or sync. |
 | `docsSection`           | No       | Include in docs sidebar. Set `true` to show in the docs section navigation.                                                                                                                            |
 | `docsSectionGroup`      | No       | Group name for docs sidebar. Posts with the same group name appear together.                                                                                                                           |
 | `docsSectionOrder`      | No       | Order within docs group. Lower numbers appear first within the group.                                                                                                                                  |
@@ -61,8 +64,8 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 | `ogImage`               | No       | Social share image override. Only changes the Open Graph and Twitter preview image; cards keep using `image`. Set `ogImage: false` to disable the share image entirely.                                |
 | `noOgImage`             | No       | Set `true` for a text-only share preview (no image). Social previews show just the title and description. Same effect as `ogImage: false`.                                                             |
 | `showImageAtTop`        | No       | Set `true` to display the image at the top of the page above the header (default: `false`)                                                                                                             |
-| `featured`              | No       | `true` to show in featured section                                                                                                                                                                     |
-| `featuredOrder`         | No       | Order in featured (lower = first)                                                                                                                                                                      |
+| `featured`              | No       | `true` to show in the homepage featured section (its heading comes from `siteConfig.featuredTitle`). Requires `published: true` and no `unlisted: true`.                                                |
+| `featuredOrder`         | No       | Order in the homepage featured section (lower = first)                                                                                                                                                 |
 | `authorName`            | No       | Author display name shown next to date                                                                                                                                                                 |
 | `authorImage`           | No       | Round author avatar image URL                                                                                                                                                                          |
 | `layout`                | No       | Set to `"sidebar"` for docs-style layout with TOC                                                                                                                                                      |

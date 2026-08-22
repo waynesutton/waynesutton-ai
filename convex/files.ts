@@ -13,10 +13,22 @@ const ALLOWED_TYPES = [
   "image/jpeg",
   "image/gif",
   "image/webp",
+  "image/svg+xml",
 ];
 
 // Max file size in bytes (10MB)
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+function resolveStoredContentType(contentType: string, filename: string): string {
+  if (contentType && ALLOWED_TYPES.includes(contentType)) return contentType;
+  const name = filename.toLowerCase();
+  if (name.endsWith(".svg")) return "image/svg+xml";
+  if (name.endsWith(".gif")) return "image/gif";
+  if (name.endsWith(".webp")) return "image/webp";
+  if (name.endsWith(".png")) return "image/png";
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+  return contentType;
+}
 
 const storedFileValidator = v.object({
   path: v.string(),
@@ -62,8 +74,9 @@ export const commitFile = mutation({
       );
     }
 
-    // Validate file type
-    if (!ALLOWED_TYPES.includes(args.contentType)) {
+    // Validate file type. SVG is image/svg+xml; some browsers leave type empty.
+    const contentType = resolveStoredContentType(args.contentType, args.filename);
+    if (!ALLOWED_TYPES.includes(contentType)) {
       throw new ConvexError(
         `Invalid file type: ${args.contentType}. Allowed: ${ALLOWED_TYPES.join(", ")}`
       );
@@ -92,7 +105,7 @@ export const commitFile = mutation({
     return {
       path,
       filename: sanitizedName,
-      contentType: args.contentType,
+      contentType,
       size: args.size,
       width: args.width,
       height: args.height,

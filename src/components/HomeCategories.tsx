@@ -3,6 +3,7 @@ import type {
   HomeCategoriesConfig,
   HomeCategorySection,
 } from "../config/siteConfig";
+import { categoryTagPath } from "../utils/homeCategories";
 
 // Minimal shape this component needs from a post. Matches api.posts.getAllPosts
 // rows, so the homepage can group the list it already fetched.
@@ -27,18 +28,14 @@ function formatMonthYear(date: string): string {
   return parsed.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
-function sectionPosts(
+function sectionMatches(
   section: HomeCategorySection,
   posts: Array<CategoryPost>,
 ): Array<CategoryPost> {
   const tag = section.tag.trim().toLowerCase();
   if (!tag) return [];
-  const matches = posts.filter((post) =>
+  return posts.filter((post) =>
     post.tags.some((postTag) => postTag.trim().toLowerCase() === tag),
-  );
-  return matches.slice(
-    0,
-    section.limit && section.limit > 0 ? section.limit : DEFAULT_LIMIT,
   );
 }
 
@@ -47,39 +44,64 @@ export default function HomeCategories({ config, posts }: HomeCategoriesProps) {
 
   // Skip empty sections entirely so a tag with no posts leaves no stray heading
   const resolved = config.sections
-    .map((section) => ({ section, items: sectionPosts(section, posts) }))
-    .filter((entry) => entry.items.length > 0);
+    .map((section) => {
+      const matches = sectionMatches(section, posts);
+      const limit =
+        section.limit && section.limit > 0 ? section.limit : DEFAULT_LIMIT;
+      return {
+        section,
+        items: matches.slice(0, limit),
+        total: matches.length,
+        truncated: matches.length > limit,
+      };
+    })
+    .filter(
+      (entry) =>
+        entry.items.length > 0 && entry.section.showOnHome !== false,
+    );
 
   if (resolved.length === 0) return null;
 
   return (
     <div className="home-categories">
-      {resolved.map(({ section, items }) => (
-        <section
-          key={`${section.title}-${section.tag}`}
-          className="home-category"
-        >
-          <h2 className="home-category-title">{section.title}</h2>
-          <ul
-            className={`home-category-list ${
-              (section.columns ?? 2) === 2 ? "two-col" : "one-col"
-            }`}
+      {resolved.map(({ section, items, total, truncated }) => {
+        const href = categoryTagPath(section.tag);
+        return (
+          <section
+            key={`${section.title}-${section.tag}`}
+            className="home-category"
           >
-            {items.map((post) => (
-              <li key={post.slug} className="home-category-item">
-                <Link to={`/${post.slug}`} className="home-category-link">
-                  {post.title}
-                </Link>
-                {section.showDate && (
-                  <span className="home-category-date">
-                    {formatMonthYear(post.date)}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+            <h2 className="home-category-title">
+              <Link to={href} className="home-category-title-link">
+                {section.title}
+              </Link>
+            </h2>
+            <ul
+              className={`home-category-list ${
+                (section.columns ?? 2) === 2 ? "two-col" : "one-col"
+              }`}
+            >
+              {items.map((post) => (
+                <li key={post.slug} className="home-category-item">
+                  <Link to={`/${post.slug}`} className="home-category-link">
+                    {post.title}
+                  </Link>
+                  {section.showDate && (
+                    <span className="home-category-date">
+                      {formatMonthYear(post.date)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {truncated && (
+              <Link to={href} className="home-category-more">
+                View all {total}
+              </Link>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }

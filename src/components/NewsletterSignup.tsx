@@ -5,7 +5,7 @@ import siteConfig from "../config/siteConfig";
 
 // Props for the newsletter signup component
 interface NewsletterSignupProps {
-  source: "home" | "blog-page" | "post"; // Where the signup form appears
+  source: "home" | "blog-page" | "post" | "page"; // Where the signup form appears
   postSlug?: string; // For tracking which post they subscribed from
   title?: string; // Override default title
   description?: string; // Override default description
@@ -30,19 +30,20 @@ export default function NewsletterSignup({
 
   const subscribe = useMutation(api.newsletter.subscribe);
 
-  // Check if newsletter is enabled globally
+  // Check if newsletter is enabled globally. Placement visibility is decided
+  // by the parent so a frontmatter newsletter: true override can still render.
   if (!siteConfig.newsletter?.enabled) return null;
 
-  // Get config for this placement
+  // Get copy for this placement
   const config =
     source === "home"
       ? siteConfig.newsletter.signup.home
       : source === "blog-page"
         ? siteConfig.newsletter.signup.blogPage
-        : siteConfig.newsletter.signup.posts;
-
-  // Check if this specific placement is enabled
-  if (!config.enabled) return null;
+        : source === "page"
+          ? (siteConfig.newsletter.signup.pages ??
+            siteConfig.newsletter.signup.posts)
+          : siteConfig.newsletter.signup.posts;
 
   const displayTitle = title || config.title;
   const displayDescription = description || config.description;

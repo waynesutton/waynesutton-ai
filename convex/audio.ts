@@ -175,19 +175,11 @@ export const failAudioJob = internalMutation({
   args: {
     jobId: v.id("audioJobs"),
     error: v.string(),
-    retryWithPiper: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const job = await ctx.db.get(args.jobId);
     if (!job || job.status !== "pending") {
-      return null;
-    }
-
-    if (args.retryWithPiper) {
-      await ctx.scheduler.runAfter(0, internal.audioGeneration.generateAudioPiper, {
-        jobId: args.jobId,
-      });
       return null;
     }
 

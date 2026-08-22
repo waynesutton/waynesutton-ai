@@ -13,6 +13,7 @@ import { scheduleDiscoverySyncIfEnabled } from "./agentReady/autoSync";
 import { readAudioDefaults } from "./audioDefaults";
 import { schedulePostAudioIfNeeded } from "./audio";
 import { parseAudioFrontmatter } from "./lib/audioText";
+import { calculateReadTime } from "./lib/readTime";
 
 // Shared validators for draft payloads
 const draftTypeValidator = v.union(
@@ -166,6 +167,7 @@ async function materializeDraft(
       published,
       unlisted: unlisted ? true : undefined,
       lastSyncedAt: now,
+      readTime: calculateReadTime(overrides?.content ?? existingPost.content),
       ...(overrides?.content ? { content: overrides.content } : {}),
       ...(overrides?.title ? { title: overrides.title } : {}),
       ...(overrides?.tags ? { tags: overrides.tags } : {}),
@@ -234,6 +236,7 @@ async function materializeDraft(
     audio: audioFromMarkdown.audio ?? audioDefaults.enabledDefault,
     audioVoice: audioFromMarkdown.audioVoice ?? audioDefaults.defaultVoice,
     tags: overrides?.tags ?? draft.tags ?? [],
+    readTime: calculateReadTime(body),
     source: "dashboard",
     lastSyncedAt: now,
   });

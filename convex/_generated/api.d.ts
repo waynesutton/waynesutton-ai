@@ -41,6 +41,7 @@ import type * as importAction from "../importAction.js";
 import type * as importJobs from "../importJobs.js";
 import type * as lib_agentMailMessage from "../lib/agentMailMessage.js";
 import type * as lib_audioText from "../lib/audioText.js";
+import type * as lib_readTime from "../lib/readTime.js";
 import type * as lib_vendorKeyResolver from "../lib/vendorKeyResolver.js";
 import type * as mcp from "../mcp.js";
 import type * as media from "../media.js";
@@ -105,6 +106,7 @@ declare const fullApi: ApiFromModules<{
   importJobs: typeof importJobs;
   "lib/agentMailMessage": typeof lib_agentMailMessage;
   "lib/audioText": typeof lib_audioText;
+  "lib/readTime": typeof lib_readTime;
   "lib/vendorKeyResolver": typeof lib_vendorKeyResolver;
   mcp: typeof mcp;
   media: typeof media;

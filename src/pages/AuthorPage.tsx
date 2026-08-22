@@ -4,6 +4,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import PostList from "../components/PostList";
 import { ArrowLeft, User } from "lucide-react";
+import siteConfig from "../config/siteConfig";
 
 // Local storage key for author page view mode preference
 const AUTHOR_VIEW_MODE_KEY = "author-view-mode";
@@ -162,7 +163,15 @@ export default function AuthorPage() {
       {/* Author posts section */}
       <section className="author-posts">
         {posts === undefined ? null : (
-          <PostList posts={posts} viewMode={viewMode} />
+          <PostList
+            posts={posts}
+            viewMode={viewMode}
+            showReadTime={siteConfig.postsDisplay.blogShowReadTime !== false}
+            showDate={siteConfig.postsDisplay.blogShowDate !== false}
+            showYearHeadings={
+              siteConfig.postsDisplay.blogShowYearHeadings !== false
+            }
+          />
         )}
       </section>
     </div>

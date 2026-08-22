@@ -198,12 +198,27 @@
   font-family: inherit;
   cursor: pointer;
   min-height: 40px;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, transform 0.1s ease-out;
+}
+
+.agent-ready-save-button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .agent-ready-save-button:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+.agent-ready-save-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-ready-save-button:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .agent-ready-save-status {

@@ -1,112 +1,112 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import PostList from "../components/PostList";
-import { ArrowLeft, Tag } from "lucide-react";
+import Footer from "../components/Footer";
+import SocialFooter from "../components/SocialFooter";
+import NewsletterSignup from "../components/NewsletterSignup";
+import siteConfig from "../config/siteConfig";
+import {
+  newsletterPosition,
+  shouldShowNewsletter,
+} from "../utils/newsletter";
+import {
+  matchingCategorySection,
+  resolveHomeCategories,
+} from "../utils/homeCategories";
 
-// Local storage key for tag page view mode preference
 const TAG_VIEW_MODE_KEY = "tag-view-mode";
 
-// Tag page component
-// Displays all posts that have a specific tag
+// Tag archive. Category sections with Show in nav land here, so this page
+// follows Blog chrome: title, count, list/cards, footer. No Back row.
 export default function TagPage() {
   const { tag } = useParams<{ tag: string }>();
-  const navigate = useNavigate();
-
-  // Decode the URL-encoded tag
   const decodedTag = tag ? decodeURIComponent(tag) : "";
 
-  // Fetch posts with this tag from Convex
   const posts = useQuery(
     api.posts.getPostsByTag,
     decodedTag ? { tag: decodedTag } : "skip",
   );
-
-  // Fetch all tags for showing count
   const allTags = useQuery(api.posts.getAllTags);
+  const footerPage = useQuery(api.pages.getPageBySlug, { slug: "footer" });
+  const configOverrides = useQuery(api.siteConfigData.getOverrides);
+  const homeCategories = resolveHomeCategories(configOverrides);
+  const category = matchingCategorySection(homeCategories, decodedTag);
 
-  // Find the tag info for this tag
+  const pageTitle = category?.title ?? decodedTag;
   const tagInfo = allTags?.find(
-    (t) => t.tag.toLowerCase() === decodedTag.toLowerCase(),
+    (entry) => entry.tag.toLowerCase() === decodedTag.toLowerCase(),
   );
 
-  // State for view mode toggle (list or cards)
-  const [viewMode, setViewMode] = useState<"list" | "cards">("list");
+  const [viewMode, setViewMode] = useState<"list" | "cards">(
+    siteConfig.blogPage.viewMode,
+  );
 
-  // Load saved view mode preference from localStorage
   useEffect(() => {
+    if (!siteConfig.blogPage.showViewToggle) return;
     const saved = localStorage.getItem(TAG_VIEW_MODE_KEY);
     if (saved === "list" || saved === "cards") {
       setViewMode(saved);
     }
   }, []);
 
-  // Toggle view mode and save preference
   const toggleViewMode = () => {
     const newMode = viewMode === "list" ? "cards" : "list";
     setViewMode(newMode);
     localStorage.setItem(TAG_VIEW_MODE_KEY, newMode);
   };
 
-  // Update page title
   useEffect(() => {
-    if (decodedTag) {
-      document.title = `Posts tagged "${decodedTag}" | markdown sync framework`;
+    if (pageTitle) {
+      document.title = `${pageTitle} | ${siteConfig.name}`;
     }
     return () => {
-      document.title = "markdown sync framework";
+      document.title = siteConfig.name;
     };
-  }, [decodedTag]);
+  }, [pageTitle]);
 
-  // Handle not found tag
+  const showFooter =
+    siteConfig.footer.enabled && siteConfig.footer.showOnBlogPage;
+  const showToggle =
+    siteConfig.blogPage.showViewToggle &&
+    posts !== undefined &&
+    posts.length > 0;
+
   if (posts !== undefined && posts.length === 0) {
     return (
-      <div className="tag-page">
-        <nav className="post-nav">
-          <button onClick={() => navigate(-1)} className="back-button">
-            <ArrowLeft size={16} />
-            <span>Back</span>
-          </button>
-        </nav>
-        <div className="tag-not-found">
-          <h1>No posts found</h1>
-          <p>
-            No posts with the tag <strong>"{decodedTag}"</strong> were found.
-          </p>
-          <Link to="/" className="back-link">
-            <ArrowLeft size={16} />
-            Back to home
-          </Link>
-        </div>
+      <div className="blog-page blog-page-list">
+        <header className="blog-header">
+          <h1 className="blog-title">{pageTitle || decodedTag}</h1>
+          <p className="blog-description">No posts with this tag yet.</p>
+        </header>
+        <Link to="/" className="back-link">
+          Back to home
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="tag-page">
-      {/* Navigation with back button */}
-      <nav className="post-nav">
-        <button onClick={() => navigate(-1)} className="back-button">
-          <ArrowLeft size={16} />
-          <span>Back</span>
-        </button>
-      </nav>
-
-      {/* Tag page header */}
-      <header className="tag-header">
-        <div className="tag-header-top">
+    <div
+      className={[
+        "blog-page",
+        viewMode === "cards" ? "blog-page-cards" : "blog-page-list",
+      ].join(" ")}
+    >
+      <header className="blog-header">
+        <div className="blog-header-top">
           <div>
-            <div className="tag-title-row">
-              <Tag size={24} className="tag-icon" />
-              <h1 className="tag-title">{decodedTag}</h1>
-            </div>
-            <p className="tag-description">
-              {tagInfo ? `${tagInfo.count} post${tagInfo.count !== 1 ? "s" : ""}` : "Loading..."}
+            <h1 className="blog-title">{pageTitle}</h1>
+            <p className="blog-description">
+              {tagInfo
+                ? `${tagInfo.count} ${tagInfo.count === 1 ? "post" : "posts"}`
+                : posts === undefined
+                  ? "Loading..."
+                  : `${posts.length} ${posts.length === 1 ? "post" : "posts"}`}
             </p>
           </div>
-          {/* View toggle button */}
-          {posts !== undefined && posts.length > 0 && (
+          {showToggle && (
             <button
               className="view-toggle-button"
               onClick={toggleViewMode}
@@ -153,13 +153,36 @@ export default function TagPage() {
         </div>
       </header>
 
-      {/* Tag posts section */}
-      <section className="tag-posts">
+      <section className="blog-posts">
         {posts === undefined ? null : (
-          <PostList posts={posts} viewMode={viewMode} />
+          <PostList
+            posts={posts}
+            viewMode={viewMode}
+            showReadTime={siteConfig.postsDisplay.blogShowReadTime !== false}
+            showDate={siteConfig.postsDisplay.blogShowDate !== false}
+            showYearHeadings={
+              siteConfig.postsDisplay.blogShowYearHeadings !== false
+            }
+          />
         )}
       </section>
+
+      {shouldShowNewsletter(siteConfig.newsletter?.signup.blogPage) &&
+        newsletterPosition(
+          siteConfig.newsletter?.signup.blogPage,
+          "above-footer",
+        ) === "below-posts" && <NewsletterSignup source="blog-page" />}
+
+      {shouldShowNewsletter(siteConfig.newsletter?.signup.blogPage) &&
+        newsletterPosition(
+          siteConfig.newsletter?.signup.blogPage,
+          "above-footer",
+        ) === "above-footer" && <NewsletterSignup source="blog-page" />}
+
+      {showFooter && <Footer content={footerPage?.content} />}
+
+      {siteConfig.socialFooter?.enabled &&
+        siteConfig.socialFooter.showOnBlogPage && <SocialFooter />}
     </div>
   );
 }
-
