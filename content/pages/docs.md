@@ -63,7 +63,6 @@ Default production hosting uses the <a href="https://www.convex.dev/components/s
 
 - Node.js 18+
 - Convex account (free at convex.dev)
-- Netlify account (optional, only for legacy Netlify hosting mode)
 
 ## Project structure
 
@@ -80,8 +79,6 @@ markdown-site/
 │   ├── rss.ts          # RSS generation
 │   ├── virtualFs.ts    # Virtual filesystem
 │   └── demo.ts         # Anonymous demo mode
-├── netlify/            # Legacy hosting support only
-│   └── edge-functions/ # Netlify edge functions (legacy mode)
 ├── src/
 │   ├── components/     # React components
 │   ├── context/        # Theme context
@@ -92,7 +89,6 @@ markdown-site/
 │   ├── raw/            # Generated raw markdown files
 │   ├── robots.txt      # Crawler rules
 │   └── llms.txt        # AI discovery
-└── netlify.toml        # Netlify deployment config (legacy mode)
 ```
 
 ## Search
@@ -125,7 +121,7 @@ Each post and page includes a share dropdown with options:
 | View as Markdown     | Opens raw `.md` file in new tab            |
 | Download as SKILL.md | Downloads skill file for AI agent training |
 
-**Raw markdown URLs:** AI service links use GitHub raw URLs to fetch markdown content. This keeps AI link behavior stable across both Convex self-hosting and legacy Netlify hosting modes.
+**Raw markdown URLs:** AI service links use GitHub raw URLs to fetch markdown content.
 
 **Git push required for AI links:** The "Open in ChatGPT," "Open in Claude," and "Open in Perplexity" options use GitHub raw URLs. For these to work, you must push your content to GitHub with `git push`. The `npm run sync` command syncs content to Convex for your live site, but AI services fetch directly from GitHub.
 
@@ -310,7 +306,7 @@ Add to `~/.cursor/mcp.json`:
 }
 ```
 
-**For forks:** The MCP server connects to your Convex deployment. In default Convex self-hosted mode, deploy with `npm run deploy`. In legacy Netlify mode, ensure `VITE_CONVEX_URL` is set in Netlify. Optionally set `MCP_API_KEY` for authenticated access with higher rate limits.
+**For forks:** The MCP server connects to your Convex deployment. Deploy with `npm run deploy`. Optionally set `MCP_API_KEY` for authenticated access with higher rate limits.
 
 See [How to Use the MCP Server](/how-to-use-mcp-server) for full documentation.
 

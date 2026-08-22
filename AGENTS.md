@@ -10,7 +10,6 @@ Developer Community Lead at Convex, tech event organizer, startup ecosystem buil
 
 - Default auth mode: `convex-auth`
 - Default hosting mode: `convex-self-hosted`
-- Legacy compatibility mode: Netlify hosting only
 
 **Key features:**
 - Markdown posts with frontmatter
@@ -57,7 +56,7 @@ Never deploy to `giant-grouse-674` (buggy fork source) or `agreeable-trout-200` 
 | Frontend | React 18, TypeScript, Vite |
 | Backend | Convex (real-time serverless database) |
 | Styling | CSS variables, no preprocessor |
-| Hosting | Convex self-hosting (default) or Netlify (legacy) |
+| Hosting | Convex self-hosting |
 | Auth | Official Convex Auth with GitHub OAuth |
 | Content | Markdown with gray-matter frontmatter |
 
@@ -90,11 +89,6 @@ Content syncs instantly. No rebuild needed for markdown changes.
 npm run build                  # Build for production
 npx convex deploy              # Deploy Convex functions to production
 npm run deploy                 # Deploy with Convex self-hosting
-```
-
-**Netlify build command:**
-```bash
-npm ci --include=dev && npx convex deploy --cmd 'npm run build'
 ```
 
 ## Code style guidelines
@@ -244,8 +238,6 @@ markdown-blog/
 │   ├── wiki.ts            # Wiki page CRUD, batch upsert, lint
 │   ├── wikiCompiler.ts    # LLM wiki compilation action (GPT-4.1 mini)
 │   └── wikiJobs.ts        # Wiki compilation queued job pattern
-├── netlify/
-│   └── edge-functions/    # Proxies for RSS, sitemap, API
 ├── public/
 │   ├── images/            # Static images and logos
 │   ├── robots.txt         # Crawler rules

@@ -2,11 +2,22 @@
 
 A brief description of each file in the codebase.
 
+## Recent session updates (2026-08-21)
+
+### Remove leftover Netlify files (2026-08-21)
+
+- **Deleted** `netlify.toml`: leftover Git integration after the Netlify site was disconnected.
+- **Deleted** `public/_redirects`: Netlify SPA rules. Convex self-hosting does not read this file.
+- **Deleted** `prds/netlify-deploy-fix.md`: how-to for Netlify builds.
+- **New file** `prds/remove-netlify-leftovers.md`: PRD for the cleanup.
+- **Modified** `AGENTS.md`, `public/AGENTS.md`, `CLAUDE.md`, `content/pages/docs.md`, `public/llms.txt`, `scripts/sync-discovery-files.ts`: hosting is Convex only; no Netlify build command or `netlify/` tree.
+- **Kept** `public/images/logos/netlify.svg` and `links.netlify` in `siteConfig.ts`. Those are logo gallery and footer content.
+
 ## Recent session updates (2026-08-20)
 
 ### Netlify deploy-preview CI (2026-08-20)
 
-- **New file** `netlify.toml`: static-only leftover Git integration. `npm ci --include=dev && npm run build`, publish `dist`, header and redirect rules. Does not run `npx convex deploy` and does not load the archived edge functions.
+- **New file** `netlify.toml`: static-only leftover Git integration. `npm ci --include=dev && npm run build`, publish `dist`, header and redirect rules. Does not run `npx convex deploy` and does not load the archived edge functions. Removed on 2026-08-21 after the Netlify site was disconnected.
 
 ### Listen-to-this-post audio (2026-08-20)
 
@@ -1431,9 +1442,9 @@ Frontmatter is the YAML metadata at the top of each markdown file. Here is how i
 - `convex/schema.ts`: Add field to the posts or pages table schema
 - `convex/posts.ts` or `convex/pages.ts`: Update sync mutation to handle new field
 
-## Netlify edge functions (removed)
+## Netlify files (removed)
 
-Legacy Netlify hosting files (`netlify/`, `netlify.toml`) and fork tooling (`FORK_CONFIG.md`, `fork-config.json.example`, `scripts/configure-fork.ts`) moved to `archive-for-delete/` on 2026-08-16. The site is Convex only: static hosting for the frontend, Convex HTTP actions for RSS, sitemap, API, `/raw/`, and `/mcp` routes. The MCP server lives in `convex/mcp.ts`.
+The Netlify site is disconnected. `netlify.toml` and `public/_redirects` were deleted on 2026-08-21. The `netlify/` edge-function folder was already gone. The site is Convex only: static hosting for the frontend, Convex HTTP actions for RSS, sitemap, API, `/raw/`, and `/mcp` routes. The MCP server lives in `convex/mcp.ts`. The Netlify logo under `public/images/logos/` is gallery content, not hosting.
 
 ## Public Assets (`public/`)
 
@@ -1444,7 +1455,6 @@ Legacy Netlify hosting files (`netlify/`, `netlify.toml`) and fork tooling (`FOR
 | `apple-touch-icon.png` | 180x180 iOS home screen icon rasterized from favicon.svg on the tan background                 |
 | `icon-192.png` | 192x192 manifest icon                                                                                  |
 | `icon-512.png` | 512x512 manifest icon                                                                                  |
-| `_redirects`   | SPA redirect rules for static files                                                                    |
 | `robots.txt`   | Crawler rules for search engines and AI bots (update sitemap URL when forking, uses www.markdown.fast) |
 | `llms.txt`     | AI agent discovery file (update site name/URL when forking, uses www.markdown.fast)                    |
 | `openapi.yaml` | OpenAPI 3.0 specification (update API title when forking, uses www.markdown.fast)                      |

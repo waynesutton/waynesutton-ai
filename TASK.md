@@ -34,7 +34,7 @@
 - [ ] Browser pass on the open live link: confirm the open icon shows on published post and page rows (including published unlisted), is absent on drafts, and that the editor toolbar Open button loads the live URL (PRD: prds/dashboard-open-live-link.md)
 - [ ] X integration manual setup: create an X developer app (OAuth 2.0, confidential client), set callback URL to https://<deployment>.convex.site/x/callback, then set X_CLIENT_ID and X_CLIENT_SECRET in the API Keys dashboard section or Convex env vars (dev + prod)
 - [ ] Manual setup from prds/finish-updating-guide.md: GitHub OAuth apps (dev + prod), OPENAI_API_KEY, pipeline keys, optional webhooks
-- [ ] Finish prod cutover manual steps: prod JWT keys, GitHub OAuth creds, OPENAI_API_KEY, seed dashboard admins, delete Netlify site (finish guide section 8 steps 1 to 3)
+- [ ] Finish prod cutover manual steps: prod JWT keys, GitHub OAuth creds, OPENAI_API_KEY, seed dashboard admins (finish guide section 8 steps 1 to 3). Netlify is already disconnected.
 - [ ] Optional: add www.waynesutton.ai as a Convex custom domain (or DNS redirect to apex) so www stops failing TLS
 - [ ] Publish blogskill/SKILL.md to the waynesutton/blogskill repo
 - [ ] Revoke the dev verify-test API key and delete the dev pipeline-verification-draft test post
@@ -59,6 +59,12 @@
 - [ ] Decide phase 3 of the dashboard overhaul: homepage category sections (there is no category concept in the schema, only tags and the docs group fields, so this needs a call on tag driven vs a new frontmatter field vs hand curated in config), the homepage 16:9 image with a resize scaler, and whether to apply the supplied dashboard design spec (it is a single light palette while this dashboard themes four ways off `--db-*` tokens, and Inter is named in the font stack but never loaded) (PRD: prds/homepage-and-dashboard-overhaul.md)
 
 ## Completed
+
+- [x] Remove leftover Netlify files after disconnecting the site (2026-08-21) (PRD: prds/remove-netlify-leftovers.md)
+  - Deleted `netlify.toml`, `public/_redirects`, and `prds/netlify-deploy-fix.md`
+  - `netlify/` was already gone
+  - Kept `public/images/logos/netlify.svg` and `links.netlify` (site content, not hosting)
+  - Live docs no longer list a Netlify build command or a `netlify/` folder
 
 - [x] Netlify deploy-preview CI on the listen-to-this-post PR (2026-08-20)
   - Four GitHub checks were one leftover Netlify deploy. Preview ran `npx convex deploy` with no deploy key and failed in ~20s

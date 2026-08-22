@@ -403,7 +403,7 @@ Each post contains:
 # Technical
 - Backend: Convex (real-time database)
 - Frontend: React, TypeScript, Vite
-- Hosting: Netlify with edge functions
+- Hosting: Convex self-hosting
 - Content: Markdown with frontmatter
 
 # Discovery Files
@@ -413,7 +413,6 @@ Each post contains:
 # Links
 - GitHub: ${githubUrl}
 - Convex: https://convex.dev
-- Netlify: https://netlify.com
 `;
 }
 
