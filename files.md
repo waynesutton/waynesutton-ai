@@ -2,6 +2,22 @@
 
 A brief description of each file in the codebase.
 
+## Recent session updates (2026-08-29)
+
+### Projects index and dashboard section (2026-08-29)
+
+- **New file** `prds/projects-page.md`: Problem, layout decisions, schema, files touched, edge cases, verification steps.
+- **New file** `convex/projects.ts`: `listPublished` for the public page, `listAll` for the dashboard, and `create` / `update` / `remove` behind `requireDashboardAdmin`. Shared `projectFields` validator and a `compareProjects` sort (order, then newest).
+- **New file** `src/pages/Projects.tsx`: The `/projects` index. List, one column, and two column layouts with a segmented switcher, view choice kept in localStorage. `ProjectLinkRail` renders live, repo, X, and LinkedIn in a fixed order so glyphs never move between rows, dimming the ones with no URL. `ProjectThumbnail` holds 16:9 and is skipped in list view.
+- **New file** `src/components/dashboard/ProjectsSection.tsx`: Dashboard CRUD. Inline create and edit form, slug auto-filled from the title, published and featured switches, the three external link fields, thumbnail by URL or `ImageUploadModal` upload with a 16:9 preview, and the site confirm modal for deletes.
+- **Modified** `convex/schema.ts`: `projects` table with `by_slug` and `by_published`.
+- **Modified** `src/config/siteConfig.ts`: `ProjectsPageConfig` and its defaults. Route, nav visibility, nav order, title, description, default layout, layout switcher.
+- **Modified** `src/App.tsx`: Lazy `/projects` route, rendered only when the page is enabled.
+- **Modified** `src/components/Layout.tsx`: Projects nav item from config, ordered with the other nav links.
+- **Modified** `src/pages/Dashboard.tsx`: Projects section in the sidebar and the Projects Page card in Site Config.
+- **Modified** `src/styles/global.css`: Projects index styles. Card surface matches `.post-card`, 16:9 thumbnail, link rail, and per-layout rules including the two-to-one column collapse.
+- **Modified** `src/styles/dashboard-forms.css`: Thumbnail field row, 16:9 preview and its empty state, link glyphs in list rows.
+
 ## Recent session updates (2026-08-22)
 
 ### Rename markdown footer to closing note (2026-08-22)

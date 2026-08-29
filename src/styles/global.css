@@ -18327,3 +18327,365 @@ body:has(.docs-layout) {
 .pipeline-vendor-missing {
   color: var(--text-secondary);
 }
+
+/* ==========================================================================
+   Projects index (/projects)
+   A workshop index of shipped work. Borders-only depth to match .post-card,
+   with layout switching between a text-only list, image-left rows, and an
+   image-top two-column grid.
+   ========================================================================== */
+
+.projects-page {
+  padding-top: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* Text-only list reads as prose, so hold it to a comfortable measure */
+.projects-page-list {
+  max-width: 720px;
+}
+
+.projects-header {
+  margin-bottom: 40px;
+}
+
+.projects-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.projects-title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-blog-page-title);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  text-wrap: balance;
+}
+
+:root[data-theme="dark"] .projects-title {
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+:root[data-theme="light"] .projects-title {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.projects-description {
+  font-size: var(--font-size-blog-page-description);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 600px;
+}
+
+/* Segmented control: one bordered group, dividers between options */
+.projects-view-toggle {
+  display: flex;
+  flex-shrink: 0;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.projects-view-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--border-color);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.projects-view-option:first-child {
+  border-left: none;
+}
+
+.projects-view-option:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.projects-view-option[aria-pressed="true"] {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.projects-view-option:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.projects-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.projects-page-two-column .projects-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.project-card:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.project-thumbnail {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  flex-shrink: 0;
+  background-color: var(--bg-hover);
+}
+
+.project-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.project-card:hover .project-thumbnail img {
+  transform: scale(1.03);
+}
+
+.project-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  flex-grow: 1;
+}
+
+.project-title {
+  font-size: var(--font-size-featured-card-title);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  margin: 0;
+}
+
+/* Whether a project is live is signalled by the arrow being there at all, not
+   by hue. Accent is pure black in the light theme, so a colored link would be
+   invisible next to the plain titles it needs to differ from. */
+.project-title-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.project-title-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.project-title-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.project-title-arrow {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition:
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.project-card:hover .project-title-arrow,
+.project-title-link:focus-visible .project-title-arrow {
+  color: var(--text-primary);
+  transform: translate(1px, -1px);
+}
+
+.project-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Link rail sits at the bottom-right corner of every card. Missing links stay
+   in place as dimmed glyphs so the row of icons never shifts between cards */
+.project-rail {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.project-rail-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--text-primary);
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+a.project-rail-icon:hover {
+  color: var(--accent);
+}
+
+a.project-rail-icon:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.project-rail-icon-empty {
+  color: var(--text-muted);
+  opacity: 0.35;
+}
+
+/* One column: thumbnail left, text right */
+.projects-page-one-column .project-card {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.projects-page-one-column .project-thumbnail {
+  width: 280px;
+  flex-shrink: 0;
+  aspect-ratio: 16 / 9;
+}
+
+.projects-page-one-column .project-body {
+  padding: 20px;
+}
+
+/* List: no thumbnail, tighter rhythm, title and rail on one line */
+.projects-page-list .projects-grid {
+  gap: 0;
+}
+
+.projects-page-list .project-card {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+}
+
+.projects-page-list .project-card:hover {
+  background: none;
+  border-color: var(--border-color);
+}
+
+.projects-page-list .project-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  column-gap: 20px;
+  row-gap: 4px;
+  padding: 16px 0;
+}
+
+.projects-page-list .project-description {
+  grid-column: 1;
+}
+
+.projects-page-list .project-rail {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-items: center;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.projects-empty {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 768px) {
+  .projects-page {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .projects-header {
+    margin-bottom: 24px;
+  }
+
+  .projects-header-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Stacked header puts the control at the left edge; keep tooltips on screen */
+  .projects-view-option[data-tooltip]::after {
+    left: 0;
+    right: auto;
+  }
+
+  /* Both card layouts collapse to a single stacked column on phones */
+  .projects-page-two-column .projects-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .projects-page-one-column .project-card {
+    flex-direction: column;
+  }
+
+  .projects-page-one-column .project-thumbnail {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .projects-page {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .projects-view-option {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Narrow screens cannot hold title and rail side by side */
+  .projects-page-list .project-body {
+    grid-template-columns: 1fr;
+  }
+
+  .projects-page-list .project-rail {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
+    padding-top: 8px;
+  }
+}

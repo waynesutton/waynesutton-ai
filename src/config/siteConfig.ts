@@ -45,6 +45,18 @@ export interface BlogPageConfig {
   showViewToggle: boolean; // Show toggle button to switch between views
 }
 
+// Projects page configuration
+// Controls the /projects index of shipped work
+export interface ProjectsPageConfig {
+  enabled: boolean; // Enable the /projects route
+  showInNav: boolean; // Show "Projects" link in navigation
+  title: string; // Page title for the projects page
+  description?: string; // Optional line shown under the title
+  order?: number; // Nav order (lower = first, matches page frontmatter order)
+  viewMode: "list" | "one-column" | "two-column"; // Default layout
+  showViewToggle: boolean; // Show the segmented control to switch layouts
+}
+
 // Homepage posts read more link configuration
 // Optional link shown below limited post list on homepage
 export interface HomePostsReadMoreConfig {
@@ -430,6 +442,9 @@ export interface SiteConfig {
   // Blog page configuration
   blogPage: BlogPageConfig;
 
+  // Projects page configuration
+  projectsPage: ProjectsPageConfig;
+
   // Hardcoded navigation items for React routes (like /stats, /write)
   hardcodedNavItems: HardcodedNavItem[];
 
@@ -656,6 +671,18 @@ export const siteConfig: SiteConfig = {
     order: 2, // Nav order (lower = first, e.g., 0 = first, 5 = after pages with order 0-4)
     viewMode: "cards", // Default view mode: "list" or "cards"
     showViewToggle: true, // Show toggle button to switch between list and card views
+  },
+
+  // Projects page configuration
+  // A flat index of shipped work, managed entirely from the dashboard
+  projectsPage: {
+    enabled: true, // Enable the /projects route
+    showInNav: true, // Show "Projects" link in navigation
+    title: "Projects", // Page title
+    description: "Things I've built.", // Optional line under the title
+    order: 3, // Nav order (lower = first)
+    viewMode: "two-column", // Default layout: "list", "one-column", or "two-column"
+    showViewToggle: true, // Show the segmented control to switch layouts
   },
 
   // Hardcoded navigation items for React routes

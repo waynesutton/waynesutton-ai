@@ -34,6 +34,7 @@ const Home = lazy(() => import("./pages/Home"));
 const Post = lazy(() => import("./pages/Post"));
 const Stats = lazy(() => import("./pages/Stats"));
 const Blog = lazy(() => import("./pages/Blog"));
+const Projects = lazy(() => import("./pages/Projects"));
 const DocsPage = lazy(() => import("./pages/DocsPage"));
 const Write = lazy(() => import("./pages/Write"));
 const TagPage = lazy(() => import("./pages/TagPage"));
@@ -153,6 +154,10 @@ function App() {
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             {/* Blog page route - only enabled when blogPage.enabled is true */}
             {siteConfig.blogPage.enabled && <Route path="/blog" element={<Blog />} />}
+            {/* Projects index route - only enabled when projectsPage.enabled is true */}
+            {siteConfig.projectsPage?.enabled && (
+              <Route path="/projects" element={<Projects />} />
+            )}
             {/* Docs page route - only enabled when docsSection.enabled is true */}
             {siteConfig.docsSection?.enabled && (
               <Route path={`/${siteConfig.docsSection.slug}`} element={<DocsPage />} />

@@ -50,6 +50,7 @@ import type * as newsletterActions from "../newsletterActions.js";
 import type * as pages from "../pages.js";
 import type * as pipelineKeys from "../pipelineKeys.js";
 import type * as posts from "../posts.js";
+import type * as projects from "../projects.js";
 import type * as r2 from "../r2.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as rss from "../rss.js";
@@ -115,6 +116,7 @@ declare const fullApi: ApiFromModules<{
   pages: typeof pages;
   pipelineKeys: typeof pipelineKeys;
   posts: typeof posts;
+  projects: typeof projects;
   r2: typeof r2;
   rateLimits: typeof rateLimits;
   rss: typeof rss;

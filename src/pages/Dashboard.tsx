@@ -81,6 +81,7 @@ import {
   ArrowUp,
   ArrowDown,
   Plus,
+  Stack,
 } from "@phosphor-icons/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { useDragSort } from "../hooks/useDragSort";
@@ -88,6 +89,7 @@ import { DraftsInbox } from "../components/dashboard/DraftsInbox";
 import { ApiKeysSection } from "../components/dashboard/ApiKeysSection";
 import { XSection } from "../components/dashboard/XSection";
 import { HomepageSection } from "../components/dashboard/HomepageSection";
+import { ProjectsSection } from "../components/dashboard/ProjectsSection";
 import AgentReadySection from "../components/AgentReadySection";
 import DashboardDocsSection from "../components/DashboardDocsSection";
 import siteConfig from "../config/siteConfig";
@@ -568,6 +570,7 @@ type DashboardSection =
   | "overview"
   | "posts"
   | "pages"
+  | "projects"
   | "post-editor"
   | "page-editor"
   | "write-post"
@@ -1895,6 +1898,9 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
         { id: "overview" as const, label: "Overview", icon: SquaresFour },
         { id: "posts" as const, label: "Posts", icon: Article },
         { id: "pages" as const, label: "Pages", icon: Files },
+        ...(siteConfig.projectsPage?.enabled
+          ? [{ id: "projects" as const, label: "Projects", icon: Stack }]
+          : []),
       ],
     },
     {
@@ -2147,6 +2153,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               {activeSection === "overview" && "Overview"}
               {activeSection === "posts" && "Posts"}
               {activeSection === "pages" && "Pages"}
+              {activeSection === "projects" && "Projects"}
               {activeSection === "post-editor" && "Edit Post"}
               {activeSection === "page-editor" && "Edit Page"}
               {activeSection === "write-post" && "Write Post"}
@@ -2316,6 +2323,14 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               isLoading={pages === undefined}
             />
           )}
+
+          {/* Projects: dashboard-only content for the /projects index */}
+          {activeSection === "projects" &&
+            (isDemo ? (
+              <DemoSectionGate section="Projects" />
+            ) : (
+              <ProjectsSection addToast={addToast} searchQuery={searchQuery} />
+            ))}
 
           {/* Post/Page Editor */}
           {(activeSection === "post-editor" || activeSection === "page-editor") && editingItem && (
@@ -6073,6 +6088,14 @@ function ConfigSection({
     blogPageViewMode: siteConfig.blogPage.viewMode,
     blogPageShowViewToggle: siteConfig.blogPage.showViewToggle,
     blogPageOrder: siteConfig.blogPage.order,
+    // Projects page
+    projectsPageEnabled: siteConfig.projectsPage.enabled,
+    projectsPageShowInNav: siteConfig.projectsPage.showInNav,
+    projectsPageTitle: siteConfig.projectsPage.title,
+    projectsPageDescription: siteConfig.projectsPage.description || "",
+    projectsPageViewMode: siteConfig.projectsPage.viewMode,
+    projectsPageShowViewToggle: siteConfig.projectsPage.showViewToggle,
+    projectsPageOrder: siteConfig.projectsPage.order,
     // Posts display
     showPostsOnHome: siteConfig.postsDisplay.showOnHome,
     showPostsOnBlogPage: siteConfig.postsDisplay.showOnBlogPage,
@@ -6282,6 +6305,15 @@ function ConfigSection({
         order: config.blogPageOrder,
         viewMode: config.blogPageViewMode,
         showViewToggle: config.blogPageShowViewToggle,
+      },
+      projectsPage: {
+        enabled: config.projectsPageEnabled,
+        showInNav: config.projectsPageShowInNav,
+        title: config.projectsPageTitle,
+        description: config.projectsPageDescription,
+        order: config.projectsPageOrder,
+        viewMode: config.projectsPageViewMode,
+        showViewToggle: config.projectsPageShowViewToggle,
       },
       postsDisplay: {
         showOnHome: config.showPostsOnHome,
@@ -6502,6 +6534,16 @@ export const siteConfig: SiteConfig = {
     order: ${config.blogPageOrder},
     viewMode: "${config.blogPageViewMode}",
     showViewToggle: ${config.blogPageShowViewToggle},
+  },
+
+  projectsPage: {
+    enabled: ${config.projectsPageEnabled},
+    showInNav: ${config.projectsPageShowInNav},
+    title: "${config.projectsPageTitle}",
+    description: "${config.projectsPageDescription}",
+    order: ${config.projectsPageOrder},
+    viewMode: "${config.projectsPageViewMode}",
+    showViewToggle: ${config.projectsPageShowViewToggle},
   },
   
   hardcodedNavItems: [
@@ -6875,6 +6917,90 @@ export default siteConfig;
             These three apply to /blog, tag pages, and author pages. Homepage
             list controls stay under Posts Display.
           </span>
+        </div>
+
+        {/* Projects Page Settings */}
+        <div className="dashboard-config-card">
+          <h3>Projects Page</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.projectsPageEnabled}
+                onChange={(e) => handleChange("projectsPageEnabled", e.target.checked)}
+              />
+              <span>Enable /projects route</span>
+            </label>
+            <span className="config-hint">
+              Also controls the Projects section in this dashboard
+            </span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.projectsPageShowInNav}
+                onChange={(e) => handleChange("projectsPageShowInNav", e.target.checked)}
+              />
+              <span>Show in navigation</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Projects Title</label>
+            <input
+              type="text"
+              value={config.projectsPageTitle}
+              onChange={(e) => handleChange("projectsPageTitle", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Description</label>
+            <input
+              type="text"
+              value={config.projectsPageDescription}
+              onChange={(e) => handleChange("projectsPageDescription", e.target.value)}
+              placeholder="Things I've built."
+            />
+            <span className="config-hint">One line under the title. Blank hides it.</span>
+          </div>
+          <div className="config-field">
+            <label>Default Layout</label>
+            <select
+              value={config.projectsPageViewMode}
+              onChange={(e) => handleChange("projectsPageViewMode", e.target.value)}>
+              <option value="list">List (text only)</option>
+              <option value="one-column">One column (image left)</option>
+              <option value="two-column">Two column (image top)</option>
+            </select>
+            <span className="config-hint">
+              Layout new visitors see first on /projects
+            </span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.projectsPageShowViewToggle}
+                onChange={(e) =>
+                  handleChange("projectsPageShowViewToggle", e.target.checked)
+                }
+              />
+              <span>Show layout toggle</span>
+            </label>
+            <span className="config-hint">
+              Hide to lock /projects to the default layout
+            </span>
+          </div>
+          <div className="config-field">
+            <label>Nav Order</label>
+            <input
+              type="number"
+              value={config.projectsPageOrder ?? 3}
+              onChange={(e) =>
+                handleChange("projectsPageOrder", parseInt(e.target.value) || 0)
+              }
+            />
+          </div>
         </div>
 
         {/* Posts Display */}

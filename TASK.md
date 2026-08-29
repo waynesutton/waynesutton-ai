@@ -2,6 +2,8 @@
 
 ## To Do
 
+- [ ] Signed-in browser pass on Projects: in Dashboard Projects add a project with a title, description, live URL, all three external links, and an uploaded thumbnail, confirm the preview holds 16:9 and the slug auto-fills, then Save. Open `/projects` and switch all three layouts: list shows no images, one column pairs a small still with the text, two column is a card grid. Confirm a project with no live URL has no arrow after its title, a project with a missing link shows that glyph dimmed and non-clickable in the same slot, and a project with no thumbnail still renders in all three layouts. Unpublish one and confirm it leaves `/projects` but stays in the dashboard. Turn Show in nav off in Site Config and confirm the header link goes while `/projects` still loads, then turn the route off and confirm the URL 404s. Check all four themes at desktop and 375px. PRD: prds/projects-page.md
+
 - [ ] Category sections as page nav: in Dashboard Homepage, check Show in nav on a section with a real tag, Save, confirm the heading appears in desktop and mobile nav and opens `/tags/{tag}` with the section title, no Back arrow, and the wide column. Uncheck Show on homepage (leave Show in nav on) and confirm `/` no longer lists that section while the header link stays. Uncheck Show in nav and confirm the nav link leaves while the tag URL still loads. Group posts off should keep the nav link. A homepage limit smaller than the tag count should show View all. PRD: prds/category-section-nav-pages.md
 
 - [ ] Browser pass on homepage category inputs: Dashboard Homepage, Category sections heading and tag should look like other config fields (accent focus, not a blue ring). Turn Group posts on, pick a real tag from the list, Save, open `/`, confirm the section and matching posts show. A fake tag should show "No published posts" in the card and nothing on `/`. PRD: prds/homepage-category-section-inputs.md
@@ -76,6 +78,17 @@
 - [ ] Decide phase 3 of the dashboard overhaul: homepage category sections (there is no category concept in the schema, only tags and the docs group fields, so this needs a call on tag driven vs a new frontmatter field vs hand curated in config), the homepage 16:9 image with a resize scaler, and whether to apply the supplied dashboard design spec (it is a single light palette while this dashboard themes four ways off `--db-*` tokens, and Inter is named in the font stack but never loaded) (PRD: prds/homepage-and-dashboard-overhaul.md)
 
 ## Completed
+
+- [x] Projects index at `/projects` with a dashboard Projects section (2026-08-29 22:10 UTC) (PRD: prds/projects-page.md)
+  - `convex/projects.ts` with `listPublished` (public), `listAll` (admin), and `create` / `update` / `remove`
+  - `projects` table in `convex/schema.ts` with `by_slug` and `by_published`
+  - `src/pages/Projects.tsx`: list, one column, and two column layouts, view choice persisted
+  - Fixed-order link rail (live, repo, X, LinkedIn) so glyph positions never shift between rows
+  - Live URL is signalled by an arrow after the title, not accent color, which is pure black in the light theme
+  - `src/components/dashboard/ProjectsSection.tsx`: inline CRUD, auto slug, 16:9 thumbnail preview, `ImageUploadModal`, site confirm modal for deletes
+  - Projects Page card in Site Config: route, nav link, nav order, title, description, default layout, layout switcher
+  - Verified: `tsc --noEmit` clean, eslint clean on the four touched files, convex-doctor reports nothing against the new files
+  - Measured at 1280px: list 672px text only, one column 752px with a 280x158 still, two column 366px grid with a 364x205 full-bleed thumbnail, all 16:9, no horizontal overflow; collapses to one column at 651px
 
 - [x] Rename the Connect with me markdown to Closing note (2026-08-22 19:25 UTC) (PRD: prds/rename-closing-note.md)
   - Site Config card is Closing note. Icon bar card is Footer

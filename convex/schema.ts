@@ -135,6 +135,25 @@ export default defineSchema({
       filterFields: ["published"],
     }),
 
+  // Shipped work shown at /projects. A project has no body and no route of its
+  // own: it is a title, a line of description, a thumbnail, and the links that
+  // hang off it. Dashboard is the only writer, so there is no source field.
+  projects: defineTable({
+    slug: v.string(), // Stable identity and list key, not a route
+    title: v.string(),
+    description: v.string(),
+    published: v.boolean(),
+    order: v.optional(v.number()), // Manual ordering; projects are not chronological
+    featured: v.optional(v.boolean()), // Pins to the top of the index
+    thumbnail: v.optional(v.string()), // 16:9 image URL
+    url: v.optional(v.string()), // Primary/live link; makes the title clickable
+    repoUrl: v.optional(v.string()),
+    xUrl: v.optional(v.string()),
+    linkedinUrl: v.optional(v.string()),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_published", ["published"]),
+
   // View counts for analytics
   viewCounts: defineTable({
     slug: v.string(),

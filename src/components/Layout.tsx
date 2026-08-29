@@ -145,6 +145,18 @@ export default function Layout({ children }: LayoutProps) {
     });
   }
 
+  // Add Projects link if enabled
+  if (
+    siteConfig.projectsPage?.enabled &&
+    siteConfig.projectsPage?.showInNav
+  ) {
+    navItems.push({
+      slug: "projects",
+      title: siteConfig.projectsPage.title,
+      order: siteConfig.projectsPage.order ?? 3,
+    });
+  }
+
   // Add Docs link if enabled
   if (siteConfig.docsSection?.enabled && siteConfig.docsSection?.showInNav) {
     navItems.push({
