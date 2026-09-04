@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- The agent-ready auto discovery sync now covers everything that writes content, not just dashboard posts. Dashboard page create, update, and delete upsert or archive their path in the live `llms.txt` and `agents.md`. Project create, update, and delete refresh a single `/projects` entry whose full content mirrors the VFS `/projects.md`, so `llms-full.txt` lists every shipped project. The CLI sync mutations (`npm run sync`) batch one discovery refresh per run covering published, unpublished, renamed, and deleted markdown content. All of it stays behind the dashboard auto-sync toggle and idempotent. Verified live on dev: `/llms.txt` shows Pages, Projects, and Posts sections after a CLI sync. PRD: `prds/discovery-auto-sync-pages-projects.md` (2026-09-04).
+- The virtual filesystem now serves `/projects.md`, a generated markdown index of published projects with descriptions and live, repo, X, and LinkedIn links, listed in `ls /`, `tree`, and the `/index.md` site index. Generated `llms.txt` gained a Projects section fed by the same data, and the agent-ready config gained a Projects page entry plus `/mcp` and `/raw/{slug}.md` endpoints, so agents can discover shipped work through every door. PRD: `prds/discovery-files-projects-refresh.md` (2026-09-04).
+
+### Fixed
+
+- `AGENTS.md`, `CLAUDE.md`, `public/llms.txt`, and the agent-ready instructions still described the markdown.fast fork source: an LLM wiki, knowledge bases, a source ingest pipeline, `/api/kb` endpoints, and `sync:wiki` commands, none of which exist in this repo, while missing what does exist. All four now match the shipped app: projects, the MCP server at `/mcp`, the agent drafts API, AgentMail email door, post audio, homepage category sections, and the real HTTP endpoint and schema tables. PRD: `prds/discovery-files-projects-refresh.md` (2026-09-04).
+
 ### Changed
 
 - The Connect with me markdown is off. That block is a Closing note, not the footer. Switch it with `footer.enabled` in siteConfig or Enable closing note in Site Config. The Footer card is the icon bar. PRD: `prds/hide-markdown-footer-and-voice-label.md`, `prds/rename-closing-note.md` (2026-08-22).

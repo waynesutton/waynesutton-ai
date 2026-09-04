@@ -5,7 +5,7 @@ Project instructions for Claude Code.
 ## Project context
 
 <!-- Auto-updated by sync:discovery -->
-<!-- Site: Wayne Sutton | Posts: 4 | Pages: 1 | Updated: 2026-08-17T18:23:41.682Z -->
+<!-- Site: Wayne Sutton | Posts: 6 | Pages: 1 | Updated: 2026-09-04T09:00:31.099Z -->
 
 Markdown sync framework. Write markdown in `content/`, run sync commands, content appears instantly via Convex real-time database. Built for developers and AI agents.
 
@@ -24,13 +24,12 @@ npm run sync                   # Sync markdown to Convex
 |---------|---------|
 | `npm run sync` | Sync markdown to dev Convex |
 | `npm run sync:prod` | Sync markdown to prod Convex |
-| `npm run sync:discovery` | Update AGENTS.md, CLAUDE.md, llms.txt (includes wiki pages) |
+| `npm run sync:discovery` | Update AGENTS.md, CLAUDE.md, llms.txt (posts, pages, projects) |
 | `npm run sync:discovery:prod` | Update discovery files for production |
-| `npm run sync:wiki` | Sync wiki from content/blog and content/pages |
-| `npm run sync:wiki:prod` | Sync wiki to production |
-| `npm run sync:wiki -- --kb=<id>` | Sync wiki into a specific knowledge base |
-| `npm run sync:all` | Sync content + wiki + discovery files |
+| `npm run sync:all` | Sync content + discovery files |
 | `npm run sync:all:prod` | Sync all to production |
+| `npx agent-ready sync` | Push agent-ready.config.json to dev deployment |
+| `npx agent-ready sync --prod` | Push agent-ready.config.json to production |
 | `npm run dev` | Start Vite dev server |
 | `npm run build` | Production build |
 | `npx convex dev` | Start Convex dev watcher |
@@ -66,7 +65,7 @@ npm run sync                   # Sync markdown to Convex
 ### Deploying to production
 
 ```bash
-npm run sync:all:prod          # Sync content + wiki + discovery to prod
+npm run sync:all:prod          # Sync content + discovery to prod
 npx convex deploy              # Deploy Convex functions
 npm run deploy                 # Deploy static assets via Convex self-hosting
 ```
@@ -119,13 +118,19 @@ The Dashboard Config generates downloadable siteConfig.ts code. Users can config
 | `convex/schema.ts` | Database schema with indexes |
 | `convex/posts.ts` | Post queries and mutations |
 | `convex/pages.ts` | Page queries and mutations |
+| `convex/projects.ts` | Projects CRUD for the /projects index |
 | `convex/stats.ts` | Analytics (conflict-free patterns) |
 | `convex/rateLimits.ts` | Rate limit definitions (4 tiers) and HTTP action bridge |
 | `convex/http.ts` | HTTP endpoints with rate limiting |
+| `convex/virtualFs.ts` | Virtual filesystem (blog, pages, docs, projects.md) |
+| `convex/mcp.ts` | MCP server over HTTP |
+| `convex/agentReady/` | Agent-ready component wrappers and auto discovery sync |
+| `agent-ready.config.json` | Agent-ready pages, endpoints, and widget settings |
 | `src/config/siteConfig.ts` | Site configuration |
 | `src/pages/Dashboard.tsx` | Dashboard including ConfigSection |
+| `src/pages/Projects.tsx` | Public /projects index page |
 | `scripts/sync-posts.ts` | Markdown to Convex sync |
-| `scripts/sync-discovery-files.ts` | Updates AGENTS.md, CLAUDE.md, llms.txt with wiki pages. Copies AGENTS.md to public/. |
+| `scripts/sync-discovery-files.ts` | Updates AGENTS.md, CLAUDE.md, llms.txt (posts, pages, projects). Copies AGENTS.md to public/. |
 
 ## Project structure
 

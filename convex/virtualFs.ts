@@ -42,6 +42,55 @@ function err(stderr: string, exitCode = 1): CommandResult {
 
 // --- Helper functions (shared transaction, no ctx.runQuery) ---
 
+// Projects have no body of their own, so the whole index renders as one
+// markdown file at /projects.md instead of a directory of stubs.
+// Exported so the agent-ready auto sync serves identical content.
+export type ProjectDoc = {
+  title: string;
+  description: string;
+  featured?: boolean;
+  order?: number;
+  url?: string;
+  repoUrl?: string;
+  xUrl?: string;
+  linkedinUrl?: string;
+};
+
+export function buildProjectsMarkdown(projects: Array<ProjectDoc>): string {
+  const sorted = [...projects].sort((a, b) => {
+    const featuredA = a.featured ? 0 : 1;
+    const featuredB = b.featured ? 0 : 1;
+    if (featuredA !== featuredB) return featuredA - featuredB;
+    const orderA = a.order ?? 999;
+    const orderB = b.order ?? 999;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.title.localeCompare(b.title);
+  });
+
+  const lines: Array<string> = ["# Projects", ""];
+  for (const project of sorted) {
+    lines.push(
+      project.url ? `## [${project.title}](${project.url})` : `## ${project.title}`,
+    );
+    lines.push("", project.description, "");
+    const links: Array<string> = [];
+    if (project.repoUrl) links.push(`[Repo](${project.repoUrl})`);
+    if (project.xUrl) links.push(`[X](${project.xUrl})`);
+    if (project.linkedinUrl) links.push(`[LinkedIn](${project.linkedinUrl})`);
+    if (links.length > 0) {
+      lines.push(links.join(" · "), "");
+    }
+  }
+  return lines.join("\n").trimEnd() + "\n";
+}
+
+async function getPublishedProjects(ctx: QueryCtx): Promise<Array<ProjectDoc>> {
+  return await ctx.db
+    .query("projects")
+    .withIndex("by_published", (q) => q.eq("published", true))
+    .take(MAX_LS_ITEMS);
+}
+
 async function buildPathTreeHelper(ctx: QueryCtx): Promise<Array<FileEntry>> {
   const posts = await ctx.db
     .query("posts")
@@ -53,12 +102,24 @@ async function buildPathTreeHelper(ctx: QueryCtx): Promise<Array<FileEntry>> {
     .withIndex("by_published", (q) => q.eq("published", true))
     .take(MAX_LS_ITEMS);
 
+  const projects = await getPublishedProjects(ctx);
+
   const entries: Array<FileEntry> = [
     { name: "blog", path: "/blog", type: "dir" },
     { name: "pages", path: "/pages", type: "dir" },
     { name: "docs", path: "/docs", type: "dir" },
     { name: "index.md", path: "/index.md", type: "file", title: "Site index" },
   ];
+
+  if (projects.length > 0) {
+    entries.push({
+      name: "projects.md",
+      path: "/projects.md",
+      type: "file",
+      size: buildProjectsMarkdown(projects).length,
+      title: "Projects",
+    });
+  }
 
   for (const post of posts) {
     if (post.unlisted) continue;
@@ -92,6 +153,16 @@ async function readFileHelper(
 ): Promise<{ content: string; title: string; path: string } | null> {
   const p = filePath.replace(/^\/+/, "");
 
+  if (p === "projects.md" || p === "projects") {
+    const projects = await getPublishedProjects(ctx);
+    if (projects.length === 0) return null;
+    return {
+      content: buildProjectsMarkdown(projects),
+      title: "Projects",
+      path: "/projects.md",
+    };
+  }
+
   if (p === "index.md" || p === "") {
     const posts = await ctx.db
       .query("posts")
@@ -112,6 +183,10 @@ async function readFileHelper(
     for (const page of pages) {
       if (page.unlisted) continue;
       lines.push(`- [${page.title}](/pages/${page.slug}.md)`);
+    }
+    const projects = await getPublishedProjects(ctx);
+    if (projects.length > 0) {
+      lines.push("", "## Projects", "", "- [Projects](/projects.md)");
     }
     return { content: lines.join("\n"), title: "Site index", path: "/index.md" };
   }

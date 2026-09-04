@@ -5,6 +5,11 @@ import { requireDashboardAdmin } from "./dashboardAuth";
 import { schedulePostAudioIfNeeded } from "./audio";
 import { audioVoiceValidator } from "./audioDefaults";
 import { resolveReadTime } from "./lib/readTime";
+import {
+  scheduleDiscoverySyncIfEnabled,
+  postDiscoveryEntry,
+  type DiscoveryPublishEntry,
+} from "./agentReady/autoSync";
 
 const ADMIN_POST_QUERY_LIMIT = 2000;
 const PUBLIC_POST_QUERY_LIMIT = 1000;
@@ -759,6 +764,42 @@ export const syncPostsPublic = mutation({
         deleted++;
       }
     }
+
+    // Auto discovery sync: one batched refresh per sync run keeps the live
+    // llms.txt/agents.md matching the repo markdown. Dashboard and demo rows
+    // are skipped here just like in the upsert loop above.
+    const publishEntries: Array<DiscoveryPublishEntry> = [];
+    const discoveryRemovePaths: Array<string> = [];
+    for (const post of args.posts) {
+      const existing = existingBySlug.get(post.slug);
+      if (
+        existing &&
+        (existing.source === "dashboard" || existing.source === "demo")
+      ) {
+        continue;
+      }
+      if (post.published && post.unlisted !== true) {
+        publishEntries.push(postDiscoveryEntry(post));
+      } else if (existing && existing.published && existing.unlisted !== true) {
+        // Was public before this sync, no longer is: drop the stale path
+        discoveryRemovePaths.push(`/${post.slug}`);
+      }
+    }
+    for (const existing of existingPosts) {
+      if (
+        !incomingSlugs.has(existing.slug) &&
+        existing.source !== "dashboard" &&
+        existing.source !== "demo" &&
+        existing.published &&
+        existing.unlisted !== true
+      ) {
+        discoveryRemovePaths.push(`/${existing.slug}`);
+      }
+    }
+    await scheduleDiscoverySyncIfEnabled(ctx, {
+      publish: publishEntries,
+      removePaths: discoveryRemovePaths,
+    });
 
     return { created, updated, deleted, skipped };
   },

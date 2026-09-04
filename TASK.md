@@ -1,6 +1,10 @@
 # Markdown Blog - Tasks
 
+Session updates complete on 2026-09-04: discovery files refresh (projects in VFS, llms.txt, agent-ready config, AGENTS.md/CLAUDE.md rewrite) and auto discovery sync extended to pages, projects, and the CLI sync commands. Both verified on dev; prod push is the first To Do item.
+
 ## To Do
+
+- [ ] Push the discovery refresh to production: `npx convex deploy` (ships the `/projects.md` VFS file and the pages/projects/CLI auto-sync hooks), then `npm run sync:discovery:prod` and `npx agent-ready sync --prod`, then confirm `https://waynesutton.ai/llms.txt` lists Projects and `cat /projects.md` works against prod `/vfs/exec` (PRDs: prds/discovery-files-projects-refresh.md, prds/discovery-auto-sync-pages-projects.md)
 
 - [ ] Signed-in browser pass on Projects: in Dashboard Projects add a project with a title, description, live URL, all three external links, and an uploaded thumbnail, confirm the preview holds 16:9 and the slug auto-fills, then Save. Open `/projects` and switch all three layouts: list shows no images, one column pairs a small still with the text, two column is a card grid. Confirm a project with no live URL has no arrow after its title, a project with a missing link shows that glyph dimmed and non-clickable in the same slot, and a project with no thumbnail still renders in all three layouts. Unpublish one and confirm it leaves `/projects` but stays in the dashboard. Turn Show in nav off in Site Config and confirm the header link goes while `/projects` still loads, then turn the route off and confirm the URL 404s. Check all four themes at desktop and 375px. PRD: prds/projects-page.md
 
@@ -78,6 +82,22 @@
 - [ ] Decide phase 3 of the dashboard overhaul: homepage category sections (there is no category concept in the schema, only tags and the docs group fields, so this needs a call on tag driven vs a new frontmatter field vs hand curated in config), the homepage 16:9 image with a resize scaler, and whether to apply the supplied dashboard design spec (it is a single light palette while this dashboard themes four ways off `--db-*` tokens, and Inter is named in the font stack but never loaded) (PRD: prds/homepage-and-dashboard-overhaul.md)
 
 ## Completed
+
+- [x] Auto discovery sync for pages, projects, and CLI sync (2026-09-04 09:05 UTC) (PRD: prds/discovery-auto-sync-pages-projects.md)
+  - `convex/agentReady/autoSync.ts`: event generalized to publish arrays with sections, `removePaths`, and `refreshProjects`; `/projects` entry carries the full VFS `/projects.md` markdown as `fullContent`, archived when zero projects are published
+  - `convex/cms.ts`: page create/update/delete now sync (publish, unpublish, unlist, slug rename); post call sites moved to the new shape
+  - `convex/projects.ts`: create/update/remove schedule a projects refresh; the action re-reads truth so edits stay idempotent
+  - `convex/posts.ts` + `convex/pages.ts`: `syncPostsPublic` / `syncPagesPublic` batch one discovery event per `npm run sync`, skipping dashboard and demo rows
+  - Verified on dev: `refreshProjects` run put a Projects section in `/llms.txt` and the full index in `/llms-full.txt`; `npm run sync` then refreshed Pages and Posts sections in one pass; typecheck and eslint clean
+  - Prod push tracked in To Do
+
+- [x] Discovery files and agent-ready refresh for projects and current features (2026-09-04 08:35 UTC) (PRD: prds/discovery-files-projects-refresh.md)
+  - `convex/virtualFs.ts`: `/projects.md` virtual file from published projects, in tree, index, and cat; verified live on dev with `cat /projects.md`
+  - `scripts/sync-discovery-files.ts`: llms.txt now includes a Projects section (via `api.projects.listPublished`), `/mcp`, `/projects.md` path, and `/llms-full.txt` + `/agents.md` discovery files
+  - `agent-ready.config.json`: Projects page, `/mcp` and `/raw/{slug}.md` endpoints, wiki claim removed from agent instructions; pushed to dev with `npx agent-ready sync` and verified at `/llms.txt` and `/agents.md`
+  - `AGENTS.md` / `CLAUDE.md`: removed nonexistent wiki, knowledge base, source ingest, `/api/kb`, and `sync:wiki` content; added projects, MCP, drafts API, audio, category sections; corrected endpoints, schema, structure, commands
+  - Ran `npm run sync:discovery`; typecheck and eslint clean
+  - Prod follow-up lives in To Do
 
 - [x] Projects index at `/projects` with a dashboard Projects section (2026-08-29 22:10 UTC) (PRD: prds/projects-page.md)
   - `convex/projects.ts` with `listPublished` (public), `listAll` (admin), and `create` / `update` / `remove`

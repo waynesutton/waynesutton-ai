@@ -2,6 +2,11 @@ import { query, mutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
+import {
+  scheduleDiscoverySyncIfEnabled,
+  pageDiscoveryEntry,
+  type DiscoveryPublishEntry,
+} from "./agentReady/autoSync";
 
 const ADMIN_PAGE_QUERY_LIMIT = 500;
 const PUBLIC_PAGE_QUERY_LIMIT = 250;
@@ -530,6 +535,42 @@ export const syncPagesPublic = mutation({
         deleted++;
       }
     }
+
+    // Auto discovery sync: one batched refresh per sync run keeps the live
+    // llms.txt/agents.md matching the repo markdown. Dashboard and demo rows
+    // are skipped here just like in the upsert loop above.
+    const publishEntries: Array<DiscoveryPublishEntry> = [];
+    const discoveryRemovePaths: Array<string> = [];
+    for (const page of args.pages) {
+      const existing = existingBySlug.get(page.slug);
+      if (
+        existing &&
+        (existing.source === "dashboard" || existing.source === "demo")
+      ) {
+        continue;
+      }
+      if (page.published && page.unlisted !== true) {
+        publishEntries.push(pageDiscoveryEntry(page));
+      } else if (existing && existing.published && existing.unlisted !== true) {
+        // Was public before this sync, no longer is: drop the stale path
+        discoveryRemovePaths.push(`/${page.slug}`);
+      }
+    }
+    for (const existing of existingPages) {
+      if (
+        !incomingSlugs.has(existing.slug) &&
+        existing.source !== "dashboard" &&
+        existing.source !== "demo" &&
+        existing.published &&
+        existing.unlisted !== true
+      ) {
+        discoveryRemovePaths.push(`/${existing.slug}`);
+      }
+    }
+    await scheduleDiscoverySyncIfEnabled(ctx, {
+      publish: publishEntries,
+      removePaths: discoveryRemovePaths,
+    });
 
     return { created, updated, deleted, skipped };
   },

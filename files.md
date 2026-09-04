@@ -2,6 +2,28 @@
 
 A brief description of each file in the codebase.
 
+## Recent session updates (2026-09-04)
+
+### Auto discovery sync for pages, projects, and CLI sync (2026-09-04)
+
+- **New file** `prds/discovery-auto-sync-pages-projects.md`: Problem, root cause, solution, files, edge cases, verification for extending the agent-ready auto sync beyond dashboard posts.
+- **Modified** `convex/agentReady/autoSync.ts`: Event generalized to `publish` arrays with optional `section`, `removePaths`, and `refreshProjects`. New `projectsForDiscovery` internalQuery renders published projects with the shared VFS markdown builder; the action upserts a single `/projects` entry with `fullContent` (or archives it at zero projects). Exported `postDiscoveryEntry` / `pageDiscoveryEntry` helpers.
+- **Modified** `convex/virtualFs.ts`: `buildProjectsMarkdown` and `ProjectDoc` exported for reuse by the auto sync.
+- **Modified** `convex/cms.ts`: Post call sites moved to the array shape; `createPage`, `updatePage` (publish, unpublish, unlist, rename), and `deletePage` now schedule discovery syncs.
+- **Modified** `convex/drafts.ts`: Call sites moved to the array shape via `postDiscoveryEntry`; fixed a pre-existing `no-useless-escape` in `deriveDescription`.
+- **Modified** `convex/projects.ts`: `create` (when published), `update`, and `remove` schedule `refreshProjects` discovery syncs.
+- **Modified** `convex/posts.ts` / `convex/pages.ts`: `syncPostsPublic` and `syncPagesPublic` batch one discovery event per run covering published, formerly-public, and deleted markdown content, skipping dashboard and demo rows.
+
+### Discovery files and agent-ready refresh for projects (2026-09-04)
+
+- **New file** `prds/discovery-files-projects-refresh.md`: Problem, root cause, solution, files, edge cases, verification for bringing AGENTS.md, llms.txt, and agent-ready in line with the shipped app.
+- **Modified** `convex/virtualFs.ts`: New `/projects.md` virtual file built from published projects (title, description, live/repo/X/LinkedIn links), listed in the tree and the `/index.md` site index. Omitted when no projects are published.
+- **Modified** `scripts/sync-discovery-files.ts`: Queries `api.projects.listPublished` and renders a Projects section in generated `llms.txt`; documents `/mcp`, `/projects.md` VFS path, `/llms-full.txt`, and `/agents.md`.
+- **Modified** `agent-ready.config.json`: Projects page entry, `/mcp` and `/raw/{slug}.md` endpoints, agent instructions now point at `/projects.md` instead of the nonexistent wiki, `/vfs/tree` description corrected.
+- **Modified** `AGENTS.md`, `public/AGENTS.md`: Removed markdown.fast fork leftovers (LLM wiki, knowledge bases, source ingest, `/api/kb` endpoints, `sync:wiki` commands). Added projects, MCP server, agent blog pipeline, post audio, category sections, corrected HTTP endpoints table, schema, project structure, frontmatter fields, and siteConfig example.
+- **Modified** `CLAUDE.md`: Commands table matches `package.json` plus `npx agent-ready sync`; key files now include `convex/projects.ts`, `convex/virtualFs.ts`, `convex/mcp.ts`, `convex/agentReady/`, and `src/pages/Projects.tsx`.
+- **Modified** `public/llms.txt`: Regenerated with the Projects section and MCP endpoint.
+
 ## Recent session updates (2026-08-29)
 
 ### Projects index and dashboard section (2026-08-29)

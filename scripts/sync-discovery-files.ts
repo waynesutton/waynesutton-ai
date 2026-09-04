@@ -308,14 +308,34 @@ function updateAgentsMd(
   return content;
 }
 
+// Published project shape for the llms.txt Projects section
+interface ProjectEntry {
+  title: string;
+  description: string;
+  url?: string;
+  repoUrl?: string;
+}
+
 // Generate llms.txt content
 function generateLlmsTxt(
   siteConfig: SiteConfigData,
   siteUrl: string,
   postCount: number,
   latestPostDate?: string,
+  projects: Array<ProjectEntry> = [],
 ): string {
   const githubUrl = getGitHubUrl(siteConfig);
+
+  // Projects section only renders when published projects exist
+  const projectsSection =
+    projects.length > 0
+      ? `\n# Projects\nShipped work listed at ${siteUrl}/projects (also readable via POST /vfs/exec with {"command": "cat /projects.md"}):\n${projects
+          .map((p) => {
+            const link = p.url || p.repoUrl;
+            return `- ${p.title}${link ? ` (${link})` : ""}: ${p.description}`;
+          })
+          .join("\n")}\n`
+      : "";
 
   return `# llms.txt - Information for AI assistants and LLMs
 # Learn more: https://llmstxt.org/
@@ -364,6 +384,11 @@ POST /vfs/exec
 Execute shell-like commands against all site content.
 Send JSON body: {"command": "ls /blog"} or {"command": "grep convex /blog"}
 Supported commands: ls, cat, grep, find, tree, head, wc, pwd, cd
+Paths: /blog, /pages, /docs, /index.md, /projects.md
+
+## MCP Server
+POST /mcp
+Model Context Protocol server (JSON-RPC 2.0 over HTTP) for agent access.
 
 ## Other
 GET /sitemap.xml
@@ -394,7 +419,7 @@ Each post contains:
 - content: string (full markdown)
 - readTime: string (optional)
 - url: string (full URL)
-
+${projectsSection}
 # Permissions
 - AI assistants may freely read and summarize content
 - No authentication required for read operations
@@ -408,6 +433,8 @@ Each post contains:
 
 # Discovery Files
 - /llms.txt - This file (LLM discovery)
+- /llms-full.txt - Full content export for LLMs
+- /agents.md - Agent guide served by the agent-ready component
 - /AGENTS.md - AI agent instructions and codebase overview
 
 # Links
@@ -448,15 +475,23 @@ async function syncDiscoveryFiles() {
   let postCount = 0;
   let pageCount = 0;
   let latestPostDate: string | undefined;
+  let projects: Array<ProjectEntry> = [];
 
   try {
-    const [posts, pages] = await Promise.all([
+    const [posts, pages, publishedProjects] = await Promise.all([
       client.query(api.posts.getAllPosts),
       client.query(api.pages.getAllPages),
+      client.query(api.projects.listPublished),
     ]);
 
     postCount = posts.length;
     pageCount = pages.length;
+    projects = publishedProjects.map((p) => ({
+      title: p.title,
+      description: p.description,
+      url: p.url,
+      repoUrl: p.repoUrl,
+    }));
 
     if (posts.length > 0) {
       // Sort by date descending to get latest
@@ -468,6 +503,7 @@ async function syncDiscoveryFiles() {
 
     console.log(`Found ${postCount} published posts`);
     console.log(`Found ${pageCount} published pages`);
+    console.log(`Found ${projects.length} published projects`);
     if (latestPostDate) {
       console.log(`Latest post: ${latestPostDate}`);
     }
@@ -532,6 +568,7 @@ async function syncDiscoveryFiles() {
     siteUrl,
     postCount,
     latestPostDate,
+    projects,
   );
   const llmsPath = path.join(PUBLIC_DIR, "llms.txt");
   fs.writeFileSync(llmsPath, llmsContent, "utf-8");

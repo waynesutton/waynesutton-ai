@@ -1,6 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { requireDashboardAdmin } from "./dashboardAuth";
+import { scheduleDiscoverySyncIfEnabled } from "./agentReady/autoSync";
 
 const ADMIN_PROJECT_QUERY_LIMIT = 500;
 const PUBLIC_PROJECT_QUERY_LIMIT = 250;
@@ -149,7 +150,14 @@ export const create = mutation({
       );
     }
 
-    return await ctx.db.insert("projects", args.project);
+    const projectId = await ctx.db.insert("projects", args.project);
+
+    // Auto discovery sync: published projects refresh the /projects entry in llms.txt
+    if (args.project.published) {
+      await scheduleDiscoverySyncIfEnabled(ctx, { refreshProjects: true });
+    }
+
+    return projectId;
   },
 });
 
@@ -194,6 +202,11 @@ export const update = mutation({
     }
 
     await ctx.db.patch(args.id, patch);
+
+    // Auto discovery sync: the scheduled action re-reads published projects,
+    // so firing on every edit stays correct and idempotent.
+    await scheduleDiscoverySyncIfEnabled(ctx, { refreshProjects: true });
+
     return null;
   },
 });
@@ -204,6 +217,10 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     await requireDashboardAdmin(ctx);
     await ctx.db.delete(args.id);
+
+    // Auto discovery sync: rebuild the /projects entry without the deleted project
+    await scheduleDiscoverySyncIfEnabled(ctx, { refreshProjects: true });
+
     return null;
   },
 });

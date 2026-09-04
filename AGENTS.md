@@ -13,19 +13,22 @@ Developer Community Lead at Convex, tech event organizer, startup ecosystem buil
 
 **Key features:**
 - Markdown posts with frontmatter
+- Projects index at `/projects` with dashboard CRUD, thumbnails, and repo/X/LinkedIn links
 - Four themes (dark, light, tan, cloud)
 - Full text search with Command+K
 - Semantic search with OpenAI embeddings and Ask AI (Cmd+J)
+- Listen-to-this-post audio generated with OpenAI speech
+- Homepage category sections driven by tags, with optional nav links and banner
 - Real-time analytics at `/stats`
 - RSS feeds and sitemap for SEO
 - API endpoints for AI/LLM access
 - Virtual filesystem HTTP interface (`/vfs/tree`, `/vfs/exec`) with no auth required
-- Source ingest pipeline with Firecrawl scraping and OpenAI embeddings
-- LLM wiki compilation with GPT-4.1 mini driven synthesis and daily cron
-- Knowledge bases with Obsidian vault uploads, per-KB API access, and visibility controls
-- Interactive knowledge graph visualization per wiki and KB
+- MCP server at `/mcp` (JSON-RPC 2.0 over HTTP) for agent tool access
+- Agent blog pipeline: drafts API (`/api/v1/drafts`), AgentMail email door, GitHub review webhook, Drafts Inbox with voice agent rewrite
+- Agent-ready component serving `/llms.txt`, `/llms-full.txt`, and `/agents.md` with auto sync when posts, pages, or projects change (dashboard CRUD, drafts pipeline, and CLI content sync)
+- X (Twitter) integration for posting from the dashboard
 - Anonymous demo mode at `/dashboard` with 30-minute auto-cleanup
-- Admin dashboard with content management, config editor, sync buttons, and KB management
+- Admin dashboard with content management, config editor, sync buttons, projects, newsletter, and API keys
 - Newsletter automation with AgentMail integration
 
 ## Current Status
@@ -33,10 +36,10 @@ Developer Community Lead at Convex, tech event organizer, startup ecosystem buil
 - **Site Name**: Wayne Sutton
 - **Site Title**: Developer Community Builder
 - **Site URL**: https://waynesutton.ai
-- **Total Posts**: 4
+- **Total Posts**: 6
 - **Total Pages**: 1
-- **Latest Post**: 2026-02-15
-- **Last Updated**: 2026-08-17T18:23:41.679Z
+- **Latest Post**: 2026-08-17
+- **Last Updated**: 2026-09-04T09:00:31.098Z
 
 ## Deployments
 
@@ -73,12 +76,13 @@ npm run dev                    # Start dev server at http://localhost:5173
 ```bash
 npm run sync                   # Sync markdown to development Convex
 npm run sync:prod              # Sync markdown to production Convex
-npm run sync:wiki              # Sync wiki from content/blog and content/pages
-npm run sync:wiki:prod         # Sync wiki to production
-npm run sync:wiki -- --kb=<id> # Sync wiki into a specific knowledge base
-npm run sync:all               # Sync content + wiki + discovery (dev)
-npm run sync:all:prod          # Sync content + wiki + discovery (prod)
+npm run sync:discovery         # Update AGENTS.md, CLAUDE.md, public/llms.txt (dev data)
+npm run sync:discovery:prod    # Update discovery files from production data
+npm run sync:all               # Sync content + discovery (dev)
+npm run sync:all:prod          # Sync content + discovery (prod)
 npm run import <url>           # Import external URL as markdown post
+npx agent-ready sync           # Push agent-ready.config.json to dev deployment
+npx agent-ready sync --prod    # Push agent-ready.config.json to production
 ```
 
 Content syncs instantly. No rebuild needed for markdown changes.
@@ -219,7 +223,7 @@ const sendHeartbeat = useCallback(async (path: string) => {
 ## Project structure
 
 ```
-markdown-blog/
+waynesutton-ai/
 ├── content/
 │   ├── blog/              # Markdown blog posts
 │   └── pages/             # Static pages (About, Docs, etc.)
@@ -227,28 +231,33 @@ markdown-blog/
 │   ├── schema.ts          # Database schema with indexes
 │   ├── posts.ts           # Post queries and mutations
 │   ├── pages.ts           # Page queries and mutations
+│   ├── projects.ts        # Projects CRUD for the /projects index
 │   ├── stats.ts           # Analytics (conflict-free patterns)
 │   ├── search.ts          # Full text search
-│   ├── http.ts            # HTTP endpoints (sitemap, API, VFS)
+│   ├── http.ts            # HTTP endpoints (sitemap, API, VFS, webhooks, static serving)
 │   ├── rss.ts             # RSS feed generation
-│   ├── crons.ts           # Scheduled cleanup and wiki compilation
+│   ├── crons.ts           # Scheduled cleanup
 │   ├── virtualFs.ts       # Virtual filesystem (shell commands over HTTP)
-│   ├── sources.ts         # Source ingest CRUD and queued jobs
-│   ├── sourceActions.ts   # Firecrawl scraping + OpenAI embeddings
-│   ├── wiki.ts            # Wiki page CRUD, batch upsert, lint
-│   ├── wikiCompiler.ts    # LLM wiki compilation action (GPT-4.1 mini)
-│   └── wikiJobs.ts        # Wiki compilation queued job pattern
+│   ├── mcp.ts             # MCP server (JSON-RPC 2.0 over HTTP)
+│   ├── drafts.ts          # Drafts Inbox and agent blog pipeline
+│   ├── voiceAgent.ts      # Voice profile rewrite for submitted drafts
+│   ├── audio.ts           # Listen-to-this-post audio (OpenAI speech)
+│   ├── newsletter.ts      # Newsletter subscribers and sends (AgentMail)
+│   ├── xIntegration.ts    # X OAuth and posting
+│   └── agentReady/        # Agent-ready component wrappers and auto sync
 ├── public/
 │   ├── images/            # Static images and logos
 │   ├── robots.txt         # Crawler rules
 │   └── llms.txt           # AI agent discovery
 ├── scripts/
-│   └── sync-posts.ts      # Markdown to Convex sync
+│   ├── sync-posts.ts      # Markdown to Convex sync
+│   └── sync-discovery-files.ts # Updates AGENTS.md, CLAUDE.md, llms.txt
+├── agent-ready.config.json # Agent-ready pages, endpoints, and widget settings
 └── src/
     ├── components/        # React components
     ├── context/           # Theme context
     ├── hooks/             # Custom hooks (usePageTracking)
-    ├── pages/             # Route components
+    ├── pages/             # Route components (Home, Post, Projects, Dashboard...)
     └── styles/            # Global CSS with theme variables
 ```
 
@@ -269,6 +278,11 @@ markdown-blog/
 | excerpt | No | Short text for card view |
 | aiWritten | No | true shows an AI writing note under the title; overrules Drafts Inbox default |
 | image | No | OG image path |
+| ogImage | No | Share image override (does not affect cards or header) |
+| noOgImage | No | true disables the share image (text-only preview) |
+| audio | No | Show listen-to-this-post player (overrides site default) |
+| audioVoice | No | male or female voice override |
+| unlisted | No | Hide from listings but allow direct access |
 | authorName | No | Author display name |
 | authorImage | No | Round author avatar URL |
 
@@ -335,32 +349,24 @@ activeSessions: defineTable({
   .index("by_sessionId", ["sessionId"])
   .index("by_lastSeen", ["lastSeen"])
 
-sources: defineTable({
-  url: v.string(),
+projects: defineTable({
   slug: v.string(),
   title: v.string(),
-  content: v.string(),
-  contentType: v.string(),
-  scrapedAt: v.number(),
-  processed: v.boolean(),
-  embedding: v.optional(v.array(v.float64())),
+  description: v.string(),
+  published: v.boolean(),
+  order: v.optional(v.number()),
+  featured: v.optional(v.boolean()),
+  thumbnail: v.optional(v.string()),
+  url: v.optional(v.string()),
+  repoUrl: v.optional(v.string()),
+  xUrl: v.optional(v.string()),
+  linkedinUrl: v.optional(v.string()),
 })
   .index("by_slug", ["slug"])
-  .index("by_processed", ["processed"])
-  .vectorIndex("by_embedding", { vectorField: "embedding", dimensions: 1536 })
-
-wikiPages: defineTable({
-  slug: v.string(),
-  title: v.string(),
-  content: v.string(),
-  backlinks: v.array(v.string()),
-  lastCompiled: v.number(),
-  embedding: v.optional(v.array(v.float64())),
-})
-  .index("by_slug", ["slug"])
-  .vectorIndex("by_embedding", { vectorField: "embedding", dimensions: 1536 })
-  .searchIndex("search_content", { searchField: "content" })
+  .index("by_published", ["published"])
 ```
+
+Other tables: `drafts`, `apiKeys`, `vendorKeys`, `newsletterSubscribers`, `contactMessages`, `aiChats`, `audioJobs`, `contentVersions`, `dashboardAdmins`, `agentReadySettings`, `voiceProfile`, `xAccounts`, `xShares`, and queued job tables (`aiImageGenerationJobs`, `importUrlJobs`, `semanticSearchJobs`). See `convex/schema.ts` for the full list.
 
 ## HTTP endpoints
 
@@ -374,17 +380,20 @@ All public HTTP endpoints are rate limited using `@convex-dev/rate-limiter`. Exc
 | /api/posts | JSON list of all posts | 60/min |
 | /api/post?slug=xxx | Single post JSON or markdown | 60/min |
 | /api/export | Batch export all posts with content | 10/min |
-| /api/kb | List public knowledge bases | 30/min |
-| /api/kb/pages?slug=xxx | Pages in a knowledge base | 30/min |
-| /api/kb/page?kb=xxx&slug=yyy | Single KB page content | 30/min |
 | /raw/{slug}.md | Raw markdown file | 60/min |
+| /meta/post?slug=xxx | Open Graph HTML for crawlers | (no limit) |
 | /stats | Real-time analytics page | (no limit) |
 | /ask-ai-stream | AI Q&A streaming | 10/min per user |
-| /.well-known/ai-plugin.json | AI plugin manifest | (static) |
-| /openapi.yaml | OpenAPI 3.0 specification | (static) |
-| /llms.txt | AI agent discovery | (static) |
 | /vfs/tree | GET: JSON tree of all content paths | 30/min |
 | /vfs/exec | POST: Execute shell commands (ls, cat, grep, find, tree, head, wc, pwd, cd) | 30/min |
+| /mcp | POST: MCP server, JSON-RPC 2.0 (optional MCP_API_KEY) | per key |
+| /api/v1/drafts | POST: Agent draft submission with x-api-key | 30/min |
+| /api/hooks/agentmail | POST: AgentMail email door webhook (Svix signed) | 30/min |
+| /api/hooks/github | POST: GitHub PR review webhook (HMAC signed) | 30/min |
+| /x/callback | GET: X OAuth callback | 10/min |
+| /llms.txt | AI agent discovery (agent-ready component) | cached |
+| /llms-full.txt | Full content export (agent-ready component) | cached |
+| /agents.md | Agent guide (agent-ready component) | cached |
 
 ## Virtual filesystem
 
@@ -403,110 +412,32 @@ curl -X POST https://yoursite.example.com/vfs/exec \
 curl -X POST https://yoursite.example.com/vfs/exec \
   -H "Content-Type: application/json" \
   -d '{"command": "grep convex /blog"}'
+
+# Read the projects index
+curl -X POST https://yoursite.example.com/vfs/exec \
+  -H "Content-Type: application/json" \
+  -d '{"command": "cat /projects.md"}'
 ```
 
 Supported commands: `ls`, `cat`, `grep`, `find`, `tree`, `head`, `wc`, `pwd`, `cd`
 
-Directories: `/blog`, `/pages`, `/docs`, `/sources`, `/wiki`
+Paths: `/blog`, `/pages`, `/docs`, `/index.md`, `/projects.md`
 
-Implementation: `convex/virtualFs.ts` with helper functions for path tree, file reading, and grep (uses Convex search indexes for coarse filtering, then regex refinement).
+Implementation: `convex/virtualFs.ts` with helper functions for path tree, file reading, and grep (uses Convex search indexes for coarse filtering, then regex refinement). `/projects.md` is a generated index of published projects with descriptions and links.
 
-## Source ingest pipeline
+## Projects
 
-External URLs can be ingested as sources with automatic scraping and embedding generation.
+Shipped work rendered at `/projects` with three layouts (list, one column, two column) configured in `siteConfig.projectsPage`. Projects have no body or route of their own: each is a title, a description line, an optional 16:9 thumbnail, and repo/X/LinkedIn links. The dashboard Projects section is the only writer (`convex/projects.ts`, `src/components/dashboard/ProjectsSection.tsx`, `src/pages/Projects.tsx`). Agents can read the index via `cat /projects.md` on the VFS or the Projects section in `/llms.txt`.
 
-**Queued job pattern:**
-1. Public mutation `requestIngestSource` inserts a pending job and schedules processing
-2. Internal action `scrapeAndProcessSource` uses Firecrawl to scrape the URL to markdown
-3. OpenAI `text-embedding-ada-002` generates a 1536-dimension vector embedding
-4. Batched mutation stores the source and finalizes the job in one transaction
+## Agent blog pipeline
 
-Tables: `sources` (with `by_slug`, `by_processed`, `by_embedding` indexes), `sourceIngestJobs`
+Agents can submit drafts that land in the dashboard Drafts Inbox for human review:
 
-Implementation: `convex/sources.ts`, `convex/sourceActions.ts`
-
-Requires `FIRECRAWL_API_KEY` and `OPENAI_API_KEY` environment variables.
-
-## LLM wiki
-
-An incrementally built, interlinked knowledge base compiled by GPT-4.1 mini from all site content.
-
-**Compilation flow:**
-1. Public mutation `requestCompilation` inserts a pending job
-2. Combined mutation `markRunningAndGetContext` fetches all posts, pages, sources, and existing wiki pages in one transaction
-3. Internal action `compileWiki` sends context to GPT-4.1 mini with structured output instructions
-4. Batched mutation `batchUpsertAndRegenerateIndex` upserts all wiki pages, regenerates the master index, and finalizes the job in one transaction
-
-**Linting flow:**
-1. Public mutation `requestLint` inserts a pending job
-2. Internal action `lintWiki` calls `lintAndStoreReport` which reads all pages, checks backlinks/content length/titles, and stores the report in one transaction
-
-**Cron:** Daily compilation at 4:00 AM UTC via `convex/crons.ts`
-
-Tables: `wikiPages` (with `by_slug`, `by_embedding`, `search_content` indexes), `wikiIndex`, `wikiCompilationJobs`
-
-Implementation: `convex/wiki.ts`, `convex/wikiCompiler.ts`, `convex/wikiJobs.ts`
-
-Requires `OPENAI_API_KEY` environment variable.
-
-**Accessing wiki data:**
-
-The Convex client queries (`api.wiki.listWikiPages`, `getWikiPageBySlug`, `getWikiIndex`, `searchWikiPages`, `getGraphData`) all require authentication. External agents should use the VFS HTTP endpoints instead, which are public and unauthenticated:
-
-```bash
-# List wiki pages
-curl -X POST https://yoursite.example.com/vfs/exec \
-  -H "Content-Type: application/json" \
-  -d '{"command": "ls /wiki"}'
-
-# Read a wiki page
-curl -X POST https://yoursite.example.com/vfs/exec \
-  -H "Content-Type: application/json" \
-  -d '{"command": "cat /wiki/convex.md"}'
-
-# Search wiki content
-curl -X POST https://yoursite.example.com/vfs/exec \
-  -H "Content-Type: application/json" \
-  -d '{"command": "grep authentication /wiki"}'
-```
-
-Knowledge bases with API enabled also have public endpoints at `/api/kb`, `/api/kb/pages`, `/api/kb/page`.
-
-
-## Wiki knowledge base
-
-15 compiled wiki pages. Access via VFS:
-
-```bash
-curl -X POST https://waynesutton.ai/vfs/exec -H "Content-Type: application/json" -d '{"command": "ls /wiki"}'
-```
-
-**General:**
-- Home Intro (`/wiki/wiki-home-intro`)
-- Footer (`/wiki/wiki-footer`)
-- Frontmatter Options (`/wiki/wiki-docs-frontmatter`)
-- Changelog (`/wiki/wiki-changelog`)
-- About (`/wiki/wiki-about`)
-- Wiki resources (`/wiki/wiki-wiki-resources`)
-
-**Convex:**
-- Why I joined Convex (`/wiki/wiki-why-i-joined-convex`)
-- Wiki, knowledge bases, and virtual filesystem (`/wiki/wiki-wiki-knowledge-bases-and-virtual-filesystem`)
-- Convex first: new defaults for markdown.fast (`/wiki/wiki-convex-first-architecture`)
-- How convex-doctor took markdown.fast from 42 to 100 (`/wiki/wiki-convex-doctor-score-42-to-100`)
-
-**Blogging:**
-- Who are you blogging for anyway? (`/wiki/wiki-the-blogging-trap`)
-
-**Open source:**
-- Open source developer communities are eating the world and always have been (`/wiki/wiki-open-source-communities-are-eating-the-world`)
-
-**Entrepreneurship:**
-- The definition of sauce aka taste (`/wiki/wiki-definition-of-sauce`)
-
-**Slides:**
-- Slide template example (`/wiki/wiki-slide-template-example`)
-- Markdown slides (`/wiki/wiki-markdown-slides`)
+1. `POST /api/v1/drafts` with an `x-api-key` pipeline key (created in the dashboard API Keys section). Payload: `{ title?, rawInput, type, mode, source, links?, tags? }`.
+2. The MCP server at `/mcp` exposes `create_draft` using the same keys.
+3. The AgentMail email door accepts mail from allowlisted senders; replies to draft previews with `publish`, `reject`, or `edit` drive the approval loop.
+4. A voice agent (`convex/voiceAgent.ts`) rewrites `rewrite` mode drafts to the configured voice profile; `as-is` skips it.
+5. Publishing can auto-sync the change into the agent-ready discovery files when the dashboard toggle is on (`convex/agentReady/autoSync.ts`). The same hook covers dashboard page CRUD, project CRUD (which refreshes a `/projects` entry mirroring the VFS `/projects.md`), and the CLI sync mutations, which batch one refresh per run.
 
 ## Content import
 
@@ -530,7 +461,9 @@ Both are gitignored.
 ## Security considerations
 
 - All public HTTP endpoints are rate limited via `@convex-dev/rate-limiter` (see HTTP endpoints table for per-route limits)
-- LLM-calling endpoints (Ask AI, wiki compilation, AI chat, image generation) are rate limited per user to prevent cost amplification
+- LLM-calling endpoints (Ask AI, AI chat, image generation, voice agent) are rate limited per user to prevent cost amplification
+- Webhooks verify signatures before consuming rate limits: AgentMail uses Svix HMAC, GitHub uses X-Hub-Signature-256
+- Draft submission requires a hashed pipeline API key checked with constant-time comparison
 - Public mutations (heartbeat, page views, newsletter) have per-session rate limits stacked on top of existing dedup windows
 - Escape HTML in all HTTP endpoint outputs using `escapeHtml()`
 - Escape XML in RSS feeds using `escapeXml()` or CDATA
@@ -580,6 +513,13 @@ export default {
     showInNav: true,         // Show in navigation
     title: "Blog",           // Nav link and page title
     order: 0,                // Nav order (lower = first)
+  },
+  projectsPage: {
+    enabled: true,           // Enable /projects route
+    showInNav: true,         // Show "Projects" link in navigation
+    title: "Projects",       // Page title
+    description: "Things I've built.",
+    viewMode: "list",        // 'list', 'one-column', or 'two-column'
   },
   displayOnHomepage: true,   // Show posts on homepage
   featuredViewMode: "list",  // 'list' or 'cards'

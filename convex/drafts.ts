@@ -9,7 +9,10 @@ import { v, ConvexError } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
-import { scheduleDiscoverySyncIfEnabled } from "./agentReady/autoSync";
+import {
+  scheduleDiscoverySyncIfEnabled,
+  postDiscoveryEntry,
+} from "./agentReady/autoSync";
 import { readAudioDefaults } from "./audioDefaults";
 import { schedulePostAudioIfNeeded } from "./audio";
 import { parseAudioFrontmatter } from "./lib/audioText";
@@ -109,7 +112,7 @@ function deriveTitle(draft: Doc<"drafts">, body: string): string {
 function deriveDescription(body: string): string {
   const stripped = body
     .replace(/^#.+$/gm, "")
-    .replace(/[*_`>\[\]()#]/g, "")
+    .replace(/[*_`>[\]()#]/g, "")
     .replace(/\s+/g, " ")
     .trim();
   return stripped.slice(0, 160);
@@ -193,14 +196,16 @@ async function materializeDraft(
     const isPublic = published && !unlisted;
     await scheduleDiscoverySyncIfEnabled(ctx, {
       publish: isPublic
-        ? {
-            title: overrides?.title ?? existingPost.title,
-            path: `/${existingPost.slug}`,
-            description: existingPost.description,
-          }
+        ? [
+            postDiscoveryEntry({
+              title: overrides?.title ?? existingPost.title,
+              slug: existingPost.slug,
+              description: existingPost.description,
+            }),
+          ]
         : undefined,
-      removePath:
-        wasPublic && !isPublic ? `/${existingPost.slug}` : undefined,
+      removePaths:
+        wasPublic && !isPublic ? [`/${existingPost.slug}`] : undefined,
     });
 
     if (published) {
@@ -259,7 +264,7 @@ async function materializeDraft(
   // Auto discovery sync: brand new public post goes into llms.txt
   if (published && !unlisted) {
     await scheduleDiscoverySyncIfEnabled(ctx, {
-      publish: { title, path: `/${slug}`, description },
+      publish: [postDiscoveryEntry({ title, slug, description })],
     });
   }
 

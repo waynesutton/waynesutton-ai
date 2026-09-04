@@ -4,7 +4,11 @@ import type { Infer } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
-import { scheduleDiscoverySyncIfEnabled } from "./agentReady/autoSync";
+import {
+  scheduleDiscoverySyncIfEnabled,
+  postDiscoveryEntry,
+  pageDiscoveryEntry,
+} from "./agentReady/autoSync";
 import { schedulePostAudioIfNeeded } from "./audio";
 import { audioVoiceValidator } from "./audioDefaults";
 import { resolveReadTime } from "./lib/readTime";
@@ -285,11 +289,7 @@ export const createPost = mutation({
     // Auto discovery sync: new public post goes into llms.txt/agents.md
     if (args.post.published && args.post.unlisted !== true) {
       await scheduleDiscoverySyncIfEnabled(ctx, {
-        publish: {
-          title: args.post.title,
-          path: `/${args.post.slug}`,
-          description: args.post.description,
-        },
+        publish: [postDiscoveryEntry(args.post)],
       });
     }
 
@@ -326,11 +326,7 @@ export const createPostInternal = internalMutation({
     // Auto discovery sync: imported public posts go into llms.txt too
     if (args.post.published && args.post.unlisted !== true) {
       await scheduleDiscoverySyncIfEnabled(ctx, {
-        publish: {
-          title: args.post.title,
-          path: `/${args.post.slug}`,
-          description: args.post.description,
-        },
+        publish: [postDiscoveryEntry(args.post)],
       });
     }
 
@@ -436,16 +432,10 @@ export const updatePost = mutation({
     const isPublic = next.published && next.unlisted !== true;
     const slugChanged = next.slug !== existing.slug;
     await scheduleDiscoverySyncIfEnabled(ctx, {
-      publish: isPublic
-        ? {
-            title: next.title,
-            path: `/${next.slug}`,
-            description: next.description,
-          }
-        : undefined,
-      removePath:
+      publish: isPublic ? [postDiscoveryEntry(next)] : undefined,
+      removePaths:
         wasPublic && (slugChanged || !isPublic)
-          ? `/${existing.slug}`
+          ? [`/${existing.slug}`]
           : undefined,
     });
 
@@ -474,7 +464,7 @@ export const deletePost = mutation({
     // Auto discovery sync: drop a deleted public post from llms.txt
     if (existing.published && existing.unlisted !== true) {
       await scheduleDiscoverySyncIfEnabled(ctx, {
-        removePath: `/${existing.slug}`,
+        removePaths: [`/${existing.slug}`],
       });
     }
 
@@ -504,6 +494,13 @@ export const createPage = mutation({
       source: "dashboard",
       lastSyncedAt: Date.now(),
     });
+
+    // Auto discovery sync: new public page goes into llms.txt/agents.md
+    if (args.page.published && args.page.unlisted !== true) {
+      await scheduleDiscoverySyncIfEnabled(ctx, {
+        publish: [pageDiscoveryEntry(args.page)],
+      });
+    }
 
     return pageId;
   },
@@ -585,6 +582,19 @@ export const updatePage = mutation({
       lastSyncedAt: Date.now(),
     });
 
+    // Auto discovery sync: publish/unpublish/unlist/rename updates llms.txt
+    const next = { ...existing, ...args.page };
+    const wasPublic = existing.published && existing.unlisted !== true;
+    const isPublic = next.published && next.unlisted !== true;
+    const slugChanged = next.slug !== existing.slug;
+    await scheduleDiscoverySyncIfEnabled(ctx, {
+      publish: isPublic ? [pageDiscoveryEntry(next)] : undefined,
+      removePaths:
+        wasPublic && (slugChanged || !isPublic)
+          ? [`/${existing.slug}`]
+          : undefined,
+    });
+
     return null;
   },
 });
@@ -602,6 +612,14 @@ export const deletePage = mutation({
     }
 
     await ctx.db.delete(args.id);
+
+    // Auto discovery sync: drop a deleted public page from llms.txt
+    if (existing.published && existing.unlisted !== true) {
+      await scheduleDiscoverySyncIfEnabled(ctx, {
+        removePaths: [`/${existing.slug}`],
+      });
+    }
+
     return null;
   },
 });
