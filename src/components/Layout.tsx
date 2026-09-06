@@ -9,6 +9,7 @@ import SearchModal from "./SearchModal";
 import AskAIModal from "./AskAIModal";
 import MobileMenu, { HamburgerButton } from "./MobileMenu";
 import ScrollToTop, { ScrollToTopConfig } from "./ScrollToTop";
+import WebMcpProvider from "./WebMcpProvider";
 import { useSidebarOptional } from "../context/SidebarContext";
 import siteConfig from "../config/siteConfig";
 import { platformIcons } from "./SocialFooter";
@@ -36,6 +37,9 @@ export default function Layout({ children }: LayoutProps) {
   const configOverrides = useQuery(api.siteConfigData.getOverrides);
   const homeCategories = resolveHomeCategories(configOverrides);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  // Query typed into the search box on open. Only the WebMCP search_site
+  // tool sets it; the header button always opens blank.
+  const [searchInitialQuery, setSearchInitialQuery] = useState("");
   const [isAskAIOpen, setIsAskAIOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -57,9 +61,18 @@ export default function Layout({ children }: LayoutProps) {
   const sidebarContext = useSidebarOptional();
   const sidebarHeadings = sidebarContext?.headings || [];
   const sidebarActiveId = sidebarContext?.activeId;
+  // Per-post hideNav frontmatter: the top nav scrolls away with the page on that post
+  const hideNav = sidebarContext?.hideNav === true;
 
   // Open search modal
   const openSearch = useCallback(() => {
+    setSearchInitialQuery("");
+    setIsSearchOpen(true);
+  }, []);
+
+  // Open search with a query already typed (WebMCP search_site)
+  const openSearchWithQuery = useCallback((query: string) => {
+    setSearchInitialQuery(query);
     setIsSearchOpen(true);
   }, []);
 
@@ -99,6 +112,7 @@ export default function Layout({ children }: LayoutProps) {
       // Command+K on Mac, Ctrl+K on Windows/Linux (Search)
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
+        setSearchInitialQuery("");
         setIsSearchOpen((prev) => !prev);
       }
       // Command+J or Command+/ on Mac, Ctrl+J or Ctrl+/ on Windows/Linux (Ask AI)
@@ -157,6 +171,15 @@ export default function Layout({ children }: LayoutProps) {
     });
   }
 
+  // Add Skills link if enabled
+  if (siteConfig.skillsPage?.enabled && siteConfig.skillsPage?.showInNav) {
+    navItems.push({
+      slug: "skills",
+      title: siteConfig.skillsPage.title,
+      order: siteConfig.skillsPage.order ?? 4,
+    });
+  }
+
   // Add Docs link if enabled
   if (siteConfig.docsSection?.enabled && siteConfig.docsSection?.showInNav) {
     navItems.push({
@@ -171,11 +194,16 @@ export default function Layout({ children }: LayoutProps) {
     navItems.push(item);
   }
 
+  if (siteConfig.statsPage?.enabled && siteConfig.statsPage.showInNav &&
+      !siteConfig.hardcodedNavItems?.some((item) => item.slug === "stats")) {
+    navItems.push({ slug: "stats", title: "Stats", order: 10 });
+  }
+
   // Add hardcoded nav items (React routes like /stats, /write)
   if (siteConfig.hardcodedNavItems && siteConfig.hardcodedNavItems.length > 0) {
     siteConfig.hardcodedNavItems.forEach((item) => {
       // Skip stats nav item if stats page is disabled
-      if (item.slug === "stats" && !siteConfig.statsPage?.enabled) {
+      if (item.slug === "stats" && (!siteConfig.statsPage?.enabled || !siteConfig.statsPage.showInNav)) {
         return;
       }
       // Only add if showInNav is true (defaults to true)
@@ -225,7 +253,8 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="layout">
       {/* Top navigation bar with logo, page links, search, and theme toggle */}
-      <div className="top-nav">
+      {/* hideNav: true switches it from fixed to absolute so it scrolls away with the page */}
+      <div className={hideNav ? "top-nav top-nav-scroll" : "top-nav"}>
         {/* Logo on the left (visible on all pages) */}
         {siteConfig.innerPageLogo.enabled && siteConfig.logo && (
           <Link to="/" className="top-nav-logo-link">
@@ -412,7 +441,14 @@ export default function Layout({ children }: LayoutProps) {
       </main>
 
       {/* Search modal */}
-      <SearchModal isOpen={isSearchOpen} onClose={closeSearch} />
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={closeSearch}
+        initialQuery={searchInitialQuery}
+      />
+
+      {/* WebMCP: in-page tools for Chrome agents, no-op elsewhere */}
+      <WebMcpProvider openSearch={openSearchWithQuery} />
 
       {/* Ask AI modal */}
       {siteConfig.askAI?.enabled && siteConfig.semanticSearch?.enabled && (

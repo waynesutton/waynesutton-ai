@@ -1,6 +1,6 @@
 # llms.txt - Information for AI assistants and LLMs
 # Learn more: https://llmstxt.org/
-# Last updated: 2026-09-04T09:00:31.100Z
+# Last updated: 2026-09-04T09:16:32.242Z
 
 > Developer Community Lead at Convex, tech event organizer, startup ecosystem builder, and adventure motorcycle rider—helping developers and startups build faster with Convex and AI.
 
@@ -9,8 +9,8 @@
 - URL: https://waynesutton.ai
 - Description: Developer Community Lead at Convex, tech event organizer, startup ecosystem builder, and adventure motorcycle rider—helping developers and startups build faster with Convex and AI. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex.
 - Topics: Markdown, Convex, React, TypeScript, Open Source, AI, LLM, AEO, GEO
-- Total Posts: 6
-- Latest Post: 2026-08-17
+- Total Posts: 11
+- Latest Post: 2026-08-22
 - GitHub: https://github.com/waynesutton/waynesutton-ai
 
 # API Endpoints
@@ -84,9 +84,7 @@ Each post contains:
 
 # Projects
 Shipped work listed at https://waynesutton.ai/projects (also readable via POST /vfs/exec with {"command": "cat /projects.md"}):
-- waynesutton.ai (https://waynesutton.ai): This site. Markdown in, real time out, running on Convex
-- markdown.fast (https://github.com/waynesutton/waynesutton-ai): Write markdown, sync from the terminal, publish to browsers and agents
-- Code Sauce (https://waynesutton.ai/definition-of-sauce): Notes on taste, judgment, and what separates shipped work from demos
+- OpenSync (https://www.opensync.dev/): Cloud dashboards that sync session activity, tool usage, and token spend. Build and export eval datasets across projects.
 
 # Permissions
 - AI assistants may freely read and summarize content

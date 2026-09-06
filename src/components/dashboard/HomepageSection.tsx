@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import {
@@ -10,6 +10,7 @@ import {
   FloppyDisk,
   SpinnerGap,
 } from "@phosphor-icons/react";
+import { HomepageHighlightsFields } from "./HomepageHighlightsSettings";
 import { ImageUploadModal } from "../ImageUploadModal";
 import siteConfig from "../../config/siteConfig";
 import type {
@@ -17,10 +18,14 @@ import type {
   HomeHeroImageConfig,
   HomeHeroLayout,
   HomeHeroSide,
+  HomepageHighlightsConfig,
 } from "../../config/siteConfig";
 import { resolveHomeCategories } from "../../utils/homeCategories";
+import { resolveHomepageHighlights } from "../../utils/homepageHighlights";
+import { buildHomepageOrder } from "../../utils/homepageOrder";
 
 type ToastType = "success" | "error" | "info" | "warning";
+type CategoriesPosition = "above-posts" | "below-posts";
 
 const DEFAULT_HERO: HomeHeroImageConfig = {
   enabled: false,
@@ -35,9 +40,11 @@ const DEFAULT_HERO: HomeHeroImageConfig = {
 };
 
 /**
- * Homepage dashboard section: banner or vertical image beside the intro, plus
- * tag-driven category sections. Saves through savePartialOverrides so it only
- * writes the two homepage keys and leaves the rest of Site Config alone.
+ * Homepage dashboard section. Cards stack in the order the homepage renders
+ * them (banner, highlights, category sections) and a sticky rail shows the
+ * resulting running order. One Save writes homeHeroImage, homepageHighlights,
+ * and homeCategories through savePartialOverrides, leaving the rest of Site
+ * Config alone.
  */
 export function HomepageSection({
   addToast,
@@ -48,12 +55,16 @@ export function HomepageSection({
     ...DEFAULT_HERO,
     ...(siteConfig.homeHeroImage ?? {}),
   }));
+  const [highlights, setHighlights] = useState<HomepageHighlightsConfig>(() =>
+    resolveHomepageHighlights(undefined),
+  );
   const [categoriesEnabled, setCategoriesEnabled] = useState(
     siteConfig.homeCategories?.enabled === true,
   );
-  const [categoriesPosition, setCategoriesPosition] = useState<
-    "above-posts" | "below-posts"
-  >(siteConfig.homeCategories?.position ?? "above-posts");
+  const [categoriesPosition, setCategoriesPosition] =
+    useState<CategoriesPosition>(
+      siteConfig.homeCategories?.position ?? "above-posts",
+    );
   const [sections, setSections] = useState<Array<HomeCategorySection>>(() =>
     (siteConfig.homeCategories?.sections ?? []).map((section) => ({
       ...section,
@@ -62,29 +73,84 @@ export function HomepageSection({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  // JSON of the last hydrated or saved state, so the rail can say Unsaved changes
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
   const savePartialOverrides = useMutation(
     api.siteConfigData.savePartialOverrides,
   );
   const publishedTags = useQuery(api.posts.getAllTags);
+  const publishedProjects = useQuery(api.projects.listPublished);
+  const publishedPosts = useQuery(api.posts.getAllPosts);
   const configOverrides = useQuery(api.siteConfigData.getOverrides);
+
+  const currentState = useMemo(
+    () => ({
+      hero,
+      highlights,
+      categories: {
+        enabled: categoriesEnabled,
+        position: categoriesPosition,
+        sections,
+      },
+    }),
+    [hero, highlights, categoriesEnabled, categoriesPosition, sections],
+  );
+  const currentSnapshot = JSON.stringify(currentState);
+  const dirty = hydrated && savedSnapshot !== null && savedSnapshot !== currentSnapshot;
 
   // Seed from live overrides once so a reload shows the last Save, not the file
   useEffect(() => {
     if (hydrated || configOverrides === undefined) return;
     const resolved = resolveHomeCategories(configOverrides);
+    const nextSections = resolved.sections.map((section) => ({ ...section }));
+    const nextHighlights = resolveHomepageHighlights(
+      configOverrides?.homepageHighlights,
+    );
+    const savedHero = configOverrides?.homeHeroImage;
+    const nextHero: HomeHeroImageConfig = {
+      ...DEFAULT_HERO,
+      ...(siteConfig.homeHeroImage ?? {}),
+      ...(savedHero && typeof savedHero === "object" && !Array.isArray(savedHero)
+        ? (savedHero as Partial<HomeHeroImageConfig>)
+        : {}),
+    };
     setCategoriesEnabled(resolved.enabled);
     setCategoriesPosition(resolved.position);
-    setSections(resolved.sections.map((section) => ({ ...section })));
-    const savedHero = configOverrides?.homeHeroImage;
-    if (savedHero && typeof savedHero === "object" && !Array.isArray(savedHero)) {
-      setHero((current) => ({
-        ...current,
-        ...(savedHero as Partial<HomeHeroImageConfig>),
-      }));
-    }
+    setSections(nextSections);
+    setHighlights(nextHighlights);
+    setHero(nextHero);
+    setSavedSnapshot(
+      JSON.stringify({
+        hero: nextHero,
+        highlights: nextHighlights,
+        categories: {
+          enabled: resolved.enabled,
+          position: resolved.position,
+          sections: nextSections,
+        },
+      }),
+    );
     setHydrated(true);
   }, [configOverrides, hydrated]);
+
+  // Running order derived from the form, with live publish data when loaded
+  const order = useMemo(() => {
+    const tagCounts: Record<string, number> | undefined = publishedTags
+      ? Object.fromEntries(
+          publishedTags.map((entry) => [entry.tag.toLowerCase(), entry.count]),
+        )
+      : undefined;
+    return buildHomepageOrder({
+      hero,
+      highlights,
+      categories: currentState.categories,
+      showPostList: siteConfig.postsDisplay.showOnHome,
+      publishedProjectSlugs: publishedProjects?.map((p) => p.slug),
+      publishedPostSlugs: publishedPosts?.map((p) => p.slug),
+      tagCounts,
+    });
+  }, [hero, highlights, currentState.categories, publishedTags, publishedProjects, publishedPosts]);
 
   const updateSection = (
     index: number,
@@ -137,6 +203,11 @@ export function HomepageSection({
             width: hero.width,
             rounded: hero.rounded !== false,
           },
+          homepageHighlights: {
+            ...highlights,
+            projectsTitle: highlights.projectsTitle.trim() || "Projects",
+            postSlug: highlights.postSlug.trim(),
+          },
           homeCategories: {
             enabled: categoriesEnabled,
             position: categoriesPosition,
@@ -144,6 +215,7 @@ export function HomepageSection({
           },
         },
       });
+      setSavedSnapshot(currentSnapshot);
       addToast("Homepage saved.", "success");
       const navCount = cleanSections.filter((s) => s.showInNav).length;
       const homeCount = cleanSections.filter(
@@ -169,415 +241,504 @@ export function HomepageSection({
     }
   };
 
+  const saveButton = (className: string) => (
+    <button
+      type="button"
+      className={className}
+      onClick={() => void handleSave()}
+      disabled={saving || !hydrated}
+      aria-busy={saving}
+    >
+      {saving ? (
+        <SpinnerGap size={16} className="animate-spin" />
+      ) : (
+        <FloppyDisk size={16} />
+      )}
+      <span>Save homepage</span>
+    </button>
+  );
+
+  const statusText = saving
+    ? "Saving..."
+    : !hydrated
+      ? "Loading saved settings..."
+      : dirty
+        ? "Unsaved changes"
+        : "Saved";
+
   return (
-    <div className="dashboard-config-section">
-      <div className="dashboard-config-grid">
-        {/* Homepage image: wide 16:9 strip or vertical beside the intro */}
-        <div className="dashboard-config-card">
-          <h3>Banner image</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={hero.enabled}
-                onChange={(e) =>
-                  setHero({ ...hero, enabled: e.target.checked })
-                }
-              />
-              <span>Show an image on the homepage</span>
-            </label>
-          </div>
+    <div className="dashboard-config-section homepage-desk">
+      <div className="dashboard-config-header">
+        <div>
+          <h2>Homepage</h2>
+          <p>Arrange what shows on / and where each block sits around the post list.</p>
+        </div>
+        <div className="dashboard-config-actions">
+          {/* Hidden on phones; the sticky bar at the end of the section takes over */}
+          {saveButton("dashboard-action-btn primary dashboard-save-inline")}
+        </div>
+      </div>
 
-          {hero.src && (
-            <div
-              className={`home-hero-preview ${hero.layout === "aside" ? "is-aside" : "is-banner"} ${hero.src.split("?")[0].toLowerCase().endsWith(".svg") ? "is-svg" : ""}`}
-            >
-              <img
-                src={hero.src}
-                alt=""
-                style={
-                  hero.layout === "aside"
-                    ? undefined
-                    : { width: `${hero.width}%` }
-                }
-              />
+      <div className="homepage-desk-grid">
+        <div className="homepage-desk-main">
+          {/* Homepage image: wide 16:9 strip or vertical beside the intro */}
+          <div className="dashboard-config-card">
+            <h3>Banner image</h3>
+            <p className="config-field-note">
+              Shows on / after the next full page load. Highlights and category
+              sections below update live.
+            </p>
+            <div className="config-field checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={hero.enabled}
+                  onChange={(e) =>
+                    setHero({ ...hero, enabled: e.target.checked })
+                  }
+                />
+                <span>Show an image on the homepage</span>
+              </label>
             </div>
-          )}
 
-          <div className="config-field">
-            <label>Image</label>
-            <div className="config-logo-add">
-              <input
-                type="text"
-                value={hero.src}
-                placeholder="/images/banner.jpg, .gif, or .svg"
-                onChange={(e) => setHero({ ...hero, src: e.target.value })}
-              />
-              <button
-                type="button"
-                className="dashboard-action-btn"
-                onClick={() => setPickerOpen(true)}
+            {hero.src && (
+              <div
+                className={`home-hero-preview ${hero.layout === "aside" ? "is-aside" : "is-banner"} ${hero.src.split("?")[0].toLowerCase().endsWith(".svg") ? "is-svg" : ""}`}
               >
-                <ImageIcon size={16} />
-                Upload
-              </button>
-            </div>
-            <span className="config-field-note">
-              PNG, JPG, GIF, WebP, and SVG. GIFs animate. SVGs stay sharp.
-            </span>
-          </div>
+                <img
+                  src={hero.src}
+                  alt=""
+                  style={
+                    hero.layout === "aside"
+                      ? undefined
+                      : { width: `${hero.width}%` }
+                  }
+                />
+              </div>
+            )}
 
-          <div className="config-field">
-            <label>Layout</label>
-            <select
-              value={hero.layout === "aside" ? "aside" : "banner"}
-              onChange={(e) => {
-                const layout = e.target.value as HomeHeroLayout;
-                setHero({
-                  ...hero,
-                  layout,
-                  width:
-                    layout === "aside" && hero.width >= 90 ? 40 : hero.width,
-                });
-              }}
-            >
-              <option value="banner">Wide 16:9 banner</option>
-              <option value="aside">Vertical beside intro</option>
-            </select>
+            <div className="config-field">
+              <label htmlFor="home-hero-src">Image</label>
+              <div className="config-logo-add">
+                <input
+                  id="home-hero-src"
+                  type="text"
+                  value={hero.src}
+                  placeholder="/images/banner.jpg, .gif, or .svg"
+                  onChange={(e) => setHero({ ...hero, src: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className="dashboard-action-btn"
+                  onClick={() => setPickerOpen(true)}
+                >
+                  <ImageIcon size={16} />
+                  Upload
+                </button>
+              </div>
+              <span className="config-field-note">
+                PNG, JPG, GIF, WebP, and SVG. GIFs animate. SVGs stay sharp.
+              </span>
+            </div>
+
+            <div className="home-field-row">
+              <div className="config-field">
+                <label htmlFor="home-hero-layout">Layout</label>
+                <select
+                  id="home-hero-layout"
+                  value={hero.layout === "aside" ? "aside" : "banner"}
+                  onChange={(e) => {
+                    const layout = e.target.value as HomeHeroLayout;
+                    setHero({
+                      ...hero,
+                      layout,
+                      width:
+                        layout === "aside" && hero.width >= 90 ? 40 : hero.width,
+                    });
+                  }}
+                >
+                  <option value="banner">Wide 16:9 banner</option>
+                  <option value="aside">Vertical beside intro</option>
+                </select>
+              </div>
+              {hero.layout === "aside" ? (
+                <div className="config-field">
+                  <label htmlFor="home-hero-side">Side</label>
+                  <select
+                    id="home-hero-side"
+                    value={hero.side === "left" ? "left" : "right"}
+                    onChange={(e) =>
+                      setHero({ ...hero, side: e.target.value as HomeHeroSide })
+                    }
+                  >
+                    <option value="right">Right</option>
+                    <option value="left">Left</option>
+                  </select>
+                </div>
+              ) : (
+                <div className="config-field">
+                  <label htmlFor="home-hero-position">Position</label>
+                  <select
+                    id="home-hero-position"
+                    value={hero.position}
+                    onChange={(e) =>
+                      setHero({
+                        ...hero,
+                        position: e.target.value as HomeHeroImageConfig["position"],
+                      })
+                    }
+                  >
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
+                    <option value="both">Top and bottom</option>
+                  </select>
+                </div>
+              )}
+            </div>
             <span className="config-field-note">
               {hero.layout === "aside"
                 ? "Portrait sits next to the intro. No 16:9 crop."
                 : "Wide strip. Any aspect ratio is cropped to 16:9. SVG is not cropped."}
             </span>
-          </div>
 
-          <div className="config-field">
-            <label>Alt text</label>
-            <input
-              type="text"
-              value={hero.alt ?? ""}
-              placeholder="Leave blank for a decorative image"
-              onChange={(e) => setHero({ ...hero, alt: e.target.value })}
-            />
-          </div>
-
-          <div className="config-field">
-            <label>Link (optional)</label>
-            <input
-              type="text"
-              value={hero.href ?? ""}
-              placeholder="https://example.com"
-              onChange={(e) => setHero({ ...hero, href: e.target.value })}
-            />
-          </div>
-
-          {hero.layout === "aside" ? (
-            <div className="config-field">
-              <label>Side</label>
-              <select
-                value={hero.side === "left" ? "left" : "right"}
-                onChange={(e) =>
-                  setHero({ ...hero, side: e.target.value as HomeHeroSide })
-                }
-              >
-                <option value="right">Right</option>
-                <option value="left">Left</option>
-              </select>
+            <div className="home-field-row">
+              <div className="config-field">
+                <label htmlFor="home-hero-alt">Alt text</label>
+                <input
+                  id="home-hero-alt"
+                  type="text"
+                  value={hero.alt ?? ""}
+                  placeholder="Leave blank for a decorative image"
+                  onChange={(e) => setHero({ ...hero, alt: e.target.value })}
+                />
+              </div>
+              <div className="config-field">
+                <label htmlFor="home-hero-href">Link (optional)</label>
+                <input
+                  id="home-hero-href"
+                  type="text"
+                  value={hero.href ?? ""}
+                  placeholder="https://example.com"
+                  onChange={(e) => setHero({ ...hero, href: e.target.value })}
+                />
+              </div>
             </div>
-          ) : (
-            <div className="config-field">
-              <label>Position</label>
-              <select
-                value={hero.position}
-                onChange={(e) =>
-                  setHero({
-                    ...hero,
-                    position: e.target.value as HomeHeroImageConfig["position"],
-                  })
-                }
-              >
-                <option value="top">Top</option>
-                <option value="bottom">Bottom</option>
-                <option value="both">Top and bottom</option>
-              </select>
-            </div>
-          )}
 
-          <div className="config-field">
-            <label>Width: {hero.width}%</label>
-            <input
-              type="range"
-              min={30}
-              max={100}
-              step={5}
-              value={hero.width}
-              onChange={(e) =>
-                setHero({ ...hero, width: parseInt(e.target.value, 10) || 100 })
+            <div className="config-field">
+              <label htmlFor="home-hero-width">Width: {hero.width}%</label>
+              <input
+                id="home-hero-width"
+                type="range"
+                min={30}
+                max={100}
+                step={5}
+                value={hero.width}
+                onChange={(e) =>
+                  setHero({ ...hero, width: parseInt(e.target.value, 10) || 100 })
+                }
+              />
+              <span className="config-field-note">
+                {hero.layout === "aside"
+                  ? "Desktop image column. Capped so the intro always has room. Phones stack."
+                  : "Desktop only. Phones always use the full content width."}
+              </span>
+            </div>
+
+            <div className="config-field checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={hero.rounded !== false}
+                  onChange={(e) =>
+                    setHero({ ...hero, rounded: e.target.checked })
+                  }
+                />
+                <span>Rounded corners</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Featured post and selected projects, above or below the post list */}
+          <div className="dashboard-config-card">
+            <h3>Homepage highlights</h3>
+            <p className="config-field-note">
+              A featured post and selected projects on the default homepage.
+              Empty or unpublished selections stay hidden.
+            </p>
+            <HomepageHighlightsFields
+              config={highlights}
+              onChange={(next) =>
+                setHighlights((current) => ({ ...current, ...next }))
               }
+              projects={publishedProjects}
+              posts={publishedPosts}
             />
+          </div>
+
+          {/* Tag-driven category sections */}
+          <div className="dashboard-config-card">
+            <h3>Category sections</h3>
+            <div className="config-field checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={categoriesEnabled}
+                  onChange={(e) => setCategoriesEnabled(e.target.checked)}
+                />
+                <span>Group posts into sections by tag</span>
+              </label>
+            </div>
             <span className="config-field-note">
-              {hero.layout === "aside"
-                ? "Desktop image column. Capped so the intro always has room. Phones stack."
-                : "Desktop only. Phones always use the full content width."}
+              Each section lists published posts that carry that tag. Show on
+              homepage and Show in nav are separate: a section can sit in the
+              header only, on / only, or both. A tag with no posts hides the
+              homepage heading.
             </span>
-          </div>
 
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={hero.rounded !== false}
+            <div className="config-field">
+              <label htmlFor="home-categories-position">Position</label>
+              <select
+                id="home-categories-position"
+                value={categoriesPosition}
                 onChange={(e) =>
-                  setHero({ ...hero, rounded: e.target.checked })
+                  setCategoriesPosition(e.target.value as CategoriesPosition)
                 }
-              />
-              <span>Rounded corners</span>
-            </label>
-          </div>
-        </div>
+              >
+                <option value="above-posts">Above the post list</option>
+                <option value="below-posts">Below the post list</option>
+              </select>
+            </div>
 
-        {/* Tag-driven category sections */}
-        <div className="dashboard-config-card">
-          <h3>Category sections</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={categoriesEnabled}
-                onChange={(e) => setCategoriesEnabled(e.target.checked)}
-              />
-              <span>Group posts into sections by tag</span>
-            </label>
-          </div>
-          <span className="config-field-note">
-            Each section lists published posts that carry that tag. Show on
-            homepage and Show in nav are separate: a section can sit in the
-            header only, on `/` only, or both. A tag with no posts hides the
-            homepage heading.
-          </span>
+            {sections.length === 0 ? (
+              <p className="config-field-note">
+                No sections yet. Add one, then set its tag to match your post
+                frontmatter.
+              </p>
+            ) : (
+              <ol className="home-section-list">
+                {sections.map((section, index) => {
+                  const tagKey = section.tag.trim().toLowerCase();
+                  const tagMatch = publishedTags?.find(
+                    (entry) => entry.tag.toLowerCase() === tagKey,
+                  );
+                  return (
+                    <li key={index} className="home-section-row">
+                      {/* Ordinal ties the row to its place in the running order */}
+                      <span className="home-section-ordinal" aria-hidden="true">
+                        {index + 1}
+                      </span>
+                      <div className="home-section-fields">
+                        <div className="home-section-fields-row">
+                          <input
+                            type="text"
+                            className="dashboard-field-input"
+                            value={section.title}
+                            placeholder="Section heading, e.g. Notes"
+                            aria-label={`Section ${index + 1} heading`}
+                            onChange={(e) =>
+                              updateSection(index, { title: e.target.value })
+                            }
+                          />
+                          <input
+                            type="text"
+                            className="dashboard-field-input"
+                            list="home-category-tags"
+                            value={section.tag}
+                            placeholder="Post tag, e.g. convex"
+                            aria-label={`Section ${index + 1} tag`}
+                            onChange={(e) =>
+                              updateSection(index, { tag: e.target.value })
+                            }
+                          />
+                        </div>
+                        {tagKey ? (
+                          <span className="config-field-note">
+                            {tagMatch
+                              ? `${tagMatch.count} published ${tagMatch.count === 1 ? "post" : "posts"}`
+                              : "No published posts with this tag"}
+                          </span>
+                        ) : null}
+                        <div className="home-section-options">
+                          <label>
+                            <span>Limit</span>
+                            <input
+                              type="number"
+                              className="dashboard-field-input"
+                              min={1}
+                              max={50}
+                              value={section.limit ?? 8}
+                              onChange={(e) =>
+                                updateSection(index, {
+                                  limit: parseInt(e.target.value, 10) || 8,
+                                })
+                              }
+                            />
+                          </label>
+                          <label>
+                            <span>Columns</span>
+                            <select
+                              className="dashboard-items-select"
+                              value={String(section.columns ?? 2)}
+                              onChange={(e) =>
+                                updateSection(index, {
+                                  columns: e.target.value === "1" ? 1 : 2,
+                                })
+                              }
+                            >
+                              <option value="1">1</option>
+                              <option value="2">2</option>
+                            </select>
+                          </label>
+                          <label className="home-section-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={section.showDate === true}
+                              onChange={(e) =>
+                                updateSection(index, { showDate: e.target.checked })
+                              }
+                            />
+                            <span>Show date</span>
+                          </label>
+                          <label className="home-section-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={section.showOnHome !== false}
+                              onChange={(e) =>
+                                updateSection(index, {
+                                  showOnHome: e.target.checked,
+                                })
+                              }
+                            />
+                            <span>Show on homepage</span>
+                          </label>
+                          <label className="home-section-checkbox">
+                            <input
+                              type="checkbox"
+                              checked={section.showInNav === true}
+                              onChange={(e) =>
+                                updateSection(index, {
+                                  showInNav: e.target.checked,
+                                })
+                              }
+                            />
+                            <span>Show in nav</span>
+                          </label>
+                        </div>
+                        {section.showInNav && tagKey ? (
+                          <span className="config-field-note">
+                            {section.showOnHome === false
+                              ? `Header only. Nav link: /tags/${tagKey}`
+                              : `Nav link: /tags/${tagKey}`}
+                          </span>
+                        ) : null}
+                        {section.showOnHome === false &&
+                        section.showInNav !== true ? (
+                          <span className="config-field-note">
+                            Hidden on the homepage and not in nav.
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="config-logo-actions">
+                        <button
+                          type="button"
+                          className="config-logo-btn"
+                          onClick={() => moveSection(index, -1)}
+                          disabled={index === 0}
+                          aria-label={`Move section ${index + 1} up`}
+                        >
+                          <ArrowUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="config-logo-btn"
+                          onClick={() => moveSection(index, 1)}
+                          disabled={index === sections.length - 1}
+                          aria-label={`Move section ${index + 1} down`}
+                        >
+                          <ArrowDown size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="config-logo-btn danger"
+                          onClick={() =>
+                            setSections((c) => c.filter((_, i) => i !== index))
+                          }
+                          aria-label={`Remove section ${index + 1}`}
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+            <datalist id="home-category-tags">
+              {(publishedTags ?? []).map((entry) => (
+                <option key={entry.tag} value={entry.tag} />
+              ))}
+            </datalist>
 
-          <div className="config-field">
-            <label>Position</label>
-            <select
-              value={categoriesPosition}
-              onChange={(e) =>
-                setCategoriesPosition(
-                  e.target.value as "above-posts" | "below-posts",
-                )
+            <button
+              type="button"
+              className="dashboard-action-btn"
+              onClick={() =>
+                setSections((current) => [
+                  ...current,
+                  {
+                    title: "",
+                    tag: "",
+                    limit: 8,
+                    columns: 2,
+                    showDate: false,
+                    showOnHome: true,
+                    showInNav: false,
+                  },
+                ])
               }
             >
-              <option value="above-posts">Above the post list</option>
-              <option value="below-posts">Below the post list</option>
-            </select>
+              <Plus size={16} />
+              Add section
+            </button>
+            <span className="config-field-note">
+              Sections with no matching posts are skipped, so an empty tag never
+              leaves a heading behind.
+            </span>
           </div>
-
-          {sections.length === 0 ? (
-            <p className="config-field-note">
-              No sections yet. Add one, then set its tag to match your post
-              frontmatter.
-            </p>
-          ) : (
-            <ul className="home-section-list">
-              {sections.map((section, index) => {
-                const tagKey = section.tag.trim().toLowerCase();
-                const tagMatch = publishedTags?.find(
-                  (entry) => entry.tag.toLowerCase() === tagKey,
-                );
-                return (
-                <li key={index} className="home-section-row">
-                  <div className="home-section-fields">
-                    <input
-                      type="text"
-                      className="dashboard-field-input"
-                      value={section.title}
-                      placeholder="Section heading, e.g. Notes"
-                      aria-label={`Section ${index + 1} heading`}
-                      onChange={(e) =>
-                        updateSection(index, { title: e.target.value })
-                      }
-                    />
-                    <input
-                      type="text"
-                      className="dashboard-field-input"
-                      list="home-category-tags"
-                      value={section.tag}
-                      placeholder="Post tag, e.g. convex"
-                      aria-label={`Section ${index + 1} tag`}
-                      onChange={(e) =>
-                        updateSection(index, { tag: e.target.value })
-                      }
-                    />
-                    {tagKey ? (
-                      <span className="config-field-note">
-                        {tagMatch
-                          ? `${tagMatch.count} published ${tagMatch.count === 1 ? "post" : "posts"}`
-                          : "No published posts with this tag"}
-                      </span>
-                    ) : null}
-                    <div className="home-section-options">
-                      <label>
-                        <span>Limit</span>
-                        <input
-                          type="number"
-                          className="dashboard-field-input"
-                          min={1}
-                          max={50}
-                          value={section.limit ?? 8}
-                          onChange={(e) =>
-                            updateSection(index, {
-                              limit: parseInt(e.target.value, 10) || 8,
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        <span>Columns</span>
-                        <select
-                          className="dashboard-items-select"
-                          value={String(section.columns ?? 2)}
-                          onChange={(e) =>
-                            updateSection(index, {
-                              columns: e.target.value === "1" ? 1 : 2,
-                            })
-                          }
-                        >
-                          <option value="1">1</option>
-                          <option value="2">2</option>
-                        </select>
-                      </label>
-                      <label className="home-section-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={section.showDate === true}
-                          onChange={(e) =>
-                            updateSection(index, { showDate: e.target.checked })
-                          }
-                        />
-                        <span>Show date</span>
-                      </label>
-                      <label className="home-section-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={section.showOnHome !== false}
-                          onChange={(e) =>
-                            updateSection(index, {
-                              showOnHome: e.target.checked,
-                            })
-                          }
-                        />
-                        <span>Show on homepage</span>
-                      </label>
-                      <label className="home-section-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={section.showInNav === true}
-                          onChange={(e) =>
-                            updateSection(index, {
-                              showInNav: e.target.checked,
-                            })
-                          }
-                        />
-                        <span>Show in nav</span>
-                      </label>
-                    </div>
-                    {section.showInNav && tagKey ? (
-                      <span className="config-field-note">
-                        {section.showOnHome === false
-                          ? `Header only. Nav link: /tags/${tagKey}`
-                          : `Nav link: /tags/${tagKey}`}
-                      </span>
-                    ) : null}
-                    {section.showOnHome === false &&
-                    section.showInNav !== true ? (
-                      <span className="config-field-note">
-                        Hidden on the homepage and not in nav.
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="config-logo-actions">
-                    <button
-                      type="button"
-                      className="config-logo-btn"
-                      onClick={() => moveSection(index, -1)}
-                      disabled={index === 0}
-                      aria-label={`Move section ${index + 1} up`}
-                    >
-                      <ArrowUp size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="config-logo-btn"
-                      onClick={() => moveSection(index, 1)}
-                      disabled={index === sections.length - 1}
-                      aria-label={`Move section ${index + 1} down`}
-                    >
-                      <ArrowDown size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="config-logo-btn danger"
-                      onClick={() =>
-                        setSections((c) => c.filter((_, i) => i !== index))
-                      }
-                      aria-label={`Remove section ${index + 1}`}
-                    >
-                      <Trash size={14} />
-                    </button>
-                  </div>
-                </li>
-                );
-              })}
-            </ul>
-          )}
-          <datalist id="home-category-tags">
-            {(publishedTags ?? []).map((entry) => (
-              <option key={entry.tag} value={entry.tag} />
-            ))}
-          </datalist>
-
-          <button
-            type="button"
-            className="dashboard-action-btn"
-            onClick={() =>
-              setSections((current) => [
-                ...current,
-                {
-                  title: "",
-                  tag: "",
-                  limit: 8,
-                  columns: 2,
-                  showDate: false,
-                  showOnHome: true,
-                  showInNav: false,
-                },
-              ])
-            }
-          >
-            <Plus size={16} />
-            Add section
-          </button>
-          <span className="config-field-note">
-            Sections with no matching posts are skipped, so an empty tag never
-            leaves a heading behind.
-          </span>
         </div>
+
+        {/* Running order: what / will render, top to bottom, from the form above */}
+        <aside className="homepage-desk-rail" aria-label="Homepage running order">
+          <div className="dashboard-config-card home-order-card">
+            <h3>Running order</h3>
+            <ol className="home-order-list">
+              {order.map((block) => (
+                <li key={block.id} className={`home-order-row is-${block.state}`}>
+                  <span className="home-order-mark" aria-hidden="true" />
+                  <span className="home-order-label">{block.label}</span>
+                  <span className="home-order-detail">
+                    {block.detail ?? (block.state === "off" ? "Off" : "")}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <p className="config-field-note">
+              Intro, newsletter, and logo gallery keep their Site Config
+              placement.
+            </p>
+            <p
+              className={`home-order-status${dirty ? " is-dirty" : ""}`}
+              role="status"
+            >
+              {statusText}
+            </p>
+          </div>
+        </aside>
       </div>
 
-      <div className="dashboard-config-actions">
-        <button
-          type="button"
-          className="dashboard-action-btn primary"
-          onClick={() => void handleSave()}
-          disabled={saving}
-          aria-busy={saving}
-        >
-          {saving ? (
-            <SpinnerGap size={16} className="animate-spin" />
-          ) : (
-            <FloppyDisk size={16} />
-          )}
-          <span>Save homepage</span>
-        </button>
+      {/* Phones only: the header Save is a long scroll above the last card */}
+      <div className="dashboard-config-savebar">
+        {saveButton("dashboard-action-btn primary")}
       </div>
 
       <ImageUploadModal

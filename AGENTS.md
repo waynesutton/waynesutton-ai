@@ -14,6 +14,7 @@ Developer Community Lead at Convex, tech event organizer, startup ecosystem buil
 **Key features:**
 - Markdown posts with frontmatter
 - Projects index at `/projects` with dashboard CRUD, thumbnails, and repo/X/LinkedIn links
+- Skills directory at `/skills` (optional, `siteConfig.skillsPage`) with sections, slash commands, labeled install commands with copy, and repo/skills.sh/docs/X links
 - Four themes (dark, light, tan, cloud)
 - Full text search with Command+K
 - Semantic search with OpenAI embeddings and Ask AI (Cmd+J)
@@ -24,6 +25,7 @@ Developer Community Lead at Convex, tech event organizer, startup ecosystem buil
 - API endpoints for AI/LLM access
 - Virtual filesystem HTTP interface (`/vfs/tree`, `/vfs/exec`) with no auth required
 - MCP server at `/mcp` (JSON-RPC 2.0 over HTTP) for agent tool access
+- WebMCP in-page tools on public pages (`document.modelContext`, Chrome only) so a browser agent can search, read the current page, open posts, and fill forms behind a confirm dialog; never `create_draft`
 - Agent blog pipeline: drafts API (`/api/v1/drafts`), AgentMail email door, GitHub review webhook, Drafts Inbox with voice agent rewrite
 - Agent-ready component serving `/llms.txt`, `/llms-full.txt`, and `/agents.md` with auto sync when posts, pages, or projects change (dashboard CRUD, drafts pipeline, and CLI content sync)
 - X (Twitter) integration for posting from the dashboard
@@ -36,10 +38,10 @@ Developer Community Lead at Convex, tech event organizer, startup ecosystem buil
 - **Site Name**: Wayne Sutton
 - **Site Title**: Developer Community Builder
 - **Site URL**: https://waynesutton.ai
-- **Total Posts**: 6
+- **Total Posts**: 11
 - **Total Pages**: 1
-- **Latest Post**: 2026-08-17
-- **Last Updated**: 2026-09-04T09:00:31.098Z
+- **Latest Post**: 2026-08-22
+- **Last Updated**: 2026-09-04T09:16:32.240Z
 
 ## Deployments
 
@@ -232,6 +234,7 @@ waynesutton-ai/
 │   ├── posts.ts           # Post queries and mutations
 │   ├── pages.ts           # Page queries and mutations
 │   ├── projects.ts        # Projects CRUD for the /projects index
+│   ├── skills.ts          # Skills and skill sections CRUD for the /skills directory
 │   ├── stats.ts           # Analytics (conflict-free patterns)
 │   ├── search.ts          # Full text search
 │   ├── http.ts            # HTTP endpoints (sitemap, API, VFS, webhooks, static serving)
@@ -277,6 +280,9 @@ waynesutton-ai/
 | featuredOrder | No | Display order (lower first) |
 | excerpt | No | Short text for card view |
 | aiWritten | No | true shows an AI writing note under the title; overrules Drafts Inbox default |
+| minimap | No | true shows a right-side heading outline (h1-h6) that tracks scroll on the post page without shifting the article off center |
+| hideNav | No | true lets the nav bar scroll away with the post instead of staying pinned |
+| slides | No | true enables presentation mode; `---` lines split the post into slides |
 | image | No | OG image path |
 | ogImage | No | Share image override (does not affect cards or header) |
 | noOgImage | No | true disables the share image (text-only preview) |
@@ -294,8 +300,15 @@ waynesutton-ai/
 | slug | Yes | URL path |
 | published | Yes | true to show |
 | order | No | Nav order (lower first) |
+| showInNav | No | false hides the page from the nav (default true) |
 | featured | No | true for featured section |
 | featuredOrder | No | Display order (lower first) |
+| excerpt | No | Short text for card view |
+| image | No | Thumbnail and default share image |
+| ogImage | No | Share image override (does not affect cards) |
+| noOgImage | No | true disables the share image (text-only preview) |
+| unlisted | No | Hide from nav and listings but allow direct access |
+| slides | No | true enables presentation mode; `---` lines split the page into slides |
 | authorName | No | Author display name |
 | authorImage | No | Round author avatar URL |
 
@@ -366,7 +379,7 @@ projects: defineTable({
   .index("by_published", ["published"])
 ```
 
-Other tables: `drafts`, `apiKeys`, `vendorKeys`, `newsletterSubscribers`, `contactMessages`, `aiChats`, `audioJobs`, `contentVersions`, `dashboardAdmins`, `agentReadySettings`, `voiceProfile`, `xAccounts`, `xShares`, and queued job tables (`aiImageGenerationJobs`, `importUrlJobs`, `semanticSearchJobs`). See `convex/schema.ts` for the full list.
+Other tables: `skills`, `skillSections`, `drafts`, `apiKeys`, `vendorKeys`, `newsletterSubscribers`, `contactMessages`, `aiChats`, `audioJobs`, `contentVersions`, `dashboardAdmins`, `agentReadySettings`, `voiceProfile`, `xAccounts`, `xShares`, and queued job tables (`aiImageGenerationJobs`, `importUrlJobs`, `semanticSearchJobs`). See `convex/schema.ts` for the full list.
 
 ## HTTP endpoints
 
@@ -417,17 +430,28 @@ curl -X POST https://yoursite.example.com/vfs/exec \
 curl -X POST https://yoursite.example.com/vfs/exec \
   -H "Content-Type: application/json" \
   -d '{"command": "cat /projects.md"}'
+
+# Read the skills directory with install commands
+curl -X POST https://yoursite.example.com/vfs/exec \
+  -H "Content-Type: application/json" \
+  -d '{"command": "cat /skills.md"}'
 ```
 
 Supported commands: `ls`, `cat`, `grep`, `find`, `tree`, `head`, `wc`, `pwd`, `cd`
 
-Paths: `/blog`, `/pages`, `/docs`, `/index.md`, `/projects.md`
+Paths: `/blog`, `/pages`, `/docs`, `/index.md`, `/projects.md`, `/skills.md`
 
-Implementation: `convex/virtualFs.ts` with helper functions for path tree, file reading, and grep (uses Convex search indexes for coarse filtering, then regex refinement). `/projects.md` is a generated index of published projects with descriptions and links.
+Implementation: `convex/virtualFs.ts` with helper functions for path tree, file reading, and grep (uses Convex search indexes for coarse filtering, then regex refinement). `/projects.md` is a generated index of published projects with descriptions and links. `/skills.md` is the full skills directory: an H2 per section, an H3 per skill with its command, description, fenced install commands, and links. Both files only appear when they have published content.
 
 ## Projects
 
 Shipped work rendered at `/projects` with three layouts (list, one column, two column) configured in `siteConfig.projectsPage`. Projects have no body or route of their own: each is a title, a description line, an optional 16:9 thumbnail, and repo/X/LinkedIn links. The dashboard Projects section is the only writer (`convex/projects.ts`, `src/components/dashboard/ProjectsSection.tsx`, `src/pages/Projects.tsx`). Agents can read the index via `cat /projects.md` on the VFS or the Projects section in `/llms.txt`.
+
+## Skills
+
+Agent skills (SKILL.md folders installed with `npx skills add`, `skills.sh`, or `git clone`) rendered at `/skills`, gated by `siteConfig.skillsPage.enabled` (default off) and shown in the nav with `showInNav`. Two tables: `skillSections` groups the directory ("My skills", "Skills I recommend") with an optional collection install command, and `skills` holds each entry: slug (anchor at `/skills#slug`), title, optional slash `command`, one line `description`, optional collapsible `details`, author name and URL, up to four labeled `installCommands`, and `repoUrl`, `skillsShUrl`, `docsUrl`, `xUrl`. Icons only render for filled links. Skills with no section, or whose section is unpublished, render under a default "Skills" heading. Deleting a section unassigns its skills instead of deleting them.
+
+The dashboard Skills section is the only writer (`convex/skills.ts`, `src/components/dashboard/SkillsSection.tsx`, `src/pages/Skills.tsx`). Its "Prefill from SKILL.md" field fetches a GitHub blob or raw URL client-side (`src/utils/skillMdPrefill.ts`) and fills title, slug, command, description, repo link, and a Skills CLI install command from the frontmatter. Grouping, sorting, and the markdown renderer live in `convex/lib/skillsDirectory.ts` so the public page, the VFS `/skills.md`, the agent-ready `/skills` entry, and the page's "Copy as markdown" button all produce the same text. Every skill or section write schedules a discovery sync.
 
 ## Agent blog pipeline
 
@@ -437,7 +461,7 @@ Agents can submit drafts that land in the dashboard Drafts Inbox for human revie
 2. The MCP server at `/mcp` exposes `create_draft` using the same keys.
 3. The AgentMail email door accepts mail from allowlisted senders; replies to draft previews with `publish`, `reject`, or `edit` drive the approval loop.
 4. A voice agent (`convex/voiceAgent.ts`) rewrites `rewrite` mode drafts to the configured voice profile; `as-is` skips it.
-5. Publishing can auto-sync the change into the agent-ready discovery files when the dashboard toggle is on (`convex/agentReady/autoSync.ts`). The same hook covers dashboard page CRUD, project CRUD (which refreshes a `/projects` entry mirroring the VFS `/projects.md`), and the CLI sync mutations, which batch one refresh per run.
+5. Publishing can auto-sync the change into the agent-ready discovery files when the dashboard toggle is on (`convex/agentReady/autoSync.ts`). The same hook covers dashboard page CRUD, project CRUD (which refreshes a `/projects` entry mirroring the VFS `/projects.md`), skill and skill section CRUD (which refreshes a `/skills` entry mirroring `/skills.md`), and the CLI sync mutations, which batch one refresh per run.
 
 ## Content import
 
@@ -456,7 +480,7 @@ Requires `FIRECRAWL_API_KEY` in `.env.local`. Get a key from firecrawl.dev.
 | .env.local | Development Convex URL (auto-created by `npx convex dev`) |
 | .env.production.local | Production Convex URL (create manually) |
 
-Both are gitignored.
+Both are gitignored. Optional `SYNC_SECRET` in either file must match the same variable on the Convex deployment; when the deployment has it set, `syncPostsPublic`, `syncPagesPublic`, and the embeddings mutations reject callers without it. Run `npm run validate-env` to check. Add `SYNC_SECRET` to both files once the same value is set on the deployment (`npx convex env set SYNC_SECRET <value>`); the sync mutations then reject callers without it. Run `npm run validate-env` to check.
 
 ## Security considerations
 
@@ -464,7 +488,9 @@ Both are gitignored.
 - LLM-calling endpoints (Ask AI, AI chat, image generation, voice agent) are rate limited per user to prevent cost amplification
 - Webhooks verify signatures before consuming rate limits: AgentMail uses Svix HMAC, GitHub uses X-Hub-Signature-256
 - Draft submission requires a hashed pipeline API key checked with constant-time comparison
-- Public mutations (heartbeat, page views, newsletter) have per-session rate limits stacked on top of existing dedup windows
+- All secret comparisons (pipeline keys, MCP bearer, bootstrap key, unsubscribe token, sync secret) go through `secretEquals` in `convex/lib/secretCompare.ts`
+- CLI sync mutations (`syncPostsPublic`, `syncPagesPublic`, embeddings) accept a dashboard admin session or a `syncSecret` matching the `SYNC_SECRET` env var; unset means open for fresh forks
+- Public mutations (heartbeat, page views, newsletter, contact, demo writes) have rate limits stacked on top of existing dedup windows
 - Escape HTML in all HTTP endpoint outputs using `escapeHtml()`
 - Escape XML in RSS feeds using `escapeXml()` or CDATA
 - Use indexed queries, never scan full tables

@@ -22,7 +22,7 @@ Concepts explored: the workbench, the shipped artifact, the repo, the launch thr
 
 **Color world.** This lives in terminal plus README territory. The site already has four themes with per-theme accents (`#00a3ff` dark, black light, `#8b7355` tan, `#171717` cloud). Introducing a new palette would break three of them. The purple titles in the reference map exactly to the existing `--accent` token, so the palette is the site palette, used with intent rather than replaced.
 
-**Signature: the link rail.** Every card ends with a fixed row of platform glyphs pinned bottom right. Glyphs for links that do not exist render dimmed and non-interactive rather than disappearing. A grayed GitHub mark is real information: this one is not open source. That present-but-inactive state exists nowhere else on this site and could only make sense for an index of shipped work.
+**Signature: the link rail.** Every card ends with a row of platform glyphs pinned bottom right. Only filled X, GitHub, and LinkedIn URLs render an icon. An empty field hides that glyph. The live URL is the title arrow, not a fourth icon.
 
 ## Defaults rejected
 
@@ -70,7 +70,7 @@ Indexes: `by_slug`, `by_published`.
 
 - `/projects` must be registered before `/:slug` or the catch-all renders it as a missing post.
 - A project with no thumbnail must not collapse in one and two column views. The card keeps its shape without a placeholder image.
-- A project with no links at all still renders the rail, fully dimmed.
+- A project with no social links omits the rail. The card still holds shape.
 - Slug collisions on create and on rename both throw `ConvexError`.
 - View mode preference persists per browser but the configured default wins when the toggle is hidden, matching how `/blog` behaves.
 - External links need `target="_blank"` and `rel="noopener noreferrer"`.
@@ -79,7 +79,7 @@ Indexes: `by_slug`, `by_published`.
 ## Verification
 
 - Dashboard: create a project with all four links plus a thumbnail, confirm it appears at `/projects`.
-- Create one with no links and no thumbnail, confirm the card holds shape and every glyph is dimmed.
+- Create one with no links and no thumbnail, confirm the card holds shape and no social icons appear.
 - Cycle list, one column, two column. Confirm each is a distinct layout and the choice survives a reload.
 - Turn off the toggle in Site Config, confirm the configured default wins.
 - Turn off `projectsPage.enabled`, confirm the route 404s through the catch-all and the nav link is gone.
@@ -97,3 +97,4 @@ Indexes: `by_slug`, `by_published`.
 - 2026-08-29 22:08 UTC: Verified. `npx tsc --noEmit` clean, eslint clean on the four touched files, `npm run build` succeeds with `/projects` code-split to 5.76 kB (1.99 kB gzipped). Measured at 1280px: list is a 672px text-only index, one column is a 752px row with a 280x158 still, two column is a 366px grid with a 364x205 full-bleed thumbnail. All thumbnails hold 16:9. No horizontal overflow at either width, and two column collapses to one at 651px.
 - 2026-08-29 22:10 UTC: One verification step could not be met as written. The PRD asked for convex-doctor to stay at 100; it reports 91 under convex-doctor 0.3.3, which is a newer version with rules that did not exist when the 100 was recorded. Every finding is pre-existing (`generateAudio`, `openReviewPr`, `serveStaticWithMeta`, the self-hosting component, `by_source_message_id`); a verbose run mentions none of the new files. Left alone rather than fixed here, since it is unrelated to this change. Worth a separate pass.
 - 2026-08-29 22:12 UTC: Docs synced (`TASK.md`, `changelog.md`, `files.md`). Remaining: the signed-in browser pass logged in `TASK.md`, which needs a real project created through the dashboard to exercise upload, publish/unpublish, and the theme sweep.
+- 2026-09-05 22:10 UTC: Reversed the dimmed-glyph rail. Empty X, GitHub, and LinkedIn fields now hide the icon. See `prds/hide-empty-project-link-icons.md`.

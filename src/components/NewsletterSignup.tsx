@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import siteConfig from "../config/siteConfig";
+import { usePageAction, type PageActionResult } from "../utils/webmcp/pageActions";
 
 // Props for the newsletter signup component
 interface NewsletterSignupProps {
@@ -29,21 +30,73 @@ export default function NewsletterSignup({
   const [message, setMessage] = useState("");
 
   const subscribe = useMutation(api.newsletter.subscribe);
+  const newsletterEnabled = siteConfig.newsletter?.enabled === true;
+
+  // Shared submit path for the button and the WebMCP subscribe_newsletter
+  // tool. Same honeypot check, same validation, same mutation.
+  const submitEmail = async (value: string): Promise<PageActionResult> => {
+    // Honeypot check: if filled, silently reject (bot detected)
+    if (honeypot) {
+      // Pretend success to not alert the bot
+      setStatus("success");
+      setMessage("Thanks for subscribing!");
+      setEmail("");
+      return { ok: true, message: "Thanks for subscribing!" };
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setStatus("error");
+      setMessage("Please enter your email.");
+      return { ok: false, reason: "Please enter your email." };
+    }
+
+    setEmail(trimmed);
+    setStatus("loading");
+
+    try {
+      // Include post slug in source for tracking
+      const sourceValue = postSlug ? `post:${postSlug}` : source;
+      const result = await subscribe({ email: trimmed, source: sourceValue });
+
+      if (result.success) {
+        setStatus("success");
+        setMessage(result.message);
+        setEmail("");
+        return { ok: true, message: result.message };
+      }
+      setStatus("error");
+      setMessage(result.message);
+      return { ok: false, reason: result.message };
+    } catch {
+      setStatus("error");
+      setMessage("Something went wrong. Please try again.");
+      return { ok: false, reason: "Something went wrong. Please try again." };
+    }
+  };
+
+  // Advertise subscribe_newsletter to an in-page agent only while this form
+  // is on screen and the newsletter is on
+  usePageAction(
+    "newsletter",
+    newsletterEnabled ? ({ email: value }) => submitEmail(value) : null,
+  );
 
   // Check if newsletter is enabled globally. Placement visibility is decided
   // by the parent so a frontmatter newsletter: true override can still render.
-  if (!siteConfig.newsletter?.enabled) return null;
+  const newsletterConfig = siteConfig.newsletter;
+  if (!newsletterEnabled || !newsletterConfig) return null;
 
   // Get copy for this placement
   const config =
     source === "home"
-      ? siteConfig.newsletter.signup.home
+      ? newsletterConfig.signup.home
       : source === "blog-page"
-        ? siteConfig.newsletter.signup.blogPage
+        ? newsletterConfig.signup.blogPage
         : source === "page"
-          ? (siteConfig.newsletter.signup.pages ??
-            siteConfig.newsletter.signup.posts)
-          : siteConfig.newsletter.signup.posts;
+          ? (newsletterConfig.signup.pages ??
+            newsletterConfig.signup.posts)
+          : newsletterConfig.signup.posts;
 
   const displayTitle = title || config.title;
   const displayDescription = description || config.description;
@@ -51,41 +104,7 @@ export default function NewsletterSignup({
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Honeypot check: if filled, silently reject (bot detected)
-    if (honeypot) {
-      // Pretend success to not alert the bot
-      setStatus("success");
-      setMessage("Thanks for subscribing!");
-      setEmail("");
-      return;
-    }
-
-    if (!email.trim()) {
-      setStatus("error");
-      setMessage("Please enter your email.");
-      return;
-    }
-
-    setStatus("loading");
-
-    try {
-      // Include post slug in source for tracking
-      const sourceValue = postSlug ? `post:${postSlug}` : source;
-      const result = await subscribe({ email, source: sourceValue });
-
-      if (result.success) {
-        setStatus("success");
-        setMessage(result.message);
-        setEmail("");
-      } else {
-        setStatus("error");
-        setMessage(result.message);
-      }
-    } catch {
-      setStatus("error");
-      setMessage("Something went wrong. Please try again.");
-    }
+    await submitEmail(email);
   };
 
   return (

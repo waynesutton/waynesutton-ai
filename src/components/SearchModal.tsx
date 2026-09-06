@@ -17,6 +17,8 @@ import { siteConfig } from "../config/siteConfig";
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Pre-filled query, used by the WebMCP search_site tool. Empty for a blank open. */
+  initialQuery?: string;
 }
 
 type SearchMode = "keyword" | "semantic";
@@ -32,7 +34,7 @@ interface SearchResult {
   anchor?: string;
 }
 
-export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
+export default function SearchModal({ isOpen, onClose, initialQuery = "" }: SearchModalProps) {
   // Check if semantic search is enabled in siteConfig
   const semanticEnabled = siteConfig.semanticSearch?.enabled !== false;
 
@@ -129,17 +131,18 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       ? keywordResults === undefined && searchQuery.trim() !== ""
       : isSemanticSearching;
 
-  // Focus input when modal opens
+  // Focus input when modal opens. A pre-filled query (from an in-page agent)
+  // lands in the box so the person sees results right away.
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
-      setSearchQuery("");
+      setSearchQuery(initialQuery);
       setSelectedIndex(0);
       setSemanticResults(null);
       setSemanticSearchJobId(null);
       setIsSemanticSearching(false);
     }
-  }, [isOpen]);
+  }, [isOpen, initialQuery]);
 
   // Reset selection when results change
   useEffect(() => {

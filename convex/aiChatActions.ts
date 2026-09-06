@@ -15,6 +15,7 @@ import OpenAI from "openai";
 import { GoogleGenAI, Content } from "@google/genai";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { resolveAiProvider } from "./lib/aiProviderResolver";
 import { resolveVendorKey } from "./lib/vendorKeyResolver";
 
 // Model validator for multi-model support
@@ -23,7 +24,7 @@ const modelValidator = v.union(
   v.literal("gpt-4.1-mini"),
   v.literal("gemini-2.0-flash"),
   v.literal("concentrate/auto"),
-  v.literal("openrouter/auto")
+  v.literal("openrouter/auto"),
 );
 
 type AIModel =
@@ -33,7 +34,12 @@ type AIModel =
   | "concentrate/auto"
   | "openrouter/auto";
 
-type AIProvider = "anthropic" | "openai" | "google" | "concentrate" | "openrouter";
+type AIProvider =
+  | "anthropic"
+  | "openai"
+  | "google"
+  | "concentrate"
+  | "openrouter";
 
 type ChatAttachment = {
   type: "image" | "link";
@@ -114,11 +120,13 @@ function buildSystemPrompt(): string {
 /**
  * Scrape URL content using Firecrawl (optional)
  */
-async function scrapeUrl(url: string): Promise<{
+async function scrapeUrl(
+  url: string,
+  apiKey: string | null,
+): Promise<{
   content: string;
   title?: string;
 } | null> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
   if (!apiKey) {
     return null; // Firecrawl not configured
   }
@@ -229,6 +237,7 @@ function buildSystemPromptWithContext(pageContent?: string): string {
 
 async function enrichAttachmentsWithScrapedContent(
   attachments: ChatAttachment[] | undefined,
+  firecrawlKey: string | null,
 ): Promise<ChatAttachment[] | undefined> {
   if (!attachments || attachments.length === 0) {
     return attachments;
@@ -241,7 +250,7 @@ async function enrichAttachmentsWithScrapedContent(
         attachment.url &&
         !attachment.scrapedContent
       ) {
-        const scraped = await scrapeUrl(attachment.url);
+        const scraped = await scrapeUrl(attachment.url, firecrawlKey);
         if (scraped) {
           return {
             ...attachment,
@@ -257,6 +266,7 @@ async function enrichAttachmentsWithScrapedContent(
 
 async function enrichMessagesWithScrapedContent(
   messages: StoredChatMessage[],
+  firecrawlKey: string | null,
 ): Promise<StoredChatMessage[]> {
   return await Promise.all(
     messages.map(async (message) => {
@@ -266,7 +276,10 @@ async function enrichMessagesWithScrapedContent(
 
       return {
         ...message,
-        attachments: await enrichAttachmentsWithScrapedContent(message.attachments),
+        attachments: await enrichAttachmentsWithScrapedContent(
+          message.attachments,
+          firecrawlKey,
+        ),
       };
     }),
   );
@@ -296,10 +309,10 @@ async function resolveStorageUrls(
   storageIds: Array<Id<"_storage">>,
 ): Promise<Record<string, string | null>> {
   const entries = await Promise.all(
-    storageIds.map(async (storageId) => [
-      storageId,
-      await ctx.storage.getUrl(storageId),
-    ] as const),
+    storageIds.map(
+      async (storageId) =>
+        [storageId, await ctx.storage.getUrl(storageId)] as const,
+    ),
   );
 
   const storageUrlMap: Record<string, string | null> = {};
@@ -379,25 +392,51 @@ function buildFormattedMessages(
   return formattedMessages;
 }
 
+/**
+ * The model id sent to the provider before any dashboard override. The
+ * "concentrate/" prefix only exists to pick the provider in the UI; the
+ * gateway itself expects the bare id ("auto").
+ */
+function providerRequestModel(model: AIModel): string {
+  return model.startsWith("concentrate/")
+    ? model.replace("concentrate/", "")
+    : model;
+}
+
 async function callProviderApi(
   provider: AIProvider,
   apiKey: string,
-  model: AIModel,
+  model: string,
   systemPrompt: string,
   formattedMessages: Array<FormattedChatMessage>,
 ): Promise<string> {
   switch (provider) {
     case "anthropic":
-      return await callAnthropicApi(apiKey, model, systemPrompt, formattedMessages);
+      return await callAnthropicApi(
+        apiKey,
+        model,
+        systemPrompt,
+        formattedMessages,
+      );
     case "openai":
-      return await callOpenAIApi(apiKey, model, systemPrompt, formattedMessages);
+      return await callOpenAIApi(
+        apiKey,
+        model,
+        systemPrompt,
+        formattedMessages,
+      );
     case "google":
-      return await callGeminiApi(apiKey, model, systemPrompt, formattedMessages);
+      return await callGeminiApi(
+        apiKey,
+        model,
+        systemPrompt,
+        formattedMessages,
+      );
     case "concentrate":
       // OpenAI-compatible gateway; model "auto" routes to the best available model
       return await callOpenAIApi(
         apiKey,
-        model.replace("concentrate/", ""),
+        model,
         systemPrompt,
         formattedMessages,
         "https://api.concentrate.ai/v1",
@@ -424,7 +463,7 @@ async function callAnthropicApi(
   messages: Array<{
     role: "user" | "assistant";
     content: string | Array<ContentBlockParam>;
-  }>
+  }>,
 ): Promise<string> {
   const anthropic = new Anthropic({ apiKey });
 
@@ -454,7 +493,7 @@ async function callOpenAIApi(
     role: "user" | "assistant";
     content: string | Array<ContentBlockParam>;
   }>,
-  baseURL?: string
+  baseURL?: string,
 ): Promise<string> {
   const openai = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
 
@@ -472,22 +511,38 @@ async function callOpenAIApi(
       }
     } else {
       // Convert content blocks to OpenAI format
-      const content: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [];
+      const content: Array<
+        | { type: "text"; text: string }
+        | { type: "image_url"; image_url: { url: string } }
+      > = [];
       for (const block of msg.content) {
         if (block.type === "text") {
           content.push({ type: "text", text: block.text });
-        } else if (block.type === "image" && "source" in block && block.source.type === "url") {
-          content.push({ type: "image_url", image_url: { url: block.source.url } });
+        } else if (
+          block.type === "image" &&
+          "source" in block &&
+          block.source.type === "url"
+        ) {
+          content.push({
+            type: "image_url",
+            image_url: { url: block.source.url },
+          });
         }
       }
       if (msg.role === "user") {
         openaiMessages.push({
           role: "user",
-          content: content.length === 1 && content[0].type === "text" ? content[0].text : content,
+          content:
+            content.length === 1 && content[0].type === "text"
+              ? content[0].text
+              : content,
         });
       } else {
         // Assistant messages only support string content in OpenAI
-        const textContent = content.filter(c => c.type === "text").map(c => (c as { type: "text"; text: string }).text).join("\n");
+        const textContent = content
+          .filter((c) => c.type === "text")
+          .map((c) => (c as { type: "text"; text: string }).text)
+          .join("\n");
         openaiMessages.push({ role: "assistant", content: textContent });
       }
     }
@@ -517,7 +572,7 @@ async function callGeminiApi(
   messages: Array<{
     role: "user" | "assistant";
     content: string | Array<ContentBlockParam>;
-  }>
+  }>,
 ): Promise<string> {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -534,7 +589,9 @@ async function callGeminiApi(
       });
     } else {
       // Convert content blocks to Gemini format
-      const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
+      const parts: Array<
+        { text: string } | { inlineData: { mimeType: string; data: string } }
+      > = [];
       for (const block of msg.content) {
         if (block.type === "text") {
           parts.push({ text: block.text });
@@ -558,7 +615,7 @@ async function callGeminiApi(
   });
 
   const textContent = response.candidates?.[0]?.content?.parts?.find(
-    (part: { text?: string }) => part.text
+    (part: { text?: string }) => part.text,
   );
 
   if (!textContent || !("text" in textContent)) {
@@ -596,8 +653,14 @@ async function generateResponseFromSnapshot(
     const selectedModel: AIModel = args.model || "claude-sonnet-4-20250514";
     const provider = getProviderFromModel(selectedModel);
 
-    // Dashboard override first, then the deployment env var
-    const apiKey = await resolveVendorKey(ctx, getEnvVarForProvider(provider));
+    // One query: dashboard key override plus the chat model override for this
+    // vendor. Falls back to the env var and the hardcoded model id.
+    const { apiKey, model } = await resolveAiProvider(
+      ctx,
+      getEnvVarForProvider(provider),
+      "chat",
+      providerRequestModel(selectedModel),
+    );
     if (!apiKey) {
       const notConfiguredMessage = getNotConfiguredMessage(provider);
       await ctx.runMutation(internal.aiChats.finalizeGeneration, {
@@ -608,23 +671,39 @@ async function generateResponseFromSnapshot(
     }
 
     const systemPrompt = buildSystemPromptWithContext(args.pageContext);
-    const recentMessages = await enrichMessagesWithScrapedContent(args.recentMessages);
+    // Only look up the Firecrawl key when a link attachment needs scraping
+    const needsScrape = args.recentMessages.some((message) =>
+      message.attachments?.some(
+        (a) => a.type === "link" && a.url && !a.scrapedContent,
+      ),
+    );
+    const firecrawlKey = needsScrape
+      ? await resolveVendorKey(ctx, "FIRECRAWL_API_KEY")
+      : null;
+    const recentMessages = await enrichMessagesWithScrapedContent(
+      args.recentMessages,
+      firecrawlKey,
+    );
     const storageIds = collectStorageIds(recentMessages);
     const storageUrlMap =
       storageIds.length > 0 ? await resolveStorageUrls(ctx, storageIds) : {};
-    const formattedMessages = buildFormattedMessages(recentMessages, storageUrlMap);
+    const formattedMessages = buildFormattedMessages(
+      recentMessages,
+      storageUrlMap,
+    );
 
     let assistantMessage: string;
     try {
       assistantMessage = await callProviderApi(
         provider,
         apiKey,
-        selectedModel,
+        model,
         systemPrompt,
         formattedMessages,
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       assistantMessage = `**Error from ${provider}:** ${errorMessage}`;
     }
 

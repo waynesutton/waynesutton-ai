@@ -4,14 +4,10 @@ import { v } from "convex/values";
 import { internal, components } from "./_generated/api";
 import { Agent } from "@convex-dev/agent";
 import { RAG } from "@convex-dev/rag";
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { requireDashboardAdminAction } from "./dashboardAuth";
-
-// Honest degradation: features report unconfigured instead of erroring
-function isConfigured(name: string): boolean {
-  const value = process.env[name];
-  return Boolean(value && value.trim().length > 0 && value.trim() !== "unset");
-}
+import { resolveAiProvider } from "./lib/aiProviderResolver";
+import { resolveVendorKey } from "./lib/vendorKeyResolver";
 
 const BASE_INSTRUCTIONS = [
   "You are the voice agent for waynesutton.ai. You turn raw notes, coding",
@@ -22,18 +18,29 @@ const BASE_INSTRUCTIONS = [
   "headings. Write like a developer talking to developers.",
 ].join(" ");
 
-// Voice agent built on the Convex agent component
-const voiceAgent = new Agent(components.agent, {
-  name: "voice-agent",
-  languageModel: openai.chat("gpt-4.1-mini"),
-  instructions: BASE_INSTRUCTIONS,
-});
+const VOICE_AGENT_MODEL = "gpt-4.1-mini";
 
-// RAG over published site content for voice consistency
-export const rag = new RAG(components.rag, {
-  textEmbeddingModel: openai.embedding("text-embedding-3-small"),
-  embeddingDimension: 1536,
-});
+// Voice agent built on the Convex agent component. Built per run so the
+// dashboard key and chat model overrides for OpenAI apply without a redeploy.
+function buildVoiceAgent(apiKey: string, model: string): Agent {
+  const provider = createOpenAI({ apiKey });
+  return new Agent(components.agent, {
+    name: "voice-agent",
+    languageModel: provider.chat(model),
+    instructions: BASE_INSTRUCTIONS,
+  });
+}
+
+// RAG over published site content for voice consistency. The embedding
+// model stays fixed (the namespace is sized for 1536 dims); only the key
+// comes from the dashboard override or env var.
+function buildRag(apiKey: string): RAG {
+  const provider = createOpenAI({ apiKey });
+  return new RAG(components.rag, {
+    textEmbeddingModel: provider.embedding("text-embedding-3-small"),
+    embeddingDimension: 1536,
+  });
+}
 
 /** Fetch X/Twitter post text via the free oEmbed endpoint (no API key). */
 async function fetchXPostText(url: string): Promise<string | null> {
@@ -44,7 +51,10 @@ async function fetchXPostText(url: string): Promise<string | null> {
     if (!response.ok) {
       return null;
     }
-    const data = (await response.json()) as { html?: string; author_name?: string };
+    const data = (await response.json()) as {
+      html?: string;
+      author_name?: string;
+    };
     if (!data.html) {
       return null;
     }
@@ -99,7 +109,14 @@ export const rewriteDraft = internalAction({
       return null;
     }
 
-    if (!isConfigured("OPENAI_API_KEY")) {
+    // Dashboard key and chat model overrides, then env var and the default id
+    const provider = await resolveAiProvider(
+      ctx,
+      "OPENAI_API_KEY",
+      "chat",
+      VOICE_AGENT_MODEL,
+    );
+    if (!provider.apiKey) {
       await ctx.runMutation(internal.drafts.markAgentResult, {
         draftId: args.draftId,
         error:
@@ -107,6 +124,8 @@ export const rewriteDraft = internalAction({
       });
       return null;
     }
+    const voiceAgent = buildVoiceAgent(provider.apiKey, provider.model);
+    const rag = buildRag(provider.apiKey);
 
     await ctx.runMutation(internal.drafts.markAgentRunning, {
       draftId: args.draftId,
@@ -127,7 +146,8 @@ export const rewriteDraft = internalAction({
       // Related site content via RAG for voice and continuity
       let siteContext = "";
       try {
-        const searchQuery = (draft.title ?? "") + " " + draft.rawInput.slice(0, 500);
+        const searchQuery =
+          (draft.title ?? "") + " " + draft.rawInput.slice(0, 500);
         const results = await rag.search(ctx, {
           namespace: "site-content",
           query: searchQuery,
@@ -238,9 +258,12 @@ export const listPublishedContentForIndex = internalQuery({
 
 // Shared indexing logic used by the internal action and the dashboard action
 async function indexSiteContentHelper(ctx: ActionCtx): Promise<number> {
-  if (!isConfigured("OPENAI_API_KEY")) {
+  // Dashboard BYOK override first, then the env var
+  const apiKey = await resolveVendorKey(ctx, "OPENAI_API_KEY");
+  if (!apiKey) {
     return 0;
   }
+  const rag = buildRag(apiKey);
   const entries: Array<{ key: string; title: string; text: string }> =
     await ctx.runQuery(internal.voiceAgent.listPublishedContentForIndex, {});
   for (const entry of entries) {

@@ -5,6 +5,7 @@ import { internalAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import OpenAI from "openai";
 import type { Id } from "./_generated/dataModel";
+import { resolveVendorKey } from "./lib/vendorKeyResolver";
 
 export const semanticSearchJob = internalAction({
   args: {
@@ -12,19 +13,26 @@ export const semanticSearchJob = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const job = await ctx.runQuery(internal.semanticSearchJobs.getSemanticSearchJobInternal, {
-      jobId: args.jobId,
-    });
+    const job = await ctx.runQuery(
+      internal.semanticSearchJobs.getSemanticSearchJobInternal,
+      {
+        jobId: args.jobId,
+      },
+    );
 
     if (!job) {
       return null;
     }
 
     const trimmedQuery = job.query.trim();
-    const apiKey = process.env.OPENAI_API_KEY;
+    // Dashboard BYOK override first, then the env var
+    const apiKey = await resolveVendorKey(ctx, "OPENAI_API_KEY");
 
     if (!trimmedQuery || !apiKey) {
-      await finalize(ctx, args.jobId, { status: "completed" as const, results: [] });
+      await finalize(ctx, args.jobId, {
+        status: "completed" as const,
+        results: [],
+      });
       return null;
     }
 
@@ -43,16 +51,31 @@ export const semanticSearchJob = internalAction({
         }),
       ]);
 
-      const docs = await ctx.runQuery(internal.semanticSearchQueries.fetchSearchDocsByIds, {
-        postIds: postResults.map((r) => r._id),
-        pageIds: pageResults.map((r) => r._id),
-      });
+      const docs = await ctx.runQuery(
+        internal.semanticSearchQueries.fetchSearchDocsByIds,
+        {
+          postIds: postResults.map((r) => r._id),
+          pageIds: pageResults.map((r) => r._id),
+        },
+      );
 
-      const results = buildSemanticSearchResults(postResults, pageResults, docs.posts, docs.pages);
-      await finalize(ctx, args.jobId, { status: "completed" as const, results });
+      const results = buildSemanticSearchResults(
+        postResults,
+        pageResults,
+        docs.posts,
+        docs.pages,
+      );
+      await finalize(ctx, args.jobId, {
+        status: "completed" as const,
+        results,
+      });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Semantic search failed";
-      await finalize(ctx, args.jobId, { status: "failed" as const, error: message });
+      const message =
+        error instanceof Error ? error.message : "Semantic search failed";
+      await finalize(ctx, args.jobId, {
+        status: "failed" as const,
+        error: message,
+      });
     }
 
     return null;
@@ -60,7 +83,18 @@ export const semanticSearchJob = internalAction({
 });
 
 type FinalizeOutcome =
-  | { status: "completed"; results: Array<{ _id: string; type: "post" | "page"; slug: string; title: string; description?: string; snippet: string; score: number }> }
+  | {
+      status: "completed";
+      results: Array<{
+        _id: string;
+        type: "post" | "page";
+        slug: string;
+        title: string;
+        description?: string;
+        snippet: string;
+        score: number;
+      }>;
+    }
   | { status: "failed"; error: string };
 
 async function finalize(
@@ -95,7 +129,10 @@ type VectorSearchMatch = {
   _score: number;
 };
 
-async function generateQueryEmbedding(queryText: string, apiKey: string): Promise<Array<number>> {
+async function generateQueryEmbedding(
+  queryText: string,
+  apiKey: string,
+): Promise<Array<number>> {
   const openai = new OpenAI({ apiKey });
   const embeddingResponse = await openai.embeddings.create({
     model: "text-embedding-ada-002",

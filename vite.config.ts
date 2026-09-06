@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -8,8 +10,32 @@ export default defineConfig(({ mode }) => {
   const convexUrl = env.VITE_CONVEX_URL || "";
   const convexSiteUrl = convexUrl.replace(".cloud", ".site");
 
+  const hasProductionEnvFile = fs.existsSync(
+    path.join(process.cwd(), ".env.production.local"),
+  );
+  const devEnv = loadEnv("development", process.cwd(), "");
+  const prodEnv: Record<string, string> = hasProductionEnvFile
+    ? loadEnv("production", process.cwd(), "")
+    : {};
+
   return {
     plugins: [react()],
+    define: {
+      "import.meta.env.VITE_DEV_CONVEX_URL": JSON.stringify(
+        devEnv.VITE_CONVEX_URL || "",
+      ),
+      "import.meta.env.VITE_PROD_CONVEX_URL": JSON.stringify(
+        hasProductionEnvFile ? prodEnv.VITE_CONVEX_URL || "" : "",
+      ),
+      "import.meta.env.VITE_PROD_SITE_URL": JSON.stringify(
+        hasProductionEnvFile
+          ? prodEnv.VITE_SITE_URL || prodEnv.VITE_CONVEX_SITE_URL || ""
+          : "",
+      ),
+      "import.meta.env.VITE_HAS_PRODUCTION_ENV": JSON.stringify(
+        hasProductionEnvFile ? "1" : "",
+      ),
+    },
     build: {
       outDir: "dist",
       rollupOptions: {

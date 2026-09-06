@@ -119,19 +119,19 @@ function DeleteProjectModal({
       onClick={(e) => {
         if (e.target === e.currentTarget && !isDeleting) onCancel();
       }}>
-      <div className="dashboard-modal dashboard-modal-delete">
+      <div className="dashboard-modal dashboard-modal-delete" role="dialog" aria-modal="true" aria-labelledby="delete-project-title">
         <div className="dashboard-modal-header">
           <div className="dashboard-modal-icon dashboard-modal-icon-warning">
             <Warning size={20} />
           </div>
-          <h3 className="dashboard-modal-title">Delete project</h3>
-          <button className="dashboard-modal-close" onClick={onCancel} disabled={isDeleting}>
+          <h3 id="delete-project-title" className="dashboard-modal-title">Delete project</h3>
+          <button className="dashboard-modal-close" aria-label="Close delete project dialog" onClick={onCancel} disabled={isDeleting}>
             <X size={18} />
           </button>
         </div>
         <div className="dashboard-modal-content">
           <p className="dashboard-modal-message">
-            This removes the project from /projects right away. It cannot be undone.
+            This removes the project from the site, including the homepage and Projects page. It cannot be undone.
           </p>
           <div className="dashboard-modal-item-name">{project.title}</div>
         </div>
@@ -470,8 +470,8 @@ export function ProjectsSection({
           <div className="dashboard-config-card">
             <h3>Links</h3>
             <span className="config-field-note">
-              Leave a field blank and its icon shows dimmed on the card, which reads as
-              &quot;this project does not have one&quot;.
+              Leave a field blank and its icon stays hidden. Only filled links
+              show on the card.
             </span>
             <div className="config-field">
               <label htmlFor="project-url">Live URL</label>

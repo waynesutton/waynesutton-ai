@@ -1,286 +1,88 @@
-# Security Guidelines for markdown-blog
-
-This document covers security patterns specific to the markdown-blog application, a Convex-powered blog with no authentication.
-
-## App-Specific Security Context
-
-### Architecture
-
-- **Frontend**: Vite + React 18.2 SPA (client-side only)
-- **Backend**: Convex.dev (serverless database and functions)
-- **Hosting**: Netlify with edge functions
-- **Auth**: None (public blog)
-
-### React Server Components Vulnerabilities
-
-**Status: NOT AFFECTED**
-
-This app does NOT use React Server Components and is NOT affected by:
-
-- CVE-2025-55182 (Remote Code Execution)
-- CVE-2025-55184 (Denial of Service)
-- CVE-2025-55183 (Source Code Exposure)
-
-These vulnerabilities affect apps using:
-
-- `react-server-dom-webpack`
-- `react-server-dom-parcel`
-- `react-server-dom-turbopack`
-
-This app uses standard React 18.2.0 client-side rendering with Vite bundler.
-
-For the latest information, see:
-
-- https://react.dev/blog/2025/12/03/critical-security-vulnerability-in-react-server-components
-- https://react.dev/blog/2025/12/11/denial-of-service-and-source-code-exposure-in-react-server-components
-
-## Database Tables
-
-| Table        | Contains PII | Public Access | Notes                              |
-| ------------ | ------------ | ------------- | ---------------------------------- |
-| `posts`      | No           | Read-only     | Blog content                       |
-| `viewCounts` | No           | Write via API | View counter per post              |
-| `siteConfig` | No           | Internal      | Site settings (not currently used) |
-
-## 1. Public API Security
-
-### Query Functions (Read-Only)
-
-All queries in this app are intentionally public for blog content:
-
-```typescript
-// Public queries - safe for public access
-export const getAllPosts = query({...});      // List published posts
-export const getPostBySlug = query({...});    // Get single post
-export const getViewCount = query({...});     // Get view count
-```
-
-### Mutation Functions
-
-| Function             | Risk Level | Notes                            |
-| -------------------- | ---------- | -------------------------------- |
-| `syncPostsPublic`    | Medium     | Build-time sync, no auth         |
-| `incrementViewCount` | Low        | No rate limiting, but low impact |
-
-### syncPostsPublic Security Consideration
-
-The `syncPostsPublic` mutation allows syncing posts without authentication. This is intentional for build-time deployment but has security implications:
-
-```typescript
-// Current: No auth check
-export const syncPostsPublic = mutation({
-  args: { posts: v.array(...) },
-  handler: async (ctx, args) => {
-    // Syncs posts directly
-  },
-});
-```
-
-**Mitigations in place:**
-
-1. Mutation only affects the `posts` table
-2. Posts require specific schema (slug, title, content, etc.)
-3. Build-time sync uses environment variables
-
-**Recommendations:**
-
-- Consider adding CONVEX_DEPLOY_KEY check for production
-- Monitor for unusual sync activity in Convex dashboard
-
-## 2. HTTP Endpoint Security
-
-### XSS Prevention
-
-All HTTP endpoints properly escape output:
-
-```typescript
-// HTML escaping for Open Graph
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-// XML escaping for RSS feeds
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-```
-
-### CORS Headers
-
-API endpoints include CORS headers for public access:
-
-```typescript
-headers: {
-  "Content-Type": "application/json; charset=utf-8",
-  "Cache-Control": "public, max-age=300, s-maxage=600",
-  "Access-Control-Allow-Origin": "*",
-}
-```
-
-This is intentional for a public blog API.
-
-### HTTP Endpoints
-
-| Route           | Method | Auth | Description                      |
-| --------------- | ------ | ---- | -------------------------------- |
-| `/rss.xml`      | GET    | No   | RSS feed (descriptions)          |
-| `/rss-full.xml` | GET    | No   | Full RSS feed (content for LLMs) |
-| `/sitemap.xml`  | GET    | No   | XML sitemap for SEO              |
-| `/api/posts`    | GET    | No   | JSON post list                   |
-| `/api/post`     | GET    | No   | Single post JSON/markdown        |
-| `/meta/post`    | GET    | No   | Open Graph HTML for crawlers     |
-
-## 3. Edge Function Security
-
-### Bot Detection (botMeta.ts)
-
-The edge function detects social media crawlers and serves Open Graph metadata:
-
-```typescript
-// Bot user agent detection
-const BOTS = [
-  "facebookexternalhit",
-  "twitterbot",
-  // ... more bots
-];
-```
-
-**Security considerations:**
-
-- User agent can be spoofed, but this only affects OG metadata delivery
-- Fallback to SPA for non-bots is secure
-- No sensitive data exposed to bots
-
-## 4. Client-Side Security
-
-### Markdown Rendering
-
-Uses `react-markdown` with controlled components:
-
-- External links open with `rel="noopener noreferrer"`
-- Images use lazy loading
-- No raw HTML injection (markdown only)
-
-### Copy to Clipboard
-
-The CopyPageDropdown component uses `navigator.clipboard.writeText()` which requires user interaction and is secure.
-
-## 5. Build-Time Security
-
-### Environment Variables
-
-| Variable          | Purpose               | Required |
-| ----------------- | --------------------- | -------- |
-| `VITE_CONVEX_URL` | Convex deployment URL | Yes      |
-| `CONVEX_URL`      | Fallback Convex URL   | No       |
-| `SITE_URL`        | Canonical site URL    | No       |
-
-### Sync Script
-
-The `sync-posts.ts` script:
-
-- Runs at build time only
-- Reads markdown files from `content/blog/`
-- Validates frontmatter before syncing
-- Uses ConvexHttpClient with environment URL
-
-## 6. Content Security
-
-### Frontmatter Validation
-
-Posts require valid frontmatter:
-
-```typescript
-// Required fields
-if (!frontmatter.title || !frontmatter.date || !frontmatter.slug) {
-  console.warn(`Skipping ${filePath}: missing required frontmatter fields`);
-  return null;
-}
-```
-
-### Published Flag
-
-Only posts with `published: true` are returned by queries:
-
-```typescript
-const post = await ctx.db
-  .query("posts")
-  .withIndex("by_slug", (q) => q.eq("slug", args.slug))
-  .first();
-
-if (!post || !post.published) {
-  return null;
-}
-```
-
-## 7. Security Checklist
-
-### Before Deploying
-
-- [ ] Verify `VITE_CONVEX_URL` is set correctly
-- [ ] Check no sensitive data in markdown files
-- [ ] Review any new HTTP endpoints for proper escaping
-- [ ] Ensure all external links use `noopener noreferrer`
-
-### Convex Functions
-
-- [ ] All queries use `.withIndex()` instead of `.filter()`
-- [ ] Return validators defined for all functions
-- [ ] No sensitive data in return values
-
-### HTTP Endpoints
-
-- [ ] HTML output uses `escapeHtml()`
-- [ ] XML output uses `escapeXml()` or CDATA
-- [ ] Proper Content-Type headers set
-- [ ] Cache-Control headers appropriate
-
-## 8. Known Design Decisions
-
-### Intentionally Public
-
-- All blog content is public by design
-- No user authentication required
-- API endpoints are open for LLM/agent access
-- RSS feeds include full content
-
-### Rate Limiting
-
-- No rate limiting on view count increments
-- Convex has built-in rate limiting at infrastructure level
-- Consider adding application-level limits if abuse occurs
-
-## 9. Monitoring
-
-### Convex Dashboard
-
-Monitor for:
-
-- Unusual mutation activity on `syncPostsPublic`
-- High query volumes on API endpoints
-- Error rates on HTTP endpoints
-
-### Netlify Analytics
-
-Monitor for:
-
-- Edge function errors
-- Unusual traffic patterns
-- Bot traffic volume
-
-## 10. Resources
-
-- [Convex Security Best Practices](https://docs.convex.dev/understanding/best-practices)
-- [React Security Guidelines](https://react.dev/learn/security)
-- [Netlify Edge Functions](https://docs.netlify.com/edge-functions/overview/)
-- [React Server Components CVE](https://react.dev/blog/2025/12/03/critical-security-vulnerability-in-react-server-components)
+---
+description: Security checklist for this Convex site. Read before touching convex/http.ts, auth, public mutations, sync scripts, or anything that reads secrets.
+globs:
+alwaysApply: false
+---
+
+# Security checklist for waynesutton.ai
+
+Convex backend, React + Vite frontend, Convex self-hosting for static assets,
+Convex Auth with GitHub OAuth for the dashboard. Every public HTTP route and
+public mutation is rate limited with `@convex-dev/rate-limiter`
+(`convex/rateLimits.ts`). Last full audit: September 2026
+(`prds/site-audit-2026-09.md`).
+
+## Trust tiers
+
+| Tier | Who | How it is enforced |
+|------|-----|--------------------|
+| Anonymous reader | Anyone | Public queries filter `published` and `unlisted`; public mutations are rate limited |
+| Signed-in GitHub user | Any GitHub account | `ctx.auth.getUserIdentity()` non-null. Unlocks Ask AI and post AI chat only, both per-user rate limited |
+| Dashboard admin | `dashboardAdmins` row, or the `DASHBOARD_PRIMARY_ADMIN_EMAIL` match in strict mode | `requireDashboardAdmin(ctx)` from `convex/dashboardAuth.ts`, checked inside every admin handler |
+| CLI sync | `npm run sync`, `npm run sync:prod` | `assertSyncCaller` in `convex/lib/syncAuth.ts`: admin session, or `syncSecret` matching the `SYNC_SECRET` env var, or open when that var is unset |
+| Agent pipeline | `x-api-key` on `/api/v1/drafts` and `/mcp create_draft` | Hashed pipeline keys, constant-time compare, created in the dashboard API Keys section |
+| Webhooks | AgentMail, GitHub | Svix signature and `X-Hub-Signature-256` verified before the rate limit is consumed |
+
+Per-handler auth checks are intentional. Do not move them into a wrapper.
+
+## Secrets
+
+- Every secret comparison goes through `secretEquals` in `convex/lib/secretCompare.ts`.
+  Never compare API keys, tokens, or bootstrap keys with `===`.
+- Raw vendor keys (OpenAI, Anthropic, AgentMail, R2, X) are only returned by
+  `internalQuery` functions. Public `vendorKeyStatus` style queries return booleans.
+- `.env`, `.env.local`, `.env.*.local` are gitignored. Never commit them.
+- Never schedule or call `api.*` from server code. Use `internal.*` or `components.*`.
+
+## Env vars that gate behavior
+
+| Variable | Effect when set |
+|----------|-----------------|
+| `DASHBOARD_PRIMARY_ADMIN_EMAIL` | Strict mode: that email is the only admin, `dashboardAdmins` is ignored |
+| `DASHBOARD_ADMIN_BOOTSTRAP_KEY` | Required by `bootstrapDashboardAdmin` and `listAuthUsersForBootstrap`; also closes the open first-admin path in `grantDashboardAdmin` |
+| `SYNC_SECRET` | Locks `syncPostsPublic`, `syncPagesPublic`, and the embeddings mutations to callers who pass the same value |
+| `MCP_API_KEY` | Requires a Bearer token on `/mcp`. Unset means `/mcp` is public (rate limited, `create_draft` still needs a pipeline key) |
+| `SITE_URL` | Origin for unsubscribe links, sitemap, RSS, OG tags. Newsletter delivery refuses non-https values |
+
+## Intentionally public surfaces
+
+| Surface | Bound |
+|---------|-------|
+| Content queries, `/api/*`, `/raw/*`, `/rss*.xml`, `/sitemap.xml`, `/llms*.txt`, `/agents.md` | Published, non-unlisted rows only; rate limited |
+| `/vfs/tree`, `/vfs/exec` | Allowlisted commands, no shell, rate limited |
+| `stats.heartbeat`, `stats.recordPageView` | Per-session rate limit plus dedup windows; event records, never counters |
+| `newsletter.subscribe`, `contact.submitContact` | 5 per minute each |
+| `newsletter.unsubscribe` | Token gated, constant-time compare |
+| `demo.*` CRUD and `demo.listAll*` | Only `source: "demo"` rows are writable; lists hide non-demo unpublished rows; 30 writes per minute, 50 rows per table, 30 minute cleanup |
+| `siteConfigData.getOverrides` | Runtime UI config only. Never store a secret in overrides |
+
+## Output escaping
+
+- HTML in `convex/http.ts`: `escapeHtml` on every interpolated value, including URLs in
+  `content="..."` attributes.
+- RSS: `escapeXml` for text nodes, `cdata()` for post bodies (splits `]]>`).
+- Markdown rendering in the browser: `rehype-raw` followed by `rehype-sanitize`.
+  `dangerouslySetInnerHTML` is admin-only (rich text editor).
+- Embeds: `src/utils/embedMarkdown.ts` allowlists X and YouTube hosts only.
+- External links: `target="_blank"` always pairs with `rel="noopener noreferrer"`.
+
+## Before shipping a change
+
+- [ ] New public mutation: rate limit added in `convex/rateLimits.ts` and applied with `{ throws: true }`
+- [ ] New admin function: `requireDashboardAdmin(ctx)` (or `requireDashboardAdminAction`) is the first await
+- [ ] New HTTP route: rate limited, output escaped, CORS only where the route is meant to be public
+- [ ] New secret: read from env or `internal` vendor key resolver, compared with `secretEquals`
+- [ ] New list query: filtered by `published` (and `unlisted`) unless admin gated, bounded with `.take` or pagination
+- [ ] No `Date.now()` inside queries; pass `now` from the client
+- [ ] `npx convex-doctor@latest` still reports 100/100
+- [ ] `npm audit` shows no new high or critical findings
+
+## Reviewed and accepted
+
+- Any GitHub account can sign in. Sign-in alone grants Ask AI and post AI chat, both
+  per-user rate limited. It does not grant dashboard access.
+- `/mcp` without `MCP_API_KEY` exposes read tools including `export_all`. Set the key
+  in production if that surface should be private.
+- SVG uploads are admin-only and served from the storage origin, not the site origin.
+- `posts.incrementViewCount` and the `viewCounts` table are unused by the frontend.
+  Remove in a later pass rather than harden.

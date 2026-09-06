@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import siteConfig from "../config/siteConfig";
+import { usePageAction, type PageActionResult } from "../utils/webmcp/pageActions";
 
 type AudioVoice = "male" | "female";
 
@@ -133,6 +134,26 @@ export default function PostAudioPlayer({
       stopBrowserSpeech();
     };
   }, [stopBrowserSpeech]);
+
+  // WebMCP listen_to_post: only offered while a generated reading is rendered.
+  // Presses play on the same element the Listen button controls.
+  const listenForAgent = useCallback(async (): Promise<PageActionResult> => {
+    const node = audioRef.current;
+    if (!node) {
+      return { ok: false, reason: "Audio is not ready" };
+    }
+    if (!node.paused) {
+      return { ok: true, message: "Already playing" };
+    }
+    try {
+      await node.play();
+      setPlaying(true);
+      return { ok: true, message: "Playing" };
+    } catch {
+      return { ok: false, reason: "The browser blocked playback. Press Listen on the page." };
+    }
+  }, []);
+  usePageAction("listen", enabled && audioUrl ? listenForAgent : null);
 
   // Chrome stalls a queued speech run after roughly 15 seconds of audio.
   // Nudging it on a timer keeps a long post going to the end.

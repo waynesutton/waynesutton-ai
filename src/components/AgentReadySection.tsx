@@ -28,13 +28,41 @@ const THEME_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "system", label: "System" },
 ];
 
-const TOGGLES: Array<{ key: keyof WidgetSettings; label: string; hint: string }> = [
-  { key: "enabled", label: "Show widget", hint: "Render the widget on the public site" },
-  { key: "showMachineTab", label: "Machine tab", hint: "Discovery files and endpoints for agents" },
-  { key: "showHumanTab", label: "Human tab", hint: "Human readable summary tab" },
-  { key: "showScoreTab", label: "Score tab", hint: "Agent readiness score tab" },
-  { key: "showChatLinks", label: "Chat links", hint: "Open-in-chat links inside the widget" },
-  { key: "defaultMobileCollapsed", label: "Collapse on mobile", hint: "Start collapsed on small screens" },
+const TOGGLES: Array<{
+  key: keyof WidgetSettings;
+  label: string;
+  hint: string;
+}> = [
+  {
+    key: "enabled",
+    label: "Show widget",
+    hint: "Render the widget on the public site",
+  },
+  {
+    key: "showMachineTab",
+    label: "Machine tab",
+    hint: "Discovery files and endpoints for agents",
+  },
+  {
+    key: "showHumanTab",
+    label: "Human tab",
+    hint: "Human readable summary tab",
+  },
+  {
+    key: "showScoreTab",
+    label: "Score tab",
+    hint: "Agent readiness score tab",
+  },
+  {
+    key: "showChatLinks",
+    label: "Chat links",
+    hint: "Open-in-chat links inside the widget",
+  },
+  {
+    key: "defaultMobileCollapsed",
+    label: "Collapse on mobile",
+    hint: "Start collapsed on small screens",
+  },
 ];
 
 /**
@@ -43,10 +71,14 @@ const TOGGLES: Array<{ key: keyof WidgetSettings; label: string; hint: string }>
  */
 export default function AgentReadySection() {
   const savedSettings = useQuery(api.agentReady.settings.getWidgetSettings);
-  const updateSettings = useMutation(api.agentReady.settings.updateWidgetSettings);
+  const updateSettings = useMutation(
+    api.agentReady.settings.updateWidgetSettings,
+  );
 
   const cacheStatus = useQuery(api.agentReady.content.getCacheStatus);
-  const pages = useQuery(api.agentReady.content.listPages, { includeAllStatuses: true });
+  const pages = useQuery(api.agentReady.content.listPages, {
+    includeAllStatuses: true,
+  });
   const regenerate = useAction(api.agentReady.content.regenerateAll);
   const rollback = useMutation(api.agentReady.content.rollbackCache);
   const publish = useMutation(api.agentReady.content.publishPage);
@@ -58,7 +90,9 @@ export default function AgentReadySection() {
   const [autoSyncSaving, setAutoSyncSaving] = useState(false);
 
   const [local, setLocal] = useState<WidgetSettings | null>(null);
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
 
   // Saves immediately on change; guarded against overlapping calls
   const handleAutoSyncToggle = async (enabled: boolean) => {
@@ -100,9 +134,10 @@ export default function AgentReadySection() {
       <div className="agent-ready-intro">
         <h2>Agent ready</h2>
         <p>
-          Discovery files (llms.txt, llms-full.txt, agents.md) tell AI agents what this site
-          is and how to use it. Manage the public widget, included pages, and cached files
-          here. Full instructions live in the Docs section.
+          Discovery files (llms.txt, llms-full.txt, agents.md) tell AI agents
+          what this site is and how to use it. Manage the public widget,
+          included pages, and cached files here. Full instructions live in the
+          Docs section.
         </p>
       </div>
 
@@ -125,10 +160,17 @@ export default function AgentReadySection() {
                       setLocal({ ...local, [toggle.key]: e.target.checked })
                     }
                   />
-                  <span className="agent-ready-toggle-track" aria-hidden="true" />
+                  <span
+                    className="agent-ready-toggle-track"
+                    aria-hidden="true"
+                  />
                   <span className="agent-ready-toggle-text">
-                    <span className="agent-ready-toggle-label">{toggle.label}</span>
-                    <span className="agent-ready-toggle-hint">{toggle.hint}</span>
+                    <span className="agent-ready-toggle-label">
+                      {toggle.label}
+                    </span>
+                    <span className="agent-ready-toggle-hint">
+                      {toggle.hint}
+                    </span>
                   </span>
                 </label>
               ))}
@@ -136,8 +178,8 @@ export default function AgentReadySection() {
 
             {!local.enabled && (
               <p className="agent-ready-hint agent-ready-hint-warning">
-                Show widget is off, so position and theme have nothing to apply to.
-                Turn it on to see the widget on the public site.
+                Show widget is off, so position and theme have nothing to apply
+                to. Turn it on to see the widget on the public site.
               </p>
             )}
 
@@ -147,7 +189,9 @@ export default function AgentReadySection() {
                 <select
                   value={local.position}
                   disabled={!local.enabled}
-                  onChange={(e) => setLocal({ ...local, position: e.target.value })}
+                  onChange={(e) =>
+                    setLocal({ ...local, position: e.target.value })
+                  }
                 >
                   {POSITION_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -161,7 +205,9 @@ export default function AgentReadySection() {
                 <select
                   value={local.widgetTheme}
                   disabled={!local.enabled}
-                  onChange={(e) => setLocal({ ...local, widgetTheme: e.target.value })}
+                  onChange={(e) =>
+                    setLocal({ ...local, widgetTheme: e.target.value })
+                  }
                 >
                   {THEME_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -198,9 +244,10 @@ export default function AgentReadySection() {
       <div className="agent-ready-panel">
         <h3>Publishing</h3>
         <p className="agent-ready-hint">
-          When on, publishing a public post adds it to llms.txt and agents.md and
-          regenerates the cached files automatically. Unpublishing, unlisting, or
-          deleting a public post removes it. Saves immediately.
+          When on, changes to public posts, pages, projects, and skills
+          refresh llms.txt, agents.md, and llms-full.txt. Hidden or deleted content is
+          removed. Dashboard saves, approved drafts, and terminal content sync
+          are covered. This toggle saves immediately.
         </p>
         <div className="agent-ready-toggle-grid">
           <label className="agent-ready-toggle">
@@ -212,9 +259,11 @@ export default function AgentReadySection() {
             />
             <span className="agent-ready-toggle-track" aria-hidden="true" />
             <span className="agent-ready-toggle-text">
-              <span className="agent-ready-toggle-label">Auto sync on publish</span>
+              <span className="agent-ready-toggle-label">
+                Auto sync on publish
+              </span>
               <span className="agent-ready-toggle-hint">
-                Refresh discovery files every time a post goes public
+                Keep discovery files current when public content changes
               </span>
             </span>
           </label>
@@ -223,6 +272,12 @@ export default function AgentReadySection() {
 
       <div className="agent-ready-panel">
         <h3>Pages and cached files</h3>
+        <p className="agent-ready-hint">
+          Regenerate imports current public posts, pages, projects, and skills, removes
+          stale content entries, repairs old wiki command examples, and rebuilds
+          all three files. Custom discovery entries are preserved. You can
+          refresh manually while auto sync is off.
+        </p>
         <AgentReadySettingsPanel
           cacheStatus={cacheStatus}
           pages={pages}
@@ -247,11 +302,16 @@ export default function AgentReadySection() {
       <div className="agent-ready-panel">
         <h3>Config file</h3>
         <p className="agent-ready-hint">
-          Site name, description, agent instructions, page list, and endpoints live in
-          agent-ready.config.json at the repo root. After editing, push it to a deployment:
+          Site name, description, agent instructions, page list, and endpoints
+          live in agent-ready.config.json at the repo root. These commands
+          update live discovery configuration for the selected environment; they
+          do not import markdown posts or pages. Run them only when ready to
+          update that environment:
         </p>
         <pre className="agent-ready-code">
-          {"npx agent-ready sync        # dev\nnpx agent-ready sync --prod # prod"}
+          {
+            "npx agent-ready sync        # dev\nnpx agent-ready sync --prod # prod"
+          }
         </pre>
       </div>
     </div>

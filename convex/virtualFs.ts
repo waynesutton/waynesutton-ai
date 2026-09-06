@@ -1,5 +1,10 @@
 import { v } from "convex/values";
 import { internalQuery, type QueryCtx } from "./_generated/server";
+import {
+  buildSkillsMarkdown,
+  type SkillDoc,
+  type SkillSectionDoc,
+} from "./lib/skillsDirectory";
 
 const MAX_GREP_RESULTS = 100;
 const MAX_LS_ITEMS = 500;
@@ -91,6 +96,35 @@ async function getPublishedProjects(ctx: QueryCtx): Promise<Array<ProjectDoc>> {
     .take(MAX_LS_ITEMS);
 }
 
+// Skills follow the same shape: the directory is one markdown file at
+// /skills.md. The pure helpers live in lib/skillsDirectory so the public page
+// bundles the same grouping and renderer without pulling in server code.
+export {
+  buildSkillsMarkdown,
+  compareSkills,
+  compareSkillSections,
+  groupSkills,
+  DEFAULT_SKILL_SECTION_TITLE,
+} from "./lib/skillsDirectory";
+export type { SkillDoc, SkillSectionDoc } from "./lib/skillsDirectory";
+
+export async function getPublishedSkillDirectory(ctx: QueryCtx): Promise<{
+  sections: Array<SkillSectionDoc>;
+  skills: Array<SkillDoc>;
+}> {
+  const [sections, skills] = await Promise.all([
+    ctx.db
+      .query("skillSections")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .take(MAX_LS_ITEMS),
+    ctx.db
+      .query("skills")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .take(MAX_LS_ITEMS),
+  ]);
+  return { sections, skills };
+}
+
 async function buildPathTreeHelper(ctx: QueryCtx): Promise<Array<FileEntry>> {
   const posts = await ctx.db
     .query("posts")
@@ -118,6 +152,18 @@ async function buildPathTreeHelper(ctx: QueryCtx): Promise<Array<FileEntry>> {
       type: "file",
       size: buildProjectsMarkdown(projects).length,
       title: "Projects",
+    });
+  }
+
+  const skillDirectory = await getPublishedSkillDirectory(ctx);
+  if (skillDirectory.skills.length > 0) {
+    entries.push({
+      name: "skills.md",
+      path: "/skills.md",
+      type: "file",
+      size: buildSkillsMarkdown(skillDirectory.sections, skillDirectory.skills)
+        .length,
+      title: "Skills",
     });
   }
 
@@ -163,6 +209,16 @@ async function readFileHelper(
     };
   }
 
+  if (p === "skills.md" || p === "skills") {
+    const { sections, skills } = await getPublishedSkillDirectory(ctx);
+    if (skills.length === 0) return null;
+    return {
+      content: buildSkillsMarkdown(sections, skills),
+      title: "Skills",
+      path: "/skills.md",
+    };
+  }
+
   if (p === "index.md" || p === "") {
     const posts = await ctx.db
       .query("posts")
@@ -187,6 +243,10 @@ async function readFileHelper(
     const projects = await getPublishedProjects(ctx);
     if (projects.length > 0) {
       lines.push("", "## Projects", "", "- [Projects](/projects.md)");
+    }
+    const skillDirectory = await getPublishedSkillDirectory(ctx);
+    if (skillDirectory.skills.length > 0) {
+      lines.push("", "## Skills", "", "- [Skills](/skills.md)");
     }
     return { content: lines.join("\n"), title: "Site index", path: "/index.md" };
   }

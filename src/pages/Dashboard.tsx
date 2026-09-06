@@ -1,9 +1,13 @@
+import { collectAuthorSuggestions, type AuthorSuggestion } from "../utils/authorSuggestions";
+import { NewsletterAutomationSettings, NewsletterAutomationHistory } from "../components/dashboard/NewsletterAutomationSettings";
+import { HomepageHighlightsSettings } from "../components/dashboard/HomepageHighlightsSettings";
 // Inter, self hosted. Imported here rather than in index.html so it ships in the
 // lazy-loaded dashboard chunk and never costs the public site a font request.
 import "@fontsource-variable/inter";
 import "../styles/dashboard-forms.css";
 import "../styles/dashboard.css";
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { Link, Navigate } from "react-router-dom";
 import { useQuery, useMutation, useAction } from "convex/react";
 import type { FunctionArgs } from "convex/server";
@@ -19,6 +23,32 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import TurndownService from "turndown";
 import { Marked } from "marked";
+
+// Matches the public renderer in BlogPost.tsx so the editor preview shows
+// embeds and video the same way the live site will
+const dashboardSanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames || []), "video", "source", "iframe"],
+  attributes: {
+    ...defaultSchema.attributes,
+    iframe: ["src", "width", "height", "allow", "allowfullscreen", "frameborder", "title", "style"],
+    video: [
+      "src",
+      "controls",
+      "playsinline",
+      "playsInline",
+      "preload",
+      "poster",
+      "width",
+      "height",
+      "muted",
+      "loop",
+      "autoplay",
+      "autoPlay",
+    ],
+    source: ["src", "type", "media"],
+  },
+};
 import {
   ArrowLeft,
   Article,
@@ -82,14 +112,37 @@ import {
   ArrowDown,
   Plus,
   Stack,
+  Toolbox,
+  Code,
 } from "@phosphor-icons/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { useDragSort } from "../hooks/useDragSort";
+import { FRONTMATTER_SIDEBAR_WIDTH_KEY, useResizableSidebar } from "../hooks/useResizableSidebar";
+import { Tip, TooltipProvider } from "../components/ui/Tooltip";
+import { DashboardSearch, type ContentHit } from "../components/DashboardSearch";
+import {
+  CONFIG_GROUP_BY_ID,
+  CONFIG_TABS,
+  CONFIG_TAB_ALL,
+  CONFIG_TAB_STORAGE_KEY,
+  configCardDomId,
+  configPanelDomId,
+  configTabDomId,
+  isConfigGroupId,
+  isConfigTab,
+  type ConfigDeepLink,
+  type ConfigGroup,
+  type ConfigTab,
+} from "../components/dashboard/configGroups";
+import { EmbedDialog } from "../components/EmbedDialog";
+import { buildDashboardSearchIndex, type DashboardSearchEntry } from "../utils/dashboardSearch";
+import { filterAvailableModels, pickModel } from "../utils/aiModelAvailability";
 import { DraftsInbox } from "../components/dashboard/DraftsInbox";
 import { ApiKeysSection } from "../components/dashboard/ApiKeysSection";
 import { XSection } from "../components/dashboard/XSection";
 import { HomepageSection } from "../components/dashboard/HomepageSection";
 import { ProjectsSection } from "../components/dashboard/ProjectsSection";
+import { SkillsSection } from "../components/dashboard/SkillsSection";
 import AgentReadySection from "../components/AgentReadySection";
 import DashboardDocsSection from "../components/DashboardDocsSection";
 import siteConfig from "../config/siteConfig";
@@ -110,6 +163,28 @@ import type { FrontmatterImageField, FrontmatterValues } from "../components/Fro
 
 // Default slug values that should trigger a warning
 const DEFAULT_SLUGS = ["your-post-url", "page-url"];
+
+// Shortcut hints show Cmd on Apple platforms and Ctrl elsewhere
+const isMac =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform ?? "");
+
+// Rich text toolbar buttons. execCommand names plus the label a tooltip shows.
+const RICH_TEXT_TOOLS: ReadonlyArray<{
+  glyph: string;
+  label: string;
+  command: string;
+  value?: string;
+  shortcut?: string;
+}> = [
+  { glyph: "B", label: "Bold", command: "bold", shortcut: "B" },
+  { glyph: "I", label: "Italic", command: "italic", shortcut: "I" },
+  { glyph: "S", label: "Strikethrough", command: "strikeThrough" },
+  { glyph: "H2", label: "Heading 2", command: "formatBlock", value: "H2" },
+  { glyph: "H3", label: "Heading 3", command: "formatBlock", value: "H3" },
+  { glyph: "List", label: "Bullet list", command: "insertUnorderedList" },
+  { glyph: "1.", label: "Numbered list", command: "insertOrderedList" },
+  { glyph: "Quote", label: "Block quote", command: "formatBlock", value: "BLOCKQUOTE" },
+];
 
 // Rows per page choices for the Posts and Pages lists. The first entry is the
 // default, and it also decides when the pagination row appears: a list shorter
@@ -571,6 +646,7 @@ type DashboardSection =
   | "posts"
   | "pages"
   | "projects"
+  | "skills"
   | "post-editor"
   | "page-editor"
   | "write-post"
@@ -624,6 +700,8 @@ interface ContentItem {
   contactForm?: boolean;
   unlisted?: boolean;
   aiWritten?: boolean;
+  minimap?: boolean;
+  hideNav?: boolean;
   audio?: boolean;
   audioVoice?: "male" | "female";
   showFooter?: boolean;
@@ -664,6 +742,8 @@ const postFrontmatterFields: FrontmatterFieldDef[] = [
   { key: "blogFeatured", label: "Blog Featured", type: "checkbox", required: false },
   { key: "unlisted", label: "Unlisted", type: "checkbox", required: false },
   { key: "aiWritten", label: "Written with AI", type: "checkbox", required: false },
+  { key: "minimap", label: "Minimap", type: "checkbox", required: false },
+  { key: "hideNav", label: "Hide Site Nav", type: "checkbox", required: false },
   { key: "audio", label: "Listen audio", type: "checkbox", required: false },
   { key: "audioVoice", label: "Audio voice", type: "select", options: ["", "female", "male"], required: false },
   // Content options
@@ -765,6 +845,8 @@ const FORM_MANAGED_KEYS: ReadonlySet<string> = new Set([
   "ogImage",
   "noOgImage",
   "aiWritten",
+  "minimap",
+  "hideNav",
   "audio",
   "audioVoice",
   "readTime",
@@ -792,6 +874,8 @@ function itemToFrontmatter(item: ContentItem): FrontmatterValues {
     ogImage: item.ogImage ?? "",
     noOgImage: item.noOgImage ?? false,
     aiWritten: item.aiWritten ?? false,
+    minimap: item.minimap ?? false,
+    hideNav: item.hideNav ?? false,
     audio: item.audio,
     audioVoice: item.audioVoice,
     readTime: item.readTime ?? "",
@@ -835,6 +919,8 @@ function applyFrontmatterToItem(
     next.tags = fm.tags;
     next.readTime = optionalString(fm.readTime);
     next.aiWritten = fm.aiWritten;
+    next.minimap = fm.minimap;
+    next.hideNav = fm.hideNav;
     next.audio = fm.audio;
     next.audioVoice = fm.audioVoice;
     next.blogFeatured = fm.blogFeatured;
@@ -1077,21 +1163,23 @@ function SortableNavSection({
           return null;
         }
         return (
-          <button
-            key={item.id}
-            draggable
-            onDragStart={drag.onDragStart(item.id)}
-            onDragOver={drag.onDragOver(item.id)}
-            onDrop={drag.onDrop}
-            onDragEnd={drag.onDragEnd}
-            className={`dashboard-nav-item ${activeSection === item.id ? "active" : ""} ${
-              drag.draggingId === item.id ? "dragging" : ""
-            }`}
-            title="Click to open, drag to reorder"
-            onClick={() => onSelect(item.id)}>
-            <item.icon size={18} weight={activeSection === item.id ? "fill" : "regular"} />
-            <span>{item.label}</span>
-          </button>
+          // Long delay: the label already says where this goes, so the drag hint
+          // should only appear when someone lingers.
+          <Tip key={item.id} content="Drag to reorder this menu" side="right" delay={900}>
+            <button
+              draggable
+              onDragStart={drag.onDragStart(item.id)}
+              onDragOver={drag.onDragOver(item.id)}
+              onDrop={drag.onDrop}
+              onDragEnd={drag.onDragEnd}
+              className={`dashboard-nav-item ${activeSection === item.id ? "active" : ""} ${
+                drag.draggingId === item.id ? "dragging" : ""
+              }`}
+              onClick={() => onSelect(item.id)}>
+              <item.icon size={18} weight={activeSection === item.id ? "fill" : "regular"} />
+              <span>{item.label}</span>
+            </button>
+          </Tip>
         );
       })}
     </div>
@@ -1117,7 +1205,7 @@ function DeniedAccessDemo() {
   };
 
   const signedInEmail = authDebug?.authUserEmail ?? authDebug?.identityEmail ?? "unknown email";
-  const adminGate = authDebug?.strictAdminEmail
+  const adminGate = authDebug?.strictAdminConfigured
     ? "the configured strict admin email"
     : "one of the configured dashboard admin emails";
 
@@ -1247,6 +1335,47 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSection, setActiveSection] = useState<DashboardSection>("overview");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const compactNavigation = useMediaQuery("(max-width: 1024px)");
+  const navigationRef = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Offscreen navigation must not receive keyboard focus; the open drawer owns it.
+  useEffect(() => {
+    const navigation = navigationRef.current;
+    const main = mainRef.current;
+    if (!navigation || !main) return;
+    navigation.inert = compactNavigation && !mobileNavOpen;
+    main.inert = compactNavigation && mobileNavOpen;
+    if (!compactNavigation || !mobileNavOpen) return;
+    const trigger = menuButtonRef.current;
+    const focusable = () => Array.from(navigation.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex="0"]',
+    )).filter((element) => element.getClientRects().length > 0);
+    focusable()[0]?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileNavOpen(false);
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault(); last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first?.focus();
+      }
+    };
+    navigation.addEventListener("keydown", handleKey);
+    return () => {
+      navigation.removeEventListener("keydown", handleKey);
+      main.inert = false;
+      trigger?.focus();
+    };
+  }, [compactNavigation, mobileNavOpen]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
   const [editingType, setEditingType] = useState<"post" | "page">("post");
@@ -1322,6 +1451,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
   const demoPages = useQuery(api.demo.listAllPages, isDemo ? {} : "skip");
   const posts = isDemo ? demoPosts : adminPosts;
   const pages: typeof adminPages = isDemo ? demoPages : adminPages;
+  const authorSuggestions = useMemo(() => collectAuthorSuggestions([...(posts ?? []), ...(pages ?? [])]), [posts, pages]);
 
   // CMS mutations for CRUD operations (admin)
   const deletePostMutation = useMutation(api.cms.deletePost);
@@ -1520,6 +1650,75 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
     setActiveSection("post-editor");
   }, []);
 
+  // Posts and pages that match the query, shaped for the palette dropdown
+  const searchContentHits = useMemo<Array<ContentHit>>(() => {
+    if (!searchQuery.trim()) return [];
+    const postHits: Array<ContentHit> = filteredPosts.slice(0, 4).map((p) => ({
+      id: p._id,
+      kind: "post",
+      title: p.title,
+      description: p.published ? `/${p.slug}` : `/${p.slug} (unpublished)`,
+    }));
+    const pageHits: Array<ContentHit> = filteredPages.slice(0, 3).map((p) => ({
+      id: p._id,
+      kind: "page",
+      title: p.title,
+      description: p.published ? `/${p.slug}` : `/${p.slug} (unpublished)`,
+    }));
+    return [...postHits, ...pageHits];
+  }, [searchQuery, filteredPosts, filteredPages]);
+
+  // Docs topic requested from search so the docs section can deep link
+  const [docsTopicRequest, setDocsTopicRequest] = useState<string | null>(null);
+  // Site Config card requested from search: opens the tab, scrolls, highlights
+  const [configDeepLink, setConfigDeepLink] = useState<ConfigDeepLink | null>(null);
+
+  const handleSearchEntry = useCallback(
+    (entry: DashboardSearchEntry) => {
+      const section = entry.target.section as DashboardSection;
+      if (entry.target.docsTopic) {
+        setDocsTopicRequest(entry.target.docsTopic);
+      }
+      if (isConfigGroupId(entry.target.configGroup)) {
+        setConfigDeepLink({
+          group: entry.target.configGroup,
+          card: entry.target.configCard,
+          nonce: Date.now(),
+        });
+      }
+      if (entry.target.action === "sync:all" || entry.target.action === "sync:all:prod") {
+        const label = entry.target.action === "sync:all" ? "Sync All (Dev)" : "Sync All (Prod)";
+        if (syncServerAvailable) {
+          void executeSync(entry.target.action, label);
+        } else {
+          showCommandModal(label, `npm run ${entry.target.action}`, "Run from the project root");
+        }
+        return;
+      }
+      setActiveSection(section);
+    },
+    [syncServerAvailable, executeSync, showCommandModal],
+  );
+
+  const handleSearchContent = useCallback(
+    (hit: ContentHit) => {
+      if (hit.kind === "post") {
+        const post = posts?.find((p) => p._id === hit.id);
+        if (post) handleEditPost(post as ContentItem);
+      } else if (hit.kind === "page") {
+        const page = pages?.find((p) => p._id === hit.id);
+        if (page) {
+          setEditingItem(page as ContentItem);
+          setEditingType("page");
+          setActiveSection("page-editor");
+        }
+      } else {
+        setActiveSection("projects");
+      }
+    },
+    [posts, pages, handleEditPost],
+  );
+
   // Open a post created from a draft (Drafts Inbox) in the post editor
   const handleOpenPostBySlug = useCallback(
     (slug: string) => {
@@ -1649,6 +1848,8 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
             blogFeatured: item.blogFeatured,
             unlisted: item.unlisted,
             aiWritten: item.aiWritten,
+            minimap: item.minimap,
+            hideNav: item.hideNav,
             audio: item.audio,
             audioVoice: item.audioVoice,
             authorName: item.authorName,
@@ -1898,9 +2099,8 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
         { id: "overview" as const, label: "Overview", icon: SquaresFour },
         { id: "posts" as const, label: "Posts", icon: Article },
         { id: "pages" as const, label: "Pages", icon: Files },
-        ...(siteConfig.projectsPage?.enabled
-          ? [{ id: "projects" as const, label: "Projects", icon: Stack }]
-          : []),
+        { id: "projects" as const, label: "Projects", icon: Stack },
+        { id: "skills" as const, label: "Skills", icon: Toolbox },
       ],
     },
     {
@@ -1967,6 +2167,20 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
     },
   ];
 
+  // Command palette index: sections, features, actions, docs. Rebuilt only
+  // when the nav shape changes since docs topics and features are static.
+  const searchIndex = useMemo(
+    () =>
+      buildDashboardSearchIndex(
+        navSections.flatMap((group) =>
+          group.items.map((item) => ({ id: item.id, label: item.label, group: group.label })),
+        ),
+      ),
+    // navSections is a fresh array each render; its contents only depend on these flags
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mediaEnabled, newsletterEnabled],
+  );
+
   // Theme toggle
   const toggleTheme = () => {
     const themes: Array<"dark" | "light" | "tan" | "cloud"> = ["dark", "light", "tan", "cloud"];
@@ -2015,6 +2229,9 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
   const showAuthWarning = !requireAuth;
 
   return (
+    // One tooltip provider for the whole dashboard so hover delay is shared and
+    // moving between adjacent buttons feels instant
+    <TooltipProvider delayDuration={350} skipDelayDuration={400}>
     <div className={`dashboard-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
@@ -2074,6 +2291,9 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
 
       {/* Left Sidebar */}
       <aside
+        id="dashboard-navigation"
+        ref={navigationRef}
+        aria-label="Dashboard navigation"
         className={`dashboard-sidebar-left ${sidebarCollapsed ? "collapsed" : ""} ${
           mobileNavOpen ? "mobile-open" : ""
         }`}>
@@ -2082,12 +2302,17 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
             <House size={20} weight="regular" />
             <span>Home</span>
           </Link>
-          <button
-            className="dashboard-sidebar-toggle"
-            onClick={toggleSidebar}
-            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-            <SidebarSimple size={20} weight="regular" />
-          </button>
+          <Tip
+            content={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            shortcut={`${isMac ? "\u2318" : "Ctrl"} .`}
+            side="right">
+            <button
+              className="dashboard-sidebar-toggle"
+              onClick={toggleSidebar}
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
+              <SidebarSimple size={20} weight="regular" />
+            </button>
+          </Tip>
           <button
             className="dashboard-mobile-close-btn"
             onClick={() => setMobileNavOpen(false)}
@@ -2139,12 +2364,15 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
       </aside>
 
       {/* Main Content */}
-      <main className="dashboard-main">
+      <main className="dashboard-main" ref={mainRef}>
         {/* Header */}
         <header className="dashboard-header">
           <div className="dashboard-header-left">
             <button
               className="dashboard-mobile-menu-btn"
+              ref={menuButtonRef}
+              aria-expanded={mobileNavOpen}
+              aria-controls="dashboard-navigation"
               onClick={() => setMobileNavOpen(true)}
               aria-label="Open menu">
               <List size={20} weight="regular" />
@@ -2154,6 +2382,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               {activeSection === "posts" && "Posts"}
               {activeSection === "pages" && "Pages"}
               {activeSection === "projects" && "Projects"}
+              {activeSection === "skills" && "Skills"}
               {activeSection === "post-editor" && "Edit Post"}
               {activeSection === "page-editor" && "Edit Page"}
               {activeSection === "write-post" && "Write Post"}
@@ -2180,93 +2409,104 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
           </div>
 
           <div className="dashboard-header-center">
-            <div className="dashboard-search">
-              <MagnifyingGlass size={16} />
-              <input
-                type="text"
-                placeholder="Search posts and pages..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="dashboard-search-input"
-              />
-            </div>
+            <DashboardSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              index={searchIndex}
+              contentHits={searchContentHits}
+              onSelectEntry={handleSearchEntry}
+              onSelectContent={handleSearchContent}
+              isMac={isMac}
+            />
           </div>
 
           <div className="dashboard-header-right">
             {!isDemo && (
               <>
-                <button
-                  className={`dashboard-sync-btn dev ${syncRunning === "sync:all" ? "running" : ""}`}
-                  title={
+                <Tip
+                  content={
                     syncServerAvailable
-                      ? "Execute Sync Dev"
-                      : "Copy sync command (server not running)"
+                      ? "Run npm run sync:all now. Pushes content/ markdown and discovery files to the dev deployment."
+                      : "Sync server is not running, so this copies npm run sync:all for you to run in a terminal."
                   }
-                  onClick={() => {
-                    if (syncServerAvailable) {
-                      executeSync("sync:all", "Sync All (Dev)");
-                    } else {
-                      showCommandModal(
-                        "Sync Development",
-                        "npm run sync:all",
-                        "Sync all content to development environment"
-                      );
-                    }
-                  }}
-                  disabled={syncRunning !== null}>
-                  <ArrowsClockwise
-                    size={16}
-                    className={syncRunning === "sync:all" ? "spinning" : ""}
-                  />
-                  <span>{syncRunning === "sync:all" ? "Running..." : "Sync Dev"}</span>
-                </button>
-                <button
-                  className={`dashboard-sync-btn prod ${syncRunning === "sync:all:prod" ? "running" : ""}`}
-                  title={
+                  side="bottom">
+                  <button
+                    className={`dashboard-sync-btn dev ${syncRunning === "sync:all" ? "running" : ""}`}
+                    onClick={() => {
+                      if (syncServerAvailable) {
+                        executeSync("sync:all", "Sync All (Dev)");
+                      } else {
+                        showCommandModal(
+                          "Sync Development",
+                          "npm run sync:all",
+                          "Sync all content to development environment"
+                        );
+                      }
+                    }}
+                    disabled={syncRunning !== null}>
+                    <ArrowsClockwise
+                      size={16}
+                      className={syncRunning === "sync:all" ? "spinning" : ""}
+                    />
+                    <span>{syncRunning === "sync:all" ? "Running..." : "Sync Dev"}</span>
+                  </button>
+                </Tip>
+                <Tip
+                  content={
                     syncServerAvailable
-                      ? "Execute Sync Prod"
-                      : "Copy sync command (server not running)"
+                      ? "Run npm run sync:all:prod now. This writes to the live site."
+                      : "Sync server is not running, so this copies npm run sync:all:prod for you to run in a terminal."
                   }
-                  onClick={() => {
-                    if (syncServerAvailable) {
-                      executeSync("sync:all:prod", "Sync All (Prod)");
-                    } else {
-                      showCommandModal(
-                        "Sync Production",
-                        "npm run sync:all:prod",
-                        "Sync all content to production environment"
-                      );
-                    }
-                  }}
-                  disabled={syncRunning !== null}>
-                  <ArrowsClockwise
-                    size={16}
-                    className={syncRunning === "sync:all:prod" ? "spinning" : ""}
-                  />
-                  <span>{syncRunning === "sync:all:prod" ? "Running..." : "Sync Prod"}</span>
-                </button>
+                  side="bottom">
+                  <button
+                    className={`dashboard-sync-btn prod ${syncRunning === "sync:all:prod" ? "running" : ""}`}
+                    onClick={() => {
+                      if (syncServerAvailable) {
+                        executeSync("sync:all:prod", "Sync All (Prod)");
+                      } else {
+                        showCommandModal(
+                          "Sync Production",
+                          "npm run sync:all:prod",
+                          "Sync all content to production environment"
+                        );
+                      }
+                    }}
+                    disabled={syncRunning !== null}>
+                    <ArrowsClockwise
+                      size={16}
+                      className={syncRunning === "sync:all:prod" ? "spinning" : ""}
+                    />
+                    <span>{syncRunning === "sync:all:prod" ? "Running..." : "Sync Prod"}</span>
+                  </button>
+                </Tip>
               </>
             )}
-            <button className="dashboard-theme-btn" onClick={toggleTheme} title={`Theme: ${theme}`}>
-              {theme === "dark" ? (
-                <Moon size={18} weight="fill" />
-              ) : (
-                <Sun size={18} weight="fill" />
-              )}
-            </button>
-            <button
-              className="dashboard-font-btn"
-              onClick={toggleFont}
-              title={`Font: ${fontFamily}`}>
-              <TextAa size={18} weight={fontFamily === "monospace" ? "fill" : "regular"} />
-            </button>
-            <button
-              className="dashboard-font-btn dashboard-font-scale-btn"
-              onClick={toggleFontScale}
-              title={`Font size: ${fontScale}`}>
-              <span aria-hidden="true">A</span>
-              <span className="dashboard-font-scale-label">{fontScaleLabel}</span>
-            </button>
+            <Tip content={`Theme: ${theme}. Click to cycle. Only changes this browser.`}>
+              <button className="dashboard-theme-btn" onClick={toggleTheme} aria-label={`Theme: ${theme}`}>
+                {theme === "dark" ? (
+                  <Moon size={18} weight="fill" />
+                ) : (
+                  <Sun size={18} weight="fill" />
+                )}
+              </button>
+            </Tip>
+            <Tip content={`Font: ${fontFamily}. Switch between sans and monospace for the editor.`}>
+              <button
+                className="dashboard-font-btn"
+                onClick={toggleFont}
+                aria-label={`Font: ${fontFamily}`}>
+                <TextAa size={18} weight={fontFamily === "monospace" ? "fill" : "regular"} />
+              </button>
+            </Tip>
+            <Tip content={`Font size: ${fontScale}. Click to step through sizes.`}>
+              <button
+                className="dashboard-font-btn dashboard-font-scale-btn"
+                onClick={toggleFontScale}
+                aria-label={`Font size: ${fontScale}`}>
+                <span aria-hidden="true">A</span>
+                <span className="dashboard-font-scale-label">{fontScaleLabel}</span>
+              </button>
+            </Tip>
           </div>
         </header>
 
@@ -2332,9 +2572,18 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               <ProjectsSection addToast={addToast} searchQuery={searchQuery} />
             ))}
 
+          {/* Skills: dashboard-only content for the /skills directory */}
+          {activeSection === "skills" &&
+            (isDemo ? (
+              <DemoSectionGate section="Skills" />
+            ) : (
+              <SkillsSection addToast={addToast} searchQuery={searchQuery} />
+            ))}
+
           {/* Post/Page Editor */}
           {(activeSection === "post-editor" || activeSection === "page-editor") && editingItem && (
             <EditorView
+              authorSuggestions={authorSuggestions}
               item={editingItem}
               type={editingType}
               showPreview={showPreview}
@@ -2351,6 +2600,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
           {/* Write Post Section */}
           {activeSection === "write-post" && (
             <WriteSection
+              authorSuggestions={authorSuggestions}
               contentType="post"
               sidebarCollapsed={sidebarCollapsed}
               setSidebarCollapsed={setSidebarCollapsed}
@@ -2363,6 +2613,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
           {/* Write Page Section */}
           {activeSection === "write-page" && (
             <WriteSection
+              authorSuggestions={authorSuggestions}
               contentType="page"
               sidebarCollapsed={sidebarCollapsed}
               setSidebarCollapsed={setSidebarCollapsed}
@@ -2378,7 +2629,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
 
           {/* Newsletter Subscribers */}
           {activeSection === "newsletter" &&
-            (isDemo ? <DemoSectionGate section="Newsletter" /> : <NewsletterSubscribersSection />)}
+            (isDemo ? <DemoSectionGate section="Newsletter" /> : <><NewsletterAutomationSettings /><NewsletterSubscribersSection /></>)}
 
           {/* Newsletter Send */}
           {activeSection === "newsletter-send" &&
@@ -2420,6 +2671,8 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               <ConfigSection
                 addToast={addToast}
                 onNavigateToIndexHtml={() => setActiveSection("index-html")}
+                deepLink={configDeepLink}
+                onDeepLinkConsumed={() => setConfigDeepLink(null)}
               />
             ))}
 
@@ -2491,10 +2744,16 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
             (isDemo ? <DemoSectionGate section="X" /> : <XSection addToast={addToast} />)}
 
           {/* Internal docs (behind dashboard login) */}
-          {activeSection === "docs" && <DashboardDocsSection />}
+          {activeSection === "docs" && (
+            <DashboardDocsSection
+              requestedTopic={docsTopicRequest}
+              onTopicConsumed={() => setDocsTopicRequest(null)}
+            />
+          )}
         </div>
       </main>
     </div>
+    </TooltipProvider>
   );
 }
 
@@ -2791,42 +3050,50 @@ function PostsListView({
               <div className="col-actions">
                 {/* In demo mode, only allow editing demo content */}
                 {(!isDemo || post.source === "demo") && (
-                  <button
-                    className="action-btn edit"
-                    onClick={() => onEdit(post as ContentItem)}
-                    title="Edit">
-                    <PencilSimple size={16} />
-                  </button>
+                  <Tip content="Edit content and frontmatter">
+                    <button
+                      className="action-btn edit"
+                      onClick={() => onEdit(post as ContentItem)}
+                      aria-label={`Edit ${post.title}`}>
+                      <PencilSimple size={16} />
+                    </button>
+                  </Tip>
                 )}
                 {/* Published content is live even when unlisted, so link straight to it */}
                 {post.published && (
-                  <Link
-                    to={`/${post.slug}`}
-                    className="action-btn view"
-                    title="Open live page"
-                    target="_blank"
-                    rel="noopener noreferrer">
-                    <ArrowSquareOut size={16} />
-                  </Link>
+                  <Tip content={`Open /${post.slug} in a new tab`}>
+                    <Link
+                      to={`/${post.slug}`}
+                      className="action-btn view"
+                      aria-label={`Open ${post.title}`}
+                      target="_blank"
+                      rel="noopener noreferrer">
+                      <ArrowSquareOut size={16} />
+                    </Link>
+                  </Tip>
                 )}
                 {/* Unlisted posts are shared by direct URL, so offer a quick copy */}
                 {post.unlisted && (
-                  <button
-                    className="action-btn view"
-                    onClick={() => handleCopyUrl(post as ContentItem)}
-                    title="Copy live URL">
-                    {copiedId === post._id ? <Check size={16} /> : <LinkIcon size={16} />}
-                  </button>
+                  <Tip content="Unlisted: copy the direct link to share it">
+                    <button
+                      className="action-btn view"
+                      onClick={() => handleCopyUrl(post as ContentItem)}
+                      aria-label="Copy live URL">
+                      {copiedId === post._id ? <Check size={16} /> : <LinkIcon size={16} />}
+                    </button>
+                  </Tip>
                 )}
                 {/* Delete: admin can delete dashboard posts; demo can delete demo posts */}
                 {((!isDemo && post.source === "dashboard") ||
                   (isDemo && post.source === "demo")) && (
-                  <button
-                    className="action-btn delete"
-                    onClick={() => onDelete(post as ContentItem)}
-                    title="Delete">
-                    <Trash size={16} />
-                  </button>
+                  <Tip content="Delete this post. You will be asked to confirm.">
+                    <button
+                      className="action-btn delete"
+                      onClick={() => onDelete(post as ContentItem)}
+                      aria-label={`Delete ${post.title}`}>
+                      <Trash size={16} />
+                    </button>
+                  </Tip>
                 )}
               </div>
             </div>
@@ -3040,41 +3307,49 @@ function PagesListView({
               </div>
               <div className="col-actions">
                 {(!isDemo || page.source === "demo") && (
-                  <button
-                    className="action-btn edit"
-                    onClick={() => onEdit(page as ContentItem)}
-                    title="Edit">
-                    <PencilSimple size={16} />
-                  </button>
+                  <Tip content="Edit content and frontmatter">
+                    <button
+                      className="action-btn edit"
+                      onClick={() => onEdit(page as ContentItem)}
+                      aria-label={`Edit ${page.title}`}>
+                      <PencilSimple size={16} />
+                    </button>
+                  </Tip>
                 )}
                 {/* Published content is live even when unlisted, so link straight to it */}
                 {page.published && (
-                  <Link
-                    to={`/${page.slug}`}
-                    className="action-btn view"
-                    title="Open live page"
-                    target="_blank"
-                    rel="noopener noreferrer">
-                    <ArrowSquareOut size={16} />
-                  </Link>
+                  <Tip content={`Open /${page.slug} in a new tab`}>
+                    <Link
+                      to={`/${page.slug}`}
+                      className="action-btn view"
+                      aria-label={`Open ${page.title}`}
+                      target="_blank"
+                      rel="noopener noreferrer">
+                      <ArrowSquareOut size={16} />
+                    </Link>
+                  </Tip>
                 )}
                 {/* Unlisted pages are shared by direct URL, so offer a quick copy */}
                 {page.unlisted && (
-                  <button
-                    className="action-btn view"
-                    onClick={() => handleCopyUrl(page as ContentItem)}
-                    title="Copy live URL">
-                    {copiedId === page._id ? <Check size={16} /> : <LinkIcon size={16} />}
-                  </button>
+                  <Tip content="Unlisted: copy the direct link to share it">
+                    <button
+                      className="action-btn view"
+                      onClick={() => handleCopyUrl(page as ContentItem)}
+                      aria-label="Copy live URL">
+                      {copiedId === page._id ? <Check size={16} /> : <LinkIcon size={16} />}
+                    </button>
+                  </Tip>
                 )}
                 {((!isDemo && page.source === "dashboard") ||
                   (isDemo && page.source === "demo")) && (
-                  <button
-                    className="action-btn delete"
-                    onClick={() => onDelete(page as ContentItem)}
-                    title="Delete">
-                    <Trash size={16} />
-                  </button>
+                  <Tip content="Delete this page. You will be asked to confirm.">
+                    <button
+                      className="action-btn delete"
+                      onClick={() => onDelete(page as ContentItem)}
+                      aria-label={`Delete ${page.title}`}>
+                      <Trash size={16} />
+                    </button>
+                  </Tip>
                 )}
               </div>
             </div>
@@ -3211,6 +3486,7 @@ function EditorView({
   onBack,
   onSave,
   isDemo = false,
+  authorSuggestions,
 }: {
   item: ContentItem;
   type: "post" | "page";
@@ -3222,19 +3498,31 @@ function EditorView({
   onBack: () => void;
   onSave: (item: ContentItem) => Promise<void>;
   isDemo?: boolean;
+  authorSuggestions: readonly AuthorSuggestion[];
 }) {
   const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   // Which frontmatter image field the upload modal fills (null when closed)
   const [fmImageField, setFmImageField] = useState<FrontmatterImageField | null>(null);
+  const [fmImageTab, setFmImageTab] = useState<"upload" | "library">("upload");
+  const [showEditMedia, setShowEditMedia] = useState(false);
+  const [showEditEmbed, setShowEditEmbed] = useState(false);
+  const bodyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const versionControlEnabled = useQuery(api.versions.isEnabled);
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = localStorage.getItem("dashboard-sidebar-width");
-    return saved ? Number(saved) : 280;
-  });
-  const [isResizing, setIsResizing] = useState(false);
-  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // Insert a markdown snippet at the textarea cursor (or append when unfocused)
+  const insertAtCursor = (markdown: string) => {
+    const textarea = bodyTextareaRef.current;
+    const start = textarea?.selectionStart ?? item.content.length;
+    const end = textarea?.selectionEnd ?? start;
+    setItem({
+      ...item,
+      content: `${item.content.slice(0, start)}\n${markdown}\n${item.content.slice(end)}`,
+    });
+  };
+  // Shared with WriteSection so the frontmatter panel keeps one width everywhere
+  const sidebar = useResizableSidebar(FRONTMATTER_SIDEBAR_WIDTH_KEY);
   const [bodyOpen, toggleBody] = usePersistedOpen("dashboard-editor-body-open", true);
 
   const handleCopy = async () => {
@@ -3251,52 +3539,6 @@ function EditorView({
       setIsSaving(false);
     }
   };
-
-  const startXRef = useRef(0);
-  const startWidthRef = useRef(0);
-
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!sidebarRef.current) return;
-
-      setIsResizing(true);
-      startXRef.current = e.clientX;
-      startWidthRef.current = sidebarWidth;
-    },
-    [sidebarWidth]
-  );
-
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const deltaX = startXRef.current - e.clientX; // Negative when dragging left (making sidebar wider)
-      const newWidth = startWidthRef.current + deltaX;
-
-      // Constrain width between 200px and 600px
-      const constrainedWidth = Math.max(200, Math.min(600, newWidth));
-      setSidebarWidth(constrainedWidth);
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      localStorage.setItem("dashboard-sidebar-width", String(sidebarWidth));
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-  }, [isResizing, sidebarWidth]);
 
   return (
     <div className="dashboard-editor">
@@ -3324,53 +3566,93 @@ function EditorView({
           </div>
         </div>
         <div className="dashboard-editor-actions">
-          <button className="dashboard-action-btn" onClick={handleCopy} title="Copy Markdown">
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            <span>{copied ? "Copied" : "Copy"}</span>
-          </button>
+          {siteConfig.media?.enabled && !isDemo && (
+            <Tip content="Upload or pick an image or video and insert it at the cursor">
+              <button type="button" className="dashboard-action-btn" onClick={() => setShowEditMedia(true)}>
+                <Image size={16} /><span>Media</span>
+              </button>
+            </Tip>
+          )}
+          <Tip content="Paste an X post or YouTube link and insert the embed at the cursor">
+            <button
+              type="button"
+              className="dashboard-action-btn"
+              onClick={() => setShowEditEmbed(true)}
+              disabled={showPreview}>
+              <Code size={16} />
+              <span>Embed</span>
+            </button>
+          </Tip>
+
+          <Tip content="Copy the full markdown file, frontmatter included">
+            <button className="dashboard-action-btn" onClick={handleCopy}>
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+              <span>{copied ? "Copied" : "Copy"}</span>
+            </button>
+          </Tip>
           {/* Published content is live even when unlisted, so link straight to it */}
           {item.published && item.slug && (
-            <a
-              className="dashboard-action-btn"
-              href={`/${item.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open live page">
-              <ArrowSquareOut size={16} />
-              <span>Open</span>
-            </a>
+            <Tip content={`Open /${item.slug} in a new tab`}>
+              <a
+                className="dashboard-action-btn"
+                href={`/${item.slug}`}
+                target="_blank"
+                rel="noopener noreferrer">
+                <ArrowSquareOut size={16} />
+                <span>Open</span>
+              </a>
+            </Tip>
           )}
           {versionControlEnabled && (
-            <button
-              className="dashboard-action-btn"
-              onClick={() => setShowVersionHistory(true)}
-              title="View Version History">
-              <ClockCounterClockwise size={16} />
-              <span>History</span>
-            </button>
+            <Tip content="Browse and restore earlier saved versions">
+              <button
+                className="dashboard-action-btn"
+                onClick={() => setShowVersionHistory(true)}>
+                <ClockCounterClockwise size={16} />
+                <span>History</span>
+              </button>
+            </Tip>
           )}
-          <button
-            className="dashboard-action-btn primary"
-            onClick={onDownload}
-            title="Download Markdown">
-            <Download size={16} />
-            <span>Download .md</span>
-          </button>
-          <button
-            className="dashboard-action-btn success dashboard-save-inline"
-            onClick={handleSave}
-            disabled={isSaving}
-            aria-busy={isSaving}
-            title="Save to Database">
-            {isSaving ? (
-              <SpinnerGap size={16} className="animate-spin" />
-            ) : (
-              <FloppyDisk size={16} />
-            )}
-            <span>Save</span>
-          </button>
+          <Tip content="Download as a .md file to keep in content/ and sync from the CLI">
+            <button className="dashboard-action-btn primary" onClick={onDownload}>
+              <Download size={16} />
+              <span>Download .md</span>
+            </button>
+          </Tip>
+          <Tip
+            content={
+              item.published
+                ? "Save changes. The live site updates in real time."
+                : "Save changes. This stays unpublished until Published is on."
+            }>
+            <button
+              className="dashboard-action-btn success dashboard-save-inline"
+              onClick={handleSave}
+              disabled={isSaving}
+              aria-busy={isSaving}>
+              {isSaving ? (
+                <SpinnerGap size={16} className="animate-spin" />
+              ) : (
+                <FloppyDisk size={16} />
+              )}
+              <span>Save</span>
+            </button>
+          </Tip>
         </div>
       </div>
+
+      {showEditMedia && !isDemo && (
+        <ImageUploadModal requiredProvider="r2" isOpen onClose={() => setShowEditMedia(false)} onInsert={(markdown) => {
+          insertAtCursor(markdown);
+          setShowEditMedia(false);
+        }} />
+      )}
+
+      <EmbedDialog
+        isOpen={showEditEmbed}
+        onClose={() => setShowEditEmbed(false)}
+        onInsert={insertAtCursor}
+      />
 
       <div className="dashboard-editor-container">
         <div className="dashboard-editor-content">
@@ -3388,7 +3670,7 @@ function EditorView({
                   <div className="blog-post-content">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkBreaks]}
-                      rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}>
+                      rehypePlugins={[rehypeRaw, [rehypeSanitize, dashboardSanitizeSchema]]}>
                       {item.content}
                     </ReactMarkdown>
                   </div>
@@ -3396,6 +3678,7 @@ function EditorView({
               </div>
             ) : (
               <textarea
+                ref={bodyTextareaRef}
                 className="dashboard-textarea"
                 value={item.content}
                 onChange={(e) => setItem({ ...item, content: e.target.value })}
@@ -3406,17 +3689,15 @@ function EditorView({
         </div>
 
         <div
-          ref={sidebarRef}
-          className={`dashboard-editor-sidebar ${isResizing ? "resizing" : ""}`}
-          style={{ width: `${sidebarWidth}px` }}>
-          <div
-            className="dashboard-sidebar-resize-handle"
-            onMouseDown={handleMouseDown}
-            title="Drag to resize"
-          />
+          className={`dashboard-editor-sidebar ${sidebar.isResizing ? "resizing" : ""}`}
+          style={{ width: `${sidebar.width}px` }}>
+          <Tip content="Drag to resize. Arrow keys nudge, double-click resets." side="left">
+            <div className="dashboard-sidebar-resize-handle" {...sidebar.handleProps} />
+          </Tip>
           <div className="fmf-panel">
             <h3 className="fmf-panel-title">Frontmatter</h3>
             <FrontmatterForm
+              authorSuggestions={authorSuggestions}
               kind={type}
               value={itemToFrontmatter(item)}
               onChange={(next) => setItem(applyFrontmatterToItem(item, type, next))}
@@ -3424,7 +3705,7 @@ function EditorView({
               // Slug field there is the same silent trap this editor just fixed
               hiddenFields={isDemo ? DEMO_EDITOR_HIDDEN_FIELDS : undefined}
               onRequestImage={
-                siteConfig.media?.enabled ? (field) => setFmImageField(field) : undefined
+                siteConfig.media?.enabled && !isDemo ? (field, initialTab = "upload") => { setFmImageTab(initialTab); setFmImageField(field); } : undefined
               }
             />
             <AdditionalFieldsPanel item={item} type={type} setItem={setItem} />
@@ -3438,16 +3719,16 @@ function EditorView({
           className="dashboard-action-btn success"
           onClick={handleSave}
           disabled={isSaving}
-          aria-busy={isSaving}
-          title="Save to Database">
+          aria-busy={isSaving}>
           {isSaving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
           <span>Save</span>
         </button>
       </div>
 
       {fmImageField !== null && (
-        <ImageUploadModal
+        <ImageUploadModal requiredProvider="r2"
           isOpen={fmImageField !== null}
+          initialTab={fmImageTab}
           onClose={() => setFmImageField(null)}
           onSelectUrl={(url) => {
             setItem({ ...item, [fmImageField]: url });
@@ -3642,6 +3923,7 @@ function WriteSection({
   addToast,
   setActiveSection,
   isDemo = false,
+  authorSuggestions,
 }: {
   contentType: "post" | "page";
   sidebarCollapsed: boolean;
@@ -3649,6 +3931,7 @@ function WriteSection({
   addToast: (message: string, type?: ToastType) => void;
   setActiveSection: (section: DashboardSection) => void;
   isDemo?: boolean;
+  authorSuggestions: readonly AuthorSuggestion[];
 }) {
   // Frontmatter form state + markdown body (body contains no YAML)
   const [frontmatter, setFrontmatter] = useState<FrontmatterValues>(() =>
@@ -3682,10 +3965,15 @@ function WriteSection({
   const [bodyOpen, toggleBody] = usePersistedOpen("dashboard:write:body-open", true);
   // Image upload modal state
   const [showImageUpload, setShowImageUpload] = useState(false);
+  // Embed dialog (X posts and YouTube) inserts an iframe at the cursor
+  const [showEmbedDialog, setShowEmbedDialog] = useState(false);
   // Which frontmatter image field the upload modal fills (null when closed)
   const [fmImageField, setFmImageField] = useState<FrontmatterImageField | null>(null);
+  const [fmImageTab, setFmImageTab] = useState<"upload" | "library">("upload");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const richTextRef = useRef<HTMLDivElement>(null);
+  // Same width key as the editor so the panel matches between Write and Edit
+  const sidebar = useResizableSidebar(FRONTMATTER_SIDEBAR_WIDTH_KEY);
 
   // Toggle focus mode
   const toggleFocusMode = useCallback(() => {
@@ -3999,6 +4287,8 @@ function WriteSection({
               authorName: optionalString(frontmatter.authorName),
               authorImage: optionalString(frontmatter.authorImage),
               aiWritten: frontmatter.aiWritten ? true : undefined,
+              minimap: frontmatter.minimap ? true : undefined,
+              hideNav: frontmatter.hideNav ? true : undefined,
               audio: frontmatter.audio,
               audioVoice: frontmatter.audioVoice,
             },
@@ -4127,68 +4417,93 @@ function WriteSection({
           </div>
         </div>
         <div className="dashboard-write-actions">
-          <button onClick={handleClear} className="dashboard-action-btn" title="Clear content">
-            <Trash size={16} />
-            <span>Clear</span>
-          </button>
-          <button
-            onClick={handleCopy}
-            className={`dashboard-action-btn primary ${copied ? "copied" : ""}`}>
-            {copied ? <Check size={16} weight="bold" /> : <CopySimple size={16} />}
-            <span>{copied ? "Copied" : "Copy All"}</span>
-          </button>
-          {siteConfig.media?.enabled && !isDemo && (
-            <button
-              onClick={() => setShowImageUpload(true)}
-              className="dashboard-action-btn"
-              title="Insert Image">
-              <Image size={16} />
-              <span>Image</span>
+          <Tip content="Reset the body and frontmatter to a fresh template. This browser draft is replaced.">
+            <button onClick={handleClear} className="dashboard-action-btn">
+              <Trash size={16} />
+              <span>Clear</span>
             </button>
+          </Tip>
+          <Tip content="Copy the full markdown file, frontmatter included, ready to paste into content/">
+            <button
+              onClick={handleCopy}
+              className={`dashboard-action-btn primary ${copied ? "copied" : ""}`}>
+              {copied ? <Check size={16} weight="bold" /> : <CopySimple size={16} />}
+              <span>{copied ? "Copied" : "Copy All"}</span>
+            </button>
+          </Tip>
+          {siteConfig.media?.enabled && !isDemo && (
+            <Tip content="Upload or pick an image or video and insert it at the cursor">
+              <button
+                onClick={() => setShowImageUpload(true)}
+                className="dashboard-action-btn">
+                <Image size={16} />
+                <span>Media</span>
+              </button>
+            </Tip>
           )}
-          <button
-            onClick={handleDownloadMarkdown}
-            className="dashboard-action-btn primary"
-            title="Download Markdown">
-            <Download size={16} />
-            <span>Download .md</span>
-          </button>
+          <Tip content="Paste an X post or YouTube link and insert the embed at the cursor">
+            <button
+              onClick={() => setShowEmbedDialog(true)}
+              className="dashboard-action-btn"
+              disabled={editorMode === "richtext"}>
+              <Code size={16} />
+              <span>Embed</span>
+            </button>
+          </Tip>
+          <Tip content="Download this draft as a .md file to drop into content/ and sync">
+            <button
+              onClick={handleDownloadMarkdown}
+              className="dashboard-action-btn primary">
+              <Download size={16} />
+              <span>Download .md</span>
+            </button>
+          </Tip>
           {contentType === "post" && !isDemo && xStatus?.connected && (
-            <label
-              className="write-share-x-toggle"
-              title="Post the title and link to X after publishing">
-              <input
-                type="checkbox"
-                checked={shareOnX}
-                onChange={(e) => setShareOnX(e.target.checked)}
-              />
-              <XLogo size={14} />
-              <span>Share on X</span>
-            </label>
+            <Tip content="Post the title and link to X right after this publishes">
+              <label className="write-share-x-toggle">
+                <input
+                  type="checkbox"
+                  checked={shareOnX}
+                  onChange={(e) => setShareOnX(e.target.checked)}
+                />
+                <XLogo size={14} />
+                <span>Share on X</span>
+              </label>
+            </Tip>
           )}
-          <button
-            onClick={handleSaveToDb}
-            disabled={isSaving}
-            className="dashboard-action-btn success dashboard-save-inline"
-            title="Save to Database"
-            aria-busy={isSaving}>
-            {isSaving ? (
-              <SpinnerGap size={16} className="animate-spin" />
-            ) : (
-              <FloppyDisk size={16} />
-            )}
-            <span>Save to DB</span>
-          </button>
-          <button
-            onClick={toggleFocusMode}
-            className={`dashboard-action-btn focus-toggle ${focusMode ? "active" : ""}`}
-            title={focusMode ? "Exit focus mode (Esc)" : "Enter focus mode"}>
-            {focusMode ? (
-              <ArrowsIn size={16} weight="regular" />
-            ) : (
-              <ArrowsOut size={16} weight="regular" />
-            )}
-          </button>
+          <Tip
+            content={
+              frontmatter.published
+                ? "Save to Convex and publish. The site updates in real time."
+                : "Save to Convex as unpublished. Turn on Published in Visibility to go live."
+            }>
+            <button
+              onClick={handleSaveToDb}
+              disabled={isSaving}
+              className="dashboard-action-btn success dashboard-save-inline"
+              aria-busy={isSaving}>
+              {isSaving ? (
+                <SpinnerGap size={16} className="animate-spin" />
+              ) : (
+                <FloppyDisk size={16} />
+              )}
+              <span>Save to DB</span>
+            </button>
+          </Tip>
+          <Tip
+            content={focusMode ? "Exit focus mode" : "Hide both sidebars for distraction-free writing"}
+            shortcut={focusMode ? "Esc" : undefined}>
+            <button
+              onClick={toggleFocusMode}
+              className={`dashboard-action-btn focus-toggle ${focusMode ? "active" : ""}`}
+              aria-label={focusMode ? "Exit focus mode" : "Enter focus mode"}>
+              {focusMode ? (
+                <ArrowsIn size={16} weight="regular" />
+              ) : (
+                <ArrowsOut size={16} weight="regular" />
+              )}
+            </button>
+          </Tip>
         </div>
       </div>
 
@@ -4209,63 +4524,21 @@ function WriteSection({
 
             {editorMode === "richtext" && (
             <div className="dashboard-quill-container">
-              <div className="ql-toolbar dashboard-simple-toolbar">
-                <button
-                  type="button"
-                  className="dashboard-rich-btn"
-                  onClick={() => applyRichTextCommand("bold")}
-                  title="Bold">
-                  B
-                </button>
-                <button
-                  type="button"
-                  className="dashboard-rich-btn"
-                  onClick={() => applyRichTextCommand("italic")}
-                  title="Italic">
-                  I
-                </button>
-                <button
-                  type="button"
-                  className="dashboard-rich-btn"
-                  onClick={() => applyRichTextCommand("strikeThrough")}
-                  title="Strike">
-                  S
-                </button>
-                <button
-                  type="button"
-                  className="dashboard-rich-btn"
-                  onClick={() => applyRichTextCommand("formatBlock", "H2")}
-                  title="Heading 2">
-                  H2
-                </button>
-                <button
-                  type="button"
-                  className="dashboard-rich-btn"
-                  onClick={() => applyRichTextCommand("formatBlock", "H3")}
-                  title="Heading 3">
-                  H3
-                </button>
-                <button
-                  type="button"
-                  className="dashboard-rich-btn"
-                  onClick={() => applyRichTextCommand("insertUnorderedList")}
-                  title="Bullet list">
-                  List
-                </button>
-                <button
-                  type="button"
-                  className="dashboard-rich-btn"
-                  onClick={() => applyRichTextCommand("insertOrderedList")}
-                  title="Numbered list">
-                  1.
-                </button>
-                <button
-                  type="button"
-                  className="dashboard-rich-btn"
-                  onClick={() => applyRichTextCommand("formatBlock", "BLOCKQUOTE")}
-                  title="Quote">
-                  Quote
-                </button>
+              <div className="ql-toolbar dashboard-simple-toolbar" role="toolbar" aria-label="Formatting">
+                {RICH_TEXT_TOOLS.map((tool) => (
+                  <Tip
+                    key={tool.label}
+                    content={tool.label}
+                    shortcut={tool.shortcut ? `${isMac ? "\u2318" : "Ctrl"} ${tool.shortcut}` : undefined}>
+                    <button
+                      type="button"
+                      className="dashboard-rich-btn"
+                      onClick={() => applyRichTextCommand(tool.command, tool.value)}
+                      aria-label={tool.label}>
+                      {tool.glyph}
+                    </button>
+                  </Tip>
+                ))}
               </div>
               <div className="ql-container">
                 <div
@@ -4287,7 +4560,7 @@ function WriteSection({
                   <div className="blog-post-content">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkBreaks]}
-                      rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}>
+                      rehypePlugins={[rehypeRaw, [rehypeSanitize, dashboardSanitizeSchema]]}>
                       {body}
                     </ReactMarkdown>
                   </div>
@@ -4318,29 +4591,45 @@ function WriteSection({
         </div>
 
         {/* Frontmatter Sidebar */}
-        <aside className={`dashboard-write-sidebar ${frontmatterCollapsed ? "collapsed" : ""}`}>
-          <button
-            type="button"
-            className="dashboard-write-sidebar-header"
-            onClick={toggleFrontmatter}
-            aria-expanded={!frontmatterCollapsed}
-            title={frontmatterCollapsed ? "Expand frontmatter" : "Collapse frontmatter"}>
-            <span>Frontmatter</span>
-            <SidebarSimple
-              size={16}
-              weight="regular"
-              className="dashboard-write-sidebar-toggle-icon"
-            />
-          </button>
+        <aside
+          className={`dashboard-write-sidebar ${frontmatterCollapsed ? "collapsed" : ""} ${sidebar.isResizing ? "resizing" : ""}`}
+          style={frontmatterCollapsed ? undefined : { width: `${sidebar.width}px` }}>
+          {!frontmatterCollapsed && (
+            <Tip content="Drag to resize. Arrow keys nudge, double-click resets." side="left">
+              <div className="dashboard-sidebar-resize-handle" {...sidebar.handleProps} />
+            </Tip>
+          )}
+          <Tip
+            content={
+              frontmatterCollapsed
+                ? "Show the frontmatter panel"
+                : "Hide the frontmatter panel to widen the editor"
+            }
+            side="left">
+            <button
+              type="button"
+              className="dashboard-write-sidebar-header"
+              onClick={toggleFrontmatter}
+              aria-expanded={!frontmatterCollapsed}
+              aria-label={frontmatterCollapsed ? "Expand frontmatter" : "Collapse frontmatter"}>
+              <span>Frontmatter</span>
+              <SidebarSimple
+                size={16}
+                weight="regular"
+                className="dashboard-write-sidebar-toggle-icon"
+              />
+            </button>
+          </Tip>
           <div className="dashboard-write-fields fmf-panel">
             <FrontmatterForm
+              authorSuggestions={authorSuggestions}
               kind={contentType}
               value={frontmatter}
               onChange={setFrontmatter}
               hiddenFields={demoHiddenFields}
               onRequestImage={
                 siteConfig.media?.enabled && !isDemo
-                  ? (field) => setFmImageField(field)
+                  ? (field, initialTab = "upload") => { setFmImageTab(initialTab); setFmImageField(field); }
                   : undefined
               }
             />
@@ -4354,7 +4643,6 @@ function WriteSection({
           onClick={handleSaveToDb}
           disabled={isSaving}
           className="dashboard-action-btn success"
-          title="Save to Database"
           aria-busy={isSaving}>
           {isSaving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
           <span>Save to DB</span>
@@ -4371,23 +4659,125 @@ function WriteSection({
 
       {/* Image Upload Modal - only when media is enabled and not in demo mode */}
       {siteConfig.media?.enabled && !isDemo && (
-        <ImageUploadModal
+        <ImageUploadModal requiredProvider="r2"
           isOpen={showImageUpload}
           onClose={() => setShowImageUpload(false)}
           onInsert={handleInsertImage}
         />
       )}
 
+      {/* Embed dialog: X posts and YouTube as sanitizer-safe iframes */}
+      <EmbedDialog
+        isOpen={showEmbedDialog}
+        onClose={() => setShowEmbedDialog(false)}
+        onInsert={handleInsertImage}
+      />
+
       {/* Frontmatter image picker (returns URL only) */}
       {siteConfig.media?.enabled && !isDemo && fmImageField !== null && (
-        <ImageUploadModal
+        <ImageUploadModal requiredProvider="r2"
           isOpen={fmImageField !== null}
+          initialTab={fmImageTab}
           onClose={() => setFmImageField(null)}
           onSelectUrl={(url) => {
             setFrontmatter({ ...frontmatter, [fmImageField]: url });
             setFmImageField(null);
           }}
         />
+      )}
+    </div>
+  );
+}
+
+interface ModelPickerProps {
+  models: ReadonlyArray<{ id: string; name: string; provider: string }>;
+  selectedId: string;
+  selectedName: string;
+  open: boolean;
+  onToggle: () => void;
+  onSelect: (id: string) => void;
+  activeProviders: ReadonlyArray<string>;
+  hiddenCount: number;
+  missingKeys: string;
+  loading: boolean;
+}
+
+/**
+ * Model dropdown that reflects vendor key state. One usable model renders as
+ * a static label; two or more get the dropdown. Hidden models get a hint that
+ * names the missing key so the fix is one click away in API Keys.
+ */
+function ModelPicker({
+  models,
+  selectedId,
+  selectedName,
+  open,
+  onToggle,
+  onSelect,
+  activeProviders,
+  hiddenCount,
+  missingKeys,
+  loading,
+}: ModelPickerProps) {
+  const multiple = models.length > 1;
+  return (
+    <div className="ai-model-selector">
+      <span className="ai-model-label">Model:</span>
+      <div className="ai-model-dropdown-container">
+        {multiple ? (
+          <Tip content="Only models with an active vendor key are listed. Manage keys under API Keys.">
+            <button
+              className="ai-model-dropdown-trigger"
+              onClick={onToggle}
+              aria-haspopup="listbox"
+              aria-expanded={open}
+              disabled={loading}>
+              <span>{loading ? "Checking keys..." : selectedName}</span>
+              <CaretDown size={14} weight="bold" />
+            </button>
+          </Tip>
+        ) : (
+          <Tip
+            content={
+              models.length === 1
+                ? `Only ${models[0].name} has an active key, so there is nothing to switch to.`
+                : "No model has an active vendor key."
+            }>
+            <span className="ai-model-dropdown-trigger ai-model-static" aria-live="polite">
+              {loading ? "Checking keys..." : selectedName}
+            </span>
+          </Tip>
+        )}
+        {multiple && open && (
+          <div className="ai-model-dropdown" role="listbox">
+            {models.map((model) => (
+              <button
+                key={model.id}
+                role="option"
+                aria-selected={selectedId === model.id}
+                className={`ai-model-option ${selectedId === model.id ? "selected" : ""}`}
+                onClick={() => onSelect(model.id)}>
+                <span className="ai-model-name">{model.name}</span>
+                <span className="ai-model-provider">{model.provider}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {!loading && activeProviders.length > 0 && (
+        <Tip content="Providers with a configured key on this deployment">
+          <span className="ai-model-keys">
+            <Key size={12} />
+            {activeProviders.join(", ")}
+          </span>
+        </Tip>
+      )}
+      {!loading && hiddenCount > 0 && (
+        <Tip content={`Add ${missingKeys} under API Keys to show ${hiddenCount === 1 ? "it" : "them"}.`}>
+          <span className="ai-model-hidden">
+            {hiddenCount} hidden
+          </span>
+        </Tip>
       )}
     </div>
   );
@@ -4421,16 +4811,48 @@ function AIAgentSection() {
   );
   const deleteGeneratedImage = useMutation(api.aiChats.deleteGeneratedImage);
 
-  const textModels = siteConfig.aiDashboard?.textModels || [
+  const configuredTextModels = siteConfig.aiDashboard?.textModels || [
     { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", provider: "anthropic" as const },
   ];
-  const imageModels = siteConfig.aiDashboard?.imageModels || [
+  const configuredImageModels = siteConfig.aiDashboard?.imageModels || [
     {
       id: "gemini-2.0-flash-exp-image-generation",
       name: "Nano Banana",
       provider: "google" as const,
     },
   ];
+
+  // Only offer models whose vendor key is set (dashboard override or env).
+  // A model with no key would fail server side, so hide it and say why.
+  const vendorStatus = useQuery(api.pipelineKeys.vendorKeyStatus);
+  const textAvailability = useMemo(
+    () => filterAvailableModels(configuredTextModels, vendorStatus),
+    // configured lists come from static siteConfig
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [vendorStatus],
+  );
+  const imageAvailability = useMemo(
+    () => filterAvailableModels(configuredImageModels, vendorStatus),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [vendorStatus],
+  );
+  const textModels = textAvailability.available;
+  const imageModels = imageAvailability.available;
+
+  // When keys change (or finish loading) snap the selection to something usable
+  useEffect(() => {
+    if (vendorStatus === undefined) return;
+    const next = pickModel(textModels, selectedTextModel, siteConfig.aiDashboard?.defaultTextModel);
+    if (next !== null && next !== selectedTextModel) setSelectedTextModel(next);
+  }, [vendorStatus, textModels, selectedTextModel]);
+  useEffect(() => {
+    if (vendorStatus === undefined) return;
+    const next = pickModel(imageModels, selectedImageModel);
+    if (next !== null && next !== selectedImageModel) setSelectedImageModel(next);
+  }, [vendorStatus, imageModels, selectedImageModel]);
+
+  const textModelUsable = textModels.some((m) => m.id === selectedTextModel);
+  const imageModelUsable = imageModels.some((m) => m.id === selectedImageModel);
 
   const enableImageGeneration = siteConfig.aiDashboard?.enableImageGeneration ?? true;
   const generatedImage =
@@ -4452,7 +4874,7 @@ function AIAgentSection() {
   const isGeneratingImage = isRequestingImage || imageGenerationJob?.status === "pending";
 
   const handleGenerateImage = async () => {
-    if (!imagePrompt.trim() || isGeneratingImage) return;
+    if (!imagePrompt.trim() || isGeneratingImage || !imageModelUsable) return;
 
     setIsRequestingImage(true);
     setImageRequestError(null);
@@ -4492,9 +4914,15 @@ function AIAgentSection() {
   };
 
   const selectedTextModelName =
-    textModels.find((m) => m.id === selectedTextModel)?.name || "Claude Sonnet 4";
+    textModels.find((m) => m.id === selectedTextModel)?.name ||
+    (textModels.length === 0 ? "No model available" : "Choose a model");
   const selectedImageModelName =
-    imageModels.find((m) => m.id === selectedImageModel)?.name || "Nano Banana";
+    imageModels.find((m) => m.id === selectedImageModel)?.name ||
+    (imageModels.length === 0 ? "No model available" : "Choose a model");
+
+  // Human readable list of key names that would unlock hidden models
+  const describeMissing = (keys: ReadonlyArray<string>) =>
+    keys.length === 0 ? "" : keys.join(", ");
 
   // Generate markdown code for the image
   const getMarkdownCode = (url: string, prompt: string) => `![${prompt}](${url})`;
@@ -4554,7 +4982,7 @@ function AIAgentSection() {
             className={`ai-agent-tab ${activeTab === "image" ? "active" : ""}`}
             onClick={() => setActiveTab("image")}>
             <Image size={18} weight="bold" />
-            <span>Image</span>
+            <span>Media</span>
           </button>
         )}
       </div>
@@ -4562,69 +4990,70 @@ function AIAgentSection() {
       {/* Chat Tab */}
       {activeTab === "chat" && (
         <div className="ai-agent-chat-container">
-          {/* Model Selector */}
-          <div className="ai-model-selector">
-            <span className="ai-model-label">Model:</span>
-            <div className="ai-model-dropdown-container">
-              <button
-                className="ai-model-dropdown-trigger"
-                onClick={() => setShowTextModelDropdown(!showTextModelDropdown)}>
-                <span>{selectedTextModelName}</span>
-                <CaretDown size={14} weight="bold" />
-              </button>
-              {showTextModelDropdown && (
-                <div className="ai-model-dropdown">
-                  {textModels.map((model) => (
-                    <button
-                      key={model.id}
-                      className={`ai-model-option ${selectedTextModel === model.id ? "selected" : ""}`}
-                      onClick={() => {
-                        setSelectedTextModel(model.id);
-                        setShowTextModelDropdown(false);
-                      }}>
-                      <span className="ai-model-name">{model.name}</span>
-                      <span className="ai-model-provider">{model.provider}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+          {/* Model Selector: only models with an active vendor key */}
+          <ModelPicker
+            models={textModels}
+            selectedId={selectedTextModel}
+            selectedName={selectedTextModelName}
+            open={showTextModelDropdown}
+            onToggle={() => setShowTextModelDropdown((v) => !v)}
+            onSelect={(id) => {
+              setSelectedTextModel(id);
+              setShowTextModelDropdown(false);
+            }}
+            activeProviders={textAvailability.activeProviders}
+            hiddenCount={textAvailability.unavailable.length}
+            missingKeys={describeMissing(textAvailability.missingKeys)}
+            loading={vendorStatus === undefined}
+          />
+          {textModelUsable ? (
+            <AIChatView contextId="dashboard-agent" selectedModel={selectedTextModel} />
+          ) : (
+            <div className="ai-model-empty">
+              <Key size={18} />
+              <div>
+                <strong>No chat model has a key yet.</strong>
+                <p>
+                  Add {describeMissing(textAvailability.missingKeys) || "a vendor key"} under API
+                  Keys, then come back. Keys set in the dashboard override environment variables.
+                </p>
+              </div>
             </div>
-          </div>
-          <AIChatView contextId="dashboard-agent" selectedModel={selectedTextModel} />
+          )}
         </div>
       )}
 
       {/* Image Generation Tab */}
       {activeTab === "image" && enableImageGeneration && (
         <div className="ai-agent-image-container">
-          {/* Image Model Selector */}
-          <div className="ai-model-selector">
-            <span className="ai-model-label">Model:</span>
-            <div className="ai-model-dropdown-container">
-              <button
-                className="ai-model-dropdown-trigger"
-                onClick={() => setShowImageModelDropdown(!showImageModelDropdown)}>
-                <span>{selectedImageModelName}</span>
-                <CaretDown size={14} weight="bold" />
-              </button>
-              {showImageModelDropdown && (
-                <div className="ai-model-dropdown">
-                  {imageModels.map((model) => (
-                    <button
-                      key={model.id}
-                      className={`ai-model-option ${selectedImageModel === model.id ? "selected" : ""}`}
-                      onClick={() => {
-                        setSelectedImageModel(model.id);
-                        setShowImageModelDropdown(false);
-                      }}>
-                      <span className="ai-model-name">{model.name}</span>
-                      <span className="ai-model-provider">{model.provider}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+          {/* Image Model Selector: only models with an active vendor key */}
+          <ModelPicker
+            models={imageModels}
+            selectedId={selectedImageModel}
+            selectedName={selectedImageModelName}
+            open={showImageModelDropdown}
+            onToggle={() => setShowImageModelDropdown((v) => !v)}
+            onSelect={(id) => {
+              setSelectedImageModel(id);
+              setShowImageModelDropdown(false);
+            }}
+            activeProviders={imageAvailability.activeProviders}
+            hiddenCount={imageAvailability.unavailable.length}
+            missingKeys={describeMissing(imageAvailability.missingKeys)}
+            loading={vendorStatus === undefined}
+          />
+          {!imageModelUsable && vendorStatus !== undefined && (
+            <div className="ai-model-empty">
+              <Key size={18} />
+              <div>
+                <strong>No image model has a key yet.</strong>
+                <p>
+                  Add {describeMissing(imageAvailability.missingKeys) || "a vendor key"} under API
+                  Keys to turn on image generation.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Aspect Ratio Selector */}
           <div className="ai-aspect-ratio-selector">
@@ -4649,34 +5078,36 @@ function AIAgentSection() {
 
               {/* Image Actions */}
               <div className="ai-image-actions">
-                <button
-                  className="ai-image-action-btn download"
-                  onClick={handleDownloadImage}
-                  title="Download image">
-                  <Download size={16} />
-                  <span>Download</span>
-                </button>
-                <button
-                  className={`ai-image-action-btn ${copiedFormat === "md" ? "copied" : ""}`}
-                  onClick={() => handleCopyCode("md")}
-                  title="Copy as Markdown">
-                  {copiedFormat === "md" ? <Check size={16} /> : <CopySimple size={16} />}
-                  <span>{copiedFormat === "md" ? "Copied" : "MD"}</span>
-                </button>
-                <button
-                  className={`ai-image-action-btn ${copiedFormat === "html" ? "copied" : ""}`}
-                  onClick={() => handleCopyCode("html")}
-                  title="Copy as HTML">
-                  {copiedFormat === "html" ? <Check size={16} /> : <CopySimple size={16} />}
-                  <span>{copiedFormat === "html" ? "Copied" : "HTML"}</span>
-                </button>
-                <button
-                  className="ai-image-action-btn delete"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  title="Delete image from database">
-                  <Trash size={16} />
-                  <span>Delete</span>
-                </button>
+                <Tip content="Save the PNG to your computer">
+                  <button className="ai-image-action-btn download" onClick={handleDownloadImage}>
+                    <Download size={16} />
+                    <span>Download</span>
+                  </button>
+                </Tip>
+                <Tip content="Copy ![prompt](url) to paste into a post body">
+                  <button
+                    className={`ai-image-action-btn ${copiedFormat === "md" ? "copied" : ""}`}
+                    onClick={() => handleCopyCode("md")}>
+                    {copiedFormat === "md" ? <Check size={16} /> : <CopySimple size={16} />}
+                    <span>{copiedFormat === "md" ? "Copied" : "MD"}</span>
+                  </button>
+                </Tip>
+                <Tip content="Copy an <img> tag for HTML or newsletter use">
+                  <button
+                    className={`ai-image-action-btn ${copiedFormat === "html" ? "copied" : ""}`}
+                    onClick={() => handleCopyCode("html")}>
+                    {copiedFormat === "html" ? <Check size={16} /> : <CopySimple size={16} />}
+                    <span>{copiedFormat === "html" ? "Copied" : "HTML"}</span>
+                  </button>
+                </Tip>
+                <Tip content="Remove the file from Convex storage. Posts linking to it will break.">
+                  <button
+                    className="ai-image-action-btn delete"
+                    onClick={() => setShowDeleteConfirm(true)}>
+                    <Trash size={16} />
+                    <span>Delete</span>
+                  </button>
+                </Tip>
               </div>
 
               {/* Delete Confirmation */}
@@ -4758,7 +5189,7 @@ function AIAgentSection() {
             <button
               className="ai-image-generate-button"
               onClick={handleGenerateImage}
-              disabled={!imagePrompt.trim() || isGeneratingImage}>
+              disabled={!imagePrompt.trim() || isGeneratingImage || !imageModelUsable}>
               {isGeneratingImage ? (
                 <SpinnerGap size={18} weight="bold" className="ai-image-spinner" />
               ) : (
@@ -5424,6 +5855,7 @@ function NewsletterRecentSendsSection() {
 
   return (
     <div className="dashboard-newsletter-section full-width">
+      <NewsletterAutomationHistory />
       {!stats ? (
         <div className="dashboard-list-empty">Loading recent sends...</div>
       ) : stats.recentNewsletters.length === 0 ? (
@@ -6062,12 +6494,73 @@ function IndexHtmlSection({ addToast }: { addToast: (message: string, type: Toas
  *
  * See CLAUDE.md "Configuration alignment" section for details.
  */
+/**
+ * One Site Config group. Renders as a tab panel when a single tab is active
+ * and as a labelled region with an eyebrow when All is showing. Always mounted:
+ * `hidden` keeps unsaved field state alive across tab switches.
+ */
+function ConfigPanel({
+  group,
+  activeTab,
+  children,
+}: {
+  group: ConfigGroup;
+  activeTab: ConfigTab;
+  children: React.ReactNode;
+}) {
+  const showAll = activeTab === CONFIG_TAB_ALL;
+  const visible = showAll || activeTab === group.id;
+  const panelId = configPanelDomId(group.id);
+  const eyebrowId = `${panelId}-label`;
+  return (
+    <section
+      id={panelId}
+      className="dashboard-config-panel"
+      role={showAll ? "region" : "tabpanel"}
+      aria-labelledby={showAll ? eyebrowId : configTabDomId(group.id)}
+      hidden={!visible}
+    >
+      <div className="dashboard-config-panel-head">
+        {showAll && (
+          <p id={eyebrowId} className="dashboard-config-panel-label">
+            {group.label}
+          </p>
+        )}
+        <p className="dashboard-config-panel-hint">{group.hint}</p>
+      </div>
+      <div className="dashboard-config-grid">{children}</div>
+    </section>
+  );
+}
+
+// The index.html reminder is dismissed per browser, keyed to the metadata that
+// index.html mirrors. A fresh fork has no key, and a later change to name, title,
+// or bio makes the stored fingerprint stale, so the banner returns on its own.
+const INDEX_HTML_REMINDER_KEY = "dashboard-index-html-reminder";
+
+function indexHtmlMetadataFingerprint(meta: { name: string; title: string; bio: string }): string {
+  return JSON.stringify([meta.name, meta.title, meta.bio]);
+}
+
+function readIndexHtmlReminderDismissed(): boolean {
+  try {
+    return localStorage.getItem(INDEX_HTML_REMINDER_KEY) === indexHtmlMetadataFingerprint(siteConfig);
+  } catch {
+    return false;
+  }
+}
+
 function ConfigSection({
   addToast,
   onNavigateToIndexHtml,
+  deepLink,
+  onDeepLinkConsumed,
 }: {
   addToast: (message: string, type: ToastType) => void;
   onNavigateToIndexHtml?: () => void;
+  /** Card requested from the command palette. Nonce lets the same card fire twice. */
+  deepLink?: ConfigDeepLink | null;
+  onDeepLinkConsumed?: () => void;
 }) {
   const [config, setConfig] = useState({
     name: siteConfig.name,
@@ -6096,6 +6589,12 @@ function ConfigSection({
     projectsPageViewMode: siteConfig.projectsPage.viewMode,
     projectsPageShowViewToggle: siteConfig.projectsPage.showViewToggle,
     projectsPageOrder: siteConfig.projectsPage.order,
+    // Skills page
+    skillsPageEnabled: siteConfig.skillsPage?.enabled ?? false,
+    skillsPageShowInNav: siteConfig.skillsPage?.showInNav ?? true,
+    skillsPageTitle: siteConfig.skillsPage?.title ?? "Skills",
+    skillsPageDescription: siteConfig.skillsPage?.description || "",
+    skillsPageOrder: siteConfig.skillsPage?.order ?? 4,
     // Posts display
     showPostsOnHome: siteConfig.postsDisplay.showOnHome,
     showPostsOnBlogPage: siteConfig.postsDisplay.showOnBlogPage,
@@ -6198,6 +6697,8 @@ function ConfigSection({
     semanticSearchEnabled: siteConfig.semanticSearch?.enabled || false,
     // Ask AI
     askAIEnabled: siteConfig.askAI?.enabled || false,
+    // WebMCP in-page tools
+    webmcpEnabled: siteConfig.webmcp?.enabled !== false,
     // Media library
     mediaEnabled: siteConfig.media?.enabled || false,
     mediaMaxFileSize: siteConfig.media?.maxFileSize || 10,
@@ -6207,6 +6708,71 @@ function ConfigSection({
     audioEnabledDefault: siteConfig.audio?.enabledDefault !== false,
     audioDefaultVoice: siteConfig.audio?.defaultVoice === "male" ? "male" : "female",
   });
+
+  // Active Site Config tab. Persisted so the owner lands where they left off.
+  const [activeTab, setActiveTab] = useState<ConfigTab>(() => {
+    if (typeof window === "undefined") return CONFIG_TAB_ALL;
+    const saved = window.localStorage.getItem(CONFIG_TAB_STORAGE_KEY);
+    return isConfigTab(saved) ? saved : CONFIG_TAB_ALL;
+  });
+
+  const selectTab = useCallback((tab: ConfigTab) => {
+    setActiveTab(tab);
+    window.localStorage.setItem(CONFIG_TAB_STORAGE_KEY, tab);
+  }, []);
+
+  // Roving tabindex: arrows move between tabs and select as they go
+  const handleTabKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      const index = CONFIG_TABS.findIndex((tab) => tab.id === activeTab);
+      let next = index;
+      if (event.key === "ArrowRight") next = (index + 1) % CONFIG_TABS.length;
+      else if (event.key === "ArrowLeft") next = (index - 1 + CONFIG_TABS.length) % CONFIG_TABS.length;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = CONFIG_TABS.length - 1;
+      else return;
+      event.preventDefault();
+      const tab = CONFIG_TABS[next];
+      selectTab(tab.id);
+      document.getElementById(configTabDomId(tab.id))?.focus();
+    },
+    [activeTab, selectTab],
+  );
+
+  // Command palette deep link: open the card's group (unless All is showing,
+  // where it is already on screen), scroll it under the sticky tabs, and pulse
+  // a ring on it so the eye lands in the right place.
+  const highlightTimer = useRef<number | null>(null);
+  const consumedDeepLink = useRef<number | null>(null);
+  useEffect(() => {
+    if (!deepLink || consumedDeepLink.current === deepLink.nonce) return;
+    // Switch tabs first and let the effect re-run once the panel is unhidden,
+    // so scrollIntoView measures a visible element.
+    if (activeTab !== CONFIG_TAB_ALL && activeTab !== deepLink.group) {
+      selectTab(deepLink.group);
+      return;
+    }
+    consumedDeepLink.current = deepLink.nonce;
+    const cardId = deepLink.card;
+    const frame = window.requestAnimationFrame(() => {
+      const target = cardId
+        ? document.getElementById(configCardDomId(cardId))
+        : document.getElementById(configPanelDomId(deepLink.group));
+      if (target) {
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        target.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+        if (cardId) {
+          target.classList.add("is-targeted");
+          if (highlightTimer.current) window.clearTimeout(highlightTimer.current);
+          highlightTimer.current = window.setTimeout(() => {
+            target.classList.remove("is-targeted");
+          }, 1800);
+        }
+      }
+      onDeepLinkConsumed?.();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [deepLink, activeTab, selectTab, onDeepLinkConsumed]);
 
   // Logo gallery images live outside the flat `config` object because they are an
   // array of objects. siteConfig allows bare strings, so normalize on the way in
@@ -6314,6 +6880,13 @@ function ConfigSection({
         order: config.projectsPageOrder,
         viewMode: config.projectsPageViewMode,
         showViewToggle: config.projectsPageShowViewToggle,
+      },
+      skillsPage: {
+        enabled: config.skillsPageEnabled,
+        showInNav: config.skillsPageShowInNav,
+        title: config.skillsPageTitle,
+        description: config.skillsPageDescription,
+        order: config.skillsPageOrder,
       },
       postsDisplay: {
         showOnHome: config.showPostsOnHome,
@@ -6440,6 +7013,7 @@ function ConfigSection({
       imageLightbox: { enabled: config.imageLightboxEnabled },
       semanticSearch: { enabled: config.semanticSearchEnabled },
       askAI: { enabled: config.askAIEnabled },
+      webmcp: { enabled: config.webmcpEnabled },
       media: {
         enabled: config.mediaEnabled,
         maxFileSize: config.mediaMaxFileSize,
@@ -6455,6 +7029,18 @@ function ConfigSection({
     };
   };
 
+  // index.html reminder: hidden once dismissed for the current metadata
+  const [reminderDismissed, setReminderDismissed] = useState(readIndexHtmlReminderDismissed);
+
+  const dismissReminder = () => {
+    setReminderDismissed(true);
+    try {
+      localStorage.setItem(INDEX_HTML_REMINDER_KEY, indexHtmlMetadataFingerprint(siteConfig));
+    } catch {
+      // Storage blocked: hide for this session only
+    }
+  };
+
   // Saves overrides to Convex so they go live without editing siteConfig.ts
   const handleSaveConfig = async () => {
     if (saving) return;
@@ -6462,6 +7048,15 @@ function ConfigSection({
     try {
       await saveOverridesMutation({ overrides: buildOverrides() });
       addToast("Config saved. Changes go live on next page load.", "success");
+      // Metadata that index.html mirrors changed, so the reminder is relevant again
+      if (indexHtmlMetadataFingerprint(config) !== indexHtmlMetadataFingerprint(siteConfig)) {
+        setReminderDismissed(false);
+        try {
+          localStorage.removeItem(INDEX_HTML_REMINDER_KEY);
+        } catch {
+          // Storage blocked: in-memory state already reset
+        }
+      }
     } catch {
       addToast("Failed to save config", "error");
     } finally {
@@ -6469,229 +7064,13 @@ function ConfigSection({
     }
   };
 
-  const generateConfigCode = () => {
-    return `// Generated by Dashboard Config Generator
-// Copy this file to src/config/siteConfig.ts
-// For full type definitions, see the original siteConfig.ts file
-// Homepage content comes from content/pages/home.md (not siteConfig bio)
+  // Export precisely the fields this editor owns. JSON escaping preserves
+  // quotes, newlines and backticks without damaging the hand-written config.
+  const generateConfigCode = () => `// Dashboard overrides. Keep the original siteConfig.ts and merge these fields.
+import type { SiteConfigOverrides } from "./runtimeConfig";
 
-import { ReactNode } from "react";
-export type { LogoItem, LogoGalleryConfig } from "../components/LogoMarquee";
-import type { LogoGalleryConfig } from "../components/LogoMarquee";
-
-// ... (type definitions remain the same - copy from original siteConfig.ts)
-
-export const siteConfig: SiteConfig = {
-  name: "${config.name}",
-  title: "${config.title}",
-  logo: ${config.logo ? `"${config.logo}"` : "null"},
-  intro: null,
-  bio: \`${config.bio}\`,
-  fontFamily: "${config.fontFamily}",
-  defaultTheme: "${config.defaultTheme}",
-  featuredViewMode: "${config.featuredViewMode}",
-  featuredTitle: "${config.featuredTitle}",
-  showViewToggle: ${config.showViewToggle},
-  featuredSectionEnabled: ${config.featuredSectionEnabled},
-  
-  logoGallery: {
-    enabled: ${config.logoGalleryEnabled},
-    images: ${JSON.stringify(
-      logoImages.map((logo) => (logo.href ? { src: logo.src, href: logo.href } : { src: logo.src })),
-      null,
-      6,
-    )},
-    position: "${config.logoGalleryPosition}",
-    speed: ${config.logoGallerySpeed},
-    title: "${config.logoGalleryTitle}",
-    scrolling: ${config.logoGalleryScrolling},
-    maxItems: ${config.logoGalleryMaxItems},
-  },
-  
-  gitHubContributions: {
-    enabled: ${config.githubContributionsEnabled},
-    username: "${config.githubContributionsUsername}",
-    showYearNavigation: ${config.githubContributionsShowYearNav},
-    linkToProfile: ${config.githubContributionsLinkToProfile},
-    title: "GitHub Activity",
-  },
-  
-  visitorMap: {
-    enabled: ${config.visitorMapEnabled},
-    title: "${config.visitorMapTitle}",
-  },
-  
-  innerPageLogo: {
-    enabled: ${config.innerPageLogoEnabled},
-    size: ${config.innerPageLogoSize},
-  },
-  
-  blogPage: {
-    enabled: ${config.blogPageEnabled},
-    showInNav: ${config.blogPageShowInNav},
-    title: "${config.blogPageTitle}",
-    description: "${config.blogPageDescription}",
-    order: ${config.blogPageOrder},
-    viewMode: "${config.blogPageViewMode}",
-    showViewToggle: ${config.blogPageShowViewToggle},
-  },
-
-  projectsPage: {
-    enabled: ${config.projectsPageEnabled},
-    showInNav: ${config.projectsPageShowInNav},
-    title: "${config.projectsPageTitle}",
-    description: "${config.projectsPageDescription}",
-    order: ${config.projectsPageOrder},
-    viewMode: "${config.projectsPageViewMode}",
-    showViewToggle: ${config.projectsPageShowViewToggle},
-  },
-  
-  hardcodedNavItems: [
-    { slug: "stats", title: "Stats", order: 10, showInNav: ${config.statsPageShowInNav} },
-    { slug: "write", title: "Write", order: 20, showInNav: true },
-    { slug: "dashboard", title: "Dashboard", order: 21, showInNav: ${config.dashboardShowInNav} },
-  ],
-  
-  postsDisplay: {
-    showOnHome: ${config.showPostsOnHome},
-    showOnBlogPage: ${config.showPostsOnBlogPage},
-    homePostsLimit: ${config.homePostsLimit || "undefined"},
-    homePostsReadMore: {
-      enabled: ${config.homePostsReadMoreEnabled},
-      text: "${config.homePostsReadMoreText}",
-      link: "${config.homePostsReadMoreLink}",
-    },
-    homeTitle: "${config.homePostsTitle}",
-    homeViewMode: "${config.homePostsViewMode}",
-    homeShowViewToggle: ${config.homePostsShowViewToggle},
-    homeShowReadTime: ${config.homePostsShowReadTime},
-    homeShowDate: ${config.homePostsShowDate},
-    homeShowYearHeadings: ${config.homePostsShowYearHeadings},
-    homeUnderlineTitles: ${config.homePostsUnderlineTitles},
-    blogShowReadTime: ${config.blogPostsShowReadTime},
-    blogShowDate: ${config.blogPostsShowDate},
-    blogShowYearHeadings: ${config.blogPostsShowYearHeadings},
-  },
-  
-  links: {
-    docs: "${config.linksDocs}",
-    convex: "${config.linksConvex}",
-    netlify: "${config.linksNetlify}",
-  },
-  
-  gitHubRepo: {
-    owner: "${config.githubOwner}",
-    repo: "${config.githubRepo}",
-    branch: "${config.githubBranch}",
-    contentPath: "${config.githubContentPath}",
-  },
-  
-  rightSidebar: {
-    enabled: ${config.rightSidebarEnabled},
-    minWidth: ${config.rightSidebarMinWidth},
-  },
-  
-  footer: {
-    enabled: ${config.footerEnabled},
-    showOnHomepage: ${config.footerShowOnHomepage},
-    showOnPosts: ${config.footerShowOnPosts},
-    showOnPages: ${config.footerShowOnPages},
-    showOnBlogPage: ${config.footerShowOnBlogPage},
-    defaultContent: \`${config.footerDefaultContent}\`,
-  },
-  
-  homepage: {
-    type: "${config.homepageType}",
-    slug: ${config.homepageSlug ? `"${config.homepageSlug}"` : "undefined"},
-    originalHomeRoute: "${config.homepageOriginalRoute}",
-  },
-  
-  aiChat: {
-    enabledOnWritePage: ${config.aiChatEnabledOnWritePage},
-    enabledOnContent: ${config.aiChatEnabledOnContent},
-  },
-  
-  newsletter: {
-    enabled: ${config.newsletterEnabled},
-    signup: {
-      home: { enabled: ${config.newsletterHomeEnabled}, position: "${config.newsletterHomePosition}", title: "Stay Updated", description: "Get new posts delivered to your inbox." },
-      blogPage: { enabled: ${config.newsletterBlogPageEnabled}, position: "${config.newsletterBlogPagePosition}", title: "Subscribe", description: "Get notified when new posts are published." },
-      posts: { enabled: ${config.newsletterPostsEnabled}, position: "${config.newsletterPostsPosition}", title: "Enjoyed this post?", description: "Subscribe for more updates." },
-      pages: { enabled: ${config.newsletterPagesEnabled}, position: "${config.newsletterPagesPosition}", title: "Stay Updated", description: "Get new posts delivered to your inbox." },
-    },
-  },
-  
-  contactForm: {
-    enabled: ${config.contactFormEnabled},
-    title: "${config.contactFormTitle}",
-    description: "${config.contactFormDescription}",
-  },
-  
-  socialFooter: {
-    enabled: ${config.socialFooterEnabled},
-    showInHeader: ${config.socialFooterShowInHeader},
-    showOnHomepage: ${config.socialFooterShowOnHomepage},
-    showOnPosts: ${config.socialFooterShowOnPosts},
-    showOnPages: ${config.socialFooterShowOnPages},
-    showOnBlogPage: ${config.socialFooterShowOnBlogPage},
-    socialLinks: [], // Add your social links here - see original siteConfig.ts for format
-    copyright: { siteName: "${config.socialFooterCopyrightSiteName}", showYear: ${config.socialFooterCopyrightShowYear} },
-  },
-  
-  newsletterAdmin: { enabled: false, showInNav: false },
-  
-  statsPage: {
-    enabled: ${config.statsPageEnabled},
-    showInNav: ${config.statsPageShowInNav},
-  },
-  
-  newsletterNotifications: { enabled: true, newSubscriberAlert: true, weeklyStatsSummary: true },
-  weeklyDigest: { enabled: true, dayOfWeek: 0, subject: "Weekly Digest" },
-  mcpServer: { enabled: ${config.mcpServerEnabled}, endpoint: "${config.mcpServerEndpoint}", publicRateLimit: 50, authenticatedRateLimit: 1000, requireAuth: ${config.mcpServerRequireAuth} },
-  dashboard: { enabled: ${config.dashboardEnabled}, requireAuth: ${config.dashboardRequireAuth}, showInNav: ${config.dashboardShowInNav} },
-  
-  // Image lightbox configuration
-  // Enables click-to-magnify functionality for images in blog posts and pages
-  imageLightbox: {
-    enabled: ${config.imageLightboxEnabled},
-  },
-
-  // Semantic search configuration
-  // Set enabled: true to enable AI-powered semantic search (requires OPENAI_API_KEY in Convex)
-  semanticSearch: {
-    enabled: ${config.semanticSearchEnabled},
-  },
-
-  // Ask AI header button (requires semanticSearch.enabled and API keys)
-  askAI: {
-    enabled: ${config.askAIEnabled},
-  },
-
-  // Media library configuration
-  // Upload and manage images via ConvexFS and Bunny.net CDN
-  // Requires BUNNY_API_KEY, BUNNY_STORAGE_ZONE, BUNNY_CDN_HOSTNAME in Convex dashboard
-  media: {
-    enabled: ${config.mediaEnabled},
-    maxFileSize: ${config.mediaMaxFileSize},
-    allowedTypes: ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"],
-  },
-
-  // Related posts configuration
-  // Controls the display of related posts at the bottom of blog posts
-  relatedPosts: {
-    defaultViewMode: "${config.relatedPostsDefaultViewMode}",
-    showViewToggle: ${config.relatedPostsShowViewToggle},
-  },
-
-  audio: {
-    enabledDefault: ${config.audioEnabledDefault},
-    defaultVoice: "${config.audioDefaultVoice}",
-  },
-};
-
-export default siteConfig;
+export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfigOverrides;
 `;
-  };
 
   const handleCopyConfig = async () => {
     await navigator.clipboard.writeText(generateConfigCode());
@@ -6705,12 +7084,12 @@ export default siteConfig;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "siteConfig.ts";
+    a.download = "siteConfig.overrides.ts";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    addToast("Downloaded siteConfig.ts", "success");
+    addToast("Downloaded siteConfig.overrides.ts", "success");
   };
 
   return (
@@ -6718,7 +7097,7 @@ export default siteConfig;
       <div className="dashboard-config-header">
         <div>
           <h2>Site Configuration</h2>
-          <p>Save changes live to the site, or generate siteConfig.ts for your repo</p>
+          <p>Save changes to the site, or export configuration overrides for your repo</p>
         </div>
         <div className="dashboard-config-actions">
           <button className="dashboard-action-btn" onClick={handleCopyConfig}>
@@ -6742,19 +7121,56 @@ export default siteConfig;
         </div>
       </div>
 
-      <div className="dashboard-config-reminder">
-        <Info size={16} />
-        <span>
-          Don't forget to update <strong>index.html</strong> with matching metadata!
-          <button className="dashboard-link-button" onClick={onNavigateToIndexHtml}>
-            Go to Index HTML Generator →
+      {!reminderDismissed && (
+        <div className="dashboard-config-reminder" role="status">
+          <Info size={16} />
+          <span className="dashboard-config-reminder-text">
+            Don't forget to update <strong>index.html</strong> with matching metadata!
+            <button className="dashboard-link-button" onClick={onNavigateToIndexHtml}>
+              Go to Index HTML Generator →
+            </button>
+          </span>
+          <button
+            type="button"
+            className="dashboard-config-reminder-close"
+            onClick={dismissReminder}
+            aria-label="Dismiss index.html reminder"
+          >
+            <X size={14} />
           </button>
-        </span>
+        </div>
+      )}
+
+      {/* Sticky group tabs. Every card stays mounted and inactive panels use the
+          `hidden` attribute, so unsaved edits survive a tab switch and agents or
+          Find in page can still reach every card by id. The group list lives in
+          components/dashboard/configGroups.ts and also feeds the command palette. */}
+      <div
+        className="dashboard-config-tabs"
+        role="tablist"
+        aria-label="Site configuration groups"
+        onKeyDown={handleTabKeyDown}
+      >
+        {CONFIG_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            id={configTabDomId(tab.id)}
+            className={`dashboard-config-tab${activeTab === tab.id ? " active" : ""}`}
+            aria-selected={activeTab === tab.id}
+            aria-controls={tab.id === CONFIG_TAB_ALL ? undefined : configPanelDomId(tab.id)}
+            tabIndex={activeTab === tab.id ? 0 : -1}
+            onClick={() => selectTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <div className="dashboard-config-grid">
+      <ConfigPanel group={CONFIG_GROUP_BY_ID.site} activeTab={activeTab}>
         {/* Basic Settings */}
-        <div className="dashboard-config-card">
+        <div className="dashboard-config-card" id={configCardDomId("basic")} data-config-card="basic">
           <h3>Basic Settings</h3>
           <div className="config-field">
             <label>Site Name</label>
@@ -6819,192 +7235,245 @@ export default siteConfig;
           </div>
         </div>
 
-        {/* Blog Page Settings */}
-        <div className="dashboard-config-card">
-          <h3>Blog Page</h3>
+        {/* Inner Page Logo */}
+        <div className="dashboard-config-card" id={configCardDomId("inner-page-logo")} data-config-card="inner-page-logo">
+          <h3>Inner Page Logo</h3>
           <div className="config-field checkbox">
             <label>
               <input
                 type="checkbox"
-                checked={config.blogPageEnabled}
-                onChange={(e) => handleChange("blogPageEnabled", e.target.checked)}
+                checked={config.innerPageLogoEnabled}
+                onChange={(e) => handleChange("innerPageLogoEnabled", e.target.checked)}
               />
-              <span>Enable /blog route</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.blogPageShowInNav}
-                onChange={(e) => handleChange("blogPageShowInNav", e.target.checked)}
-              />
-              <span>Show in navigation</span>
+              <span>Enable inner page logo</span>
             </label>
           </div>
           <div className="config-field">
-            <label>Blog Title</label>
+            <label>Logo Size (px)</label>
+            <input
+              type="number"
+              value={config.innerPageLogoSize}
+              onChange={(e) => handleChange("innerPageLogoSize", parseInt(e.target.value) || 28)}
+              min={16}
+              max={64}
+            />
+          </div>
+        </div>
+
+        {/* Right Sidebar */}
+        <div className="dashboard-config-card" id={configCardDomId("right-sidebar")} data-config-card="right-sidebar">
+          <h3>Right Sidebar</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.rightSidebarEnabled}
+                onChange={(e) => handleChange("rightSidebarEnabled", e.target.checked)}
+              />
+              <span>Enable right sidebar</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Min Width (px)</label>
+            <input
+              type="number"
+              value={config.rightSidebarMinWidth}
+              onChange={(e) =>
+                handleChange("rightSidebarMinWidth", Math.max(1135, parseInt(e.target.value) || 1135))
+              }
+              min={1135}
+            />
+          </div>
+        </div>
+
+        {/* Footer (icon bar) */}
+        <div className="dashboard-config-card" id={configCardDomId("footer")} data-config-card="footer">
+          <h3>Footer</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.socialFooterEnabled}
+                onChange={(e) => handleChange("socialFooterEnabled", e.target.checked)}
+              />
+              <span>Enable footer</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.socialFooterShowInHeader}
+                onChange={(e) => handleChange("socialFooterShowInHeader", e.target.checked)}
+              />
+              <span>Show in header</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.socialFooterShowOnHomepage}
+                onChange={(e) => handleChange("socialFooterShowOnHomepage", e.target.checked)}
+              />
+              <span>Show on homepage</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.socialFooterShowOnPosts}
+                onChange={(e) => handleChange("socialFooterShowOnPosts", e.target.checked)}
+              />
+              <span>Show on posts</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.socialFooterShowOnPages}
+                onChange={(e) => handleChange("socialFooterShowOnPages", e.target.checked)}
+              />
+              <span>Show on pages</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.socialFooterShowOnBlogPage}
+                onChange={(e) => handleChange("socialFooterShowOnBlogPage", e.target.checked)}
+              />
+              <span>Show on blog page</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Copyright Site Name</label>
             <input
               type="text"
-              value={config.blogPageTitle}
-              onChange={(e) => handleChange("blogPageTitle", e.target.value)}
+              value={config.socialFooterCopyrightSiteName}
+              onChange={(e) => handleChange("socialFooterCopyrightSiteName", e.target.value)}
+            />
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.socialFooterCopyrightShowYear}
+                onChange={(e) => handleChange("socialFooterCopyrightShowYear", e.target.checked)}
+              />
+              <span>Show year in copyright</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Closing note (not the site footer) */}
+        <div className="dashboard-config-card" id={configCardDomId("closing-note")} data-config-card="closing-note">
+          <h3>Closing note</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.footerEnabled}
+                onChange={(e) => handleChange("footerEnabled", e.target.checked)}
+              />
+              <span>Enable closing note</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.footerShowOnHomepage}
+                onChange={(e) => handleChange("footerShowOnHomepage", e.target.checked)}
+              />
+              <span>Show on homepage</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.footerShowOnPosts}
+                onChange={(e) => handleChange("footerShowOnPosts", e.target.checked)}
+              />
+              <span>Show on posts</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.footerShowOnPages}
+                onChange={(e) => handleChange("footerShowOnPages", e.target.checked)}
+              />
+              <span>Show on pages</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.footerShowOnBlogPage}
+                onChange={(e) => handleChange("footerShowOnBlogPage", e.target.checked)}
+              />
+              <span>Show on blog page</span>
+            </label>
+          </div>
+          <p className="config-field-note" style={{ marginTop: "0.75rem" }}>
+            This is not the site footer. It is the Connect with me markdown
+            above the Footer icon bar. Same switch as newsletter. Copy lives in{" "}
+            <code>content/pages/footer.md</code>. Run <code>npm run sync</code>{" "}
+            after editing it.
+          </p>
+        </div>
+      </ConfigPanel>
+
+      <ConfigPanel group={CONFIG_GROUP_BY_ID.homepage} activeTab={activeTab}>
+        {/* Homepage Settings */}
+        <div className="dashboard-config-card" id={configCardDomId("homepage-route")} data-config-card="homepage-route">
+          <h3>Homepage route</h3>
+          <div className="config-field">
+            <label>Type</label>
+            <select
+              value={config.homepageType}
+              onChange={(e) => handleChange("homepageType", e.target.value)}>
+              <option value="default">Default</option>
+              <option value="post">Post</option>
+              <option value="page">Page</option>
+            </select>
+          </div>
+          <div className="config-field">
+            <label>Slug (for post/page type)</label>
+            <input
+              type="text"
+              value={config.homepageSlug}
+              onChange={(e) => handleChange("homepageSlug", e.target.value)}
+              placeholder="home"
             />
           </div>
           <div className="config-field">
-            <label>Default View Mode</label>
-            <select
-              value={config.blogPageViewMode}
-              onChange={(e) => handleChange("blogPageViewMode", e.target.value)}>
-              <option value="list">List</option>
-              <option value="cards">Cards</option>
-            </select>
-            <span className="config-hint">
-              View new visitors see first on /blog
-            </span>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.blogPageShowViewToggle}
-                onChange={(e) =>
-                  handleChange("blogPageShowViewToggle", e.target.checked)
-                }
-              />
-              <span>Show view toggle icons</span>
-            </label>
-            <span className="config-hint">
-              Hide to lock the blog to the default view mode
-            </span>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.blogPostsShowReadTime}
-                onChange={(e) =>
-                  handleChange("blogPostsShowReadTime", e.target.checked)
-                }
-              />
-              <span>Show read time</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.blogPostsShowDate}
-                onChange={(e) =>
-                  handleChange("blogPostsShowDate", e.target.checked)
-                }
-              />
-              <span>Show published date</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.blogPostsShowYearHeadings}
-                onChange={(e) =>
-                  handleChange("blogPostsShowYearHeadings", e.target.checked)
-                }
-              />
-              <span>Group by year</span>
-            </label>
+            <label>Original Home Route</label>
+            <input
+              type="text"
+              value={config.homepageOriginalRoute}
+              onChange={(e) => handleChange("homepageOriginalRoute", e.target.value)}
+              placeholder="/home"
+            />
           </div>
           <span className="config-field-note">
-            These three apply to /blog, tag pages, and author pages. Homepage
-            list controls stay under Posts Display.
+            Homepage content comes from content/pages/home.md (not siteConfig bio)
           </span>
         </div>
 
-        {/* Projects Page Settings */}
-        <div className="dashboard-config-card">
-          <h3>Projects Page</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.projectsPageEnabled}
-                onChange={(e) => handleChange("projectsPageEnabled", e.target.checked)}
-              />
-              <span>Enable /projects route</span>
-            </label>
-            <span className="config-hint">
-              Also controls the Projects section in this dashboard
-            </span>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.projectsPageShowInNav}
-                onChange={(e) => handleChange("projectsPageShowInNav", e.target.checked)}
-              />
-              <span>Show in navigation</span>
-            </label>
-          </div>
-          <div className="config-field">
-            <label>Projects Title</label>
-            <input
-              type="text"
-              value={config.projectsPageTitle}
-              onChange={(e) => handleChange("projectsPageTitle", e.target.value)}
-            />
-          </div>
-          <div className="config-field">
-            <label>Description</label>
-            <input
-              type="text"
-              value={config.projectsPageDescription}
-              onChange={(e) => handleChange("projectsPageDescription", e.target.value)}
-              placeholder="Things I've built."
-            />
-            <span className="config-hint">One line under the title. Blank hides it.</span>
-          </div>
-          <div className="config-field">
-            <label>Default Layout</label>
-            <select
-              value={config.projectsPageViewMode}
-              onChange={(e) => handleChange("projectsPageViewMode", e.target.value)}>
-              <option value="list">List (text only)</option>
-              <option value="one-column">One column (image left)</option>
-              <option value="two-column">Two column (image top)</option>
-            </select>
-            <span className="config-hint">
-              Layout new visitors see first on /projects
-            </span>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.projectsPageShowViewToggle}
-                onChange={(e) =>
-                  handleChange("projectsPageShowViewToggle", e.target.checked)
-                }
-              />
-              <span>Show layout toggle</span>
-            </label>
-            <span className="config-hint">
-              Hide to lock /projects to the default layout
-            </span>
-          </div>
-          <div className="config-field">
-            <label>Nav Order</label>
-            <input
-              type="number"
-              value={config.projectsPageOrder ?? 3}
-              onChange={(e) =>
-                handleChange("projectsPageOrder", parseInt(e.target.value) || 0)
-              }
-            />
-          </div>
+        <div className="dashboard-config-slot" id={configCardDomId("homepage-highlights")} data-config-card="homepage-highlights">
+          <HomepageHighlightsSettings />
         </div>
 
         {/* Posts Display */}
-        <div className="dashboard-config-card">
+        <div className="dashboard-config-card" id={configCardDomId("posts-display")} data-config-card="posts-display">
           <h3>Posts Display</h3>
           <div className="config-field checkbox">
             <label>
@@ -7122,7 +7591,7 @@ export default siteConfig;
         </div>
 
         {/* Featured Section */}
-        <div className="dashboard-config-card">
+        <div className="dashboard-config-card" id={configCardDomId("featured-section")} data-config-card="featured-section">
           <h3>Featured Section</h3>
           <div className="config-field checkbox">
             <label>
@@ -7169,387 +7638,8 @@ export default siteConfig;
           </div>
         </div>
 
-        {/* Closing note (not the site footer) */}
-        <div className="dashboard-config-card">
-          <h3>Closing note</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.footerEnabled}
-                onChange={(e) => handleChange("footerEnabled", e.target.checked)}
-              />
-              <span>Enable closing note</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.footerShowOnHomepage}
-                onChange={(e) => handleChange("footerShowOnHomepage", e.target.checked)}
-              />
-              <span>Show on homepage</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.footerShowOnPosts}
-                onChange={(e) => handleChange("footerShowOnPosts", e.target.checked)}
-              />
-              <span>Show on posts</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.footerShowOnPages}
-                onChange={(e) => handleChange("footerShowOnPages", e.target.checked)}
-              />
-              <span>Show on pages</span>
-            </label>
-          </div>
-          <p className="config-field-note" style={{ marginTop: "0.75rem" }}>
-            This is not the site footer. It is the Connect with me markdown
-            above the Footer icon bar. Same switch as newsletter. Copy lives in{" "}
-            <code>content/pages/footer.md</code>. Run <code>npm run sync</code>{" "}
-            after editing it.
-          </p>
-        </div>
-
-        {/* AI Chat Settings */}
-        <div className="dashboard-config-card">
-          <h3>AI Chat</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.aiChatEnabledOnWritePage}
-                onChange={(e) => handleChange("aiChatEnabledOnWritePage", e.target.checked)}
-              />
-              <span>Enable on Write page</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.aiChatEnabledOnContent}
-                onChange={(e) => handleChange("aiChatEnabledOnContent", e.target.checked)}
-              />
-              <span>Enable on content pages</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Right Sidebar */}
-        <div className="dashboard-config-card">
-          <h3>Right Sidebar</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.rightSidebarEnabled}
-                onChange={(e) => handleChange("rightSidebarEnabled", e.target.checked)}
-              />
-              <span>Enable right sidebar</span>
-            </label>
-          </div>
-          <div className="config-field">
-            <label>Min Width (px)</label>
-            <input
-              type="number"
-              value={config.rightSidebarMinWidth}
-              onChange={(e) =>
-                handleChange("rightSidebarMinWidth", parseInt(e.target.value) || 1135)
-              }
-              min={768}
-            />
-          </div>
-        </div>
-
-        {/* Features */}
-        <div className="dashboard-config-card">
-          <h3>Features</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.newsletterEnabled}
-                onChange={(e) => handleChange("newsletterEnabled", e.target.checked)}
-              />
-              <span>Enable newsletter</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.statsPageEnabled}
-                onChange={(e) => handleChange("statsPageEnabled", e.target.checked)}
-              />
-              <span>Enable stats page</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.statsPageShowInNav}
-                onChange={(e) => handleChange("statsPageShowInNav", e.target.checked)}
-              />
-              <span>Show stats in nav</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.dashboardEnabled}
-                onChange={(e) => handleChange("dashboardEnabled", e.target.checked)}
-              />
-              <span>Enable dashboard page</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.dashboardRequireAuth}
-                onChange={(e) => handleChange("dashboardRequireAuth", e.target.checked)}
-              />
-              <span>Require dashboard auth</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.dashboardShowInNav}
-                onChange={(e) => handleChange("dashboardShowInNav", e.target.checked)}
-              />
-              <span>Show dashboard in nav (admins only)</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.visitorMapEnabled}
-                onChange={(e) => handleChange("visitorMapEnabled", e.target.checked)}
-              />
-              <span>Enable visitor map</span>
-            </label>
-          </div>
-        </div>
-
-        {/* GitHub Settings */}
-        <div className="dashboard-config-card">
-          <h3>GitHub Repository</h3>
-          <div className="config-field">
-            <label>Owner</label>
-            <input
-              type="text"
-              value={config.githubOwner}
-              onChange={(e) => handleChange("githubOwner", e.target.value)}
-            />
-          </div>
-          <div className="config-field">
-            <label>Repository</label>
-            <input
-              type="text"
-              value={config.githubRepo}
-              onChange={(e) => handleChange("githubRepo", e.target.value)}
-            />
-          </div>
-          <div className="config-field">
-            <label>Branch</label>
-            <input
-              type="text"
-              value={config.githubBranch}
-              onChange={(e) => handleChange("githubBranch", e.target.value)}
-            />
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.githubContributionsEnabled}
-                onChange={(e) => handleChange("githubContributionsEnabled", e.target.checked)}
-              />
-              <span>Enable contributions graph</span>
-            </label>
-          </div>
-          <div className="config-field">
-            <label>Contributions Username</label>
-            <input
-              type="text"
-              value={config.githubContributionsUsername}
-              onChange={(e) => handleChange("githubContributionsUsername", e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Inner Page Logo */}
-        <div className="dashboard-config-card">
-          <h3>Inner Page Logo</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.innerPageLogoEnabled}
-                onChange={(e) => handleChange("innerPageLogoEnabled", e.target.checked)}
-              />
-              <span>Enable inner page logo</span>
-            </label>
-          </div>
-          <div className="config-field">
-            <label>Logo Size (px)</label>
-            <input
-              type="number"
-              value={config.innerPageLogoSize}
-              onChange={(e) => handleChange("innerPageLogoSize", parseInt(e.target.value) || 28)}
-              min={16}
-              max={64}
-            />
-          </div>
-        </div>
-
-        {/* Homepage Settings */}
-        <div className="dashboard-config-card">
-          <h3>Homepage</h3>
-          <div className="config-field">
-            <label>Type</label>
-            <select
-              value={config.homepageType}
-              onChange={(e) => handleChange("homepageType", e.target.value)}>
-              <option value="default">Default</option>
-              <option value="post">Post</option>
-              <option value="page">Page</option>
-            </select>
-          </div>
-          <div className="config-field">
-            <label>Slug (for post/page type)</label>
-            <input
-              type="text"
-              value={config.homepageSlug}
-              onChange={(e) => handleChange("homepageSlug", e.target.value)}
-              placeholder="home"
-            />
-          </div>
-          <div className="config-field">
-            <label>Original Home Route</label>
-            <input
-              type="text"
-              value={config.homepageOriginalRoute}
-              onChange={(e) => handleChange("homepageOriginalRoute", e.target.value)}
-              placeholder="/home"
-            />
-          </div>
-          <span className="config-field-note">
-            Homepage content comes from content/pages/home.md (not siteConfig bio)
-          </span>
-        </div>
-
-        {/* Contact Form */}
-        <div className="dashboard-config-card">
-          <h3>Contact Form</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.contactFormEnabled}
-                onChange={(e) => handleChange("contactFormEnabled", e.target.checked)}
-              />
-              <span>Enable contact form</span>
-            </label>
-          </div>
-          <div className="config-field">
-            <label>Title</label>
-            <input
-              type="text"
-              value={config.contactFormTitle}
-              onChange={(e) => handleChange("contactFormTitle", e.target.value)}
-            />
-          </div>
-          <div className="config-field">
-            <label>Description</label>
-            <input
-              type="text"
-              value={config.contactFormDescription}
-              onChange={(e) => handleChange("contactFormDescription", e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Footer (icon bar) */}
-        <div className="dashboard-config-card">
-          <h3>Footer</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.socialFooterEnabled}
-                onChange={(e) => handleChange("socialFooterEnabled", e.target.checked)}
-              />
-              <span>Enable footer</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.socialFooterShowInHeader}
-                onChange={(e) => handleChange("socialFooterShowInHeader", e.target.checked)}
-              />
-              <span>Show in header</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.socialFooterShowOnHomepage}
-                onChange={(e) => handleChange("socialFooterShowOnHomepage", e.target.checked)}
-              />
-              <span>Show on homepage</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.socialFooterShowOnPosts}
-                onChange={(e) => handleChange("socialFooterShowOnPosts", e.target.checked)}
-              />
-              <span>Show on posts</span>
-            </label>
-          </div>
-          <div className="config-field">
-            <label>Copyright Site Name</label>
-            <input
-              type="text"
-              value={config.socialFooterCopyrightSiteName}
-              onChange={(e) => handleChange("socialFooterCopyrightSiteName", e.target.value)}
-            />
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.socialFooterCopyrightShowYear}
-                onChange={(e) => handleChange("socialFooterCopyrightShowYear", e.target.checked)}
-              />
-              <span>Show year in copyright</span>
-            </label>
-          </div>
-        </div>
-
         {/* Logo Gallery */}
-        <div className="dashboard-config-card">
+        <div className="dashboard-config-card" id={configCardDomId("logo-gallery")} data-config-card="logo-gallery">
           <h3>Logo Gallery</h3>
           <div className="config-field checkbox">
             <label>
@@ -7708,7 +7798,7 @@ export default siteConfig;
           </span>
         </div>
 
-        <ImageUploadModal
+        <ImageUploadModal requiredProvider="r2"
           isOpen={logoPickerOpen}
           onClose={() => setLogoPickerOpen(false)}
           onSelectUrl={(url) => {
@@ -7716,9 +7806,340 @@ export default siteConfig;
             setLogoPickerOpen(false);
           }}
         />
+      </ConfigPanel>
+
+      <ConfigPanel group={CONFIG_GROUP_BY_ID.content} activeTab={activeTab}>
+        {/* Blog Page Settings */}
+        <div className="dashboard-config-card" id={configCardDomId("blog-page")} data-config-card="blog-page">
+          <h3>Blog Page</h3>
+          <div className="config-field"><label>Blog description<textarea value={config.blogPageDescription} onChange={(e) => handleChange("blogPageDescription", e.target.value)} /></label></div>
+
+          <div className="config-field checkbox"><label><input type="checkbox" checked={config.homePostsReadMoreEnabled} onChange={(e) => handleChange("homePostsReadMoreEnabled", e.target.checked)} />Show homepage read-more button</label></div>
+          <div className="config-field"><label>Read-more button text<input value={config.homePostsReadMoreText} onChange={(e) => handleChange("homePostsReadMoreText", e.target.value)} /></label></div>
+          <div className="config-field"><label>Read-more destination<input value={config.homePostsReadMoreLink} onChange={(e) => handleChange("homePostsReadMoreLink", e.target.value)} /></label><span className="config-field-note">Shown when the homepage post limit leaves more articles to read. The /blog link hides when that route is disabled.</span></div>
+
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.blogPageEnabled}
+                onChange={(e) => handleChange("blogPageEnabled", e.target.checked)}
+              />
+              <span>Enable /blog route</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.blogPageShowInNav}
+                onChange={(e) => handleChange("blogPageShowInNav", e.target.checked)}
+              />
+              <span>Show in navigation</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Blog Title</label>
+            <input
+              type="text"
+              value={config.blogPageTitle}
+              onChange={(e) => handleChange("blogPageTitle", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Default View Mode</label>
+            <select
+              value={config.blogPageViewMode}
+              onChange={(e) => handleChange("blogPageViewMode", e.target.value)}>
+              <option value="list">List</option>
+              <option value="cards">Cards</option>
+            </select>
+            <span className="config-hint">
+              View new visitors see first on /blog
+            </span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.blogPageShowViewToggle}
+                onChange={(e) =>
+                  handleChange("blogPageShowViewToggle", e.target.checked)
+                }
+              />
+              <span>Show view toggle icons</span>
+            </label>
+            <span className="config-hint">
+              Hide to lock the blog to the default view mode
+            </span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.blogPostsShowReadTime}
+                onChange={(e) =>
+                  handleChange("blogPostsShowReadTime", e.target.checked)
+                }
+              />
+              <span>Show read time</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.blogPostsShowDate}
+                onChange={(e) =>
+                  handleChange("blogPostsShowDate", e.target.checked)
+                }
+              />
+              <span>Show published date</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.blogPostsShowYearHeadings}
+                onChange={(e) =>
+                  handleChange("blogPostsShowYearHeadings", e.target.checked)
+                }
+              />
+              <span>Group by year</span>
+            </label>
+          </div>
+          <span className="config-field-note">
+            These three apply to /blog, tag pages, and author pages. Homepage
+            list controls stay under Posts Display.
+          </span>
+        </div>
+
+        {/* Projects Page Settings */}
+        <div className="dashboard-config-card" id={configCardDomId("projects-page")} data-config-card="projects-page">
+          <h3>Projects Page</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.projectsPageEnabled}
+                onChange={(e) => handleChange("projectsPageEnabled", e.target.checked)}
+              />
+              <span>Enable /projects route</span>
+            </label>
+            <span className="config-hint">
+              Controls the public route. Projects remain manageable here and available for homepage selection.
+            </span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.projectsPageShowInNav}
+                onChange={(e) => handleChange("projectsPageShowInNav", e.target.checked)}
+              />
+              <span>Show in navigation</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Projects Title</label>
+            <input
+              type="text"
+              value={config.projectsPageTitle}
+              onChange={(e) => handleChange("projectsPageTitle", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Description</label>
+            <input
+              type="text"
+              value={config.projectsPageDescription}
+              onChange={(e) => handleChange("projectsPageDescription", e.target.value)}
+              placeholder="Things I've built."
+            />
+            <span className="config-hint">One line under the title. Blank hides it.</span>
+          </div>
+          <div className="config-field">
+            <label>Default Layout</label>
+            <select
+              value={config.projectsPageViewMode}
+              onChange={(e) => handleChange("projectsPageViewMode", e.target.value)}>
+              <option value="list">List (text only)</option>
+              <option value="one-column">One column (image left)</option>
+              <option value="two-column">Two column (image top)</option>
+            </select>
+            <span className="config-hint">
+              Layout new visitors see first on /projects
+            </span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.projectsPageShowViewToggle}
+                onChange={(e) =>
+                  handleChange("projectsPageShowViewToggle", e.target.checked)
+                }
+              />
+              <span>Show layout toggle</span>
+            </label>
+            <span className="config-hint">
+              Hide to lock /projects to the default layout
+            </span>
+          </div>
+          <div className="config-field">
+            <label>Nav Order</label>
+            <input
+              type="number"
+              value={config.projectsPageOrder ?? 3}
+              onChange={(e) =>
+                handleChange("projectsPageOrder", parseInt(e.target.value) || 0)
+              }
+            />
+          </div>
+        </div>
+
+        {/* Skills Page Settings */}
+        <div className="dashboard-config-card" id={configCardDomId("skills-page")} data-config-card="skills-page">
+          <h3>Skills Page</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.skillsPageEnabled}
+                onChange={(e) => handleChange("skillsPageEnabled", e.target.checked)}
+              />
+              <span>Enable /skills route</span>
+            </label>
+            <span className="config-hint">
+              Controls the public directory. Skills stay editable in the Skills section either way.
+            </span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.skillsPageShowInNav}
+                onChange={(e) => handleChange("skillsPageShowInNav", e.target.checked)}
+              />
+              <span>Show in navigation</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Skills Title</label>
+            <input
+              type="text"
+              value={config.skillsPageTitle}
+              onChange={(e) => handleChange("skillsPageTitle", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Description</label>
+            <input
+              type="text"
+              value={config.skillsPageDescription}
+              onChange={(e) => handleChange("skillsPageDescription", e.target.value)}
+              placeholder="Agent skills I use and recommend."
+            />
+            <span className="config-hint">One line under the title. Blank hides it.</span>
+          </div>
+          <div className="config-field">
+            <label>Nav Order</label>
+            <input
+              type="number"
+              value={config.skillsPageOrder ?? 4}
+              onChange={(e) =>
+                handleChange("skillsPageOrder", parseInt(e.target.value) || 0)
+              }
+            />
+          </div>
+        </div>
+
+        {/* Related Posts */}
+        <div className="dashboard-config-card" id={configCardDomId("related-posts")} data-config-card="related-posts">
+          <h3>Related Posts</h3>
+          <div className="config-field">
+            <label>Default View Mode</label>
+            <select
+              value={config.relatedPostsDefaultViewMode}
+              onChange={(e) => handleChange("relatedPostsDefaultViewMode", e.target.value)}>
+              <option value="thumbnails">Thumbnails</option>
+              <option value="list">List</option>
+            </select>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.relatedPostsShowViewToggle}
+                onChange={(e) => handleChange("relatedPostsShowViewToggle", e.target.checked)}
+              />
+              <span>Show view toggle button</span>
+            </label>
+          </div>
+          <p className="config-hint">
+            Controls the display of related posts at the bottom of blog posts. Thumbnails view shows
+            image, title, description and author.
+          </p>
+        </div>
+
+        <div className="dashboard-config-card" id={configCardDomId("post-audio")} data-config-card="post-audio">
+          <h3>Post audio</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.audioEnabledDefault}
+                onChange={(e) => handleChange("audioEnabledDefault", e.target.checked)}
+              />
+              <span>Audio player on new posts</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Default voice</label>
+            <select
+              value={config.audioDefaultVoice}
+              onChange={(e) =>
+                handleChange(
+                  "audioDefaultVoice",
+                  e.target.value === "male" ? "male" : "female",
+                )
+              }
+            >
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+            </select>
+          </div>
+          <p className="config-hint">
+            Source of truth for the Drafts Inbox listen toggle. Saving or
+            syncing a published post generates its reading. A post can opt
+            out with audio: false.
+          </p>
+        </div>
+
+        {/* Image Lightbox */}
+        <div className="dashboard-config-card" id={configCardDomId("image-lightbox")} data-config-card="image-lightbox">
+          <h3>Image Lightbox</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.imageLightboxEnabled}
+                onChange={(e) => handleChange("imageLightboxEnabled", e.target.checked)}
+              />
+              <span>Enable image lightbox (click images to magnify)</span>
+            </label>
+          </div>
+        </div>
+      </ConfigPanel>
+
+      <ConfigPanel group={CONFIG_GROUP_BY_ID.audience} activeTab={activeTab}>
+        <div className="dashboard-config-slot" id={configCardDomId("newsletter-automation")} data-config-card="newsletter-automation">
+          <NewsletterAutomationSettings />
+        </div>
 
         {/* Newsletter Signup Locations */}
-        <div className="dashboard-config-card">
+        <div className="dashboard-config-card" id={configCardDomId("newsletter-signup")} data-config-card="newsletter-signup">
           <h3>Newsletter Signup Locations</h3>
           <span className="config-field-note">
             Uncheck a location to hide the box there. Frontmatter{" "}
@@ -7726,6 +8147,16 @@ export default siteConfig;
             <code>newsletter: true</code> on a post or page shows it even if
             that location is off. Save Config, then reload the public page.
           </span>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.newsletterEnabled}
+                onChange={(e) => handleChange("newsletterEnabled", e.target.checked)}
+              />
+              <span>Enable newsletter</span>
+            </label>
+          </div>
           <div className="config-field checkbox">
             <label>
               <input
@@ -7820,57 +8251,140 @@ export default siteConfig;
           )}
         </div>
 
-        {/* MCP Server */}
-        <div className="dashboard-config-card">
-          <h3>MCP Server</h3>
+        {/* Contact Form */}
+        <div className="dashboard-config-card" id={configCardDomId("contact-form")} data-config-card="contact-form">
+          <h3>Contact Form</h3>
           <div className="config-field checkbox">
             <label>
               <input
                 type="checkbox"
-                checked={config.mcpServerEnabled}
-                onChange={(e) => handleChange("mcpServerEnabled", e.target.checked)}
+                checked={config.contactFormEnabled}
+                onChange={(e) => handleChange("contactFormEnabled", e.target.checked)}
               />
-              <span>Enable MCP server</span>
+              <span>Enable contact form</span>
             </label>
           </div>
           <div className="config-field">
-            <label>Endpoint</label>
+            <label>Title</label>
             <input
               type="text"
-              value={config.mcpServerEndpoint}
-              onChange={(e) => handleChange("mcpServerEndpoint", e.target.value)}
-              placeholder="/mcp"
+              value={config.contactFormTitle}
+              onChange={(e) => handleChange("contactFormTitle", e.target.value)}
             />
+          </div>
+          <div className="config-field">
+            <label>Description</label>
+            <input
+              type="text"
+              value={config.contactFormDescription}
+              onChange={(e) => handleChange("contactFormDescription", e.target.value)}
+            />
+          </div>
+        </div>
+      </ConfigPanel>
+
+      <ConfigPanel group={CONFIG_GROUP_BY_ID.features} activeTab={activeTab}>
+        {/* Features */}
+        <div className="dashboard-config-card" id={configCardDomId("features")} data-config-card="features">
+          <h3>Features</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.statsPageEnabled}
+                onChange={(e) => handleChange("statsPageEnabled", e.target.checked)}
+              />
+              <span>Enable stats page</span>
+            </label>
           </div>
           <div className="config-field checkbox">
             <label>
               <input
                 type="checkbox"
-                checked={config.mcpServerRequireAuth}
-                onChange={(e) => handleChange("mcpServerRequireAuth", e.target.checked)}
+                checked={config.statsPageShowInNav}
+                onChange={(e) => handleChange("statsPageShowInNav", e.target.checked)}
               />
-              <span>Require authentication</span>
+              <span>Show stats in nav</span>
             </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.dashboardEnabled}
+                onChange={(e) => handleChange("dashboardEnabled", e.target.checked)}
+              />
+              <span>Enable dashboard page</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.dashboardRequireAuth}
+                onChange={(e) => handleChange("dashboardRequireAuth", e.target.checked)}
+              />
+              <span>Require dashboard auth</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.dashboardShowInNav}
+                onChange={(e) => handleChange("dashboardShowInNav", e.target.checked)}
+              />
+              <span>Show dashboard in nav (admins only)</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.visitorMapEnabled}
+                onChange={(e) => handleChange("visitorMapEnabled", e.target.checked)}
+              />
+              <span>Enable visitor map</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Visitor map title</label>
+            <input
+              type="text"
+              value={config.visitorMapTitle}
+              onChange={(e) => handleChange("visitorMapTitle", e.target.value)}
+              placeholder="Visitors"
+            />
           </div>
         </div>
 
-        {/* Image Lightbox */}
-        <div className="dashboard-config-card">
-          <h3>Image Lightbox</h3>
+        {/* AI Chat Settings */}
+        <div className="dashboard-config-card" id={configCardDomId("ai-chat")} data-config-card="ai-chat">
+          <h3>AI Chat</h3>
           <div className="config-field checkbox">
             <label>
               <input
                 type="checkbox"
-                checked={config.imageLightboxEnabled}
-                onChange={(e) => handleChange("imageLightboxEnabled", e.target.checked)}
+                checked={config.aiChatEnabledOnWritePage}
+                onChange={(e) => handleChange("aiChatEnabledOnWritePage", e.target.checked)}
               />
-              <span>Enable image lightbox (click images to magnify)</span>
+              <span>Enable on Write page</span>
+            </label>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.aiChatEnabledOnContent}
+                onChange={(e) => handleChange("aiChatEnabledOnContent", e.target.checked)}
+              />
+              <span>Enable on content pages</span>
             </label>
           </div>
         </div>
 
         {/* Semantic Search */}
-        <div className="dashboard-config-card">
+        <div className="dashboard-config-card" id={configCardDomId("semantic-search")} data-config-card="semantic-search">
           <h3>Semantic Search</h3>
           <div className="config-field checkbox">
             <label>
@@ -7889,7 +8403,7 @@ export default siteConfig;
         </div>
 
         {/* Ask AI */}
-        <div className="dashboard-config-card">
+        <div className="dashboard-config-card" id={configCardDomId("ask-ai")} data-config-card="ask-ai">
           <h3>Ask AI</h3>
           <div className="config-field checkbox">
             <label>
@@ -7907,8 +8421,28 @@ export default siteConfig;
           </p>
         </div>
 
+        {/* WebMCP in-page tools */}
+        <div className="dashboard-config-card" id={configCardDomId("webmcp")} data-config-card="webmcp">
+          <h3>WebMCP</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.webmcpEnabled}
+                onChange={(e) => handleChange("webmcpEnabled", e.target.checked)}
+              />
+              <span>Register in-page tools for Chrome agents</span>
+            </label>
+          </div>
+          <p className="config-hint">
+            Lets a browser agent search, read the current page, open posts, switch themes, and
+            fill the newsletter or contact form behind a confirm dialog. No effect in browsers
+            without document.modelContext. Remote agents keep using POST /mcp. See Docs, WebMCP.
+          </p>
+        </div>
+
         {/* Media Library */}
-        <div className="dashboard-config-card">
+        <div className="dashboard-config-card" id={configCardDomId("media-library")} data-config-card="media-library">
           <h3>Media Library</h3>
           <div className="config-field checkbox">
             <label>
@@ -7921,88 +8455,76 @@ export default siteConfig;
             </label>
           </div>
           <div className="config-field">
-            <label>Max File Size (MB)</label>
+            <label>Image upload limit (MB)</label>
             <input
               type="number"
               value={config.mediaMaxFileSize}
               onChange={(e) => handleChange("mediaMaxFileSize", parseInt(e.target.value) || 10)}
               min={1}
-              max={50}
+              max={10}
             />
           </div>
           <p className="config-hint">
-            Upload and manage images via ConvexFS and Bunny.net CDN. Requires BUNNY_API_KEY,
-            BUNNY_STORAGE_ZONE, and BUNNY_CDN_HOSTNAME in Convex dashboard.
+            Post and page editor uploads use Cloudflare R2. Configure R2 credentials and bucket CORS in Convex and Cloudflare. The media library also keeps previously uploaded assets. Images are capped at 10 MB; R2 videos at 500 MB.
           </p>
         </div>
+      </ConfigPanel>
 
-        {/* Related Posts */}
-        <div className="dashboard-config-card">
-          <h3>Related Posts</h3>
+      <ConfigPanel group={CONFIG_GROUP_BY_ID.developer} activeTab={activeTab}>
+        {/* GitHub Settings */}
+        <div className="dashboard-config-card" id={configCardDomId("github-repo")} data-config-card="github-repo">
+          <h3>GitHub Repository</h3>
           <div className="config-field">
-            <label>Default View Mode</label>
-            <select
-              value={config.relatedPostsDefaultViewMode}
-              onChange={(e) => handleChange("relatedPostsDefaultViewMode", e.target.value)}>
-              <option value="thumbnails">Thumbnails</option>
-              <option value="list">List</option>
-            </select>
+            <label>Owner</label>
+            <input
+              type="text"
+              value={config.githubOwner}
+              onChange={(e) => handleChange("githubOwner", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Repository</label>
+            <input
+              type="text"
+              value={config.githubRepo}
+              onChange={(e) => handleChange("githubRepo", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Branch</label>
+            <input
+              type="text"
+              value={config.githubBranch}
+              onChange={(e) => handleChange("githubBranch", e.target.value)}
+            />
           </div>
           <div className="config-field checkbox">
             <label>
               <input
                 type="checkbox"
-                checked={config.relatedPostsShowViewToggle}
-                onChange={(e) => handleChange("relatedPostsShowViewToggle", e.target.checked)}
+                checked={config.githubContributionsEnabled}
+                onChange={(e) => handleChange("githubContributionsEnabled", e.target.checked)}
               />
-              <span>Show view toggle button</span>
-            </label>
-          </div>
-          <p className="config-hint">
-            Controls the display of related posts at the bottom of blog posts. Thumbnails view shows
-            image, title, description and author.
-          </p>
-        </div>
-
-        <div className="dashboard-config-card">
-          <h3>Post audio</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.audioEnabledDefault}
-                onChange={(e) => handleChange("audioEnabledDefault", e.target.checked)}
-              />
-              <span>Audio player on new posts</span>
+              <span>Enable contributions graph</span>
             </label>
           </div>
           <div className="config-field">
-            <label>Default voice</label>
-            <select
-              value={config.audioDefaultVoice}
-              onChange={(e) =>
-                handleChange(
-                  "audioDefaultVoice",
-                  e.target.value === "male" ? "male" : "female",
-                )
-              }
-            >
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-            </select>
+            <label>Contributions Username</label>
+            <input
+              type="text"
+              value={config.githubContributionsUsername}
+              onChange={(e) => handleChange("githubContributionsUsername", e.target.value)}
+            />
           </div>
-          <p className="config-hint">
-            Source of truth for the Drafts Inbox listen toggle. Saving or
-            syncing a published post generates its reading. A post can opt
-            out with audio: false.
-          </p>
         </div>
 
         {/* Version Control */}
-        <VersionControlCard addToast={addToast} />
+        <div className="dashboard-config-slot" id={configCardDomId("version-control")} data-config-card="version-control">
+          <VersionControlCard addToast={addToast} />
+        </div>
 
         {/* Links */}
-        <div className="dashboard-config-card">
+        <div className="dashboard-config-card" id={configCardDomId("external-links")} data-config-card="external-links">
           <h3>External Links</h3>
           <div className="config-field">
             <label>Docs Link</label>
@@ -8032,15 +8554,20 @@ export default siteConfig;
             />
           </div>
         </div>
-      </div>
+
+        <div className="dashboard-config-card" id={configCardDomId("mcp-server")} data-config-card="mcp-server">
+          <h3>MCP server</h3>
+          <p className="config-field-note">The server endpoint is /mcp. Its route and authentication are configured on the backend in convex/http.ts and with MCP_API_KEY. Dashboard appearance settings cannot change that security boundary.</p>
+        </div>
+      </ConfigPanel>
 
       <div className="dashboard-config-note">
         <p>
           <strong>Save</strong> stores these settings in Convex and applies them live on the next
           page load. No rebuild needed. <strong>Copy Code</strong> or <strong>Download</strong>{" "}
-          generates <code>src/config/siteConfig.ts</code> if you want the changes in your repo as
-          the build-time default. Logo gallery images, social links, and custom nav items are
-          managed in the file only.
+          exports <code>siteConfig.overrides.ts</code>. Merge its fields into your existing config
+          to make them build-time defaults. Homepage highlights and newsletter automation
+          have their own Save buttons. Newsletter delivery settings are stored privately in Convex.
         </p>
       </div>
 
@@ -8260,25 +8787,25 @@ function SyncSection({
       id: "sync:discovery",
       label: "Sync Discovery (Dev)",
       command: "npm run sync:discovery",
-      description: "Sync discovery files to dev",
+      description: "Read development content and update local AGENTS.md, CLAUDE.md, and public/llms.txt",
     },
     {
       id: "sync:discovery:prod",
       label: "Sync Discovery (Prod)",
       command: "npm run sync:discovery:prod",
-      description: "Sync discovery files to prod",
+      description: "Read production content and update local AGENTS.md, CLAUDE.md, and public/llms.txt",
     },
     {
       id: "sync:all",
       label: "Sync All (Dev)",
       command: "npm run sync:all",
-      description: "Sync everything to development",
+      description: "Sync repository posts and pages to development, then refresh local discovery files",
     },
     {
       id: "sync:all:prod",
       label: "Sync All (Prod)",
       command: "npm run sync:all:prod",
-      description: "Sync everything to production",
+      description: "Sync repository posts and pages to production, then refresh local discovery files",
     },
   ];
 
@@ -8313,7 +8840,12 @@ function SyncSection({
       <div className="dashboard-sync-header">
         <ArrowsClockwise size={32} weight="light" />
         <h2>Sync Content</h2>
-        <p>Sync markdown content to Convex database</p>
+        <p>Publish repository posts and pages to the selected Convex environment.</p>
+        <p className="fmf-hint">
+          Dashboard saves already update Convex. Projects are managed in the dashboard.
+          These commands sync content/blog and content/pages; they do not deploy the app.
+          Discovery commands write local files. Manage live llms.txt, llms-full.txt, and agents.md in Agent Ready.
+        </p>
       </div>
 
       {/* Server Status */}
@@ -8356,21 +8888,31 @@ function SyncSection({
             <p>{cmd.description}</p>
             <code className="sync-command">{cmd.command}</code>
             <div className="sync-card-buttons">
-              <button
-                className="dashboard-sync-card-btn copy"
-                onClick={() => handleCopyCommand(cmd.label, cmd.command, cmd.description)}
-                title="Copy command to clipboard">
-                <CopySimple size={16} />
-                <span>Copy</span>
-              </button>
-              <button
-                className={`dashboard-sync-card-btn execute ${!syncServerAvailable ? "disabled" : ""}`}
-                onClick={() => handleExecute(cmd.id, cmd.label)}
-                disabled={!syncServerAvailable || syncRunning !== null}
-                title={syncServerAvailable ? "Execute command" : "Start sync-server first"}>
-                <ArrowsClockwise size={16} className={syncRunning === cmd.id ? "spinning" : ""} />
-                <span>{syncRunning === cmd.id ? "Running..." : "Execute"}</span>
-              </button>
+              <Tip content={`Copy "${cmd.command}" to run from the project root`}>
+                <button
+                  className="dashboard-sync-card-btn copy"
+                  onClick={() => handleCopyCommand(cmd.label, cmd.command, cmd.description)}>
+                  <CopySimple size={16} />
+                  <span>Copy</span>
+                </button>
+              </Tip>
+              <Tip
+                content={
+                  syncServerAvailable
+                    ? `Run "${cmd.command}" now and stream the output below`
+                    : "Start the local sync server first: npm run sync-server"
+                }>
+                {/* Wrapper span so the tooltip still shows while the button is disabled */}
+                <span className="dashboard-tip-wrap">
+                  <button
+                    className={`dashboard-sync-card-btn execute ${!syncServerAvailable ? "disabled" : ""}`}
+                    onClick={() => handleExecute(cmd.id, cmd.label)}
+                    disabled={!syncServerAvailable || syncRunning !== null}>
+                    <ArrowsClockwise size={16} className={syncRunning === cmd.id ? "spinning" : ""} />
+                    <span>{syncRunning === cmd.id ? "Running..." : "Execute"}</span>
+                  </button>
+                </span>
+              </Tip>
             </div>
           </div>
         ))}

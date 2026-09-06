@@ -45,6 +45,18 @@ export interface BlogPageConfig {
   showViewToggle: boolean; // Show toggle button to switch between views
 }
 
+export interface HomepageHighlightsConfig {
+  projectsEnabled: boolean;
+  projectSlugs: string[];
+  projectsPosition: "above-posts" | "below-posts";
+  projectsTitle: string;
+  projectsThumbnails: boolean;
+  postEnabled: boolean;
+  postSlug: string;
+  postPosition: "above-posts" | "below-posts";
+  postThumbnail: boolean;
+}
+
 // Projects page configuration
 // Controls the /projects index of shipped work
 export interface ProjectsPageConfig {
@@ -55,6 +67,16 @@ export interface ProjectsPageConfig {
   order?: number; // Nav order (lower = first, matches page frontmatter order)
   viewMode: "list" | "one-column" | "two-column"; // Default layout
   showViewToggle: boolean; // Show the segmented control to switch layouts
+}
+
+// Skills page configuration
+// Controls the /skills directory of agent skills with install commands
+export interface SkillsPageConfig {
+  enabled: boolean; // Enable the /skills route
+  showInNav: boolean; // Show "Skills" link in navigation
+  title: string; // Page title for the skills page
+  description?: string; // Optional line shown under the title
+  order?: number; // Nav order (lower = first)
 }
 
 // Homepage posts read more link configuration
@@ -279,7 +301,7 @@ export interface WeeklyDigestConfig {
 
 // MCP Server configuration
 // HTTP-based Model Context Protocol server for AI tool integration
-// Runs on Netlify Edge Functions at /mcp endpoint
+// Runs in convex/http.ts at /mcp
 export interface MCPServerConfig {
   enabled: boolean; // Global toggle for MCP server
   endpoint: string; // Endpoint path (default: "/mcp")
@@ -358,6 +380,15 @@ export interface AskAIConfig {
   enabled: boolean; // Global toggle for Ask AI feature
   defaultModel: string; // Default model ID (e.g., "claude-sonnet-4-20250514")
   models: AIModelOption[]; // Available models for Ask AI
+}
+
+// WebMCP configuration (in-page tools for Chrome agents)
+// Registers a small allowlist of tools on document.modelContext so a browser
+// agent already in the tab can search, read the current page, open posts,
+// switch themes, and fill the newsletter or contact form behind a confirm
+// dialog. No-op in browsers without WebMCP. Remote agents keep using POST /mcp.
+export interface WebMcpConfig {
+  enabled: boolean; // Global toggle for in-page WebMCP tools
 }
 
 // Related posts configuration
@@ -445,6 +476,10 @@ export interface SiteConfig {
   // Projects page configuration
   projectsPage: ProjectsPageConfig;
 
+  // Skills page configuration
+  skillsPage?: SkillsPageConfig;
+  homepageHighlights?: HomepageHighlightsConfig;
+
   // Hardcoded navigation items for React routes (like /stats, /write)
   hardcodedNavItems: HardcodedNavItem[];
 
@@ -530,6 +565,9 @@ export interface SiteConfig {
   // Ask AI configuration (optional)
   askAI?: AskAIConfig;
 
+  // WebMCP in-page tools (optional, defaults to enabled)
+  webmcp?: WebMcpConfig;
+
   // Related posts configuration (optional)
   relatedPosts?: RelatedPostsConfig;
 
@@ -591,7 +629,7 @@ export const siteConfig: SiteConfig = {
 
   // Logo gallery configuration
   // Set enabled to false to hide, or remove/replace sample images with your own
-  // scrolling: false = infinite scroll marquee, false = static centered grid
+  // scrolling: true = infinite scroll marquee, false = static centered grid
   // maxItems: only used when scrolling is false (default: 4)
   logoGallery: {
     enabled: false,
@@ -683,6 +721,16 @@ export const siteConfig: SiteConfig = {
     order: 3, // Nav order (lower = first)
     viewMode: "two-column", // Default layout: "list", "one-column", or "two-column"
     showViewToggle: true, // Show the segmented control to switch layouts
+  },
+
+  // Skills page configuration
+  // A directory of agent skills grouped into sections, managed from the dashboard
+  skillsPage: {
+    enabled: false, // Enable the /skills route
+    showInNav: true, // Show "Skills" link in navigation
+    title: "Skills", // Page title
+    description: "Agent skills I use and recommend.", // Optional line under the title
+    order: 4, // Nav order (lower = first)
   },
 
   // Hardcoded navigation items for React routes
@@ -892,18 +940,18 @@ export const siteConfig: SiteConfig = {
     weeklyStatsSummary: true, // Send weekly stats summary email
   },
 
-  // Weekly digest configuration
-  // Automated weekly email with posts from the past 7 days
+  // Legacy export field. Delivery is controlled in Dashboard > Automatic newsletters.
+  // Kept for config compatibility; the old unconditional cron has been removed.
   weeklyDigest: {
-    enabled: true, // Global toggle for weekly digest
+    enabled: false, // Configure automation in the dashboard instead
     dayOfWeek: 0, // Sunday
     subject: "Weekly Digest", // Email subject prefix
   },
 
   // MCP Server configuration
   // HTTP-based Model Context Protocol server for AI tool integration
-  // Runs on Netlify Edge Functions at /mcp endpoint
-  // Set MCP_API_KEY in Netlify env vars for authenticated access
+  // Runs in convex/http.ts at /mcp
+  // Set MCP_API_KEY in Convex env vars for authenticated access
   mcpServer: {
     enabled: true, // Global toggle for MCP server
     endpoint: "/mcp", // Endpoint path
@@ -1050,6 +1098,13 @@ export const siteConfig: SiteConfig = {
         provider: "openai",
       },
     ],
+  },
+
+  // WebMCP in-page tools for Chrome agents (document.modelContext)
+  // Progressive enhancement: browsers without the API see no change.
+  // Test locally with chrome://flags/#enable-webmcp-testing. Docs: Dashboard, Docs, WebMCP.
+  webmcp: {
+    enabled: true,
   },
 
   // Related posts configuration

@@ -5,7 +5,7 @@ Project instructions for Claude Code.
 ## Project context
 
 <!-- Auto-updated by sync:discovery -->
-<!-- Site: Wayne Sutton | Posts: 6 | Pages: 1 | Updated: 2026-09-04T09:00:31.099Z -->
+<!-- Site: Wayne Sutton | Posts: 11 | Pages: 1 | Updated: 2026-09-04T09:16:32.242Z -->
 
 Markdown sync framework. Write markdown in `content/`, run sync commands, content appears instantly via Convex real-time database. Built for developers and AI agents.
 
@@ -119,18 +119,22 @@ The Dashboard Config generates downloadable siteConfig.ts code. Users can config
 | `convex/posts.ts` | Post queries and mutations |
 | `convex/pages.ts` | Page queries and mutations |
 | `convex/projects.ts` | Projects CRUD for the /projects index |
+| `convex/skills.ts` | Skills and skill sections CRUD for the /skills directory |
+| `convex/lib/skillsDirectory.ts` | Shared grouping, sort, and markdown renderer for skills (page, VFS, agent-ready) |
 | `convex/stats.ts` | Analytics (conflict-free patterns) |
 | `convex/rateLimits.ts` | Rate limit definitions (4 tiers) and HTTP action bridge |
 | `convex/http.ts` | HTTP endpoints with rate limiting |
-| `convex/virtualFs.ts` | Virtual filesystem (blog, pages, docs, projects.md) |
+| `convex/virtualFs.ts` | Virtual filesystem (blog, pages, docs, projects.md, skills.md) |
 | `convex/mcp.ts` | MCP server over HTTP |
 | `convex/agentReady/` | Agent-ready component wrappers and auto discovery sync |
 | `agent-ready.config.json` | Agent-ready pages, endpoints, and widget settings |
 | `src/config/siteConfig.ts` | Site configuration |
 | `src/pages/Dashboard.tsx` | Dashboard including ConfigSection |
 | `src/pages/Projects.tsx` | Public /projects index page |
+| `src/pages/Skills.tsx` | Public /skills directory (gated by `siteConfig.skillsPage.enabled`) |
+| `src/components/dashboard/SkillsSection.tsx` | Dashboard sections manager and skill CRUD with SKILL.md prefill |
 | `scripts/sync-posts.ts` | Markdown to Convex sync |
-| `scripts/sync-discovery-files.ts` | Updates AGENTS.md, CLAUDE.md, llms.txt (posts, pages, projects). Copies AGENTS.md to public/. |
+| `scripts/sync-discovery-files.ts` | Updates AGENTS.md, CLAUDE.md, llms.txt (posts, pages, projects, skills). Copies AGENTS.md to public/. |
 
 ## Project structure
 

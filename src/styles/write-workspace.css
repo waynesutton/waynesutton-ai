@@ -1,0 +1,105 @@
+/* The local writing desk shares dashboard controls and its quiet hairline UI.
+   Four-pixel spacing, inset fields, and readable labels keep editing focused. */
+.write-layout.write-workspace {
+  grid-template-columns: 184px minmax(0, 1fr) var(--write-fm-width, 300px);
+  height: 100dvh;
+  min-height: 100dvh;
+  background: var(--db-canvas);
+  font-family: var(--db-font);
+}
+.write-workspace.sidebar-collapsed { grid-template-columns: 56px minmax(0, 1fr) var(--write-fm-width, 300px); }
+.write-workspace.frontmatter-collapsed { grid-template-columns: 184px minmax(0, 1fr) 56px; }
+.write-workspace.sidebar-collapsed.frontmatter-collapsed,
+.write-workspace.focus-mode.frontmatter-collapsed { grid-template-columns: 56px minmax(0, 1fr) 56px; }
+.write-workspace.focus-mode { grid-template-columns: 56px minmax(0, 1fr) var(--write-fm-width, 300px); }
+.write-workspace .write-sidebar-left,
+.write-workspace .write-sidebar-right { background: var(--db-canvas); min-width: 0; max-height: 100dvh; }
+.write-workspace .write-sidebar-right {
+  position: relative;
+  overflow: hidden;
+}
+.write-workspace .write-sidebar-right.resizing {
+  user-select: none;
+}
+.write-workspace .write-sidebar-right.resizing * {
+  pointer-events: none;
+}
+.write-workspace .write-sidebar-right.resizing .dashboard-sidebar-resize-handle {
+  pointer-events: auto;
+  background: var(--mobile-add-button-bg);
+  opacity: 0.7;
+}
+.write-workspace .write-main { min-width: 0; max-height: 100dvh; }
+.write-workspace .write-main-header { gap: 12px; flex-wrap: wrap; padding: 16px 24px; }
+.write-workspace .write-header-actions { gap: 8px; flex-wrap: wrap; }
+.write-workspace .write-fields { padding: 16px; min-width: 0; }
+.write-workspace .write-settings-hint { color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.5; margin: 0 0 24px; }
+.write-workspace .write-settings-hint:last-child { margin: 24px 0 0; }
+.write-workspace .write-textarea { padding: 24px; line-height: 1.7; min-width: 0; }
+.write-workspace button { min-height: 44px; }
+.write-workspace .write-sidebar-toggle,
+.write-workspace .write-focus-btn { min-width: 44px; }
+.write-workspace button:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+.write-workspace .write-copy-btn { border: 1px solid var(--db-border); border-radius: var(--db-radius-sm); background: var(--db-surface); color: var(--text-primary); padding: 8px 12px; }
+.write-workspace .write-main-footer { flex-wrap: wrap; gap: 12px; padding: 12px 24px; }
+.write-workspace .write-save-hint { white-space: normal; overflow-wrap: anywhere; }
+.write-workspace .write-reset-scrim { position: fixed; inset: 0; z-index: var(--z-modal, 100); display: grid; place-items: center; padding: 16px; background: var(--overlay-bg, rgba(0,0,0,0.45)); }
+.write-workspace .write-reset-dialog { width: min(480px, 100%); padding: 24px; border: 1px solid var(--db-border); border-radius: var(--db-radius-lg); background: var(--db-canvas); }
+.write-workspace .write-reset-dialog h2 { font-size: 1.25rem; margin: 0 0 12px; }
+.write-workspace .write-reset-dialog p { line-height: 1.5; margin: 0 0 24px; }
+@media (max-width: 1100px) {
+  .write-layout.write-workspace,
+  .write-workspace.sidebar-collapsed,
+  .write-workspace.frontmatter-collapsed,
+  .write-workspace.sidebar-collapsed.frontmatter-collapsed,
+  .write-workspace.focus-mode,
+  .write-workspace.focus-mode.frontmatter-collapsed {
+    display: flex; flex-direction: column; height: auto; overflow: visible;
+  }
+  .write-workspace .write-sidebar-left,
+  .write-workspace .write-sidebar-right,
+  .write-workspace .write-main { width: 100%; max-height: none; overflow: visible; }
+  .write-workspace .write-sidebar-left { border-right: 0; border-bottom: 1px solid var(--db-border); }
+  .write-workspace .write-sidebar-left .write-sidebar-header { display: flex; align-items: center; justify-content: space-between; }
+  .write-workspace .write-nav,
+  .write-workspace .write-nav-section { display: flex; flex-wrap: wrap; gap: 8px; }
+  .write-workspace .write-nav { padding: 12px 16px; }
+  .write-workspace .write-nav-section { margin: 0; flex-direction: row; }
+  .write-workspace .write-nav-label,
+  .write-workspace .write-warning { display: none; }
+  .write-workspace .write-nav-item { width: auto; margin: 0; padding: 8px 12px; }
+  .write-workspace .write-nav-item span { display: inline; }
+  .write-workspace .write-sidebar-left.collapsed .write-nav,
+  .write-workspace.focus-mode .write-sidebar-left .write-nav { display: none; }
+  .write-workspace .write-main { min-height: 60dvh; }
+  .write-workspace .write-textarea { min-height: 55dvh; font-size: 16px; }
+  .write-workspace .write-sidebar-right { border-left: 0; border-top: 1px solid var(--db-border); overflow: visible; }
+  .write-workspace .write-sidebar-right.collapsed { display: none; }
+  .write-workspace .dashboard-sidebar-resize-handle { display: none; }
+  .write-workspace .write-fields { max-width: 720px; width: 100%; box-sizing: border-box; margin-inline: auto; }
+  .write-workspace .write-sidebar-right .write-sidebar-header { display: flex; justify-content: space-between; align-items: center; }
+  .write-workspace .write-main-header,
+  .write-workspace .write-textarea,
+  .write-workspace .write-main-footer { padding: 16px; }
+  .write-workspace .write-main:has(.write-ai-chat-container) { height: 80dvh; max-height: 80dvh; overflow: hidden; }
+}
+
+.write-workspace .fmf-label,
+.write-workspace .fmf-group-title,
+.write-workspace .fmf-input,
+.write-workspace .fmf-hint,
+.write-workspace .fmf-required-readout,
+.write-workspace .fmf-minimap-chip,
+.write-workspace .fmf-tool-btn,
+.write-workspace .fmf-group-missing { font-family: var(--db-font); }
+.write-workspace .fmf-tool-btn { min-height: 32px; height: 32px; }
+@media (max-width: 1100px) {
+  .write-workspace .write-main-header { align-items: flex-start; }
+  .write-workspace .write-header-actions { flex: 1 1 100%; width: 100%; }
+  .write-workspace .write-header-actions > button { flex-shrink: 0; white-space: nowrap; }
+  .write-workspace .write-copy-btn span { display: inline; }
+}
+@media (max-width: 1100px) {
+  .write-workspace .write-copy-btn { width: auto; height: auto; min-height: 44px; }
+  .write-workspace .write-save-hint { display: block; }
+}

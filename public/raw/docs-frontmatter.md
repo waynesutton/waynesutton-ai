@@ -2,7 +2,7 @@
 
 ---
 Type: page
-Date: 2026-09-04
+Date: 2026-09-05
 ---
 
 ## Frontmatter Options
@@ -42,6 +42,7 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 | `aiWritten`             | No       | Posts only. Set `true` to show a small note under the title: "This post was written with AI and proofed by a human." Set `false` to hide it. This field overrules the Drafts Inbox Written with AI default. Omitted means no note. |
 | `audio`                 | No       | Posts only. `true` shows the listen player under the title and, on save or sync of a published post, generates the reading. `false` hides it. Omitted uses the Site Config default, which is on. Works on existing posts the same way: set it and save, or add it to the markdown file and run sync. |
 | `audioVoice`            | No       | Posts only. `male` or `female`. Omitted uses the Site Config default voice (female). Changing the voice on a published post regenerates the file on the next save or sync. |
+| `hideNav`               | No       | Posts only. Set `true` to let the site navigation bar scroll away with the page instead of staying pinned to the top. The nav still shows when the reader is at the top of the post. Default: `false`.  |
 | `docsSection`           | No       | Include in docs sidebar. Set `true` to show in the docs section navigation.                                                                                                                            |
 | `docsSectionGroup`      | No       | Group name for docs sidebar. Posts with the same group name appear together.                                                                                                                           |
 | `docsSectionOrder`      | No       | Order within docs group. Lower numbers appear first within the group.                                                                                                                                  |

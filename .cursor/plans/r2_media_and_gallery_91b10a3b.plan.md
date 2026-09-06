@@ -4,63 +4,84 @@ overview: "Finish the existing @convex-dev/r2 integration: permanent CDN URLs, a
 todos:
   - id: prd
     content: Write PRD prds/r2-media-gallery.md with Cloudflare setup checklist
-    status: pending
+    status: completed
   - id: cloudflare-env
     content: Guide Cloudflare bucket/token/CORS/domain setup, then set R2_* env vars on dev and prod
-    status: pending
+    status: completed
   - id: schema
     content: Add mediaAssets table with by_key and by_kind indexes
-    status: pending
+    status: completed
   - id: backend
     content: Add recordMediaAsset, listMediaAssets, deleteMediaAsset; permanent URL helper; /r2/{key} redirect route; extend getUploadSettings
-    status: pending
+    status: completed
   - id: upload-utils
     content: Extend imageUpload.ts with video types and per-provider size caps
-    status: pending
+    status: completed
   - id: modal
     content: "Upgrade ImageUploadModal: permanent URLs, catalog recording, gallery tab for all providers, video upload/insert, XHR progress"
-    status: pending
+    status: completed
   - id: library
     content: Rework MediaLibrary to browse/delete from mediaAssets catalog with video support
-    status: pending
+    status: completed
   - id: rendering
     content: Allow video tags in BlogPost sanitize schema and dashboard preview; responsive video CSS
-    status: pending
+    status: completed
   - id: verify-docs
     content: Verify uploads/gallery/mobile, run convex-doctor and tsc, update TASK.md, changelog.md, files.md
-    status: pending
+    status: completed
 isProject: false
 ---
 
 # R2 media uploads, gallery, and video
 
-## Current state (already done)
+Last updated: 2026-09-05 05:43 UTC
+
+Status: Complete and live in production. All plan todos are implemented, configured, deployed, and verified within the approved scope.
+
+## Current status
+
+| Area                     | Status                          | Verified result                                                                                                                                                                                                                                                                                                                         |
+| ------------------------ | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cloudflare R2            | Complete                        | Standard automatic-location bucket `waynesutton-media` is active in Western North America. Exact GET/PUT CORS is saved for localhost and `https://waynesutton.ai`.                                                                                                                                                                      |
+| Public delivery          | Complete                        | `media.waynesutton.ai` is Active with access Enabled. The `r2.dev` URL remains disabled.                                                                                                                                                                                                                                                |
+| Credentials              | Complete                        | Bucket-scoped `waynesutton-media-convex` token has Object Read & Write permission and Forever TTL. The initially exposed credential set was immediately rolled and invalidated before use; only the replacement is active.                                                                                                              |
+| Convex environments      | Complete                        | All seven R2/provider variables are configured on development `notable-loris-927` and production `helpful-ptarmigan-118`.                                                                                                                                                                                                               |
+| Backend                  | Complete                        | Durable `mediaAssets` catalog, permanent/fallback delivery URLs, provider-aware deletion, upload capabilities, and the public rate-limited `/r2/{key}` fallback are deployed.                                                                                                                                                           |
+| Dashboard UX             | Complete                        | Shared upload/library picker, persistent search, image/video insertion, frontmatter image selection, XHR progress, Media Library management, sanitized video rendering, and mobile controls are implemented.                                                                                                                            |
+| Development verification | Passed                          | R2 PNG and MP4 uploads reached 100%, persisted after reload, appeared in Cloudflare, loaded through the custom domain, inserted from the library, and rendered in preview. Frontmatter image selection passed.                                                                                                                          |
+| Production deployment    | Complete                        | Schema/functions and the static bundle are deployed to `helpful-ptarmigan-118`. Static deployment ID: `70c963db-be3e-4719-b74f-7c8e7ad88870` (89 files uploaded).                                                                                                                                                                       |
+| Production verification  | Passed                          | Signed-in `https://waynesutton.ai/dashboard` reported provider `r2` and a 500 MB video cap. Production PNG/MP4 uploads persisted after reload, loaded publicly, inserted from the library, and rendered in preview. The image loaded at 1200x630; video reached ready state 4 with `controls`, `playsinline`, and `preload="metadata"`. |
+| Code quality             | Passed with documented baseline | `npx tsc -p convex --noEmit`, `npx tsc --noEmit`, changed-file ESLint, `npm run build`, and `git diff --check` pass. Convex Doctor is 91/100 with 22 pre-existing warnings and no new R2 findings.                                                                                                                                      |
+
+No post or page was saved or published during testing. The development and production smoke-test objects remain in their catalogs and R2 because deleting cloud objects requires separate action-time approval. A public-post/mobile production rendering test was also not run because publishing content requires separate approval. The code and documentation changes remain uncommitted and unpushed because no Git action was requested.
+
+## Starting state before this work
 
 `@convex-dev/r2` v0.10.1 is installed and registered in [convex/convex.config.ts](convex/convex.config.ts). Admin-gated `generateUploadUrl` / `syncMetadata` / `getMetadata` / `listMetadata` / `deleteObject` exist in [convex/r2.ts](convex/r2.ts). `ImageUploadModal` and `MediaLibrary` already upload to R2 when `MEDIA_PROVIDER=r2`. The provider switch lives in [convex/media.ts](convex/media.ts) `getUploadSettings`.
 
-## Problems to fix
+## Problems resolved
 
-- R2 uploads embed a signed URL into content, which expires in 15 minutes (broken images in posts)
-- The Media Library gallery tab is disabled for R2 and Convex storage (only works for Bunny/ConvexFS), and uploads are only remembered per browser session
-- Video files are rejected everywhere, and the blog renderer strips `<video>` tags
-- No R2 credentials configured on dev or prod
+- Replaced expiring embedded R2 signed URLs with permanent custom-domain URLs and a signed-redirect fallback.
+- Replaced session-only media history with a durable provider-independent catalog available to the editor picker and Media Library.
+- Added supported image/video upload, preview, insertion, validation, and sanitized responsive rendering.
+- Configured R2 credentials and provider variables on both approved Convex deployments.
 
-## 1. Setup guide (agent-executable, in order)
+## 1. Completed setup record
 
 This section is written so a computer-use agent can run the whole setup on its own. A human can follow the same steps.
 
 ### Environment context
 
-| Item | Value |
-|------|-------|
-| Live site | https://waynesutton.ai |
-| Local dev site | http://localhost:5173 |
-| Convex project | team `waynesutton`, project `waynesutton-ai` |
-| Convex prod deployment | `helpful-ptarmigan-118` (https://dashboard.convex.dev/t/waynesutton/waynesutton-ai/helpful-ptarmigan-118) |
-| Convex dev deployment | `notable-loris-927` |
-| Cloudflare account login | wayne@socialwayne.com (assume already logged in at https://dash.cloudflare.com) |
-| Workspace | /Users/waynesutton/Documents/sites/waynesuttonai/waynesutton-ai |
-| Never touch | Convex deployments `giant-grouse-674` and `agreeable-trout-200` |
+| Item                     | Value                                                                                                     |
+| ------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Live site                | https://waynesutton.ai                                                                                    |
+| Local dev site           | http://localhost:5173                                                                                     |
+| Convex project           | team `waynesutton`, project `waynesutton-ai`                                                              |
+| Convex prod deployment   | `helpful-ptarmigan-118` (https://dashboard.convex.dev/t/waynesutton/waynesutton-ai/helpful-ptarmigan-118) |
+| Convex dev deployment    | `notable-loris-927`                                                                                       |
+| Cloudflare account login | wayne@socialwayne.com (assume already logged in at https://dash.cloudflare.com)                           |
+| Workspace                | /Users/waynesutton/Documents/sites/waynesuttonai/waynesutton-ai                                           |
+| Never touch              | Convex deployments `giant-grouse-674` and `agreeable-trout-200`                                           |
 
 ### Phase A: Cloudflare (browser steps)
 
@@ -141,7 +162,7 @@ npx convex deploy      # deploy functions to helpful-ptarmigan-118
 npm run deploy         # deploy static assets (Convex self-hosting)
 ```
 
-Then verify on https://waynesutton.ai/dashboard: upload an image and a video from Write Post, insert from the gallery, publish, and check rendering on the live post at desktop and mobile widths.
+Production verification completed at https://waynesutton.ai/dashboard through the local-only editor preview: upload an image and video, reload to prove catalog persistence, insert both from the gallery, and verify the rendered media and video attributes. Publishing a public test post and deleting the smoke assets remain intentionally unperformed because each requires separate approval.
 
 ## 2. Backend
 
@@ -164,9 +185,16 @@ Then verify on https://waynesutton.ai/dashboard: upload an image and a video fro
 
 ## 4. Verification and docs
 
-- `npx convex dev` deploys schema and functions; upload an image and a video from Write Post, insert from the gallery, confirm both render on the published post and on mobile viewport; confirm the frontmatter image picker and Media Library delete work
-- Run `npx convex-doctor@latest` (must stay 100/100) and `tsc --noEmit`
-- Workflow docs: PRD at `prds/r2-media-gallery.md` first, then update `TASK.md`, `changelog.md`, `files.md` after
+- Complete: deployed schema/functions to development and production.
+- Complete: uploaded and inserted an image and video from Write Post on development and production; verified permanent URLs, durable catalog persistence, and sanitized preview rendering.
+- Complete: verified the frontmatter image picker on development and responsive rendering at a 375px viewport on the shared direct-provider path.
+- Complete: ran Convex/backend and frontend TypeScript checks, changed-file ESLint, production build, Convex Doctor, and `git diff --check`.
+- Complete: updated `prds/r2-media-gallery.md`, `TASK.md`, `changelog.md`, `files.md`, and this plan.
+- Approval-gated and not run: saving/publishing a public test post, production phone-width public-post QA, and Media Library deletion of the smoke objects.
+
+### Execution result
+
+Completed on 2026-09-05: Cloudflare R2, both Convex environments, backend functions, and the static production bundle are configured and live. Signed-in PNG/MP4 upload, durable gallery persistence, permanent custom-domain delivery, image/video insertion, and sanitized dashboard preview passed on development and production. The direct-provider preview also passed the 375px no-overflow check. Convex Doctor is 91/100 because of 22 pre-existing warnings outside this feature, not new R2 findings. Cloud-object deletion and publishing a public test post were intentionally not run because each requires separate action-time user approval; the local-only drafts were not saved or published.
 
 ## Out of scope
 

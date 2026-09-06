@@ -27,9 +27,8 @@ type Project = {
   linkedinUrl?: string;
 };
 
-// The rail always renders every glyph. A link that does not exist stays dimmed
-// and unclickable instead of disappearing, so a missing repo reads as "not open
-// source" rather than as a gap in the layout.
+// Only filled links get an icon. Empty X, GitHub, or LinkedIn fields stay off
+// the card so a missing URL never looks like a disabled control.
 const RAIL_LINKS = [
   { key: "xUrl", Icon: XLogo, label: "on X" },
   { key: "repoUrl", Icon: GithubLogo, label: "source on GitHub" },
@@ -37,34 +36,25 @@ const RAIL_LINKS = [
 ] as const;
 
 function ProjectLinkRail({ project }: { project: Project }) {
+  const links = RAIL_LINKS.flatMap(({ key, Icon, label }) => {
+    const href = project[key]?.trim();
+    return href ? [{ key, Icon, label, href }] : [];
+  });
+  if (links.length === 0) return null;
   return (
     <div className="project-rail">
-      {RAIL_LINKS.map(({ key, Icon, label }) => {
-        const href = project[key];
-        if (!href) {
-          return (
-            <span
-              key={key}
-              className="project-rail-icon project-rail-icon-empty"
-              aria-hidden="true"
-            >
-              <Icon size={18} weight="regular" />
-            </span>
-          );
-        }
-        return (
-          <a
-            key={key}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="project-rail-icon"
-            aria-label={`${project.title} ${label}`}
-          >
-            <Icon size={18} weight="regular" />
-          </a>
-        );
-      })}
+      {links.map(({ key, Icon, label, href }) => (
+        <a
+          key={key}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="project-rail-icon"
+          aria-label={`${project.title} ${label}`}
+        >
+          <Icon size={18} weight="regular" />
+        </a>
+      ))}
     </div>
   );
 }
@@ -97,7 +87,7 @@ function ProjectThumbnail({ project }: { project: Project }) {
   );
 }
 
-function ProjectCard({
+export function ProjectCard({
   project,
   viewMode,
 }: {

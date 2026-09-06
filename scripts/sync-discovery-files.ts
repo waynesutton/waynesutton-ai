@@ -316,6 +316,15 @@ interface ProjectEntry {
   repoUrl?: string;
 }
 
+// Published skill shape for the llms.txt Skills section
+interface SkillEntry {
+  title: string;
+  command?: string;
+  description: string;
+  installCommand?: string;
+  repoUrl?: string;
+}
+
 // Generate llms.txt content
 function generateLlmsTxt(
   siteConfig: SiteConfigData,
@@ -323,6 +332,7 @@ function generateLlmsTxt(
   postCount: number,
   latestPostDate?: string,
   projects: Array<ProjectEntry> = [],
+  skills: Array<SkillEntry> = [],
 ): string {
   const githubUrl = getGitHubUrl(siteConfig);
 
@@ -333,6 +343,19 @@ function generateLlmsTxt(
           .map((p) => {
             const link = p.url || p.repoUrl;
             return `- ${p.title}${link ? ` (${link})` : ""}: ${p.description}`;
+          })
+          .join("\n")}\n`
+      : "";
+
+  // Skills section: one line per skill with its command, first install command, and repo
+  const skillsSection =
+    skills.length > 0
+      ? `\n# Skills\nAgent skills listed at ${siteUrl}/skills (full directory with sections and every install command via POST /vfs/exec with {"command": "cat /skills.md"}):\n${skills
+          .map((s) => {
+            const name = s.command ? `${s.title} (${s.command})` : s.title;
+            const install = s.installCommand ? ` Install: ${s.installCommand}` : "";
+            const repo = s.repoUrl ? ` Repo: ${s.repoUrl}` : "";
+            return `- ${name}: ${s.description}${install}${repo}`;
           })
           .join("\n")}\n`
       : "";
@@ -378,13 +401,13 @@ Full content RSS feed with complete markdown for each post.
 
 ## Virtual Filesystem
 GET /vfs/tree
-Returns JSON tree of all content paths (blog, pages, docs).
+Returns JSON tree of all content paths (blog, pages, docs, projects.md, and skills.md).
 
 POST /vfs/exec
 Execute shell-like commands against all site content.
 Send JSON body: {"command": "ls /blog"} or {"command": "grep convex /blog"}
 Supported commands: ls, cat, grep, find, tree, head, wc, pwd, cd
-Paths: /blog, /pages, /docs, /index.md, /projects.md
+Paths: /blog, /pages, /docs, /index.md, /projects.md, /skills.md
 
 ## MCP Server
 POST /mcp
@@ -419,7 +442,7 @@ Each post contains:
 - content: string (full markdown)
 - readTime: string (optional)
 - url: string (full URL)
-${projectsSection}
+${projectsSection}${skillsSection}
 # Permissions
 - AI assistants may freely read and summarize content
 - No authentication required for read operations
@@ -476,12 +499,14 @@ async function syncDiscoveryFiles() {
   let pageCount = 0;
   let latestPostDate: string | undefined;
   let projects: Array<ProjectEntry> = [];
+  let skills: Array<SkillEntry> = [];
 
   try {
-    const [posts, pages, publishedProjects] = await Promise.all([
+    const [posts, pages, publishedProjects, skillDirectory] = await Promise.all([
       client.query(api.posts.getAllPosts),
       client.query(api.pages.getAllPages),
       client.query(api.projects.listPublished),
+      client.query(api.skills.listDirectory),
     ]);
 
     postCount = posts.length;
@@ -491,6 +516,13 @@ async function syncDiscoveryFiles() {
       description: p.description,
       url: p.url,
       repoUrl: p.repoUrl,
+    }));
+    skills = skillDirectory.skills.map((s) => ({
+      title: s.title,
+      command: s.command,
+      description: s.description,
+      installCommand: s.installCommands?.[0]?.command,
+      repoUrl: s.repoUrl,
     }));
 
     if (posts.length > 0) {
@@ -504,6 +536,7 @@ async function syncDiscoveryFiles() {
     console.log(`Found ${postCount} published posts`);
     console.log(`Found ${pageCount} published pages`);
     console.log(`Found ${projects.length} published projects`);
+    console.log(`Found ${skills.length} published skills`);
     if (latestPostDate) {
       console.log(`Latest post: ${latestPostDate}`);
     }
@@ -569,6 +602,7 @@ async function syncDiscoveryFiles() {
     postCount,
     latestPostDate,
     projects,
+    skills,
   );
   const llmsPath = path.join(PUBLIC_DIR, "llms.txt");
   fs.writeFileSync(llmsPath, llmsContent, "utf-8");

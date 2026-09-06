@@ -11,18 +11,8 @@ crons.interval(
   {}
 );
 
-// Weekly digest: Send every Sunday at 9:00 AM UTC
-// Posts from the last 7 days are included
-// To disable, set weeklyDigest.enabled: false in siteConfig.ts
-crons.cron(
-  "weekly newsletter digest",
-  "0 9 * * 0", // 9:00 AM UTC on Sundays
-  internal.newsletterActions.sendWeeklyDigest,
-  {
-    siteUrl: process.env.SITE_URL || "https://example.com",
-    siteName: process.env.SITE_NAME || "Newsletter",
-  }
-);
+// Admin-controlled publication emails and digests; disabled until configured.
+crons.interval("newsletter automation", { minutes: 1 }, internal.newsletterAutomation.tick, {});
 
 // Weekly stats summary: Send every Monday at 9:00 AM UTC
 // Includes subscriber count, new subscribers, newsletters sent

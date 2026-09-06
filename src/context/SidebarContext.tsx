@@ -6,6 +6,10 @@ interface SidebarContextType {
   setHeadings: (headings: Heading[]) => void;
   activeId: string | undefined;
   setActiveId: (id: string | undefined) => void;
+  // Per-post hideNav frontmatter: Post.tsx sets this so Layout switches the
+  // top nav from fixed to absolute, letting it scroll away with the page
+  hideNav: boolean;
+  setHideNav: (hidden: boolean) => void;
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
@@ -13,10 +17,11 @@ const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 export function SidebarProvider({ children }: { children: ReactNode }) {
   const [headings, setHeadings] = useState<Heading[]>([]);
   const [activeId, setActiveId] = useState<string | undefined>(undefined);
+  const [hideNav, setHideNav] = useState(false);
 
   return (
     <SidebarContext.Provider
-      value={{ headings, setHeadings, activeId, setActiveId }}
+      value={{ headings, setHeadings, activeId, setActiveId, hideNav, setHideNav }}
     >
       {children}
     </SidebarContext.Provider>
@@ -35,4 +40,3 @@ export function useSidebar() {
 export function useSidebarOptional() {
   return useContext(SidebarContext);
 }
-

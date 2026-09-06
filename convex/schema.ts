@@ -35,6 +35,8 @@ export default defineSchema({
     contactForm: v.optional(v.boolean()), // Enable contact form on this post
     unlisted: v.optional(v.boolean()), // Hide from listings but allow direct access via slug
     aiWritten: v.optional(v.boolean()), // Show "written with AI and proofed by a human" note under the title
+    minimap: v.optional(v.boolean()), // Right-side heading outline that tracks scroll (h1-h6)
+    hideNav: v.optional(v.boolean()), // Site nav scrolls away with the page on this post instead of staying fixed (default: false)
     audio: v.optional(v.boolean()), // Show listen-to-this-post player (overrides siteConfig.audio.enabledDefault)
     audioVoice: v.optional(v.union(v.literal("male"), v.literal("female"))), // Voice override (overrides siteConfig.audio.defaultVoice)
     audioStorageId: v.optional(v.id("_storage")), // Generated reading stored in Convex file storage
@@ -153,6 +155,66 @@ export default defineSchema({
   })
     .index("by_slug", ["slug"])
     .index("by_published", ["published"]),
+
+  // Groups on the /skills directory ("My skills", "Skills I recommend").
+  // A table rather than a free-text field so renaming is one edit and the
+  // order is explicit. Dashboard is the only writer.
+  skillSections: defineTable({
+    slug: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    installCommand: v.optional(v.string()), // Collection-level install, e.g. npx skills add owner/repo
+    order: v.optional(v.number()),
+    published: v.boolean(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_published", ["published"]),
+
+  // Agent skills listed at /skills. A skill has no body and no route: it is a
+  // slash command, one line of description, labeled install commands, and the
+  // links that hang off it. Skills with no section render under a default group.
+  skills: defineTable({
+    slug: v.string(), // Anchor id on the directory, /skills#slug
+    title: v.string(),
+    command: v.optional(v.string()), // The invocation, e.g. /blog-post
+    description: v.string(),
+    details: v.optional(v.string()), // Optional "when to use" markdown, collapsible
+    sectionId: v.optional(v.id("skillSections")),
+    authorName: v.optional(v.string()),
+    authorUrl: v.optional(v.string()),
+    installCommands: v.optional(
+      v.array(v.object({ label: v.string(), command: v.string() })),
+    ), // Max 4, enforced in mutations
+    repoUrl: v.optional(v.string()),
+    skillsShUrl: v.optional(v.string()),
+    docsUrl: v.optional(v.string()),
+    xUrl: v.optional(v.string()),
+    published: v.boolean(),
+    order: v.optional(v.number()),
+    featured: v.optional(v.boolean()), // Pins to the top of its section
+  })
+    .index("by_slug", ["slug"])
+    .index("by_published", ["published"])
+    .index("by_sectionid", ["sectionId"]),
+
+  // Durable catalog for every provider so uploaded media survives browser sessions.
+  mediaAssets: defineTable({
+    provider: v.union(
+      v.literal("convex"),
+      v.literal("convexfs"),
+      v.literal("r2"),
+    ),
+    key: v.string(),
+    url: v.string(),
+    filename: v.string(),
+    contentType: v.string(),
+    kind: v.union(v.literal("image"), v.literal("video")),
+    size: v.number(),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+  })
+    .index("by_key", ["key"])
+    .index("by_kind", ["kind"]),
 
   // View counts for analytics
   viewCounts: defineTable({
@@ -314,6 +376,38 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_subscribed", ["subscribed"]),
 
+  // Publication queue and delivery claims for optional newsletter automation.
+  newsletterPublications: defineTable({
+    postId: v.id("posts"),
+    publishedAt: v.number(),
+    status: v.union(v.literal("pending"), v.literal("queued")),
+  })
+    .index("by_postid", ["postId"])
+    .index("by_status_and_publishedat", ["status", "publishedAt"]),
+
+  newsletterCampaigns: defineTable({
+    key: v.string(),
+    postIds: v.array(v.id("posts")),
+    subject: v.string(),
+    introduction: v.string(),
+    createdAt: v.number(),
+    status: v.union(v.literal("sending"), v.literal("complete"), v.literal("paused")),
+    cursor: v.optional(v.string()),
+  })
+    .index("by_key", ["key"])
+    .index("by_status", ["status"])
+    .index("by_createdat", ["createdAt"]),
+
+  newsletterDeliveries: defineTable({
+    campaignId: v.id("newsletterCampaigns"),
+    subscriberId: v.id("newsletterSubscribers"),
+    status: v.union(v.literal("sending"), v.literal("sent"), v.literal("failed"), v.literal("skipped")),
+    attemptedAt: v.number(),
+    error: v.optional(v.string()),
+  })
+    .index("by_campaignid_and_subscriberid", ["campaignId", "subscriberId"])
+    .index("by_status", ["status"]),
+
   // Newsletter sent tracking (posts and custom emails)
   // Tracks what has been sent to prevent duplicate newsletters
   newsletterSentPosts: defineTable({
@@ -437,8 +531,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_status", ["status"])
-    .index("by_pr_number", ["prNumber"])
-    .index("by_source_message_id", ["sourceMessageId"]),
+    .index("by_prnumber", ["prNumber"])
+    .index("by_sourcemessageid", ["sourceMessageId"]),
 
   // Agent blog pipeline: hashed API keys for POST /api/v1/drafts
   apiKeys: defineTable({
@@ -448,7 +542,7 @@ export default defineSchema({
     lastUsed: v.optional(v.number()),
     createdAt: v.number(),
     createdBySubject: v.optional(v.string()),
-  }).index("by_hash", ["keyHash"]),
+  }).index("by_keyhash", ["keyHash"]),
 
   // Vendor API key overrides set from the dashboard. Each row overrides the
   // matching Convex environment variable for this deployment (dev and prod
@@ -460,6 +554,17 @@ export default defineSchema({
     updatedAt: v.number(),
     updatedBySubject: v.optional(v.string()),
   }).index("by_name", ["name"]),
+
+  // Model id overrides set from the dashboard, one per vendor key and kind.
+  // When a row exists, every AI feature that routes to that vendor sends this
+  // model id instead of the hardcoded default. Dev and prod keep their own rows.
+  aiModelOverrides: defineTable({
+    vendor: v.string(), // Vendor key name, e.g. "OPENAI_API_KEY"
+    kind: v.union(v.literal("chat"), v.literal("image"), v.literal("tts")),
+    model: v.string(),
+    updatedAt: v.number(),
+    updatedBySubject: v.optional(v.string()),
+  }).index("by_vendor_and_kind", ["vendor", "kind"]),
 
   // Agent-ready widget settings controlled from the dashboard. Singleton row
   // keyed by "widget"; the public site reads it so changes apply live
@@ -511,7 +616,7 @@ export default defineSchema({
     completedAt: v.optional(v.number()),
   })
     .index("by_status", ["status"])
-    .index("by_post_and_hash", ["postId", "contentHash"]),
+    .index("by_postid_and_contenthash", ["postId", "contentHash"]),
 
   // Agent blog pipeline: record of published drafts
   publishLog: defineTable({

@@ -52,6 +52,12 @@ const recommendedConvexEnvChecks: Array<Check> = [
     required: false,
     description: "Secret used one time to bootstrap the first dashboard admin.",
   },
+  {
+    key: "SYNC_SECRET",
+    required: false,
+    description:
+      "Shared secret that locks npm run sync to callers who know it. Set the same value in Convex env and this file.",
+  },
 ];
 
 function printResult(check: Check, value: string | undefined): boolean {

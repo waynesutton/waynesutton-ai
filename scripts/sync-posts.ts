@@ -51,6 +51,8 @@ interface PostFrontmatter {
   contactForm?: boolean; // Enable contact form on this post
   unlisted?: boolean; // Hide from listings but allow direct access via slug
   aiWritten?: boolean; // Show "written with AI and proofed by a human" note under the title
+  minimap?: boolean; // Right-side heading outline that tracks scroll
+  hideNav?: boolean; // Site nav scrolls away with the page instead of staying fixed (default: false)
   audio?: boolean; // Show listen-to-this-post player (overrides site default)
   audioVoice?: "male" | "female"; // Voice override
   docsSection?: boolean; // Include in docs navigation
@@ -91,6 +93,8 @@ interface ParsedPost {
   contactForm?: boolean; // Enable contact form on this post
   unlisted?: boolean; // Hide from listings but allow direct access via slug
   aiWritten?: boolean; // Show "written with AI and proofed by a human" note under the title
+  minimap?: boolean; // Right-side heading outline that tracks scroll
+  hideNav?: boolean; // Site nav scrolls away with the page instead of staying fixed (default: false)
   audio?: boolean; // Show listen-to-this-post player (overrides site default)
   audioVoice?: "male" | "female"; // Voice override
   docsSection?: boolean; // Include in docs navigation
@@ -237,6 +241,8 @@ function parseMarkdownFile(filePath: string): ParsedPost | null {
       contactForm: frontmatter.contactForm, // Enable contact form on this post
       unlisted: frontmatter.unlisted, // Hide from listings but allow direct access
       aiWritten: frontmatter.aiWritten, // AI writing disclosure banner
+      minimap: frontmatter.minimap, // Right-side heading outline
+      hideNav: frontmatter.hideNav, // Site nav scrolls away with the page on this post
       audio: frontmatter.audio,
       audioVoice:
         frontmatter.audioVoice === "male" || frontmatter.audioVoice === "female"
@@ -354,6 +360,11 @@ async function syncPosts() {
   // Initialize Convex client
   const client = new ConvexHttpClient(convexUrl);
 
+  // Optional shared secret. When the deployment has SYNC_SECRET set, the sync
+  // mutations reject calls without a matching value. Unset on both sides keeps
+  // the original open behavior.
+  const syncSecret = process.env.SYNC_SECRET?.trim() || undefined;
+
   // Get all markdown files
   const markdownFiles = getAllMarkdownFiles();
   console.log(`Found ${markdownFiles.length} markdown files\n`);
@@ -380,7 +391,10 @@ async function syncPosts() {
 
   // Sync posts to Convex
   try {
-    const result = await client.mutation(api.posts.syncPostsPublic, { posts });
+    const result = await client.mutation(api.posts.syncPostsPublic, {
+      posts,
+      syncSecret,
+    });
     console.log("Sync complete!");
     console.log(`  Created: ${result.created}`);
     console.log(`  Updated: ${result.updated}`);
@@ -411,6 +425,7 @@ async function syncPosts() {
       try {
         const pageResult = await client.mutation(api.pages.syncPagesPublic, {
           pages,
+          syncSecret,
         });
         console.log("Pages sync complete!");
         console.log(`  Created: ${pageResult.created}`);
@@ -431,7 +446,7 @@ async function syncPosts() {
     try {
       const embeddingResult = await client.mutation(
         api.embeddingsAdmin.generateMissingEmbeddings,
-        {}
+        { syncSecret }
       );
       if (embeddingResult.skipped) {
         console.log("  Skipped: OPENAI_API_KEY not configured");

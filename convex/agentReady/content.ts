@@ -1,5 +1,11 @@
-import { action, mutation, query } from "../_generated/server";
-import { components } from "../_generated/api";
+import {
+  action,
+  mutation,
+  query,
+  internalQuery,
+  internalMutation,
+} from "../_generated/server";
+import { components, internal } from "../_generated/api";
 import { v } from "convex/values";
 import {
   requireDashboardAdmin,
@@ -131,6 +137,120 @@ export const regenerateAll = action({
   returns: v.string(),
   handler: async (ctx) => {
     await requireDashboardAdminAction(ctx);
+    // Reconcile database content before rebuilding the cache. This explicit
+    // admin action also repairs older caches when automatic sync is disabled.
+    await ctx.runMutation(
+      internal.agentReady.content.repairLegacyDescriptions,
+      {},
+    );
+    const registered = await ctx.runQuery(
+      components.agentReady.content.listPages,
+      {
+        includeAllStatuses: true,
+      },
+    );
+    const paths = new Set<string>(
+      registered
+        .filter((page) => page.section === "Posts" || page.section === "Pages")
+        .map((page) => page.path),
+    );
+    for (const table of ["posts", "pages"] as const) {
+      let cursor: string | null = null;
+      let done = false;
+      while (!done) {
+        const batch: { paths: string[]; cursor: string; done: boolean } =
+          await ctx.runQuery(internal.agentReady.content.contentPathBatch, {
+            table,
+            cursor,
+          });
+        for (const path of batch.paths) paths.add(path);
+        cursor = batch.cursor;
+        done = batch.done;
+      }
+    }
+    const allPaths = [...paths];
+    for (let offset = 0; offset < allPaths.length; offset += 25) {
+      await ctx.runMutation(internal.agentReady.autoSync.reconcilePaths, {
+        paths: allPaths.slice(offset, offset + 25),
+      });
+    }
+    await ctx.runMutation(internal.agentReady.autoSync.reconcileProjects, {});
+    await ctx.runMutation(internal.agentReady.autoSync.reconcileSkills, {});
     return await ctx.runAction(components.agentReady.content.regenerateAll, {});
+  },
+});
+
+// Small query pages avoid one large transaction while backfilling discovery.
+export const contentPathBatch = internalQuery({
+  args: {
+    table: v.union(v.literal("posts"), v.literal("pages")),
+    cursor: v.union(v.string(), v.null()),
+  },
+  returns: v.object({
+    paths: v.array(v.string()),
+    cursor: v.string(),
+    done: v.boolean(),
+  }),
+  handler: async (ctx, { table, cursor }) => {
+    const batch = await ctx.db.query(table).paginate({ numItems: 25, cursor });
+    return {
+      paths: batch.page.map((page) => `/${page.slug}`),
+      cursor: batch.continueCursor,
+      done: batch.isDone,
+    };
+  },
+});
+
+// Only migrate phrases shipped by the removed wiki integration. Other custom
+// instructions, endpoint descriptions, visibility, and ordering stay intact.
+export function currentDiscoveryDescription(text: string): string {
+  return text
+    .replace(
+      /and the 15-page compiled wiki/g,
+      "and /projects.md for shipped work",
+    )
+    .replace(
+      /blog, pages, docs, sources, wiki\./g,
+      "blog, pages, docs, and projects.md.",
+    )
+    .replace(/ls \/wiki/g, "ls /blog");
+}
+
+export const repairLegacyDescriptions = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const [settings, endpoints] = await Promise.all([
+      ctx.runQuery(components.agentReady.content.getSettings, {}),
+      ctx.runQuery(components.agentReady.content.listApiEndpoints, {
+        includeAllStatuses: true,
+      }),
+    ]);
+    if (settings?.agentInstructions) {
+      const agentInstructions = currentDiscoveryDescription(
+        settings.agentInstructions,
+      );
+      if (agentInstructions !== settings.agentInstructions) {
+        await ctx.runMutation(components.agentReady.content.upsertSettings, {
+          patch: { agentInstructions },
+        });
+      }
+    }
+    for (const endpoint of endpoints) {
+      if (endpoint.path !== "/vfs/tree" && endpoint.path !== "/vfs/exec")
+        continue;
+      const description = currentDiscoveryDescription(endpoint.description);
+      if (description !== endpoint.description) {
+        await ctx.runMutation(components.agentReady.content.upsertEndpoint, {
+          method: endpoint.method,
+          path: endpoint.path,
+          description,
+          group: endpoint.group,
+          status: endpoint.status,
+          descriptionGeneratedByAi: endpoint.descriptionGeneratedByAi,
+        });
+      }
+    }
+    return null;
   },
 });

@@ -1,3 +1,4 @@
+import { queueNewsletterPublication } from "./lib/newsletterAutomation";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import type { Infer } from "convex/values";
@@ -43,6 +44,8 @@ const postDataValidator = v.object({
   contactForm: v.optional(v.boolean()),
   unlisted: v.optional(v.boolean()),
   aiWritten: v.optional(v.boolean()),
+  minimap: v.optional(v.boolean()),
+  hideNav: v.optional(v.boolean()),
   audio: v.optional(v.boolean()),
   audioVoice: v.optional(audioVoiceValidator),
   docsSection: v.optional(v.boolean()),
@@ -187,6 +190,10 @@ function buildPostFrontmatter(post: Doc<"posts">): Array<string> {
     frontmatter.push(`unlisted: ${post.unlisted}`);
   if (post.aiWritten !== undefined)
     frontmatter.push(`aiWritten: ${post.aiWritten}`);
+  if (post.minimap !== undefined)
+    frontmatter.push(`minimap: ${post.minimap}`);
+  if (post.hideNav !== undefined)
+    frontmatter.push(`hideNav: ${post.hideNav}`);
   if (post.audio !== undefined) frontmatter.push(`audio: ${post.audio}`);
   if (post.audioVoice) frontmatter.push(`audioVoice: ${post.audioVoice}`);
   if (post.docsSection !== undefined)
@@ -293,6 +300,7 @@ export const createPost = mutation({
       });
     }
 
+    if (args.post.published && !args.post.unlisted) await queueNewsletterPublication(ctx, postId);
     if (args.post.published) {
       await schedulePostAudioIfNeeded(ctx, postId);
     }
@@ -330,6 +338,7 @@ export const createPostInternal = internalMutation({
       });
     }
 
+    if (args.post.published && !args.post.unlisted) await queueNewsletterPublication(ctx, postId);
     if (args.post.published) {
       await schedulePostAudioIfNeeded(ctx, postId);
     }
@@ -371,6 +380,8 @@ export const updatePost = mutation({
       contactForm: v.optional(v.boolean()),
       unlisted: v.optional(v.boolean()),
       aiWritten: v.optional(v.boolean()),
+      minimap: v.optional(v.boolean()),
+      hideNav: v.optional(v.boolean()),
       audio: v.optional(v.boolean()),
       audioVoice: v.optional(audioVoiceValidator),
       docsSection: v.optional(v.boolean()),
@@ -439,6 +450,7 @@ export const updatePost = mutation({
           : undefined,
     });
 
+    if (isPublic && !wasPublic) await queueNewsletterPublication(ctx, args.id);
     if (next.published) {
       await schedulePostAudioIfNeeded(ctx, args.id);
     }

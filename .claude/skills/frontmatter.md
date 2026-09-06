@@ -39,8 +39,10 @@ Location: `content/blog/*.md`
 | contactForm | boolean | false | Enable contact form |
 | unlisted | boolean | false | Hide from listings but allow direct access via slug |
 | aiWritten | boolean | - | Posts only. `true` shows a note under the title that the post was written with AI and proofed by a human. Overrules the Drafts Inbox default. Omitted means no note. |
+| minimap | boolean | false | Posts only. `true` renders a right-side heading outline (h1-h6) that highlights the current section as the reader scrolls. Needs at least one heading. The rail sits in the right margin so the article stays centered. Hidden below 1135px; headings then appear in the mobile menu. Shown instead of `rightSidebar` when both are on. |
 | audio | boolean | - | Posts only. `true` shows the listen player and, on save or sync of a published post, generates the reading. Works on existing posts the same way. `false` hides it. Omitted uses the site default (`siteConfig.audio.enabledDefault`, on by default). |
 | audioVoice | string | - | Posts only. `male` or `female`. Omitted uses `siteConfig.audio.defaultVoice` (female). Changing the voice regenerates the file on the next save or sync. |
+| hideNav | boolean | false | Posts only. `true` lets the site navigation bar scroll away with the page instead of staying pinned. The nav still shows at the top of the post. |
 | showFooter | boolean | - | Override footer display |
 | footer | string | - | Custom footer markdown |
 | showSocialFooter | boolean | - | Override social footer |
@@ -102,6 +104,8 @@ Location: `content/pages/*.md`
 | showFooter | boolean | - | Override footer display |
 | footer | string | - | Custom footer markdown |
 | showSocialFooter | boolean | - | Override social footer |
+| unlisted | boolean | false | Hide from nav and listings but allow direct access via slug |
+| slides | boolean | false | Presentation mode. Standalone `---` lines split the content into slides |
 
 ### Example page
 

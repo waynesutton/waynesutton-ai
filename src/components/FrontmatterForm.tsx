@@ -1,6 +1,17 @@
+import { AuthorNameField } from "./AuthorNameField";
+import type { AuthorSuggestion } from "../utils/authorSuggestions";
 import { useRef, useState, type ReactNode } from "react";
-import { CaretDown, DotsSixVertical, UploadSimple, X } from "@phosphor-icons/react";
+import {
+  ArrowsInLineVertical,
+  ArrowsOutLineVertical,
+  CaretDown,
+  DotsSixVertical,
+  MapTrifold,
+  UploadSimple,
+  X,
+} from "@phosphor-icons/react";
 import { useDragSort } from "../hooks/useDragSort";
+import { Tip } from "./ui/Tooltip";
 import siteConfig from "../config/siteConfig";
 
 // Frontmatter form for dashboard write and edit flows.
@@ -30,6 +41,8 @@ export interface FrontmatterValues {
   ogImage: string;
   noOgImage: boolean;
   aiWritten: boolean;
+  minimap: boolean;
+  hideNav: boolean;
   audio?: boolean;
   audioVoice?: "male" | "female";
   readTime: string;
@@ -66,6 +79,8 @@ export function createDefaultFrontmatter(kind: FrontmatterKind): FrontmatterValu
     ogImage: "",
     noOgImage: false,
     aiWritten: false,
+    minimap: false,
+    hideNav: false,
     audio: undefined,
     audioVoice: undefined,
     readTime: "",
@@ -129,6 +144,12 @@ export function serializeFrontmatter(kind: FrontmatterKind, values: FrontmatterV
   }
   if (kind === "post" && values.aiWritten) {
     lines.push("aiWritten: true");
+  }
+  if (kind === "post" && values.minimap) {
+    lines.push("minimap: true");
+  }
+  if (kind === "post" && values.hideNav) {
+    lines.push("hideNav: true");
   }
   if (kind === "post" && values.audio === true) {
     lines.push("audio: true");
@@ -231,6 +252,8 @@ const BOOLEAN_KEYS = [
   "showInNav",
   "noOgImage",
   "aiWritten",
+  "minimap",
+  "hideNav",
 ] as const;
 
 const NUMBER_KEYS = ["featuredOrder", "order"] as const;
@@ -357,14 +380,15 @@ function SortableFields({
               drag.onDragEnd();
               setArmedId(null);
             }}>
-            <span
-              className="fmf-drag-handle"
-              title="Drag to reorder"
-              aria-hidden="true"
-              onMouseDown={() => setArmedId(id)}
-              onMouseUp={() => setArmedId(null)}>
-              <DotsSixVertical size={14} weight="bold" />
-            </span>
+            <Tip content="Drag to reorder this field" side="left" delay={600}>
+              <span
+                className="fmf-drag-handle"
+                aria-hidden="true"
+                onMouseDown={() => setArmedId(id)}
+                onMouseUp={() => setArmedId(null)}>
+                <DotsSixVertical size={14} weight="bold" />
+              </span>
+            </Tip>
             {block.node}
           </div>
         );
@@ -389,7 +413,7 @@ function SelectRow({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="fmf-switch-row">
+    <label className="fmf-switch-row fmf-select-row">
       <span className="fmf-switch-row-text">
         <span className="fmf-switch-row-label">{label}</span>
         {hint !== undefined && <span className="fmf-switch-row-hint">{hint}</span>}
@@ -448,72 +472,187 @@ interface FieldBlock {
   yamlKey: string;
   // Whether the field carries a value, for the "filled of total" count
   filled: boolean;
+  // Human label for the required readout ("Missing: Title, Date")
+  label?: string;
+  // Required fields block Save until filled
+  required?: boolean;
   node: ReactNode;
 }
 
-// Group open state persists per kind so a writer's preferred sections stay
-// expanded across reloads, the same way the sidebar width does.
-function useGroupOpen(storageKey: string, defaultOpen: boolean) {
-  const [open, setOpen] = useState<boolean>(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      return raw === null ? defaultOpen : raw === "1";
-    } catch {
-      return defaultOpen;
+interface GroupDef {
+  id: string;
+  title: string;
+  blocks: FieldBlock[];
+  defaultOpen: boolean;
+}
+
+// Small persisted boolean with the same try/catch shape as useDragSort so a
+// blocked localStorage never breaks the form.
+function readStoredFlag(key: string, fallback: boolean): boolean {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : raw === "1";
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStoredFlag(key: string, value: boolean): void {
+  try {
+    localStorage.setItem(key, value ? "1" : "0");
+  } catch {
+    // Persistence is best-effort; the toggle still works this session.
+  }
+}
+
+// Open state for every group lives in the form so the minimap and the
+// expand/collapse buttons can drive it. Keys are unchanged from the old
+// per-group hook, so saved preferences carry over.
+function useGroupsOpen(kind: FrontmatterKind, groups: GroupDef[]) {
+  const [open, setOpen] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const group of groups) {
+      initial[group.id] = readStoredFlag(`fmf-group:${kind}:${group.id}`, group.defaultOpen);
     }
+    return initial;
   });
 
-  const toggle = () => {
-    setOpen((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(storageKey, next ? "1" : "0");
-      } catch {
-        // Persistence is best-effort; the toggle still works this session.
-      }
-      return next;
-    });
+  const set = (id: string, next: boolean) => {
+    writeStoredFlag(`fmf-group:${kind}:${id}`, next);
+    setOpen((prev) => (prev[id] === next ? prev : { ...prev, [id]: next }));
   };
 
-  return [open, toggle] as const;
+  const setAll = (next: boolean) => {
+    const record: Record<string, boolean> = {};
+    for (const group of groups) {
+      record[group.id] = next;
+      writeStoredFlag(`fmf-group:${kind}:${group.id}`, next);
+    }
+    setOpen(record);
+  };
+
+  const isOpen = (id: string, fallback: boolean) => open[id] ?? fallback;
+
+  return { isOpen, set, setAll };
 }
 
 // Collapsible card holding one logical set of frontmatter fields. Collapsed
 // headers list the YAML keys inside so nothing is hidden without a trace.
+// The header's grab handle arms dragging so the click target still toggles.
 function FieldGroup({
-  title,
-  blocks,
-  defaultOpen,
-  stateKey,
+  group,
+  open,
+  onToggle,
   orderKey,
+  drag,
+  sectionRef,
 }: {
-  title: string;
-  blocks: FieldBlock[];
-  defaultOpen: boolean;
-  stateKey: string;
+  group: GroupDef;
+  open: boolean;
+  onToggle: () => void;
   orderKey: string;
+  drag: ReturnType<typeof useDragSort>;
+  sectionRef: (node: HTMLElement | null) => void;
 }) {
-  const [open, toggle] = useGroupOpen(stateKey, defaultOpen);
-  const filled = blocks.filter((block) => block.filled).length;
+  const [armed, setArmed] = useState(false);
+  const filled = group.blocks.filter((block) => block.filled).length;
+  const missing = group.blocks.filter((block) => block.required && !block.filled).length;
 
   return (
-    <section className={`fmf-group ${open ? "open" : ""}`}>
-      <button type="button" className="fmf-group-head" aria-expanded={open} onClick={toggle}>
-        <CaretDown size={13} weight="bold" className="fmf-group-caret" />
-        <span className="fmf-group-title">{title}</span>
-        <span className="fmf-group-count">
-          {filled}
-          <span className="fmf-group-count-total">/{blocks.length}</span>
-        </span>
-      </button>
+    <section
+      ref={sectionRef}
+      id={`fmf-group-${group.id}`}
+      className={`fmf-group ${open ? "open" : ""} ${drag.draggingId === group.id ? "dragging" : ""}`}
+      draggable={armed}
+      onDragStart={drag.onDragStart(group.id)}
+      onDragOver={drag.onDragOver(group.id)}
+      onDrop={(event) => {
+        drag.onDrop(event);
+        setArmed(false);
+      }}
+      onDragEnd={() => {
+        drag.onDragEnd();
+        setArmed(false);
+      }}>
+      <div className="fmf-group-bar">
+        <button type="button" className="fmf-group-head" aria-expanded={open} onClick={onToggle}>
+          <CaretDown size={13} weight="bold" className="fmf-group-caret" />
+          <span className="fmf-group-title">{group.title}</span>
+          {missing > 0 && (
+            <span className="fmf-group-missing" aria-label={`${missing} required`}>
+              {missing} required
+            </span>
+          )}
+          <span className="fmf-group-count">
+            {filled}
+            <span className="fmf-group-count-total">/{group.blocks.length}</span>
+          </span>
+        </button>
+        <Tip content="Drag to reorder this section" side="left" delay={600}>
+          <span
+            className="fmf-group-handle"
+            aria-hidden="true"
+            onMouseDown={() => setArmed(true)}
+            onMouseUp={() => setArmed(false)}>
+            <DotsSixVertical size={14} weight="bold" />
+          </span>
+        </Tip>
+      </div>
       {open ? (
         <div className="fmf-group-body">
-          <SortableFields storageKey={orderKey} blocks={blocks} />
+          <SortableFields storageKey={orderKey} blocks={group.blocks} />
         </div>
       ) : (
-        <p className="fmf-group-keys">{blocks.map((block) => block.yamlKey).join("  ")}</p>
+        <p className="fmf-group-keys">{group.blocks.map((block) => block.yamlKey).join("  ")}</p>
       )}
     </section>
+  );
+}
+
+// Compact outline of every group: name, filled count, and a marker when a
+// required field is still empty. Clicking opens the group and scrolls to it,
+// which is the whole point on a long form or a short phone screen.
+function FrontmatterMinimap({
+  groups,
+  isOpen,
+  onJump,
+}: {
+  groups: GroupDef[];
+  isOpen: (id: string, fallback: boolean) => boolean;
+  onJump: (id: string) => void;
+}) {
+  return (
+    <nav className="fmf-minimap" aria-label="Frontmatter sections">
+      {groups.map((group) => {
+        const filled = group.blocks.filter((block) => block.filled).length;
+        const missing = group.blocks.some((block) => block.required && !block.filled);
+        const open = isOpen(group.id, group.defaultOpen);
+        return (
+          <Tip
+            key={group.id}
+            content={
+              missing
+                ? `${group.title}: a required field is empty. Click to open.`
+                : `${group.title}: ${filled} of ${group.blocks.length} set. Click to open.`
+            }
+            side="bottom">
+            <button
+              type="button"
+              className={`fmf-minimap-chip ${open ? "open" : ""} ${missing ? "missing" : ""} ${
+                filled === group.blocks.length ? "complete" : ""
+              }`}
+              onClick={() => onJump(group.id)}
+              aria-current={open ? "true" : undefined}>
+              <span className="fmf-minimap-dot" aria-hidden="true" />
+              <span className="fmf-minimap-label">{group.title}</span>
+              <span className="fmf-minimap-count">
+                {filled}/{group.blocks.length}
+              </span>
+            </button>
+          </Tip>
+        );
+      })}
+    </nav>
   );
 }
 
@@ -527,6 +666,7 @@ function ImageUrlField({
   disabled,
   onChange,
   onRequestUpload,
+  onRequestGallery,
 }: {
   id: string;
   label: string;
@@ -536,6 +676,7 @@ function ImageUrlField({
   disabled?: boolean;
   onChange: (next: string) => void;
   onRequestUpload?: () => void;
+  onRequestGallery?: () => void;
 }) {
   const hasValue = value.trim() !== "";
   const showActions = onRequestUpload !== undefined || hasValue;
@@ -561,9 +702,15 @@ function ImageUrlField({
               type="button"
               className="fmf-upload-button"
               onClick={onRequestUpload}
+              aria-label={`Upload ${label}`}
               disabled={disabled}>
               <UploadSimple size={14} />
               Upload
+            </button>
+          )}
+          {onRequestGallery && (
+            <button type="button" className="fmf-upload-button" aria-label={`Choose ${label} from media gallery`} onClick={onRequestGallery} disabled={disabled}>
+              Media gallery
             </button>
           )}
           {hasValue && (
@@ -589,6 +736,7 @@ export function FrontmatterForm({
   value,
   onChange,
   hiddenFields,
+  authorSuggestions = [],
   onRequestImage,
 }: {
   kind: FrontmatterKind;
@@ -597,7 +745,8 @@ export function FrontmatterForm({
   hiddenFields?: ReadonlyArray<keyof FrontmatterValues>;
   // When provided, renders Upload next to image URL fields.
   // The dashboard opens the image picker and patches the field with the URL.
-  onRequestImage?: (field: FrontmatterImageField) => void;
+  authorSuggestions?: readonly AuthorSuggestion[];
+  onRequestImage?: (field: FrontmatterImageField, initialTab?: "upload" | "library") => void;
 }) {
   const [tagDraft, setTagDraft] = useState("");
   const [rawOpen, setRawOpen] = useState(false);
@@ -674,6 +823,8 @@ export function FrontmatterForm({
   essentials.push({
     id: "title",
     yamlKey: "title",
+    label: "Title",
+    required: true,
     filled: filledText(value.title),
     node: (
       <div className="fmf-field">
@@ -695,6 +846,8 @@ export function FrontmatterForm({
   essentials.push({
     id: "slug",
     yamlKey: "slug",
+    label: "Slug",
+    required: true,
     filled: filledText(value.slug) && !slugInvalid,
     node: (
       <div className="fmf-field">
@@ -725,6 +878,8 @@ export function FrontmatterForm({
     essentials.push({
       id: "description",
       yamlKey: "description",
+      label: "Description",
+      required: true,
       filled: filledText(value.description),
       node: (
         <div className="fmf-field">
@@ -746,6 +901,8 @@ export function FrontmatterForm({
     essentials.push({
       id: "date",
       yamlKey: "date",
+      label: "Date",
+      required: true,
       filled: filledText(value.date),
       node: (
         <div className="fmf-field">
@@ -871,6 +1028,40 @@ export function FrontmatterForm({
     });
   }
 
+  // Public heading outline on the right of the post (h1-h6, tracks scroll).
+  if (kind === "post" && !isHidden("minimap")) {
+    visibility.push({
+      id: "minimap",
+      yamlKey: "minimap",
+      filled: value.minimap,
+      node: (
+        <SwitchRow
+          label="Minimap"
+          hint="Heading outline on the right of the post that follows scroll. Needs at least one heading."
+          checked={value.minimap}
+          onChange={(checked) => patch({ minimap: checked })}
+        />
+      ),
+    });
+  }
+
+  // Site nav scrolls away with the page on this post instead of staying pinned
+  if (kind === "post" && !isHidden("hideNav")) {
+    visibility.push({
+      id: "hide-nav",
+      yamlKey: "hideNav",
+      filled: value.hideNav,
+      node: (
+        <SwitchRow
+          label="Hide site nav"
+          hint="The nav shows at the top of the post but scrolls away with the page instead of staying pinned."
+          checked={value.hideNav}
+          onChange={(checked) => patch({ hideNav: checked })}
+        />
+      ),
+    });
+  }
+
   if (kind === "post" && !isHidden("audio")) {
     visibility.push({
       id: "audio",
@@ -879,7 +1070,7 @@ export function FrontmatterForm({
       node: (
         <SelectRow
           label="Listen audio"
-          hint="Save a published post to generate the reading. Off hides the player. On forces it. Site default is on."
+          hint="Save a published post to generate audio. Choose Site default to follow the audio setting in Site Config."
           value={
             value.audio === true ? "on" : value.audio === false ? "off" : "default"
           }
@@ -1002,6 +1193,7 @@ export function FrontmatterForm({
         hint="Used for cards, headers, and as the default share image"
         onChange={(next) => patch({ image: next })}
         onRequestUpload={onRequestImage ? () => onRequestImage("image") : undefined}
+          onRequestGallery={onRequestImage ? () => onRequestImage("image", "library") : undefined}
       />
     ),
   });
@@ -1021,6 +1213,7 @@ export function FrontmatterForm({
           disabled={value.noOgImage}
           onChange={(next) => patch({ ogImage: next })}
           onRequestUpload={onRequestImage ? () => onRequestImage("ogImage") : undefined}
+          onRequestGallery={onRequestImage ? () => onRequestImage("ogImage", "library") : undefined}
         />
       ),
     });
@@ -1111,19 +1304,15 @@ export function FrontmatterForm({
       yamlKey: "authorName",
       filled: filledText(value.authorName),
       node: (
-        <div className="fmf-field">
-          <label className="fmf-label" htmlFor={`fmf-author-name-${kind}`}>
-            Author name
-          </label>
-          <input
-            id={`fmf-author-name-${kind}`}
-            type="text"
-            className="fmf-input"
-            value={value.authorName}
-            onChange={(e) => patch({ authorName: e.target.value })}
-            placeholder="Jane Doe"
-          />
-        </div>
+        <AuthorNameField
+          value={value.authorName}
+          authors={authorSuggestions}
+          onChange={(authorName) => patch({ authorName })}
+          onSelect={(author) => patch({
+            authorName: author.name,
+            authorImage: value.authorImage.trim() ? value.authorImage : (author.image ?? ""),
+          })}
+        />
       ),
     });
   }
@@ -1139,9 +1328,10 @@ export function FrontmatterForm({
           label="Author image URL"
           value={value.authorImage}
           placeholder="Paste an avatar path or URL"
-          hint="Round avatar next to the author name. Upload or paste a URL."
+          hint="Round avatar next to the author name. Choose from the gallery, upload, or paste a URL."
           onChange={(next) => patch({ authorImage: next })}
           onRequestUpload={onRequestImage ? () => onRequestImage("authorImage") : undefined}
+          onRequestGallery={onRequestImage ? () => onRequestImage("authorImage", "library") : undefined}
         />
       ),
     });
@@ -1150,29 +1340,118 @@ export function FrontmatterForm({
   // Groups render in importance order. Taxonomy opens on posts because tags
   // drive the archive; Media, Author, and Advanced start closed so the
   // required fields stay above the fold on a phone.
-  const groups: Array<{ id: string; title: string; blocks: FieldBlock[]; defaultOpen: boolean }> = [
+  const groups: GroupDef[] = [
     { id: "essentials", title: "Essentials", blocks: essentials, defaultOpen: true },
     { id: "visibility", title: "Visibility", blocks: visibility, defaultOpen: true },
     { id: "taxonomy", title: "Taxonomy", blocks: taxonomy, defaultOpen: true },
     { id: "media", title: "Media", blocks: media, defaultOpen: false },
     { id: "author", title: "Author", blocks: author, defaultOpen: false },
     { id: "advanced", title: "Advanced", blocks: advanced, defaultOpen: false },
-  ];
+  ].filter((group) => group.blocks.length > 0);
+
+  const groupsOpen = useGroupsOpen(kind, groups);
+  const groupDrag = useDragSort(
+    `fmf-group-order:${kind}`,
+    groups.map((group) => group.id)
+  );
+  const groupsById = new Map(groups.map((group) => [group.id, group]));
+  const sectionRefs = useRef(new Map<string, HTMLElement>());
+
+  // Minimap preference persists per kind, like group open state
+  const [minimapOn, setMinimapOn] = useState(() => readStoredFlag(`fmf-minimap:${kind}`, false));
+  const toggleMinimap = () => {
+    setMinimapOn((prev) => {
+      writeStoredFlag(`fmf-minimap:${kind}`, !prev);
+      return !prev;
+    });
+  };
+
+  const allOpen = groups.every((group) => groupsOpen.isOpen(group.id, group.defaultOpen));
+
+  // Open the group, then scroll its card into view once it has rendered
+  const jumpToGroup = (id: string) => {
+    groupsOpen.set(id, true);
+    requestAnimationFrame(() => {
+      sectionRefs.current.get(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const missingRequired = groups
+    .flatMap((group) => group.blocks)
+    .filter((block) => block.required && !block.filled)
+    .map((block) => block.label ?? block.yamlKey);
 
   return (
     <div className="fmf">
-      {groups
-        .filter((group) => group.blocks.length > 0)
-        .map((group) => (
+      {/* Toolbar: required readout on the left, view controls on the right */}
+      <div className="fmf-toolbar">
+        <span
+          className={`fmf-required-readout ${missingRequired.length === 0 ? "ok" : ""}`}
+          role="status">
+          {missingRequired.length === 0
+            ? "Required fields set"
+            : `Missing: ${missingRequired.join(", ")}`}
+        </span>
+        <div className="fmf-toolbar-actions">
+          <Tip
+            content={
+              minimapOn
+                ? "Hide the section outline"
+                : "Show a compact outline of every section. Click a chip to jump to it."
+            }>
+            <button
+              type="button"
+              className={`fmf-tool-btn ${minimapOn ? "active" : ""}`}
+              onClick={toggleMinimap}
+              aria-pressed={minimapOn}>
+              <MapTrifold size={14} weight={minimapOn ? "fill" : "regular"} />
+              <span>Minimap</span>
+            </button>
+          </Tip>
+          <Tip content={allOpen ? "Collapse every section" : "Expand every section"}>
+            <button
+              type="button"
+              className="fmf-tool-btn"
+              onClick={() => groupsOpen.setAll(!allOpen)}>
+              {allOpen ? (
+                <ArrowsInLineVertical size={14} />
+              ) : (
+                <ArrowsOutLineVertical size={14} />
+              )}
+              <span>{allOpen ? "Collapse all" : "Expand all"}</span>
+            </button>
+          </Tip>
+        </div>
+      </div>
+
+      {minimapOn && (
+        <FrontmatterMinimap groups={groups} isOpen={groupsOpen.isOpen} onJump={jumpToGroup} />
+      )}
+
+      {groupDrag.sortedIds.map((id) => {
+        const group = groupsById.get(id);
+        if (!group) {
+          return null;
+        }
+        const open = groupsOpen.isOpen(group.id, group.defaultOpen);
+        return (
           <FieldGroup
             key={group.id}
-            title={group.title}
-            blocks={group.blocks}
-            defaultOpen={group.defaultOpen}
-            stateKey={`fmf-group:${kind}:${group.id}`}
+            group={group}
+            open={open}
+            onToggle={() => groupsOpen.set(group.id, !open)}
             orderKey={`fmf-order:${kind}:${group.id}`}
+            drag={groupDrag}
+            sectionRef={(node) => {
+              if (node) {
+                sectionRefs.current.set(group.id, node);
+              } else {
+                sectionRefs.current.delete(group.id);
+              }
+            }}
           />
-        ))}
+        );
+      })}
 
       <section className={`fmf-group ${rawOpen ? "open" : ""}`}>
         <button

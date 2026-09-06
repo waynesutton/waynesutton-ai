@@ -1,8 +1,16 @@
-import { internalAction, internalQuery } from "../_generated/server";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { components, internal } from "../_generated/api";
 import { v } from "convex/values";
-import { buildProjectsMarkdown } from "../virtualFs";
+import {
+  buildProjectsMarkdown,
+  buildSkillsMarkdown,
+  getPublishedSkillDirectory,
+} from "../virtualFs";
 
 /**
  * Auto discovery sync: when the dashboard toggle is on, publishing a public
@@ -10,7 +18,8 @@ import { buildProjectsMarkdown } from "../virtualFs";
  * cached llms.txt / agents.md / llms-full.txt served at the site root.
  * Unpublishing, unlisting, renaming, or deleting archives the old path so
  * discovery files never advertise a dead URL. Project changes refresh a single
- * /projects entry whose full content mirrors the VFS /projects.md file.
+ * /projects entry whose full content mirrors the VFS /projects.md file, and
+ * skill changes do the same for /skills.
  * The CLI sync mutations batch all their changes into one event per run.
  */
 
@@ -25,6 +34,7 @@ type DiscoverySyncEvent = {
   publish?: Array<DiscoveryPublishEntry>;
   removePaths?: Array<string>;
   refreshProjects?: boolean;
+  refreshSkills?: boolean;
 };
 
 /** Post entry shape shared by dashboard, drafts, and CLI sync callers. */
@@ -67,7 +77,8 @@ export async function scheduleDiscoverySyncIfEnabled(
   const hasWork =
     (event.publish?.length ?? 0) > 0 ||
     (event.removePaths?.length ?? 0) > 0 ||
-    event.refreshProjects === true;
+    event.refreshProjects === true ||
+    event.refreshSkills === true;
   if (!hasWork) return;
   const settings = await ctx.db
     .query("agentReadySettings")
@@ -114,47 +125,140 @@ export const syncDiscovery = internalAction({
     ),
     removePaths: v.optional(v.array(v.string())),
     refreshProjects: v.optional(v.boolean()),
+    refreshSkills: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Archive first so a slug rename ends with only the new path published.
-    for (const path of args.removePaths ?? []) {
-      await ctx.runMutation(components.agentReady.content.archivePage, {
-        path,
+    // Each batch resolves current content and mirrors it transactionally. Old
+    // jobs cannot restore hidden content; CLI syncs do not create giant writes.
+    const paths = [
+      ...new Set([
+        ...(args.removePaths ?? []),
+        ...(args.publish ?? []).map((entry) => entry.path),
+      ]),
+    ];
+    for (let offset = 0; offset < paths.length; offset += 25) {
+      await ctx.runMutation(internal.agentReady.autoSync.reconcilePaths, {
+        paths: paths.slice(offset, offset + 25),
       });
     }
-    for (const entry of args.publish ?? []) {
-      await ctx.runMutation(components.agentReady.content.upsertPage, {
-        title: entry.title,
-        path: entry.path,
-        description: entry.description,
-        section: entry.section ?? "Posts",
-        status: "published",
-      });
-    }
-    // Projects share one /projects entry; fullContent carries the whole index
-    // so llms-full.txt lists every shipped project without individual URLs.
     if (args.refreshProjects) {
-      const projects: { count: number; markdown: string } = await ctx.runQuery(
-        internal.agentReady.autoSync.projectsForDiscovery,
-        {},
-      );
-      if (projects.count > 0) {
+      await ctx.runMutation(internal.agentReady.autoSync.reconcileProjects, {});
+    }
+    if (args.refreshSkills) {
+      await ctx.runMutation(internal.agentReady.autoSync.reconcileSkills, {});
+    }
+    await ctx.runAction(components.agentReady.content.regenerateAll, {});
+    return null;
+  },
+});
+
+// The component limits page bodies to 50,000 characters. Keep the complete
+// source discoverable when a long article needs a bounded preview.
+export function discoveryBody(content: string, slug: string): string {
+  const suffix = `\n\n[Read the complete markdown](/raw/${slug}.md)`;
+  return content.length <= 50_000
+    ? content
+    : content.slice(0, 50_000 - suffix.length) + suffix;
+}
+
+export const reconcilePaths = internalMutation({
+  args: { paths: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { paths }) => {
+    for (const path of new Set(paths)) {
+      const slug = path.replace(/^\//, "");
+      const [post, page] = await Promise.all([
+        ctx.db
+          .query("posts")
+          .withIndex("by_slug", (q) => q.eq("slug", slug))
+          .unique(),
+        ctx.db
+          .query("pages")
+          .withIndex("by_slug", (q) => q.eq("slug", slug))
+          .unique(),
+      ]);
+      // Match the public route: a published page takes precedence over a post,
+      // even when that page is unlisted and must stay out of discovery.
+      const document = page?.published ? page : post?.published ? post : null;
+      if (document && !document.unlisted && !document.demo) {
+        const entry = page?.published
+          ? pageDiscoveryEntry(page)
+          : postDiscoveryEntry(post!);
         await ctx.runMutation(components.agentReady.content.upsertPage, {
-          title: "Projects",
-          path: "/projects",
-          description: `Index of ${projects.count} shipped projects with descriptions and links`,
-          section: "Projects",
-          fullContent: projects.markdown,
+          ...entry,
+          fullContent: discoveryBody(document.content, slug),
           status: "published",
         });
       } else {
         await ctx.runMutation(components.agentReady.content.archivePage, {
-          path: "/projects",
+          path,
         });
       }
     }
-    await ctx.runAction(components.agentReady.content.regenerateAll, {});
+    return null;
+  },
+});
+
+export const reconcileProjects = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .take(PROJECTS_QUERY_LIMIT);
+    if (projects.length > 0) {
+      const markdown = buildProjectsMarkdown(projects);
+      const suffix =
+        '\n\nRead the complete index using POST /vfs/exec with {"command":"cat /projects.md"}.';
+      await ctx.runMutation(components.agentReady.content.upsertPage, {
+        title: "Projects",
+        path: "/projects",
+        section: "Projects",
+        description: `Index of ${projects.length} shipped projects with descriptions and links`,
+        fullContent:
+          markdown.length <= 50_000
+            ? markdown
+            : markdown.slice(0, 50_000 - suffix.length) + suffix,
+        status: "published",
+      });
+    } else {
+      await ctx.runMutation(components.agentReady.content.archivePage, {
+        path: "/projects",
+      });
+    }
+    return null;
+  },
+});
+
+// Same shape as projects: one /skills entry carrying the full VFS /skills.md
+// markdown, archived when nothing is published.
+export const reconcileSkills = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const { sections, skills } = await getPublishedSkillDirectory(ctx);
+    if (skills.length > 0) {
+      const markdown = buildSkillsMarkdown(sections, skills);
+      const suffix =
+        '\n\nRead the complete directory using POST /vfs/exec with {"command":"cat /skills.md"}.';
+      await ctx.runMutation(components.agentReady.content.upsertPage, {
+        title: "Skills",
+        path: "/skills",
+        section: "Skills",
+        description: `Directory of ${skills.length} agent skills with install commands and links`,
+        fullContent:
+          markdown.length <= 50_000
+            ? markdown
+            : markdown.slice(0, 50_000 - suffix.length) + suffix,
+        status: "published",
+      });
+    } else {
+      await ctx.runMutation(components.agentReady.content.archivePage, {
+        path: "/skills",
+      });
+    }
     return null;
   },
 });

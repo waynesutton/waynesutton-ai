@@ -7,17 +7,20 @@ import {
   requireDashboardAdminAction,
 } from "./dashboardAuth";
 
-// Allowed image MIME types
+// Allowed media MIME types
 const ALLOWED_TYPES = [
   "image/png",
   "image/jpeg",
   "image/gif",
   "image/webp",
   "image/svg+xml",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
 ];
 
-// Max file size in bytes (10MB)
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_IMAGE_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_VIDEO_FILE_SIZE = 50 * 1024 * 1024;
 
 function resolveStoredContentType(contentType: string, filename: string): string {
   if (contentType && ALLOWED_TYPES.includes(contentType)) return contentType;
@@ -27,6 +30,9 @@ function resolveStoredContentType(contentType: string, filename: string): string
   if (name.endsWith(".webp")) return "image/webp";
   if (name.endsWith(".png")) return "image/png";
   if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+  if (name.endsWith(".mp4") || name.endsWith(".m4v")) return "video/mp4";
+  if (name.endsWith(".webm")) return "video/webm";
+  if (name.endsWith(".mov")) return "video/quicktime";
   return contentType;
 }
 
@@ -82,10 +88,13 @@ export const commitFile = mutation({
       );
     }
 
-    // Validate file size
-    if (args.size > MAX_FILE_SIZE) {
+    // Validate file size by media kind.
+    const maxFileSize = contentType.startsWith("video/")
+      ? MAX_VIDEO_FILE_SIZE
+      : MAX_IMAGE_FILE_SIZE;
+    if (args.size > maxFileSize) {
       throw new ConvexError(
-        `File too large: ${(args.size / 1024 / 1024).toFixed(2)}MB. Max: 10MB`
+        `File too large: ${(args.size / 1024 / 1024).toFixed(2)}MB. Max: ${Math.round(maxFileSize / 1024 / 1024)}MB`
       );
     }
 

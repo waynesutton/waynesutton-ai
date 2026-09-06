@@ -1,5 +1,6 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
+import { rateLimiter } from "./rateLimits";
 
 const MAX_CONTENT_LENGTH = 50_000; // 50KB
 const MAX_DEMO_ITEMS_PER_TABLE = 50; // Cap total demo items to prevent abuse
@@ -87,6 +88,7 @@ export const createDemoPost = mutation({
   args: { post: demoPostValidator },
   returns: v.id("posts"),
   handler: async (ctx, args) => {
+    await rateLimiter.limit(ctx, "demoWrite", { throws: true });
     const slug = ensureDemoSlug(args.post.slug);
     const content = validateDemoContent(args.post.content);
     const description = sanitizeContent(args.post.description);
@@ -138,6 +140,7 @@ export const createDemoPage = mutation({
   args: { page: demoPageValidator },
   returns: v.id("pages"),
   handler: async (ctx, args) => {
+    await rateLimiter.limit(ctx, "demoWrite", { throws: true });
     const slug = ensureDemoSlug(args.page.slug);
     const content = validateDemoContent(args.page.content);
     const title = sanitizeContent(args.page.title);
@@ -197,6 +200,7 @@ export const updateDemoPost = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await rateLimiter.limit(ctx, "demoWrite", { throws: true });
     const existing = await ctx.db.get(args.id);
     if (!existing) {
       throw new ConvexError("Post not found");
@@ -247,6 +251,7 @@ export const updateDemoPage = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await rateLimiter.limit(ctx, "demoWrite", { throws: true });
     const existing = await ctx.db.get(args.id);
     if (!existing) {
       throw new ConvexError("Page not found");
@@ -281,6 +286,7 @@ export const deleteDemoPost = mutation({
   args: { id: v.id("posts") },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await rateLimiter.limit(ctx, "demoWrite", { throws: true });
     const existing = await ctx.db.get(args.id);
     if (!existing) {
       throw new ConvexError("Post not found");
@@ -297,6 +303,7 @@ export const deleteDemoPage = mutation({
   args: { id: v.id("pages") },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await rateLimiter.limit(ctx, "demoWrite", { throws: true });
     const existing = await ctx.db.get(args.id);
     if (!existing) {
       throw new ConvexError("Page not found");
@@ -310,6 +317,12 @@ export const deleteDemoPage = mutation({
 });
 
 const DEMO_LIST_LIMIT = 500;
+
+// Anonymous demo callers may see demo rows and anything already public.
+// Unpublished dashboard or sync drafts stay hidden, body included.
+function visibleInDemo(row: { source?: string; published: boolean }): boolean {
+  return row.source === "demo" || row.published;
+}
 
 // Public list queries for demo mode (no auth required, mirrors admin listAll shape)
 export const listAllPosts = query({
@@ -337,6 +350,7 @@ export const listAllPosts = query({
       authorImage: v.optional(v.string()),
       unlisted: v.optional(v.boolean()),
       aiWritten: v.optional(v.boolean()),
+      minimap: v.optional(v.boolean()),
       source: v.optional(
         v.union(v.literal("dashboard"), v.literal("sync"), v.literal("demo")),
       ),
@@ -344,7 +358,9 @@ export const listAllPosts = query({
     }),
   ),
   handler: async (ctx) => {
-    const posts = await ctx.db.query("posts").take(DEMO_LIST_LIMIT);
+    const posts = (await ctx.db.query("posts").take(DEMO_LIST_LIMIT)).filter(
+      visibleInDemo,
+    );
     const sorted = posts.sort((a, b) => {
       if (a.date > b.date) return -1;
       if (a.date < b.date) return 1;
@@ -372,6 +388,7 @@ export const listAllPosts = query({
       authorImage: p.authorImage,
       unlisted: p.unlisted,
       aiWritten: p.aiWritten,
+      minimap: p.minimap,
       source: p.source,
       demo: p.demo,
     }));
@@ -406,7 +423,9 @@ export const listAllPages = query({
     }),
   ),
   handler: async (ctx) => {
-    const pages = await ctx.db.query("pages").take(DEMO_LIST_LIMIT);
+    const pages = (await ctx.db.query("pages").take(DEMO_LIST_LIMIT)).filter(
+      visibleInDemo,
+    );
     const sorted = pages.sort((a, b) => {
       const orderA = a.order ?? 999;
       const orderB = b.order ?? 999;

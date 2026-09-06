@@ -8,6 +8,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
 import { rateLimiter } from "./rateLimits";
+import { secretEquals } from "./lib/secretCompare";
 
 const NEWSLETTER_ADMIN_QUERY_LIMIT = 2000;
 
@@ -119,8 +120,8 @@ export const unsubscribe = mutation({
       return { success: false, message: "Email not found." };
     }
 
-    // Verify token matches
-    if (subscriber.unsubscribeToken !== args.token) {
+    // Verify token matches (constant time; the token is the only gate here)
+    if (!secretEquals(subscriber.unsubscribeToken, args.token)) {
       return { success: false, message: "Invalid unsubscribe link." };
     }
 

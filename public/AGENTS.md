@@ -36,10 +36,10 @@ Developer Community Lead at Convex, tech event organizer, startup ecosystem buil
 - **Site Name**: Wayne Sutton
 - **Site Title**: Developer Community Builder
 - **Site URL**: https://waynesutton.ai
-- **Total Posts**: 6
+- **Total Posts**: 11
 - **Total Pages**: 1
-- **Latest Post**: 2026-08-17
-- **Last Updated**: 2026-09-04T09:00:31.098Z
+- **Latest Post**: 2026-08-22
+- **Last Updated**: 2026-09-04T09:16:32.240Z
 
 ## Deployments
 

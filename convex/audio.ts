@@ -60,7 +60,7 @@ export async function schedulePostAudioIfNeeded(
 
   const existingPending = await ctx.db
     .query("audioJobs")
-    .withIndex("by_post_and_hash", (q) =>
+    .withIndex("by_postid_and_contenthash", (q) =>
       q.eq("postId", postId).eq("contentHash", contentHash),
     )
     .take(4);

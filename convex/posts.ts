@@ -1,3 +1,4 @@
+import { queueNewsletterPublication } from "./lib/newsletterAutomation";
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
@@ -5,6 +6,7 @@ import { requireDashboardAdmin } from "./dashboardAuth";
 import { schedulePostAudioIfNeeded } from "./audio";
 import { audioVoiceValidator } from "./audioDefaults";
 import { resolveReadTime } from "./lib/readTime";
+import { assertSyncCaller } from "./lib/syncAuth";
 import {
   scheduleDiscoverySyncIfEnabled,
   postDiscoveryEntry,
@@ -78,6 +80,8 @@ export const listAll = query({
       authorImage: v.optional(v.string()),
       unlisted: v.optional(v.boolean()),
       aiWritten: v.optional(v.boolean()),
+      minimap: v.optional(v.boolean()),
+      hideNav: v.optional(v.boolean()),
       audio: v.optional(v.boolean()),
       audioVoice: v.optional(audioVoiceValidator),
       source: v.optional(v.union(v.literal("dashboard"), v.literal("sync"), v.literal("demo"))),
@@ -115,6 +119,8 @@ export const listAll = query({
       authorImage: post.authorImage,
       unlisted: post.unlisted,
       aiWritten: post.aiWritten,
+      minimap: post.minimap,
+      hideNav: post.hideNav,
       audio: post.audio,
       audioVoice: post.audioVoice,
       source: post.source,
@@ -324,6 +330,8 @@ export const getPostBySlug = query({
       contactForm: v.optional(v.boolean()),
       unlisted: v.optional(v.boolean()),
       aiWritten: v.optional(v.boolean()),
+      minimap: v.optional(v.boolean()),
+      hideNav: v.optional(v.boolean()),
       docsSection: v.optional(v.boolean()),
       slides: v.optional(v.boolean()),
       audio: v.optional(v.boolean()),
@@ -377,6 +385,8 @@ export const getPostBySlug = query({
       contactForm: post.contactForm,
       unlisted: post.unlisted,
       aiWritten: post.aiWritten,
+      minimap: post.minimap,
+      hideNav: post.hideNav,
       docsSection: post.docsSection,
       slides: post.slides,
       audio: post.audio,
@@ -498,6 +508,8 @@ export const syncPosts = internalMutation({
         contactForm: v.optional(v.boolean()),
         unlisted: v.optional(v.boolean()),
         aiWritten: v.optional(v.boolean()),
+        minimap: v.optional(v.boolean()),
+        hideNav: v.optional(v.boolean()),
         audio: v.optional(v.boolean()),
         audioVoice: v.optional(audioVoiceValidator),
         docsSection: v.optional(v.boolean()),
@@ -506,6 +518,7 @@ export const syncPosts = internalMutation({
         docsSectionGroupOrder: v.optional(v.number()),
         docsSectionGroupIcon: v.optional(v.string()),
         docsLanding: v.optional(v.boolean()),
+        slides: v.optional(v.boolean()),
       }),
     ),
   },
@@ -560,6 +573,8 @@ export const syncPosts = internalMutation({
           contactForm: post.contactForm,
           unlisted: post.unlisted,
           aiWritten: post.aiWritten,
+          minimap: post.minimap,
+          hideNav: post.hideNav,
           audio: post.audio,
           audioVoice: post.audioVoice,
           docsSection: post.docsSection,
@@ -568,8 +583,12 @@ export const syncPosts = internalMutation({
           docsSectionGroupOrder: post.docsSectionGroupOrder,
           docsSectionGroupIcon: post.docsSectionGroupIcon,
           docsLanding: post.docsLanding,
+          slides: post.slides,
           lastSyncedAt: now,
         });
+        if (post.published && !post.unlisted && (!existing.published || existing.unlisted)) {
+          await queueNewsletterPublication(ctx, existing._id);
+        }
         if (post.published) {
           await schedulePostAudioIfNeeded(ctx, existing._id);
         }
@@ -580,6 +599,7 @@ export const syncPosts = internalMutation({
           ...post,
           lastSyncedAt: now,
         });
+        if (post.published && !post.unlisted) await queueNewsletterPublication(ctx, postId);
         if (post.published) {
           await schedulePostAudioIfNeeded(ctx, postId);
         }
@@ -599,10 +619,12 @@ export const syncPosts = internalMutation({
   },
 });
 
-// Public mutation wrapper for sync script (no auth required for build-time sync)
-// Respects source field: only syncs posts where source !== "dashboard"
+// Public mutation wrapper for the CLI sync script. Gated by assertSyncCaller:
+// dashboard admin session, matching SYNC_SECRET, or open when the deployment
+// has no SYNC_SECRET configured. Only touches posts where source !== "dashboard".
 export const syncPostsPublic = mutation({
   args: {
+    syncSecret: v.optional(v.string()),
     posts: v.array(
       v.object({
         slug: v.string(),
@@ -633,6 +655,8 @@ export const syncPostsPublic = mutation({
         contactForm: v.optional(v.boolean()),
         unlisted: v.optional(v.boolean()),
         aiWritten: v.optional(v.boolean()),
+        minimap: v.optional(v.boolean()),
+        hideNav: v.optional(v.boolean()),
         audio: v.optional(v.boolean()),
         audioVoice: v.optional(audioVoiceValidator),
         docsSection: v.optional(v.boolean()),
@@ -652,7 +676,8 @@ export const syncPostsPublic = mutation({
     skipped: v.number(),
   }),
   handler: async (ctx, args) => {
-    await ctx.auth.getUserIdentity();
+    const identity = await ctx.auth.getUserIdentity();
+    await assertSyncCaller(ctx, identity, args.syncSecret);
     let created = 0;
     let updated = 0;
     let deleted = 0;
@@ -722,6 +747,8 @@ export const syncPostsPublic = mutation({
           contactForm: post.contactForm,
           unlisted: post.unlisted,
           aiWritten: post.aiWritten,
+          minimap: post.minimap,
+          hideNav: post.hideNav,
           audio: post.audio,
           audioVoice: post.audioVoice,
           docsSection: post.docsSection,
@@ -730,9 +757,13 @@ export const syncPostsPublic = mutation({
           docsSectionGroupOrder: post.docsSectionGroupOrder,
           docsSectionGroupIcon: post.docsSectionGroupIcon,
           docsLanding: post.docsLanding,
+          slides: post.slides,
           source: "sync",
           lastSyncedAt: now,
         });
+        if (post.published && !post.unlisted && (!existing.published || existing.unlisted)) {
+          await queueNewsletterPublication(ctx, existing._id);
+        }
         if (post.published) {
           await schedulePostAudioIfNeeded(ctx, existing._id);
         }
@@ -744,6 +775,7 @@ export const syncPostsPublic = mutation({
           source: "sync",
           lastSyncedAt: now,
         });
+        if (post.published && !post.unlisted) await queueNewsletterPublication(ctx, postId);
         if (post.published) {
           await schedulePostAudioIfNeeded(ctx, postId);
         }

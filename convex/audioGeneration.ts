@@ -10,6 +10,7 @@ import {
   ttsVoiceId,
   type AudioVoice,
 } from "./lib/audioText";
+import { resolveAiProvider } from "./lib/aiProviderResolver";
 
 // OpenAI returns raw PCM as 24kHz, 16-bit signed little endian, mono.
 const PCM_SAMPLE_RATE = 24000;
@@ -69,12 +70,9 @@ function speechDurationSeconds(pcm: Uint8Array, sampleRate: number): number {
 async function synthesizeWithOpenAI(
   text: string,
   voice: AudioVoice,
+  apiKey: string,
+  model: string,
 ): Promise<GeneratedSpeech> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY not configured in Convex environment");
-  }
-
   const chunks = splitSpeechChunks(text);
   if (chunks.length === 0) {
     throw new Error("No speakable text");
@@ -86,7 +84,7 @@ async function synthesizeWithOpenAI(
   // PCM chunks concatenate cleanly, so long posts stay a single seamless file.
   for (const chunk of chunks) {
     const response = await openai.audio.speech.create({
-      model: TTS_MODEL,
+      model,
       voice: ttsVoiceId(voice),
       input: chunk,
       response_format: "pcm",
@@ -126,8 +124,23 @@ export const generateAudio = internalAction({
       return null;
     }
 
+    // Dashboard key and speech model overrides, then env var and TTS_MODEL
+    const provider = await resolveAiProvider(ctx, "OPENAI_API_KEY", "tts", TTS_MODEL);
+    if (!provider.apiKey) {
+      await ctx.runMutation(internal.audio.failAudioJob, {
+        jobId: args.jobId,
+        error: "OPENAI_API_KEY not configured in Convex environment",
+      });
+      return null;
+    }
+
     try {
-      const speech = await synthesizeWithOpenAI(spoken, job.voice);
+      const speech = await synthesizeWithOpenAI(
+        spoken,
+        job.voice,
+        provider.apiKey,
+        provider.model,
+      );
       const wav = encodeWav(speech.pcm, speech.sampleRate);
       const storageId = await ctx.storage.store(
         new Blob([wav], { type: "audio/wav" }),

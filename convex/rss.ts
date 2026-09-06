@@ -8,6 +8,12 @@ const SITE_TITLE = "Wayne Sutton";
 const SITE_DESCRIPTION =
   "Wayne Sutton writes about developer community, Convex, AI, startups, and the craft of building useful software.";
 
+// Post bodies go into CDATA unescaped. A literal "]]>" inside the markdown
+// would close the section early, so split it across two CDATA blocks.
+function cdata(text: string): string {
+  return `<![CDATA[${text.replace(/\]\]>/g, "]]]]><![CDATA[>")}]]>`;
+}
+
 // Escape XML special characters
 function escapeXml(text: string): string {
   return text
@@ -82,7 +88,7 @@ function generateFullRssXml(
       <guid>${url}</guid>
       <pubDate>${pubDate}</pubDate>
       <description>${escapeXml(post.description)}</description>
-      <content:encoded><![CDATA[${post.content}]]></content:encoded>
+      <content:encoded>${cdata(post.content)}</content:encoded>
       ${post.tags.map((tag) => `<category>${escapeXml(tag)}</category>`).join("\n      ")}
     </item>`;
     })

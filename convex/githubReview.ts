@@ -2,17 +2,10 @@ import { action, internalAction } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireDashboardAdminAction } from "./dashboardAuth";
+import { resolveVendorKeys } from "./lib/vendorKeyResolver";
 
 // GitHub review surface (PRD phase 5): drafts can be reviewed as pull
 // requests against a content repo. Merging the PR publishes the post.
-
-function configuredValue(name: string): string | null {
-  const value = process.env[name];
-  if (!value || value.trim().length === 0 || value.trim() === "unset") {
-    return null;
-  }
-  return value.trim();
-}
 
 const GITHUB_API = "https://api.github.com";
 
@@ -74,8 +67,9 @@ export const openReviewPr = action({
   handler: async (ctx, args) => {
     await requireDashboardAdminAction(ctx);
 
-    const token = configuredValue("GITHUB_TOKEN");
-    const repo = configuredValue("GITHUB_REVIEW_REPO");
+    // Dashboard BYOK overrides first, then env vars, in one query
+    const { GITHUB_TOKEN: token, GITHUB_REVIEW_REPO: repo } =
+      await resolveVendorKeys(ctx, ["GITHUB_TOKEN", "GITHUB_REVIEW_REPO"]);
     if (!token || !repo) {
       throw new ConvexError(
         "GITHUB_TOKEN and GITHUB_REVIEW_REPO must be configured to open review PRs. See prds/finish-updating-guide.md.",
@@ -112,7 +106,9 @@ export const openReviewPr = action({
       `/repos/${repo}/git/ref/heads/${defaultBranch}`,
     );
     if (!refResponse.ok) {
-      throw new ConvexError(`Could not read ${defaultBranch} ref (${refResponse.status})`);
+      throw new ConvexError(
+        `Could not read ${defaultBranch} ref (${refResponse.status})`,
+      );
     }
     const refData = (await refResponse.json()) as { object: { sha: string } };
 
@@ -124,7 +120,9 @@ export const openReviewPr = action({
       { ref: `refs/heads/${branch}`, sha: refData.object.sha },
     );
     if (!branchResponse.ok && branchResponse.status !== 422) {
-      throw new ConvexError(`Branch creation failed (${branchResponse.status})`);
+      throw new ConvexError(
+        `Branch creation failed (${branchResponse.status})`,
+      );
     }
 
     // 3. Commit the post file to the branch
@@ -145,16 +143,21 @@ export const openReviewPr = action({
     }
 
     // 4. Open the pull request
-    const prResponse = await githubRequest(token, "POST", `/repos/${repo}/pulls`, {
-      title: `Draft: ${title}`,
-      head: branch,
-      base: defaultBranch,
-      body: [
-        `Review draft \`${String(args.draftId)}\` from the blog pipeline.`,
-        "",
-        "Merge to publish. Close without merging to reject.",
-      ].join("\n"),
-    });
+    const prResponse = await githubRequest(
+      token,
+      "POST",
+      `/repos/${repo}/pulls`,
+      {
+        title: `Draft: ${title}`,
+        head: branch,
+        base: defaultBranch,
+        body: [
+          `Review draft \`${String(args.draftId)}\` from the blog pipeline.`,
+          "",
+          "Merge to publish. Close without merging to reject.",
+        ].join("\n"),
+      },
+    );
     if (!prResponse.ok) {
       throw new ConvexError(`PR creation failed (${prResponse.status})`);
     }
@@ -203,8 +206,9 @@ export const handlePrClosed = internalAction({
     }
 
     // Pull the merged file content so PR edits carry into the published post
-    const token = configuredValue("GITHUB_TOKEN");
-    const repo = configuredValue("GITHUB_REVIEW_REPO");
+    // Dashboard BYOK overrides first, then env vars, in one query
+    const { GITHUB_TOKEN: token, GITHUB_REVIEW_REPO: repo } =
+      await resolveVendorKeys(ctx, ["GITHUB_TOKEN", "GITHUB_REVIEW_REPO"]);
     let content = draft.postBody ?? draft.rawInput;
     if (token && repo) {
       const slug = args.branchRef

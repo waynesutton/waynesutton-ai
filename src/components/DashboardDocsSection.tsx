@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
   PenNib,
@@ -13,14 +13,19 @@ import {
   XLogo,
   Gear,
   Database,
+  GitBranch,
   Copy,
   Check,
+  Code,
   PaperPlaneTilt,
   ArrowLeft,
   MagnifyingGlass,
+  Browser,
+  PuzzlePiece,
 } from "@phosphor-icons/react";
 import BlogPost from "./BlogPost";
 import { DOCS_TOPICS } from "./dashboard/docsTopics";
+import { interpolateDocsContent } from "../utils/deployments";
 
 const DOCS_TOPIC_STORAGE = "dashboard-docs-topic";
 
@@ -31,8 +36,10 @@ const TOPIC_ICONS: Record<string, React.ReactNode> = {
   overview: <BookOpen size={16} />,
   publish: <PaperPlaneTilt size={16} />,
   writing: <PenNib size={16} />,
+  embeds: <Code size={16} />,
   agents: <Robot size={16} />,
   mcp: <Plug size={16} />,
+  webmcp: <Browser size={16} />,
   "api-keys": <Key size={16} />,
   newsletter: <EnvelopeSimple size={16} />,
   "ai-features": <Sparkle size={16} />,
@@ -41,23 +48,25 @@ const TOPIC_ICONS: Record<string, React.ReactNode> = {
   themes: <PaintBrush size={16} />,
   config: <Gear size={16} />,
   "site-ops": <Database size={16} />,
+  skills: <PuzzlePiece size={16} />,
+  "git-guide": <GitBranch size={16} />,
   deploying: <RocketLaunch size={16} />,
 };
 
 // Sidebar grouping. Lives here rather than in docsTopics.ts so the topic file
 // stays pure content. Any topic missing from a group still shows, under "More".
 const TOPIC_GROUPS: Array<{ title: string; topicIds: Array<string> }> = [
-  { title: "Getting started", topicIds: ["overview", "writing"] },
+  { title: "Getting started", topicIds: ["overview", "writing", "embeds", "skills"] },
   {
     title: "Agents and automation",
-    topicIds: ["publish", "agents", "mcp", "agent-ready"],
+    topicIds: ["publish", "agents", "mcp", "webmcp", "agent-ready"],
   },
   {
     title: "Integrations",
     topicIds: ["api-keys", "newsletter", "x-integration", "ai-features"],
   },
   { title: "Appearance", topicIds: ["themes", "config"] },
-  { title: "Operations", topicIds: ["site-ops", "deploying"] },
+  { title: "Operations", topicIds: ["git-guide", "site-ops", "deploying"] },
 ];
 
 function readStoredTopic(): string {
@@ -91,15 +100,31 @@ function writeTopicToUrl(id: string): void {
   }
 }
 
-export default function DashboardDocsSection() {
+interface DashboardDocsSectionProps {
+  /** Topic id pushed from the dashboard search palette */
+  requestedTopic?: string | null;
+  /** Called once the requested topic has been opened */
+  onTopicConsumed?: () => void;
+}
+
+export default function DashboardDocsSection({
+  requestedTopic = null,
+  onTopicConsumed,
+}: DashboardDocsSectionProps = {}) {
   const [activeTopic, setActiveTopic] = useState<string>(readStoredTopic);
   const [copied, setCopied] = useState(false);
   const [filter, setFilter] = useState("");
   // On phones the sidebar and the article share the screen, so the article only
   // shows once a topic is picked. Desktop always shows both.
   const [showContentOnMobile, setShowContentOnMobile] = useState(false);
+  // The article pane holds its own scroll, so a new topic has to start at the top
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   const topic = DOCS_TOPICS.find((t) => t.id === activeTopic) ?? DOCS_TOPICS[0];
+  const renderedContent = useMemo(
+    () => interpolateDocsContent(topic.content),
+    [topic.content],
+  );
 
   // Groups resolved against the real topic list, with anything ungrouped
   // appended so adding a topic can never make it unreachable
@@ -134,6 +159,7 @@ export default function DashboardDocsSection() {
     setActiveTopic(id);
     setCopied(false);
     setShowContentOnMobile(true);
+    contentRef.current?.scrollTo({ top: 0 });
     writeTopicToUrl(id);
     try {
       sessionStorage.setItem(DOCS_TOPIC_STORAGE, id);
@@ -141,6 +167,14 @@ export default function DashboardDocsSection() {
       // ignore
     }
   }, []);
+
+  // Search results deep link into a topic even when docs is already mounted
+  useEffect(() => {
+    if (requestedTopic && DOCS_TOPICS.some((t) => t.id === requestedTopic)) {
+      selectTopic(requestedTopic);
+      onTopicConsumed?.();
+    }
+  }, [requestedTopic, selectTopic, onTopicConsumed]);
 
   // A linked `?docs=` param should open its article straight away on a phone
   useEffect(() => {
@@ -166,7 +200,7 @@ export default function DashboardDocsSection() {
 
   const copyMarkdown = async () => {
     try {
-      await navigator.clipboard.writeText(topic.content);
+      await navigator.clipboard.writeText(renderedContent);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -192,31 +226,34 @@ export default function DashboardDocsSection() {
           />
         </div>
 
-        {visibleGroups.length === 0 ? (
-          <p className="dashboard-docs-empty">No topics match that filter.</p>
-        ) : (
-          visibleGroups.map((group) => (
-            <div key={group.title} className="dashboard-docs-group">
-              <p className="dashboard-docs-group-title">{group.title}</p>
-              <ul className="dashboard-docs-group-list">
-                {group.topics.map((t) => (
-                  <li key={t.id}>
-                    <button
-                      type="button"
-                      className={`dashboard-docs-nav-item ${
-                        t.id === activeTopic ? "active" : ""
-                      }`}
-                      onClick={() => selectTopic(t.id)}
-                      aria-current={t.id === activeTopic ? "page" : undefined}>
-                      {TOPIC_ICONS[t.id]}
-                      <span>{t.title}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
-        )}
+        {/* Own scroll region so the filter field above it stays in place */}
+        <div className="dashboard-docs-topic-scroll">
+          {visibleGroups.length === 0 ? (
+            <p className="dashboard-docs-empty">No topics match that filter.</p>
+          ) : (
+            visibleGroups.map((group) => (
+              <div key={group.title} className="dashboard-docs-group">
+                <p className="dashboard-docs-group-title">{group.title}</p>
+                <ul className="dashboard-docs-group-list">
+                  {group.topics.map((t) => (
+                    <li key={t.id}>
+                      <button
+                        type="button"
+                        className={`dashboard-docs-nav-item ${
+                          t.id === activeTopic ? "active" : ""
+                        }`}
+                        onClick={() => selectTopic(t.id)}
+                        aria-current={t.id === activeTopic ? "page" : undefined}>
+                        {TOPIC_ICONS[t.id]}
+                        <span>{t.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          )}
+        </div>
       </nav>
 
       <div className="dashboard-docs-main">
@@ -240,8 +277,12 @@ export default function DashboardDocsSection() {
             {copied ? "Copied" : "Copy markdown"}
           </button>
         </div>
-        <div id="dashboard-docs-content" className="dashboard-docs-content" tabIndex={-1}>
-          <BlogPost content={topic.content} slug="dashboard-docs" pageType="page" />
+        <div
+          id="dashboard-docs-content"
+          className="dashboard-docs-content"
+          ref={contentRef}
+          tabIndex={-1}>
+          <BlogPost content={renderedContent} slug="dashboard-docs" pageType="page" />
         </div>
       </div>
     </div>

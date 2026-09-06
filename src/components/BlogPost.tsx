@@ -63,10 +63,17 @@ const ALLOWED_IFRAME_DOMAINS = [
   "platform.x.com",
 ];
 
-// Sanitize schema that allows collapsible sections (details/summary), inline styles, and iframes
+// Sanitize schema that allows collapsible sections, embeds, and responsive media.
 const sanitizeSchema = {
   ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames || []), "details", "summary", "iframe"],
+  tagNames: [
+    ...(defaultSchema.tagNames || []),
+    "details",
+    "summary",
+    "iframe",
+    "video",
+    "source",
+  ],
   attributes: {
     ...defaultSchema.attributes,
     details: ["open"], // Allow the 'open' attribute for expanded by default
@@ -88,6 +95,21 @@ const sanitizeSchema = {
       "title",
       "style",
     ], // Allow iframe with specific attributes
+    video: [
+      "src",
+      "controls",
+      "playsinline",
+      "playsInline",
+      "preload",
+      "poster",
+      "width",
+      "height",
+      "muted",
+      "loop",
+      "autoplay",
+      "autoPlay",
+    ],
+    source: ["src", "type", "media"],
   },
 };
 
@@ -678,6 +700,17 @@ export default function BlogPost({
             </span>
           );
         },
+        video({ node: _node, ...videoProps }) {
+          return (
+            <video
+              {...videoProps}
+              controls
+              playsInline
+              preload="metadata"
+              className="blog-video"
+            />
+          );
+        },
         a({ href, children }) {
           const isExternal = href?.startsWith("http");
           return (
@@ -980,6 +1013,17 @@ export default function BlogPost({
                   />
                   {alt && <span className="blog-image-caption">{alt}</span>}
                 </span>
+              );
+            },
+            video({ node: _node, ...videoProps }) {
+              return (
+                <video
+                  {...videoProps}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="blog-video"
+                />
               );
             },
             a({ href, children }) {

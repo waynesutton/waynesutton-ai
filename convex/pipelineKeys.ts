@@ -29,7 +29,10 @@ const VENDOR_ENV_VARS: Array<{ name: string; purpose: string }> = [
   { name: "OPENAI_API_KEY", purpose: "Voice agent, embeddings, Ask AI" },
   { name: "ANTHROPIC_API_KEY", purpose: "Claude models in AI chat and Ask AI" },
   { name: "GOOGLE_AI_API_KEY", purpose: "Gemini chat and image generation" },
-  { name: "CONCENTRATE_API_KEY", purpose: "Concentrate gateway (auto routing)" },
+  {
+    name: "CONCENTRATE_API_KEY",
+    purpose: "Concentrate gateway (auto routing)",
+  },
   { name: "OPENROUTER_API_KEY", purpose: "OpenRouter gateway (auto routing)" },
   { name: "RUNWARE_API_KEY", purpose: "Runware image models" },
   { name: "FIRECRAWL_API_KEY", purpose: "URL import and source ingest" },
@@ -168,7 +171,7 @@ export const verifyApiKey = internalQuery({
   handler: async (ctx, args) => {
     const key = await ctx.db
       .query("apiKeys")
-      .withIndex("by_hash", (q) => q.eq("keyHash", args.keyHash))
+      .withIndex("by_keyhash", (q) => q.eq("keyHash", args.keyHash))
       .unique();
     if (!key) {
       return null;
@@ -189,32 +192,43 @@ export const vendorKeyStatus = query({
       name: v.string(),
       purpose: v.string(),
       configured: v.boolean(),
-      source: v.union(v.literal("override"), v.literal("env"), v.literal("none")),
+      source: v.union(
+        v.literal("override"),
+        v.literal("env"),
+        v.literal("none"),
+      ),
+      // True when the env var is also set, so the UI can say an override is
+      // shadowing it (and that removing the override falls back to it).
+      envConfigured: v.boolean(),
     }),
   ),
   handler: async (ctx) => {
     await requireDashboardAdmin(ctx);
-    const results: Array<{
-      name: string;
-      purpose: string;
-      configured: boolean;
-      source: "override" | "env" | "none";
-    }> = [];
-    for (const entry of VENDOR_ENV_VARS) {
-      const override = await ctx.db
-        .query("vendorKeys")
-        .withIndex("by_name", (q) => q.eq("name", entry.name))
-        .unique();
+    // One indexed point read per known key, in parallel
+    const overrides = await Promise.all(
+      VENDOR_ENV_VARS.map((entry) =>
+        ctx.db
+          .query("vendorKeys")
+          .withIndex("by_name", (q) => q.eq("name", entry.name))
+          .unique(),
+      ),
+    );
+    return VENDOR_ENV_VARS.map((entry, index) => {
+      const override = overrides[index];
       const hasOverride = Boolean(override && override.value.trim().length > 0);
       const hasEnv = isConfigured(entry.name);
-      results.push({
+      return {
         name: entry.name,
         purpose: entry.purpose,
         configured: hasOverride || hasEnv,
-        source: hasOverride ? "override" : hasEnv ? "env" : "none",
-      });
-    }
-    return results;
+        source: hasOverride
+          ? ("override" as const)
+          : hasEnv
+            ? ("env" as const)
+            : ("none" as const),
+        envConfigured: hasEnv,
+      };
+    });
   },
 });
 
@@ -237,7 +251,9 @@ export const setVendorKey = mutation({
     }
     const value = args.value.trim();
     if (!value) {
-      throw new ConvexError("Value is required. Use remove to clear an override.");
+      throw new ConvexError(
+        "Value is required. Use remove to clear an override.",
+      );
     }
     const existing = await ctx.db
       .query("vendorKeys")
@@ -278,9 +294,13 @@ export const removeVendorKey = mutation({
   },
 });
 
-/** Dashboard override first, then the deployment environment variable. */
-async function resolveConfigValue(
-  ctx: QueryCtx,
+/**
+ * Dashboard override first, then the deployment environment variable.
+ * Works in queries and mutations (anything with a database reader), so
+ * mutations that gate features on a key honor BYOK overrides too.
+ */
+export async function resolveConfigValue(
+  ctx: Pick<QueryCtx, "db">,
   name: string,
 ): Promise<string | null> {
   const row = await ctx.db
@@ -323,6 +343,34 @@ export const emailDoorConfig = internalQuery({
   },
 });
 
+/**
+ * Batch lookup of override values for several keys in one transaction, so
+ * actions that need a key plus its companions (AgentMail key, inbox, contact
+ * address) make a single round trip. Never exposed to clients.
+ */
+export const getVendorKeyValues = internalQuery({
+  args: { names: v.array(v.string()) },
+  returns: v.record(v.string(), v.string()),
+  handler: async (ctx, args) => {
+    const rows = await Promise.all(
+      args.names.map((name) =>
+        ctx.db
+          .query("vendorKeys")
+          .withIndex("by_name", (q) => q.eq("name", name))
+          .unique(),
+      ),
+    );
+    const values: Record<string, string> = {};
+    for (const row of rows) {
+      const value = row?.value.trim();
+      if (row && value && value.length > 0) {
+        values[row.name] = value;
+      }
+    }
+    return values;
+  },
+});
+
 /** Internal lookup of an override value. Never exposed to clients. */
 export const getVendorKeyValue = internalQuery({
   args: { name: v.string() },
@@ -336,4 +384,3 @@ export const getVendorKeyValue = internalQuery({
     return value && value.length > 0 ? value : null;
   },
 });
-

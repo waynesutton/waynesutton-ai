@@ -1,6 +1,7 @@
 import { mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { rateLimiter } from "./rateLimits";
 
 // Submit contact form message
 // Stores the message and schedules email sending via AgentMail
@@ -17,6 +18,9 @@ export const submitContact = mutation({
   }),
   handler: async (ctx, args) => {
     await ctx.auth.getUserIdentity();
+
+    // Each submission stores a row and schedules an AgentMail send, so bound it
+    await rateLimiter.limit(ctx, "contactSubmit", { throws: true });
 
     // Validate required fields
     const name = args.name.trim();

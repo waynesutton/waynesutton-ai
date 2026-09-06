@@ -1,610 +1,511 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConvex, useMutation, usePaginatedQuery, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import {
-  X,
-  Upload,
-  CloudArrowUp,
-  Warning,
-  Image as ImageIcon,
-  Images,
   ArrowsOut,
   Check,
+  CloudArrowUp,
+  FilmStrip,
+  Image as ImageIcon,
+  Images,
+  MagnifyingGlass,
+  Upload,
+  Warning,
+  X,
 } from "@phosphor-icons/react";
+import { api } from "../../convex/_generated/api";
 import {
+  formatUploadLimit,
+  getMaxMediaFileSize,
+  getMediaKind,
   IMAGE_UPLOAD_ACCEPT,
-  isAllowedImageFile,
-  resolveImageContentType,
+  isAllowedMediaFile,
+  MEDIA_UPLOAD_ACCEPT,
+  type MediaKind,
+  type MediaProvider,
+  resolveMediaContentType,
+  uploadFileWithProgress,
 } from "../utils/imageUpload";
 
-// Derive the .site URL from Convex URL for uploads
 const getSiteUrl = () => {
   const explicitSiteUrl =
     (import.meta.env.VITE_CONVEX_SITE_URL as string | undefined) ||
     (import.meta.env.VITE_SITE_URL as string | undefined);
-  if (explicitSiteUrl) {
-    return explicitSiteUrl;
-  }
+  if (explicitSiteUrl) return explicitSiteUrl;
   const convexUrl = import.meta.env.VITE_CONVEX_URL ?? "";
   return convexUrl.replace(/\.cloud$/, ".site");
 };
 
-// Size presets for image insertion
 const SIZE_PRESETS = [
-  { id: "original", label: "Original", width: null, height: null },
-  { id: "large", label: "Large", width: 1200, height: null },
-  { id: "medium", label: "Medium", width: 800, height: null },
-  { id: "small", label: "Small", width: 400, height: null },
-  { id: "thumbnail", label: "Thumbnail", width: 200, height: null },
-  { id: "custom", label: "Custom", width: null, height: null },
+  { id: "original", label: "Original", width: null },
+  { id: "large", label: "Large", width: 1200 },
+  { id: "medium", label: "Medium", width: 800 },
+  { id: "small", label: "Small", width: 400 },
+  { id: "thumbnail", label: "Thumbnail", width: 200 },
+  { id: "custom", label: "Custom", width: null },
 ] as const;
 
-type SizePreset = typeof SIZE_PRESETS[number]["id"];
+type SizePreset = (typeof SIZE_PRESETS)[number]["id"];
 
 interface ImageUploadModalProps {
   isOpen: boolean;
+  requiredProvider?: MediaProvider;
+  initialTab?: "upload" | "library";
   onClose: () => void;
   onInsert?: (markdown: string) => void;
-  // URL select mode: when set, returns just the image URL (no markdown, no
-  // alt/size options). Used by frontmatter image fields.
+  // URL mode is used by image-only frontmatter fields.
   onSelectUrl?: (url: string) => void;
 }
 
-interface ImageInfo {
+interface SelectedMedia {
   url: string;
   width: number;
   height: number;
   filename: string;
+  kind: MediaKind;
 }
 
-export function ImageUploadModal({ isOpen, onClose, onInsert, onSelectUrl }: ImageUploadModalProps) {
+function imageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new window.Image();
+    image.onload = () => {
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+      URL.revokeObjectURL(objectUrl);
+    };
+    image.onerror = () => {
+      resolve({ width: 0, height: 0 });
+      URL.revokeObjectURL(objectUrl);
+    };
+    image.src = objectUrl;
+  });
+}
+
+export function ImageUploadModal({
+  isOpen,
+  requiredProvider,
+  initialTab = "upload",
+  onClose,
+  onInsert,
+  onSelectUrl,
+}: ImageUploadModalProps) {
   const urlMode = onSelectUrl !== undefined;
-  const [activeTab, setActiveTab] = useState<"upload" | "library">("upload");
+  const [activeTab, setActiveTab] = useState<"upload" | "library">(initialTab);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [altText, setAltText] = useState("");
-  const [selectedImage, setSelectedImage] = useState<ImageInfo | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<SelectedMedia | null>(null);
   const [sizePreset, setSizePreset] = useState<SizePreset>("original");
   const [customWidth, setCustomWidth] = useState<number | null>(null);
   const [customHeight, setCustomHeight] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [search, setSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const convex = useConvex();
 
   const uploadSettings = useQuery(api.media.getUploadSettings);
-  const mediaProvider = uploadSettings?.provider ?? "convex";
+  const mediaProvider = requiredProvider ?? uploadSettings?.provider ?? "convex";
   const commitFile = useMutation(api.files.commitFile);
   const generateDirectUploadUrl = useMutation(api.media.generateDirectUploadUrl);
   const generateR2UploadUrl = useMutation(api.r2.generateUploadUrl);
   const syncR2Metadata = useMutation(api.r2.syncMetadata);
-  // Note: api.files.isConfigured checks Bunny CDN status but browsing only requires convexfs provider
+  const recordMediaAsset = useMutation(api.media.recordMediaAsset);
 
-  const { results: mediaFiles, status: mediaStatus, loadMore } = usePaginatedQuery(
-    api.files.listFiles,
-    { prefix: "/uploads/" },
-    { initialNumItems: 12 }
+  const { results: mediaAssets, status: mediaStatus, loadMore } = usePaginatedQuery(
+    api.media.listMediaAssets,
+    urlMode ? { kind: "image" } : {},
+    { initialNumItems: 24 },
   );
+
+  const filteredAssets = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return mediaAssets;
+    return mediaAssets.filter((asset) => asset.filename.toLowerCase().includes(term));
+  }, [mediaAssets, search]);
 
   const siteUrl = getSiteUrl();
   const cdnHostname = import.meta.env.VITE_BUNNY_CDN_HOSTNAME;
 
-  // Reset state when modal closes
-  const handleClose = () => {
-    setPreview(null);
-    setAltText("");
-    setSelectedImage(null);
-    setError(null);
-    setSizePreset("original");
-    setCustomWidth(null);
-    setCustomHeight(null);
-    setActiveTab("upload");
-    onClose();
-  };
-
-  // Get CDN URL for a file
   const getCdnUrl = useCallback(
-    (path: string, blobId: string) => {
-      if (cdnHostname) {
-        return `https://${cdnHostname}${path}`;
-      }
-      return `${siteUrl}/fs/blobs/${blobId}`;
-    },
+    (path: string, blobId: string) =>
+      cdnHostname ? `https://${cdnHostname}${path}` : `${siteUrl}/fs/blobs/${blobId}`,
     [cdnHostname, siteUrl],
   );
 
-  // Get image dimensions from URL
-  const getImageDimensionsFromUrl = (url: string): Promise<{ width: number; height: number }> => {
-    return new Promise((resolve) => {
-      const img = new window.Image();
-      img.onload = () => {
-        resolve({ width: img.naturalWidth, height: img.naturalHeight });
-      };
-      img.onerror = () => {
-        resolve({ width: 0, height: 0 });
-      };
-      img.src = url;
-    });
-  };
-
-  // Get image dimensions from file
-  const getImageDimensions = (file: File): Promise<{ width: number; height: number }> => {
-    return new Promise((resolve) => {
-      const img = new window.Image();
-      img.onload = () => {
-        resolve({ width: img.naturalWidth, height: img.naturalHeight });
-        URL.revokeObjectURL(img.src);
-      };
-      img.onerror = () => {
-        resolve({ width: 0, height: 0 });
-        URL.revokeObjectURL(img.src);
-      };
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
-  // Calculate display dimensions based on preset
-  const getDisplayDimensions = useCallback(() => {
-    if (!selectedImage) return { width: 0, height: 0 };
-
-    const { width: origWidth, height: origHeight } = selectedImage;
-    const aspectRatio = origWidth / origHeight;
-
-    if (sizePreset === "original") {
-      return { width: origWidth, height: origHeight };
-    }
-
-    if (sizePreset === "custom") {
-      if (customWidth && customHeight) {
-        return { width: customWidth, height: customHeight };
-      }
-      if (customWidth) {
-        return { width: customWidth, height: Math.round(customWidth / aspectRatio) };
-      }
-      if (customHeight) {
-        return { width: Math.round(customHeight * aspectRatio), height: customHeight };
-      }
-      return { width: origWidth, height: origHeight };
-    }
-
-    const preset = SIZE_PRESETS.find((p) => p.id === sizePreset);
-    if (preset?.width) {
-      const newWidth = Math.min(preset.width, origWidth);
-      return { width: newWidth, height: Math.round(newWidth / aspectRatio) };
-    }
-
-    return { width: origWidth, height: origHeight };
-  }, [selectedImage, sizePreset, customWidth, customHeight]);
-
-  // Handle file upload
-  const handleUpload = useCallback(async (file: File) => {
+  const handleClose = () => {
+    if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
+    setPreview(null);
+    setAltText("");
+    setSelectedMedia(null);
     setError(null);
-    setUploading(true);
-    setUploadProgress("Uploading...");
+    setUploadProgress(0);
+    setSizePreset("original");
+    setCustomWidth(null);
+    setCustomHeight(null);
+    setActiveTab(initialTab);
+    setSearch("");
+    onClose();
+  };
 
-    try {
-      // Validate file type. SVG is image/svg+xml; some browsers leave type empty.
-      if (!isAllowedImageFile(file)) {
-        throw new Error("File must be an image");
-      }
-      const contentType = resolveImageContentType(file);
+  const getDisplayDimensions = useCallback(() => {
+    if (!selectedMedia || selectedMedia.kind === "video") return { width: 0, height: 0 };
+    const { width: originalWidth, height: originalHeight } = selectedMedia;
+    const aspectRatio = originalHeight > 0 ? originalWidth / originalHeight : 1;
 
-      // Validate file size (10MB max)
-      if (file.size > 10 * 1024 * 1024) {
-        throw new Error("File exceeds 10MB limit");
-      }
+    if (sizePreset === "original") return { width: originalWidth, height: originalHeight };
+    if (sizePreset === "custom") {
+      if (customWidth && customHeight) return { width: customWidth, height: customHeight };
+      if (customWidth) return { width: customWidth, height: Math.round(customWidth / aspectRatio) };
+      if (customHeight) return { width: Math.round(customHeight * aspectRatio), height: customHeight };
+      return { width: originalWidth, height: originalHeight };
+    }
 
-      // Show preview
-      const previewUrl = URL.createObjectURL(file);
-      setPreview(previewUrl);
-      setAltText(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
+    const preset = SIZE_PRESETS.find((item) => item.id === sizePreset);
+    const width = Math.min(preset?.width ?? originalWidth, originalWidth);
+    return { width, height: Math.round(width / aspectRatio) };
+  }, [customHeight, customWidth, selectedMedia, sizePreset]);
 
-      // Get image dimensions
-      const dimensions = await getImageDimensions(file);
+  const handleUpload = useCallback(
+    async (file: File) => {
+      setError(null);
+      setUploading(true);
+      setUploadProgress(0);
 
-      let url = "";
-
-      if (mediaProvider === "convexfs") {
-        // Upload blob to ConvexFS endpoint
-        const res = await fetch(`${siteUrl}/fs/upload`, {
-          method: "POST",
-          headers: { "Content-Type": contentType },
-          body: file,
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || `Upload failed: ${res.status}`);
+      try {
+        const contentType = resolveMediaContentType(file);
+        const kind = getMediaKind(contentType);
+        if (!kind || !isAllowedMediaFile(file)) {
+          throw new Error("Choose a PNG, JPG, GIF, WebP, SVG, MP4, WebM, or MOV file");
+        }
+        if (urlMode && kind === "video") {
+          throw new Error("This frontmatter field accepts images only");
         }
 
-        const { blobId } = await res.json();
+        if (!uploadSettings) throw new Error("Storage settings are still loading. Try again.");
+        if (!uploadSettings.providers[mediaProvider]) throw new Error(`${mediaProvider.toUpperCase()} storage is not configured. Configure it before uploading.`);
+        const configuredLimit = uploadSettings?.limits[mediaProvider];
+        const maxBytes = kind === "video"
+          ? configuredLimit?.videoMaxBytes ?? getMaxMediaFileSize(mediaProvider, kind)
+          : configuredLimit?.imageMaxBytes ?? getMaxMediaFileSize(mediaProvider, kind);
+        if (file.size > maxBytes) {
+          throw new Error(`${file.name} exceeds the ${formatUploadLimit(maxBytes)} limit`);
+        }
 
-        // Commit file to storage path
-        const result = await commitFile({
-          blobId,
+        const localPreview = URL.createObjectURL(file);
+        setPreview(localPreview);
+        setAltText(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
+        const dimensions = kind === "image"
+          ? await imageDimensions(file)
+          : { width: 0, height: 0 };
+
+        let key = "";
+        let url = "";
+
+        if (mediaProvider === "convexfs") {
+          const responseText = await uploadFileWithProgress({
+            url: `${siteUrl}/fs/upload`,
+            method: "POST",
+            file,
+            contentType,
+            onProgress: setUploadProgress,
+          });
+          const { blobId } = JSON.parse(responseText) as { blobId: string };
+          const result = await commitFile({
+            blobId,
+            filename: file.name,
+            contentType,
+            size: file.size,
+            ...(kind === "image" ? dimensions : {}),
+          });
+          key = result.path;
+          url = getCdnUrl(result.path, blobId);
+        } else if (mediaProvider === "r2") {
+          const upload = await generateR2UploadUrl({});
+          await uploadFileWithProgress({
+            url: upload.url,
+            method: "PUT",
+            file,
+            contentType,
+            onProgress: setUploadProgress,
+          });
+          await syncR2Metadata({ key: upload.key });
+          key = upload.key;
+          url = await convex.query(api.r2.getPermanentUrl, { key });
+        } else {
+          const uploadUrl = await generateDirectUploadUrl({});
+          const responseText = await uploadFileWithProgress({
+            url: uploadUrl,
+            method: "POST",
+            file,
+            contentType,
+            onProgress: setUploadProgress,
+          });
+          const { storageId } = JSON.parse(responseText) as { storageId: string };
+          const resolvedUrl = await convex.query(api.media.getDirectStorageUrl, {
+            storageId: storageId as never,
+          });
+          if (!resolvedUrl) throw new Error("Upload succeeded but its URL is unavailable");
+          key = storageId;
+          url = resolvedUrl;
+        }
+
+        await recordMediaAsset({
+          provider: mediaProvider,
+          key,
+          url,
           filename: file.name,
           contentType,
+          kind,
           size: file.size,
-          width: dimensions.width,
-          height: dimensions.height,
+          ...(kind === "image" ? dimensions : {}),
         });
-        url = getCdnUrl(result.path, blobId);
-      } else if (mediaProvider === "r2") {
-        // Upload file to R2 using signed URL flow.
-        const { key, url: signedUploadUrl } = await generateR2UploadUrl({});
-        const uploadRes = await fetch(signedUploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": contentType },
-          body: file,
-        });
-        if (!uploadRes.ok) {
-          throw new Error(`R2 upload failed: ${uploadRes.status}`);
-        }
-        await syncR2Metadata({ key });
-        const metadata = await convex.query(api.r2.getMetadata, { key });
-        if (!metadata?.url) {
-          throw new Error("R2 upload succeeded but URL is unavailable");
-        }
-        url = metadata.url;
-      } else {
-        // Default direct Convex storage upload path.
-        const uploadUrl = await generateDirectUploadUrl({});
-        const uploadRes = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": contentType },
-          body: file,
-        });
-        if (!uploadRes.ok) {
-          throw new Error(`Upload failed: ${uploadRes.status}`);
-        }
-        const { storageId } = await uploadRes.json();
-        const storageUrl = await convex.query(api.media.getDirectStorageUrl, { storageId });
-        if (!storageUrl) {
-          throw new Error("Upload succeeded but URL is unavailable");
-        }
-        url = storageUrl;
+
+        URL.revokeObjectURL(localPreview);
+        setPreview(url);
+        setSelectedMedia({ ...dimensions, url, filename: file.name, kind });
+      } catch (uploadError) {
+        setError((uploadError as Error).message);
+        setPreview(null);
+      } finally {
+        setUploading(false);
       }
+    },
+    [
+      commitFile,
+      convex,
+      generateDirectUploadUrl,
+      generateR2UploadUrl,
+      getCdnUrl,
+      mediaProvider,
+      recordMediaAsset,
+      siteUrl,
+      syncR2Metadata,
+      uploadSettings,
+      urlMode,
+    ],
+  );
 
-      setSelectedImage({
-        url,
-        width: dimensions.width,
-        height: dimensions.height,
-        filename: file.name,
-      });
-      setUploadProgress(null);
-    } catch (err) {
-      console.error("[ImageUploadModal] Upload error:", err);
-      setError((err as Error).message);
-      setPreview(null);
-    } finally {
-      setUploading(false);
-      setUploadProgress(null);
-    }
-  }, [
-    commitFile,
-    convex,
-    generateDirectUploadUrl,
-    generateR2UploadUrl,
-    getCdnUrl,
-    mediaProvider,
-    siteUrl,
-    syncR2Metadata,
-  ]);
-
-  // Handle file input change
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleUpload(file);
-    }
-  };
-
-  // Handle drag and drop
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      handleUpload(file);
-    }
-  };
-
-  // Handle selecting from media library
-  const handleSelectFromLibrary = async (file: { path: string; blobId: string; size: number }) => {
-    const url = getCdnUrl(file.path, file.blobId);
-    const filename = file.path.split("/").pop() || "image";
-
-    // Get dimensions from URL
-    const dimensions = await getImageDimensionsFromUrl(url);
-
-    setSelectedImage({
-      url,
-      width: dimensions.width,
-      height: dimensions.height,
-      filename,
+  const selectFromLibrary = (asset: (typeof mediaAssets)[number]) => {
+    setSelectedMedia({
+      url: asset.url,
+      width: asset.width ?? 0,
+      height: asset.height ?? 0,
+      filename: asset.filename,
+      kind: asset.kind,
     });
-    setPreview(url);
-    setAltText(filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
+    setPreview(asset.url);
+    setAltText(asset.filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
   };
 
-  // Generate markdown with size
-  const generateMarkdown = () => {
-    if (!selectedImage) return "";
+  const generateMarkup = () => {
+    if (!selectedMedia) return "";
+    if (selectedMedia.kind === "video") {
+      return `<video src="${selectedMedia.url}" controls playsinline preload="metadata"></video>`;
+    }
 
-    const dims = getDisplayDimensions();
     const alt = altText || "image";
-
-    // For original size, just use standard markdown
-    if (sizePreset === "original") {
-      return `![${alt}](${selectedImage.url})`;
-    }
-
-    // For other sizes, use HTML img tag with explicit dimensions
-    return `<img src="${selectedImage.url}" alt="${alt}" width="${dims.width}" height="${dims.height}" />`;
+    if (sizePreset === "original") return `![${alt}](${selectedMedia.url})`;
+    const dimensions = getDisplayDimensions();
+    return `<img src="${selectedMedia.url}" alt="${alt}" width="${dimensions.width}" height="${dimensions.height}" />`;
   };
 
-  // Insert markdown or return the raw URL depending on mode
   const handleInsert = () => {
-    if (!selectedImage) return;
-    if (onSelectUrl) {
-      onSelectUrl(selectedImage.url);
-    } else if (onInsert) {
-      onInsert(generateMarkdown());
-    }
+    if (!selectedMedia) return;
+    if (onSelectUrl) onSelectUrl(selectedMedia.url);
+    else if (onInsert) onInsert(generateMarkup());
     handleClose();
   };
 
-  // Update custom dimensions when preset changes
   useEffect(() => {
-    if (sizePreset !== "custom" && selectedImage) {
-      const dims = getDisplayDimensions();
-      setCustomWidth(dims.width);
-      setCustomHeight(dims.height);
+    if (sizePreset !== "custom" && selectedMedia?.kind === "image") {
+      const dimensions = getDisplayDimensions();
+      setCustomWidth(dimensions.width);
+      setCustomHeight(dimensions.height);
     }
-  }, [sizePreset, selectedImage, getDisplayDimensions]);
+  }, [getDisplayDimensions, selectedMedia, sizePreset]);
 
   if (!isOpen) return null;
-
-  const displayDims = getDisplayDimensions();
+  const displayDimensions = getDisplayDimensions();
+  const activeLimit = uploadSettings?.limits[mediaProvider];
+  const imageLimit = activeLimit?.imageMaxBytes ?? getMaxMediaFileSize(mediaProvider, "image");
+  const videoLimit = activeLimit?.videoMaxBytes ?? getMaxMediaFileSize(mediaProvider, "video");
 
   return (
     <div className="image-upload-modal-backdrop" onClick={handleClose}>
-      <div
-        className="image-upload-modal image-upload-modal-large"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="image-upload-modal image-upload-modal-large" onClick={(event) => event.stopPropagation()}>
         <div className="image-upload-modal-header">
           <h3>
-            <ImageIcon size={20} />
-            {urlMode ? "Select Image" : "Insert Image"}
+            {urlMode ? <ImageIcon size={20} /> : <Images size={20} />}
+            {urlMode ? "Select image" : "Insert media"}
           </h3>
-          <button className="image-upload-modal-close" onClick={handleClose}>
+          <button className="image-upload-modal-close" onClick={handleClose} aria-label="Close media picker">
             <X size={20} />
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="image-upload-tabs">
-          <button
-            className={`image-upload-tab ${activeTab === "upload" ? "active" : ""}`}
-            onClick={() => setActiveTab("upload")}
-          >
-            <Upload size={16} />
-            Upload New
+          <button className={`image-upload-tab ${activeTab === "upload" ? "active" : ""}`} onClick={() => setActiveTab("upload")}>
+            <Upload size={16} /> Upload new
           </button>
-          <button
-            className={`image-upload-tab ${activeTab === "library" ? "active" : ""}`}
-            onClick={() => setActiveTab("library")}
-            disabled={mediaProvider !== "convexfs"}
-          >
-            <Images size={16} />
-            Media Library
+          <button className={`image-upload-tab ${activeTab === "library" ? "active" : ""}`} onClick={() => setActiveTab("library")}>
+            <Images size={16} /> Media library
           </button>
         </div>
 
         <div className="image-upload-modal-content">
-          {/* Error message */}
           {error && (
-            <div className="image-upload-error">
-              <Warning size={16} />
-              <span>{error}</span>
-            </div>
+            <div className="image-upload-error"><Warning size={16} /><span>{error}</span></div>
           )}
 
-          {activeTab === "upload" && !selectedImage && (
+          {activeTab === "upload" && !selectedMedia && (
             <div
               className={`image-upload-dropzone ${dragOver ? "drag-over" : ""}`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}
+              onDragLeave={(event) => { event.preventDefault(); setDragOver(false); }}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragOver(false);
+                const file = event.dataTransfer.files[0];
+                if (file) void handleUpload(file);
+              }}
+              onClick={() => !uploading && fileInputRef.current?.click()}
             >
               <input
                 ref={fileInputRef}
                 type="file"
-                accept={IMAGE_UPLOAD_ACCEPT}
-                onChange={handleFileChange}
+                accept={urlMode ? IMAGE_UPLOAD_ACCEPT : MEDIA_UPLOAD_ACCEPT}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void handleUpload(file);
+                }}
                 style={{ display: "none" }}
               />
               {uploading ? (
                 <>
-                  <CloudArrowUp size={48} className="spinning" />
-                  <p>{uploadProgress}</p>
+                  <CloudArrowUp size={48} />
+                  <p>Uploading {uploadProgress}%</p>
+                  <div className="media-upload-progress" role="progressbar" aria-valuenow={uploadProgress} aria-valuemin={0} aria-valuemax={100}>
+                    <span style={{ width: `${uploadProgress}%` }} />
+                  </div>
                 </>
               ) : (
                 <>
                   <Upload size={48} />
-                  <p>
-                    <strong>Click to upload</strong> or drag and drop
-                  </p>
-                  <span>PNG, JPG, GIF, WebP up to 10MB</span>
+                  <p><strong>Click to upload</strong> or drag and drop</p>
+                  <span>
+                    {urlMode
+                      ? `PNG, JPG, GIF, WebP, or SVG up to ${formatUploadLimit(imageLimit)}`
+                      : `Images up to ${formatUploadLimit(imageLimit)} or MP4, WebM, MOV up to ${formatUploadLimit(videoLimit)}`}
+                  </span>
                 </>
               )}
             </div>
           )}
 
-          {activeTab === "library" && !selectedImage && (
+          {activeTab === "library" && !selectedMedia && (
             <div className="image-upload-library">
-              {mediaProvider !== "convexfs" ? (
-                <div className="image-upload-library-empty">
-                  <Warning size={32} />
-                  <p>Media library browsing requires convexfs provider</p>
-                </div>
-              ) : mediaFiles.length === 0 ? (
+              <label className="image-upload-library-search">
+                <MagnifyingGlass size={16} />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search filenames" />
+              </label>
+              {filteredAssets.length === 0 ? (
                 <div className="image-upload-library-empty">
                   <Images size={32} />
-                  <p>No images in library</p>
-                  <button onClick={() => setActiveTab("upload")}>Upload an image</button>
+                  <p>{search ? "No matching media" : "No media uploaded yet"}</p>
+                  {!search && <button onClick={() => setActiveTab("upload")}>Upload media</button>}
                 </div>
               ) : (
                 <>
                   <div className="image-upload-library-grid">
-                    {mediaFiles.map((file) => (
-                      <div
-                        key={file.path}
-                        className="image-upload-library-item"
-                        onClick={() => handleSelectFromLibrary(file)}
-                      >
-                        <img
-                          src={getCdnUrl(file.path, file.blobId)}
-                          alt={file.path.split("/").pop()}
-                          loading="lazy"
-                        />
-                      </div>
+                    {filteredAssets.map((asset) => (
+                      <button key={asset._id} className="image-upload-library-item" onClick={() => selectFromLibrary(asset)}>
+                        {asset.kind === "video" ? (
+                          <>
+                            <video src={asset.url} muted preload="metadata" playsInline />
+                            <span className="media-kind-badge"><FilmStrip size={13} /> Video</span>
+                          </>
+                        ) : (
+                          <img src={asset.url} alt={asset.filename} loading="lazy" />
+                        )}
+                        <span className="image-upload-library-name">{asset.filename}</span>
+                      </button>
                     ))}
                   </div>
                   {mediaStatus === "CanLoadMore" && (
-                    <button
-                      className="image-upload-library-loadmore"
-                      onClick={() => loadMore(12)}
-                    >
-                      Load more
-                    </button>
+                    <button className="image-upload-library-loadmore" onClick={() => loadMore(24)}>Load more</button>
                   )}
                 </>
               )}
             </div>
           )}
 
-          {/* Preview and settings when image is selected */}
-          {selectedImage && (
+          {selectedMedia && (
             <div className="image-upload-selected">
               <div className="image-upload-preview-container">
                 <div className="image-upload-preview">
-                  <img src={preview || selectedImage.url} alt="Preview" />
-                  {uploading && (
-                    <div className="image-upload-preview-loading">
-                      <CloudArrowUp size={32} className="spinning" />
-                      <span>{uploadProgress}</span>
-                    </div>
+                  {selectedMedia.kind === "video" ? (
+                    <video src={preview ?? selectedMedia.url} controls playsInline preload="metadata" />
+                  ) : (
+                    <img src={preview ?? selectedMedia.url} alt="Preview" />
                   )}
                 </div>
-                <div className="image-upload-dimensions">
-                  <ArrowsOut size={14} />
-                  <span>
-                    {selectedImage.width} x {selectedImage.height}px
-                    {sizePreset !== "original" && (
-                      <> → {displayDims.width} x {displayDims.height}px</>
-                    )}
-                  </span>
-                </div>
+                {selectedMedia.kind === "image" && (
+                  <div className="image-upload-dimensions">
+                    <ArrowsOut size={14} />
+                    <span>
+                      {selectedMedia.width} x {selectedMedia.height}px
+                      {sizePreset !== "original" && <> to {displayDimensions.width} x {displayDimensions.height}px</>}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="image-upload-settings">
-                {/* Alt text input (markdown insert mode only) */}
-                {!urlMode && (
-                <div className="image-upload-field">
-                  <label htmlFor="alt-text">Alt text</label>
-                  <input
-                    id="alt-text"
-                    type="text"
-                    value={altText}
-                    onChange={(e) => setAltText(e.target.value)}
-                    placeholder="Describe the image..."
-                  />
-                </div>
-                )}
-
-                {/* Size presets (markdown insert mode only) */}
-                {!urlMode && (
-                <div className="image-upload-field">
-                  <label>Size</label>
-                  <div className="image-upload-size-presets">
-                    {SIZE_PRESETS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        className={`image-upload-size-btn ${sizePreset === preset.id ? "active" : ""}`}
-                        onClick={() => setSizePreset(preset.id)}
-                      >
-                        {sizePreset === preset.id && <Check size={12} />}
-                        {preset.label}
-                        {preset.width && <span className="size-hint">{preset.width}px</span>}
-                      </button>
-                    ))}
+                {!urlMode && selectedMedia.kind === "image" && (
+                  <div className="image-upload-field">
+                    <label htmlFor="alt-text">Alt text</label>
+                    <input id="alt-text" value={altText} onChange={(event) => setAltText(event.target.value)} placeholder="Describe the image" />
                   </div>
-                </div>
                 )}
-
-                {/* Custom dimensions */}
-                {!urlMode && sizePreset === "custom" && (
+                {!urlMode && selectedMedia.kind === "image" && (
+                  <div className="image-upload-field">
+                    <label>Size</label>
+                    <div className="image-upload-size-presets">
+                      {SIZE_PRESETS.map((preset) => (
+                        <button key={preset.id} className={`image-upload-size-btn ${sizePreset === preset.id ? "active" : ""}`} onClick={() => setSizePreset(preset.id)}>
+                          {sizePreset === preset.id && <Check size={12} />}
+                          {preset.label}
+                          {preset.width && <span className="size-hint">{preset.width}px</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!urlMode && selectedMedia.kind === "image" && sizePreset === "custom" && (
                   <div className="image-upload-custom-size">
                     <div className="image-upload-field-inline">
                       <label>Width</label>
-                      <input
-                        type="number"
-                        value={customWidth || ""}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || null;
-                          setCustomWidth(val);
-                          if (val && selectedImage) {
-                            const ratio = selectedImage.width / selectedImage.height;
-                            setCustomHeight(Math.round(val / ratio));
-                          }
-                        }}
-                        placeholder="Auto"
-                      />
+                      <input type="number" value={customWidth ?? ""} onChange={(event) => {
+                        const value = Number.parseInt(event.target.value, 10) || null;
+                        setCustomWidth(value);
+                        if (value && selectedMedia.height > 0) setCustomHeight(Math.round(value / (selectedMedia.width / selectedMedia.height)));
+                      }} />
                       <span>px</span>
                     </div>
                     <div className="image-upload-field-inline">
                       <label>Height</label>
-                      <input
-                        type="number"
-                        value={customHeight || ""}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || null;
-                          setCustomHeight(val);
-                          if (val && selectedImage) {
-                            const ratio = selectedImage.width / selectedImage.height;
-                            setCustomWidth(Math.round(val * ratio));
-                          }
-                        }}
-                        placeholder="Auto"
-                      />
+                      <input type="number" value={customHeight ?? ""} onChange={(event) => {
+                        const value = Number.parseInt(event.target.value, 10) || null;
+                        setCustomHeight(value);
+                        if (value && selectedMedia.height > 0) setCustomWidth(Math.round(value * (selectedMedia.width / selectedMedia.height)));
+                      }} />
                       <span>px</span>
                     </div>
                   </div>
                 )}
-
-                {/* Change image button */}
-                <button
-                  className="image-upload-change"
-                  onClick={() => {
-                    setSelectedImage(null);
-                    setPreview(null);
-                  }}
-                >
-                  Choose different image
+                <button className="image-upload-change" onClick={() => { setSelectedMedia(null); setPreview(null); }}>
+                  Choose different media
                 </button>
               </div>
             </div>
@@ -612,15 +513,9 @@ export function ImageUploadModal({ isOpen, onClose, onInsert, onSelectUrl }: Ima
         </div>
 
         <div className="image-upload-modal-footer">
-          <button className="image-upload-cancel" onClick={handleClose}>
-            Cancel
-          </button>
-          <button
-            className="image-upload-insert"
-            onClick={handleInsert}
-            disabled={!selectedImage || uploading}
-          >
-            {uploading ? "Uploading..." : urlMode ? "Use Image" : "Insert"}
+          <button className="image-upload-cancel" onClick={handleClose}>Cancel</button>
+          <button className="image-upload-insert" onClick={handleInsert} disabled={!selectedMedia || uploading}>
+            {urlMode ? "Use image" : selectedMedia?.kind === "video" ? "Insert video" : "Insert image"}
           </button>
         </div>
       </div>

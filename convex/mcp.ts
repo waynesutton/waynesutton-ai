@@ -5,6 +5,7 @@
 
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { secretEquals } from "./lib/secretCompare";
 
 const SITE_URL = (process.env.SITE_URL || "https://waynesutton.ai").replace(/\/+$/, "");
 const SITE_NAME = "Wayne Sutton";
@@ -128,6 +129,20 @@ export const MCP_TOOLS = [
     },
   },
 ];
+
+// Tools that only make sense with a pipeline key. tools/list hides them from
+// anonymous callers (crawlers, browser side proxies) so a privileged tool is
+// never advertised to a client that cannot use it. Calls without a key still
+// fail the same way they always did.
+const PIPELINE_ONLY_TOOLS = new Set(["create_draft"]);
+
+/** Tool list for a caller. Anonymous callers see the public read set only. */
+export function visibleMcpTools(hasPipelineKey: boolean): typeof MCP_TOOLS {
+  if (hasPipelineKey) {
+    return MCP_TOOLS;
+  }
+  return MCP_TOOLS.filter((tool) => !PIPELINE_ONLY_TOOLS.has(tool.name));
+}
 
 function successResponse(id: string | number | null, result: unknown): JsonRpcResponse {
   return { jsonrpc: "2.0", id, result };
@@ -343,7 +358,7 @@ async function handleMcpMethod(
       case "notifications/initialized":
         return successResponse(id, null);
       case "tools/list":
-        return successResponse(id, { tools: MCP_TOOLS });
+        return successResponse(id, { tools: visibleMcpTools(pipelineKey !== null) });
       case "tools/call": {
         const toolName = params?.name as string;
         const toolArgs = (params?.arguments || {}) as Record<string, unknown>;
@@ -419,7 +434,7 @@ export async function handleMcpRequest(
   if (mcpApiKey) {
     const authHeader = request.headers.get("Authorization") ?? "";
     const token = authHeader.replace(/^Bearer\s+/i, "");
-    if (token !== mcpApiKey) {
+    if (!secretEquals(token, mcpApiKey)) {
       return jsonResponse(errorResponse(null, -32600, "Invalid or missing API key"), 401);
     }
   }

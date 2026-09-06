@@ -23,6 +23,10 @@ npm run sync:all    # content + discovery files (AGENTS.md, llms.txt)
 
 Markdown files live in git, so posts get commits, diffs, and rollbacks like any code. The dashboard can also write posts directly, and `npm run export:db` pulls dashboard content back into the content folders.
 
+To lock the sync mutations to your machines, set `SYNC_SECRET` on the Convex deployment (`npx convex env set SYNC_SECRET <value>`) and put the same value in `.env.local` or `.env.production.local`. Without it, sync stays open as before. Signed-in dashboard admins never need the secret.
+
+Lock the sync down before going public: set `SYNC_SECRET` on the Convex deployment (`npx convex env set SYNC_SECRET <value>`) and put the same value in `.env.local` or `.env.production.local`. Without it the sync mutations stay open, which is fine for a private fork and not fine for a live site.
+
 ## Features
 
 - **Agent blog pipeline**: coding agents, email, and a paste box submit drafts to a review inbox. A voice agent rewrites them in the site voice using RAG over published posts.

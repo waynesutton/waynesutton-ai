@@ -4,6 +4,7 @@ import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { AgentMailClient } from "agentmail";
+import { resolveVendorKeys } from "./lib/vendorKeyResolver";
 
 // Send contact form email via AgentMail SDK
 // Internal action that sends email to configured recipient
@@ -18,9 +19,15 @@ export const sendContactEmail = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const apiKey = process.env.AGENTMAIL_API_KEY;
-    const inbox = process.env.AGENTMAIL_INBOX;
-    const recipientEmail = process.env.AGENTMAIL_CONTACT_EMAIL || inbox;
+    // Dashboard BYOK overrides first, then env vars, in one query
+    const keys = await resolveVendorKeys(ctx, [
+      "AGENTMAIL_API_KEY",
+      "AGENTMAIL_INBOX",
+      "AGENTMAIL_CONTACT_EMAIL",
+    ]);
+    const apiKey = keys.AGENTMAIL_API_KEY;
+    const inbox = keys.AGENTMAIL_INBOX;
+    const recipientEmail = keys.AGENTMAIL_CONTACT_EMAIL || inbox;
 
     if (!apiKey || !inbox || !recipientEmail) {
       return null;
@@ -45,7 +52,12 @@ export const sendContactEmail = internalAction({
   },
 });
 
-type ContactFields = { name: string; email: string; message: string; source: string };
+type ContactFields = {
+  name: string;
+  email: string;
+  message: string;
+  source: string;
+};
 
 function buildContactHtml(f: ContactFields): string {
   const n = escapeHtml(f.name);

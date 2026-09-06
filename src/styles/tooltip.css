@@ -1,0 +1,110 @@
+/* Tooltip primitives (src/components/ui/Tooltip.tsx)
+   Portalled above every dashboard layer. Uses the site tokens so all four
+   themes get a readable hint without per-theme overrides. */
+
+.ui-tooltip {
+  z-index: 11000;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 18rem;
+  padding: 0.375rem 0.5625rem;
+  background-color: var(--text-primary);
+  color: var(--bg-primary);
+  border-radius: var(--radius);
+  font-family: var(--font-family);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-weight: 450;
+  letter-spacing: 0.005em;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  user-select: none;
+  pointer-events: none;
+  transform-origin: var(--radix-tooltip-content-transform-origin);
+  animation: ui-tooltip-in 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ui-tooltip[data-state="closed"] {
+  animation: ui-tooltip-out 90ms ease-in forwards;
+}
+
+.ui-tooltip-text {
+  display: block;
+}
+
+.ui-tooltip-kbd {
+  flex: none;
+  padding: 0.0625rem 0.3125rem;
+  border: 1px solid color-mix(in srgb, var(--bg-primary) 35%, transparent);
+  border-radius: calc(var(--radius) - 1px);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.ui-tooltip-arrow {
+  fill: var(--text-primary);
+}
+
+/* Inline wrapper so a disabled control still gets hover events for its hint */
+.dashboard-tip-wrap {
+  display: inline-flex;
+}
+
+/* Help icon that sits after a label or heading */
+.ui-info-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-left: 0.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: help;
+  vertical-align: middle;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.ui-info-tip:hover,
+.ui-info-tip:focus-visible {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+  outline: none;
+}
+
+.ui-info-tip:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+@keyframes ui-tooltip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes ui-tooltip-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-tooltip,
+  .ui-tooltip[data-state="closed"] {
+    animation: none;
+  }
+}

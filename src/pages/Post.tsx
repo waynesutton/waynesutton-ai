@@ -1,3 +1,4 @@
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -5,6 +6,7 @@ import BlogPost from "../components/BlogPost";
 import CopyPageDropdown from "../components/CopyPageDropdown";
 import PageSidebar from "../components/PageSidebar";
 import RightSidebar from "../components/RightSidebar";
+import PostMinimap from "../components/PostMinimap";
 import DocsLayout from "../components/DocsLayout";
 import Footer from "../components/Footer";
 import SocialFooter from "../components/SocialFooter";
@@ -15,7 +17,7 @@ import { useSidebar } from "../context/SidebarContext";
 import { format, parseISO } from "date-fns";
 import { ArrowLeft, Link as LinkIcon, Rss, Tag, Presentation } from "lucide-react";
 import { XLogo, LinkedinLogo } from "@phosphor-icons/react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import SlidePresentation from "../components/SlidePresentation";
 import siteConfig from "../config/siteConfig";
 import PostAudioPlayer from "../components/PostAudioPlayer";
@@ -55,7 +57,8 @@ export default function Post({
 }: PostProps = {}) {
   const { slug: routeSlug } = useParams<{ slug: string }>();
   const location = useLocation();
-  const { setHeadings, setActiveId } = useSidebar();
+  const hasRightSidebarSpace = useMediaQuery(`(min-width: ${Math.max(1135, siteConfig.rightSidebar.minWidth ?? 1135)}px)`);
+  const { setHeadings, setActiveId, setHideNav } = useSidebar();
 
   // Use prop slug if provided (for homepage), otherwise use route slug
   const slug = propSlug || routeSlug;
@@ -64,33 +67,10 @@ export default function Post({
   const pageQuery = useQuery(api.pages.getPageBySlug, slug ? { slug } : "skip");
   const postQuery = useQuery(api.posts.getPostBySlug, slug ? { slug } : "skip");
 
-  // Cache last loaded docs content to prevent flash during navigation
-  // This implements stale-while-revalidate for seamless transitions
-  type DocsCache = { page: typeof pageQuery; post: typeof postQuery };
-  const lastDocsContentRef = useRef<DocsCache | null>(null);
-
-  // Determine if this is a docs section page (for caching logic)
-  const isDocsContent = siteConfig.docsSection?.enabled && slug;
-
-  // Check if queries are still loading
-  const isLoading = pageQuery === undefined || postQuery === undefined;
-  const isLoaded = pageQuery !== undefined && postQuery !== undefined;
-
-  // Update cache when both queries have resolved and we have displayable content
-  useEffect(() => {
-    if (isDocsContent && isLoaded) {
-      const hasContent = pageQuery !== null || postQuery !== null;
-      if (hasContent) {
-        lastDocsContentRef.current = { page: pageQuery, post: postQuery };
-      }
-    }
-  }, [pageQuery, postQuery, isDocsContent, isLoaded]);
-
-  // Use cached data while loading new docs content (stale-while-revalidate)
-  // This prevents the blank flash when navigating between docs pages
-  const useCache = isDocsContent && isLoading && lastDocsContentRef.current !== null;
-  const page = useCache ? lastDocsContentRef.current!.page : pageQuery;
-  const post = useCache ? lastDocsContentRef.current!.post : postQuery;
+  // Wait for this slug's frontmatter before choosing a layout. A global docs
+  // feature flag does not mean that every post belongs to the docs section.
+  const page = pageQuery;
+  const post = postQuery;
 
   // Fetch related posts based on current post's tags (only for blog posts, not pages)
   const relatedPosts = useQuery(
@@ -158,8 +138,9 @@ export default function Post({
       setHeadings(pageHeadings);
       setActiveId(location.hash.slice(1) || undefined);
     }
-    // Extract headings for posts with sidebar layout
-    else if (post && post.layout === "sidebar") {
+    // Extract headings for posts with sidebar layout or the minimap outline
+    // (the minimap rail hides on small screens, so the mobile menu carries it)
+    else if (post && (post.layout === "sidebar" || post.minimap === true)) {
       const postHeadings = extractHeadings(post.content);
       setHeadings(postHeadings);
       setActiveId(location.hash.slice(1) || undefined);
@@ -176,6 +157,15 @@ export default function Post({
       setActiveId(undefined);
     };
   }, [page, post, location.hash, setHeadings, setActiveId]);
+
+  // Per-post hideNav frontmatter: tell Layout to let the top nav scroll away
+  // with the page. Reset on unmount so the nav is pinned again on other routes.
+  useEffect(() => {
+    setHideNav(post?.hideNav === true);
+    return () => {
+      setHideNav(false);
+    };
+  }, [post, setHideNav]);
 
   // Update page title for static pages
   useEffect(() => {
@@ -469,28 +459,8 @@ export default function Post({
     };
   }, [page, post]);
 
-  // Check if we're loading a docs page - keep layout mounted to prevent flash
-  const isDocsRoute = siteConfig.docsSection?.enabled && slug;
-
-  // Return null during initial load to avoid flash (Convex data arrives quickly)
-  // But for docs pages, show skeleton within DocsLayout to prevent sidebar flash
   if (page === undefined || post === undefined) {
-    if (isDocsRoute) {
-      // Keep DocsLayout mounted during loading to prevent sidebar flash
-      return (
-        <DocsLayout headings={[]} currentSlug={slug || ""}>
-          <article className="docs-article">
-            <div className="docs-article-loading">
-              <div className="docs-loading-skeleton docs-loading-title" />
-              <div className="docs-loading-skeleton docs-loading-text" />
-              <div className="docs-loading-skeleton docs-loading-text" />
-              <div className="docs-loading-skeleton docs-loading-text-short" />
-            </div>
-          </article>
-        </DocsLayout>
-      );
-    }
-    return null;
+    return <div className="post-page" role="status" aria-label="Loading content" aria-busy="true" />;
   }
 
   // If it's a static page, render simplified view
@@ -548,7 +518,7 @@ export default function Post({
     const hasLeftSidebar = headings.length > 0;
     // Check if right sidebar is enabled (only when explicitly set in frontmatter)
     const hasRightSidebar =
-      siteConfig.rightSidebar.enabled && page.rightSidebar === true;
+      hasRightSidebarSpace && siteConfig.rightSidebar.enabled && page.rightSidebar === true;
     const hasAnySidebar = hasLeftSidebar || hasRightSidebar;
     // Track if only right sidebar is enabled (for centering article)
     const hasOnlyRightSidebar = hasRightSidebar && !hasLeftSidebar;
@@ -816,24 +786,38 @@ export default function Post({
     );
   }
 
-  // Extract headings for sidebar TOC (only for posts with layout: "sidebar")
-  const headings =
-    post?.layout === "sidebar" ? extractHeadings(post.content) : [];
+  // Extract headings once for the left TOC (layout: "sidebar") and the right
+  // minimap outline (minimap: true). Both read the same markdown headings.
+  const wantsLeftToc = post.layout === "sidebar";
+  const wantsMinimap = post.minimap === true;
+  const postHeadings =
+    wantsLeftToc || wantsMinimap ? extractHeadings(post.content) : [];
+  const headings = wantsLeftToc ? postHeadings : [];
   const hasLeftSidebar = headings.length > 0;
-  // Check if right sidebar is enabled (only when explicitly set in frontmatter)
+  // Minimap needs headings and the wide viewport the right column requires
+  const showMinimap =
+    wantsMinimap && hasRightSidebarSpace && postHeadings.length > 0;
+  // Check if right sidebar is enabled (only when explicitly set in frontmatter).
+  // Minimap wins over AI chat when both are on, but it does not take a grid
+  // column. That would shift the article left of viewport center.
   const hasRightSidebar =
-    siteConfig.rightSidebar.enabled && post.rightSidebar === true;
-  const hasAnySidebar = hasLeftSidebar || hasRightSidebar;
-  // Track if only right sidebar is enabled (for centering article)
-  const hasOnlyRightSidebar = hasRightSidebar && !hasLeftSidebar;
+    !showMinimap &&
+    hasRightSidebarSpace &&
+    siteConfig.rightSidebar.enabled &&
+    post.rightSidebar === true;
+  const hasRightColumn = hasRightSidebar;
+  const hasAnySidebar = hasLeftSidebar || hasRightColumn;
+  // Track if only the right column is used (for centering article)
+  const hasOnlyRightSidebar = hasRightColumn && !hasLeftSidebar;
+  const minimapOnly = showMinimap && !hasAnySidebar;
 
   // Render blog post with full metadata
   return (
     <div
-      className={`post-page ${hasAnySidebar ? "post-page-with-sidebar" : ""}`}
+      className={`post-page${hasAnySidebar ? " post-page-with-sidebar" : ""}${minimapOnly ? " post-minimap-layout" : ""}${showMinimap ? " post-page-with-minimap" : ""}`}
     >
       <div
-        className={`${hasAnySidebar ? "post-content-with-sidebar" : ""} ${hasOnlyRightSidebar ? "post-content-right-sidebar-only" : ""}`}
+        className={`${hasAnySidebar ? "post-content-with-sidebar" : ""}${hasOnlyRightSidebar ? " post-content-right-sidebar-only" : ""}${minimapOnly ? " post-minimap-main" : ""}`}
       >
         {/* Main content - placed first in DOM for SEO (H1 loads before sidebar H3) */}
         {/* CSS order property handles visual positioning (sidebar on left) */}
@@ -1179,6 +1163,13 @@ export default function Post({
           />
         )}
       </div>
+
+      {/* Heading outline sits in the right margin, outside the sidebar grid */}
+      {showMinimap && (
+        <aside className="post-minimap-rail">
+          <PostMinimap headings={postHeadings} />
+        </aside>
+      )}
     </div>
   );
 }

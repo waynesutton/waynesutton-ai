@@ -453,7 +453,8 @@ h3,
 }
 
 /* Expand main-content to full width when sidebar layout is used */
-.main-content:has(.post-page-with-sidebar) {
+.main-content:has(.post-page-with-sidebar),
+.main-content:has(.post-minimap-layout) {
   max-width: 100%;
   padding: 0 0px;
 }
@@ -495,6 +496,12 @@ h3,
 }
 
 /* Logo in top navigation */
+/* Per-post hideNav frontmatter: nav starts in the same spot but scrolls
+   away with the page instead of staying pinned (absolute vs fixed) */
+.top-nav.top-nav-scroll {
+  position: absolute;
+}
+
 .top-nav-logo-link {
   display: flex;
   align-items: center;
@@ -1514,9 +1521,139 @@ h3,
   top: 0px;
 }
 
-/* Hide right sidebar below 1135px */
+/* Minimap-only: article stays in a centered 800px column. The rail sits in
+   the leftover right 1fr so it does not pull the article off center. */
+.post-minimap-layout {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 800px) 1fr;
+  align-items: start;
+  width: 100%;
+}
+
+.post-minimap-layout > .post-minimap-main {
+  grid-column: 2;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Rail hugs the viewport edge, not the article, so it reads as a margin note */
+.post-minimap-layout > .post-minimap-rail {
+  grid-column: 3;
+  justify-self: end;
+  width: 100%;
+  max-width: 240px;
+  padding-right: 24px;
+}
+
+/* Left TOC or AI chat plus minimap: overlay the rail, do not add a 280px column */
+.post-page-with-sidebar.post-page-with-minimap > .post-minimap-rail {
+  position: fixed;
+  top: 80px;
+  right: 16px;
+  width: 180px;
+  z-index: 4;
+}
+
+/* Post minimap rail (frontmatter minimap: true) */
+.post-minimap-rail {
+  position: sticky;
+  top: 80px;
+  align-self: start;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  background-color: transparent;
+  padding: 8px 16px 32px 24px;
+}
+
+.post-minimap-rail::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.post-minimap {
+  /* Fits inside the sticky rail (100vh - 100px) with the rail padding */
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  text-align: right;
+  /* Hairline track on the right edge; the active item lights up a segment */
+  border-right: 1px solid var(--border-sidebar);
+}
+
+.post-minimap::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.post-minimap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.post-minimap-item {
+  margin: 0;
+}
+
+.post-minimap-link {
+  display: block;
+  padding: 3px 12px 3px 8px;
+  margin-right: -1px; /* sit on top of the track */
+  border-right: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  line-height: 1.4;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.post-minimap-link:hover {
+  color: var(--text-primary);
+}
+
+.post-minimap-link.active {
+  color: var(--accent);
+  border-right-color: var(--accent);
+}
+
+/* Depth 0 is the shallowest heading level in the post: bold group header */
+.post-minimap-item.depth-0 {
+  margin-top: 12px;
+}
+
+.post-minimap-item.depth-0:first-child {
+  margin-top: 0;
+}
+
+.post-minimap-item.depth-0 .post-minimap-link {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.post-minimap-item.depth-0 .post-minimap-link.active {
+  color: var(--accent);
+}
+
+.post-minimap-item.depth-2 .post-minimap-link {
+  font-size: 0.66rem;
+}
+
+.post-minimap-item.depth-3 .post-minimap-link,
+.post-minimap-item.depth-4 .post-minimap-link {
+  font-size: 0.62rem;
+  opacity: 0.85;
+}
+
+/* Hide right sidebar and minimap below 1135px */
 @media (max-width: 1134px) {
-  .post-sidebar-right {
+  .post-sidebar-right,
+  .post-minimap-rail {
     display: none;
   }
 }
@@ -1661,8 +1798,9 @@ h3,
     display: none;
   }
 
-  /* Ensure right sidebar is hidden on mobile */
-  .post-sidebar-right {
+  /* Ensure right sidebar and minimap are hidden on mobile */
+  .post-sidebar-right,
+  .post-minimap-rail {
     display: none;
   }
 
@@ -2397,6 +2535,18 @@ h3,
   color: var(--text-muted);
   text-align: center;
   margin-top: 12px;
+}
+
+.blog-video,
+.blog-post-content video,
+.dashboard-preview video {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 32px 0;
+  border-radius: var(--radius);
+  background: #000;
 }
 
 /* Embed container for YouTube and Twitter/X iframes */
@@ -4715,6 +4865,182 @@ h3,
   font-family: inherit;
   font-size: var(--font-size-search-shortcut-kbd);
   color: var(--text-secondary);
+}
+
+/* WebMCP confirm dialog: an in-page agent filled a form, the person approves.
+   Shares the search modal backdrop so it sits at the same z-index and timing. */
+.webmcp-confirm-backdrop {
+  align-items: center;
+  padding-top: 0;
+}
+
+.webmcp-confirm {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 440px;
+  margin: 0 16px;
+  padding: 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: modalSlideIn 0.2s ease;
+}
+
+.webmcp-confirm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.webmcp-confirm-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-2xs);
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.webmcp-confirm-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.webmcp-confirm-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.webmcp-confirm-title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.webmcp-confirm-description {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.webmcp-confirm-details {
+  margin: 0;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+
+.webmcp-confirm-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.webmcp-confirm-row dt {
+  font-size: var(--font-size-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding-top: 2px;
+}
+
+.webmcp-confirm-row dd {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.webmcp-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.webmcp-confirm-cancel,
+.webmcp-confirm-submit {
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  font-family: inherit;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s ease-out;
+}
+
+.webmcp-confirm-cancel {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.webmcp-confirm-cancel:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.webmcp-confirm-submit {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border: 1px solid var(--text-primary);
+}
+
+.webmcp-confirm-submit:hover {
+  opacity: 0.85;
+}
+
+.webmcp-confirm-submit:active {
+  transform: translateY(1px);
+}
+
+.webmcp-confirm-cancel:focus-visible,
+.webmcp-confirm-submit:focus-visible,
+.webmcp-confirm-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+@media (max-width: 480px) {
+  .webmcp-confirm-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .webmcp-confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .webmcp-confirm-cancel,
+  .webmcp-confirm-submit {
+    width: 100%;
+    min-height: 44px;
+  }
 }
 
 /* Dark theme adjustments for search modal */
@@ -12498,13 +12824,31 @@ body:has(.dashboard-layout) {
 
 /* Frontmatter sidebar in write section */
 .dashboard-write-sidebar {
+  position: relative;
   width: 280px;
+  min-width: 240px;
+  max-width: 600px;
   border-left: 1px solid var(--border-color);
   background-color: var(--background-secondary);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  flex-shrink: 0;
+}
+
+.dashboard-write-sidebar.resizing {
+  user-select: none;
+}
+
+.dashboard-write-sidebar.resizing * {
+  pointer-events: none;
+}
+
+.dashboard-write-sidebar.resizing .dashboard-sidebar-resize-handle {
+  pointer-events: auto;
+  background: var(--mobile-add-button-bg);
+  opacity: 0.7;
 }
 
 .dashboard-write-sidebar-header {
@@ -12704,6 +13048,8 @@ body:has(.dashboard-layout) {
 /* Dashboard Write Sidebar Collapsed State */
 .dashboard-write-sidebar.collapsed {
   width: 56px;
+  min-width: 56px;
+  max-width: 56px;
 }
 
 .dashboard-write-sidebar.collapsed .dashboard-write-fields {
@@ -12760,12 +13106,15 @@ body:has(.dashboard-layout) {
 
 .dashboard-write-section.focus-mode .dashboard-write-sidebar {
   width: 280px;
+  min-width: 240px;
   flex-shrink: 0;
 }
 
 .dashboard-write-section.focus-mode.frontmatter-collapsed
   .dashboard-write-sidebar {
   width: 56px;
+  min-width: 56px;
+  max-width: 56px;
 }
 
 .dashboard-write-section.focus-mode .dashboard-write-textarea {
@@ -12789,6 +13138,14 @@ body:has(.dashboard-layout) {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* The same note doubles as a card intro when it follows the heading. Pull it
+   8px under the heading rule and give it 16px before the first field so it
+   reads as part of the title, not as a hint glued to the next label. */
+.dashboard-config-card > h3 + .config-field-note {
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
 }
 
 /* Logo gallery image manager inside the Config section */
@@ -13055,7 +13412,9 @@ body:has(.dashboard-layout) {
 
   /* Natural height so the page scrolls instead of a nested clipped pane */
   .dashboard-write-sidebar {
-    width: 100%;
+    width: 100% !important;
+    min-width: 0;
+    max-width: none;
     border-left: none;
     border-top: 1px solid var(--border-color);
     max-height: none;
@@ -13776,8 +14135,17 @@ body:has(.dashboard-layout) {
   color: var(--text-secondary);
 }
 
+/* Every text-like control in a config field gets the same box. Keep the type
+   list explicit: url, email, password, search, and a bare <input> all default
+   to the UA width (about 20ch) without it. Checkbox, radio, range, file, and
+   color keep their own rules. */
 .config-field input[type="text"],
 .config-field input[type="number"],
+.config-field input[type="url"],
+.config-field input[type="email"],
+.config-field input[type="password"],
+.config-field input[type="search"],
+.config-field input:not([type]),
 .config-field select,
 .config-field textarea {
   width: 100%;
@@ -13879,6 +14247,39 @@ body:has(.dashboard-layout) {
 .dashboard-config-reminder svg {
   flex-shrink: 0;
   color: var(--text-tertiary);
+}
+
+/* Text grows so the close button hugs the right edge */
+.dashboard-config-reminder-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-config-reminder-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.dashboard-config-reminder-close:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.dashboard-config-reminder-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .dashboard-link-button {
@@ -15146,6 +15547,10 @@ body:has(.dashboard-layout) {
 .config-field input[type="text"]:focus-visible,
 .config-field input[type="number"]:focus-visible,
 .config-field input[type="url"]:focus-visible,
+.config-field input[type="email"]:focus-visible,
+.config-field input[type="password"]:focus-visible,
+.config-field input[type="search"]:focus-visible,
+.config-field input:not([type]):focus-visible,
 .config-field input[type="color"]:focus-visible,
 .config-field textarea:focus-visible {
   outline: none;
@@ -16843,6 +17248,38 @@ body:has(.docs-layout) {
   border-bottom: 1px solid var(--border-color);
 }
 
+.media-toolbar-search-row {
+  flex-wrap: wrap;
+}
+
+.media-search,
+.image-upload-library-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.media-search {
+  flex: 1 1 260px;
+}
+
+.media-search input,
+.image-upload-library-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+}
+
 .media-toolbar-btn {
   display: flex;
   align-items: center;
@@ -17039,6 +17476,23 @@ body:has(.docs-layout) {
   color: var(--text-secondary);
 }
 
+.media-upload-progress {
+  width: min(420px, 100%);
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+}
+
+.media-upload-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-color, var(--text-primary));
+  transition: width 120ms linear;
+}
+
 /* File Grid */
 .media-grid {
   display: grid;
@@ -17056,6 +17510,7 @@ body:has(.docs-layout) {
 }
 
 .media-item-preview {
+  position: relative;
   aspect-ratio: 4 / 3;
   overflow: hidden;
   background: var(--bg-tertiary);
@@ -17068,6 +17523,28 @@ body:has(.docs-layout) {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.media-item-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.media-kind-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  color: white;
+  font-size: 11px;
+  line-height: 1;
 }
 
 .media-item-info {
@@ -17377,6 +17854,10 @@ body:has(.docs-layout) {
   color: var(--text-secondary);
 }
 
+.image-upload-dropzone .media-upload-progress {
+  margin-top: 12px;
+}
+
 .image-upload-preview {
   position: relative;
   border-radius: var(--radius);
@@ -17389,6 +17870,13 @@ body:has(.docs-layout) {
   height: auto;
   max-height: 300px;
   object-fit: contain;
+}
+
+.image-upload-preview video {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  background: #000;
 }
 
 .image-upload-preview-loading {
@@ -17534,6 +18022,10 @@ body:has(.docs-layout) {
   padding: 16px 0;
 }
 
+.image-upload-library-search {
+  margin-bottom: 16px;
+}
+
 .image-upload-library-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -17541,11 +18033,15 @@ body:has(.docs-layout) {
 }
 
 .image-upload-library-item {
+  position: relative;
   aspect-ratio: 1;
+  padding: 0;
   border-radius: var(--radius);
   overflow: hidden;
   cursor: pointer;
   border: 2px solid transparent;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
   transition: all 0.15s ease;
 }
 
@@ -17557,6 +18053,27 @@ body:has(.docs-layout) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.image-upload-library-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.image-upload-library-name {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 18px 7px 6px;
+  overflow: hidden;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+  color: white;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .image-upload-library-empty {
@@ -17641,7 +18158,9 @@ body:has(.docs-layout) {
   color: var(--text-secondary);
 }
 
-.image-upload-field input[type="text"] {
+/* Alt text ships as a bare <input>, so match the typeless case too. */
+.image-upload-field input[type="text"],
+.image-upload-field input:not([type]) {
   padding: 10px 12px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -17650,7 +18169,8 @@ body:has(.docs-layout) {
   font-size: 14px;
 }
 
-.image-upload-field input[type="text"]:focus {
+.image-upload-field input[type="text"]:focus,
+.image-upload-field input:not([type]):focus {
   outline: none;
   border-color: var(--text-primary);
 }
@@ -17757,7 +18277,7 @@ body:has(.docs-layout) {
   }
 
   .image-upload-library-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .image-upload-selected {
@@ -17771,6 +18291,15 @@ body:has(.docs-layout) {
   .image-upload-custom-size {
     flex-direction: column;
     gap: 12px;
+  }
+
+  .image-upload-tab,
+  .image-upload-modal-close,
+  .image-upload-cancel,
+  .image-upload-insert,
+  .image-upload-change,
+  .image-upload-library-loadmore {
+    min-height: 44px;
   }
 }
 
@@ -17787,6 +18316,21 @@ body:has(.docs-layout) {
 
   .media-item-actions {
     flex-wrap: wrap;
+  }
+
+  .media-copy-btn,
+  .media-delete-btn,
+  .media-toolbar-btn {
+    min-height: 44px;
+  }
+
+  .media-toolbar-search-row {
+    align-items: stretch;
+  }
+
+  .media-search {
+    flex-basis: 100%;
+    min-height: 44px;
   }
 
   .media-upload-zone {
@@ -18535,8 +19079,7 @@ body:has(.docs-layout) {
   margin: 0;
 }
 
-/* Link rail sits at the bottom-right corner of every card. Missing links stay
-   in place as dimmed glyphs so the row of icons never shifts between cards */
+/* Link rail sits at the bottom-right of the card. Only filled URLs render. */
 .project-rail {
   display: flex;
   justify-content: flex-end;
@@ -18565,11 +19108,6 @@ a.project-rail-icon:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   border-radius: var(--radius);
-}
-
-.project-rail-icon-empty {
-  color: var(--text-muted);
-  opacity: 0.35;
 }
 
 /* One column: thumbnail left, text right */
@@ -18688,4 +19226,647 @@ a.project-rail-icon:focus-visible {
     justify-content: flex-start;
     padding-top: 8px;
   }
+}
+
+/* ==========================================================================
+   Skills directory (/skills)
+   Sections of agent skills. The slash command is the eyebrow, the install line
+   reads like a terminal prompt, and the link rail only shows filled links.
+   ========================================================================== */
+
+.skills-page {
+  padding-top: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.skills-header {
+  margin-bottom: 40px;
+}
+
+.skills-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.skills-title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-blog-page-title);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  text-wrap: balance;
+}
+
+:root[data-theme="dark"] .skills-title {
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+:root[data-theme="light"] .skills-title {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.skills-description {
+  font-size: var(--font-size-blog-page-description);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 600px;
+}
+
+.skills-header-actions {
+  flex-shrink: 0;
+  padding-top: 6px;
+}
+
+.skills-markdown-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: var(--font-size-xs, 0.8125rem);
+  font-family: inherit;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.skills-markdown-button:hover:not(:disabled) {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.skills-markdown-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.skills-markdown-button[data-state="copied"] {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.skills-markdown-button:focus-visible,
+.skills-filter-input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Count and agent hint sit on one quiet line under the description */
+.skills-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: var(--font-size-xs, 0.8125rem);
+  color: var(--text-muted);
+}
+
+.skills-agent-path {
+  font-family:
+    SF Mono,
+    Monaco,
+    Cascadia Code,
+    Roboto Mono,
+    Consolas,
+    monospace;
+  font-size: 0.95em;
+  padding: 1px 6px;
+  background-color: var(--inline-code-bg);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+}
+
+.skills-filter {
+  margin-top: 20px;
+}
+
+.skills-filter-input {
+  width: 100%;
+  max-width: 360px;
+  padding: 8px 12px;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.skills-filter-input::placeholder {
+  color: var(--text-muted);
+}
+
+.skills-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.skills-section-head {
+  margin-bottom: 20px;
+}
+
+.skills-section-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.skills-section-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 600px;
+}
+
+.skills-section-install {
+  margin-top: 14px;
+  max-width: 600px;
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.skill-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 18px 16px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  min-width: 0;
+  scroll-margin-top: 96px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.skill-card:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+/* Deep link target gets a brief accent hairline so the eye lands on it */
+.skill-card:target {
+  border-color: var(--accent);
+}
+
+.skill-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 22px;
+}
+
+/* The slash command is the skill's identity, so it leads the card in mono */
+.skill-command {
+  font-family:
+    SF Mono,
+    Monaco,
+    Cascadia Code,
+    Roboto Mono,
+    Consolas,
+    monospace;
+  font-size: var(--font-size-xs, 0.8125rem);
+  color: var(--accent);
+  background-color: var(--inline-code-bg);
+  padding: 2px 7px;
+  border-radius: var(--radius);
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:root[data-theme="light"] .skill-command,
+:root[data-theme="cloud"] .skill-command {
+  color: var(--text-primary);
+}
+
+.skill-command-empty {
+  background: none;
+  padding: 0;
+}
+
+.skill-anchor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--text-muted);
+  opacity: 0;
+  border-radius: var(--radius);
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
+}
+
+.skill-card:hover .skill-anchor,
+.skill-anchor:focus-visible {
+  opacity: 1;
+}
+
+.skill-anchor:hover {
+  color: var(--text-primary);
+}
+
+.skill-anchor:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.skill-title {
+  font-size: var(--font-size-featured-card-title);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  margin: 0;
+}
+
+.skill-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.skill-title-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.skill-title-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.skill-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.skill-author {
+  font-size: var(--font-size-xs, 0.8125rem);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.skill-author a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.skill-author a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Install block: optional tabs over one prompt line */
+.skill-install {
+  margin-top: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background-color: var(--code-bg);
+  overflow: hidden;
+}
+
+.skill-install-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.skill-install-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.skill-install-tab {
+  padding: 6px 12px;
+  font-size: var(--font-size-xs, 0.8125rem);
+  font-family: inherit;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.skill-install-tab:hover {
+  color: var(--text-secondary);
+}
+
+.skill-install-tab[aria-selected="true"] {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+.skill-install-tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.skill-install-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  min-width: 0;
+}
+
+.skill-install-prompt {
+  font-family:
+    SF Mono,
+    Monaco,
+    Cascadia Code,
+    Roboto Mono,
+    Consolas,
+    monospace;
+  font-size: var(--font-size-xs, 0.8125rem);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.skill-install-command {
+  flex: 1;
+  min-width: 0;
+  font-family:
+    SF Mono,
+    Monaco,
+    Cascadia Code,
+    Roboto Mono,
+    Consolas,
+    monospace;
+  font-size: var(--font-size-xs, 0.8125rem);
+  color: var(--text-primary);
+  background: none;
+  padding: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.skill-install-command::-webkit-scrollbar {
+  display: none;
+}
+
+.skill-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: var(--font-size-xs, 0.8125rem);
+  font-family: inherit;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.skill-copy:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+  border-color: var(--border-color);
+}
+
+.skill-copy[data-state="copied"] {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.skill-copy[data-state="failed"] {
+  color: var(--text-secondary);
+}
+
+.skill-copy:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Collapsible "when to use" keeps the card scannable by default */
+.skill-details {
+  margin-top: 4px;
+  font-size: var(--font-size-sm);
+}
+
+.skill-details summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs, 0.8125rem);
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.skill-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.skill-details summary::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+}
+
+.skill-details[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.skill-details summary:hover {
+  color: var(--text-primary);
+}
+
+.skill-details summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.skill-details-body {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.skill-details-body p {
+  margin: 0 0 8px;
+}
+
+.skill-details-body p:last-child {
+  margin-bottom: 0;
+}
+
+.skill-details-body ul,
+.skill-details-body ol {
+  margin: 0 0 8px;
+  padding-left: 1.2em;
+}
+
+.skill-details-body code {
+  font-family:
+    SF Mono,
+    Monaco,
+    Cascadia Code,
+    Roboto Mono,
+    Consolas,
+    monospace;
+  font-size: 0.9em;
+  background-color: var(--inline-code-bg);
+  padding: 1px 5px;
+  border-radius: var(--radius);
+}
+
+/* Link rail sits at the bottom-right of the card. Only filled URLs render. */
+.skill-rail {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.skill-rail-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--text-primary);
+  transition: color 0.15s ease;
+}
+
+a.skill-rail-icon:hover {
+  color: var(--accent);
+}
+
+a.skill-rail-icon:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.skills-empty {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 768px) {
+  .skills-page {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .skills-header {
+    margin-bottom: 28px;
+  }
+
+  .skills-header-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .skills-header-actions {
+    padding-top: 0;
+  }
+
+  .skills-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .skills-sections {
+    gap: 36px;
+  }
+
+  /* Touch has no hover, so the anchor stays visible */
+  .skill-anchor {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .skills-page {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .skill-card {
+    padding: 16px 14px 14px;
+  }
+
+  .skill-copy-text {
+    display: none;
+  }
+}
+
+/* Homepage selections share the site's project and editorial styles. */
+.home-highlight { margin-block: 2.5rem; }
+.home-highlight > h2 { margin-bottom: 1rem; font-size: 1.4rem; }
+.home-highlight-image { display: block; width: 100%; max-height: 420px; object-fit: cover; aspect-ratio: 16 / 9; border-radius: 8px; margin-bottom: 1rem; }
+.home-highlight p { color: var(--text-secondary); line-height: 1.6; }
+
+/* Dialog actions remain reachable on short and landscape viewports. */
+.dashboard-modal {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+.image-upload-modal-large {
+  max-height: calc(100dvh - 2rem);
+}
+.image-upload-modal-large .image-upload-modal-content { min-height: 0; }
+.image-upload-modal-header,
+.image-upload-tabs,
+.image-upload-modal-footer { flex-shrink: 0; }
+
+@media (max-width: 1024px), (pointer: coarse) {
+  .image-upload-tab, .image-upload-modal-close, .image-upload-cancel,
+  .image-upload-insert, .image-upload-change, .image-upload-library-loadmore,
+  .image-upload-size-btn, .media-copy-btn, .media-delete-btn, .media-toolbar-btn,
+  .dashboard-modal-btn, .dashboard-modal-close {
+    min-height: 44px; min-width: 44px;
+  }
+  .image-upload-modal input, .image-upload-modal select { font-size: 16px; }
 }

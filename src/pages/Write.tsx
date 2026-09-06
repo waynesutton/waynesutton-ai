@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
   CopySimple,
   Check,
   Trash,
+  DownloadSimple,
   House,
   Article,
   File,
@@ -20,154 +21,21 @@ import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import AIChatView from "../components/AIChatView";
 import siteConfig from "../config/siteConfig";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { FrontmatterForm, createDefaultFrontmatter, serializeFrontmatter, type FrontmatterImageField } from "../components/FrontmatterForm";
+import { ImageUploadModal } from "../components/ImageUploadModal";
+import { TooltipProvider, Tip } from "../components/ui/Tooltip";
+import { collectAuthorSuggestions } from "../utils/authorSuggestions";
+import { parseWriteFrontmatter, patchWriteFrontmatter } from "../utils/writeFrontmatter";
+import { FRONTMATTER_SIDEBAR_WIDTH_KEY, useResizableSidebar } from "../hooks/useResizableSidebar";
+import "../styles/dashboard-forms.css";
+import "../styles/dashboard.css";
+import "../styles/write-workspace.css";
 
-// Frontmatter field definitions for blog posts
-const POST_FIELDS = [
-  { name: "title", required: true, example: '"Your Post Title"' },
-  {
-    name: "description",
-    required: true,
-    example: '"A brief description for SEO"',
-  },
-  { name: "date", required: true, example: '"2025-01-20"' },
-  { name: "slug", required: true, example: '"your-post-url"' },
-  { name: "published", required: true, example: "true" },
-  { name: "tags", required: true, example: '["tag1", "tag2"]' },
-  { name: "readTime", required: false, example: '"5 min read"' },
-  { name: "image", required: false, example: '"/images/my-image.png"' },
-  { name: "showImageAtTop", required: false, example: "true" },
-  {
-    name: "excerpt",
-    required: false,
-    example: '"Short description for cards"',
-  },
-  { name: "featured", required: false, example: "true" },
-  { name: "featuredOrder", required: false, example: "1" },
-  { name: "authorName", required: false, example: '"Jane Doe"' },
-  {
-    name: "authorImage",
-    required: false,
-    example: '"/images/authors/jane.png"',
-  },
-  { name: "layout", required: false, example: '"sidebar"' },
-  { name: "rightSidebar", required: false, example: "true" },
-  { name: "showFooter", required: false, example: "true" },
-  {
-    name: "footer",
-    required: false,
-    example: '"Built with [Convex](https://convex.dev)."',
-  },
-  { name: "showSocialFooter", required: false, example: "true" },
-  { name: "aiChat", required: false, example: "true" },
-  { name: "blogFeatured", required: false, example: "true" },
-  { name: "newsletter", required: false, example: "true" },
-  { name: "contactForm", required: false, example: "true" },
-  { name: "unlisted", required: false, example: "true" },
-  { name: "aiWritten", required: false, example: "true" },
-  { name: "docsSection", required: false, example: "true" },
-  { name: "docsSectionOrder", required: false, example: "1" },
-  { name: "docsSectionGroup", required: false, example: '"Setup"' },
-  { name: "docsSectionGroupOrder", required: false, example: "1" },
-  { name: "docsSectionGroupIcon", required: false, example: '"Rocket"' },
-  { name: "docsLanding", required: false, example: "true" },
-];
-
-// Frontmatter field definitions for pages
-const PAGE_FIELDS = [
-  { name: "title", required: true, example: '"Page Title"' },
-  { name: "slug", required: true, example: '"page-url"' },
-  { name: "published", required: true, example: "true" },
-  { name: "order", required: false, example: "1" },
-  { name: "showInNav", required: false, example: "true" },
-  { name: "excerpt", required: false, example: '"Short description"' },
-  { name: "image", required: false, example: '"/images/thumbnail.png"' },
-  { name: "showImageAtTop", required: false, example: "true" },
-  { name: "featured", required: false, example: "true" },
-  { name: "featuredOrder", required: false, example: "1" },
-  { name: "authorName", required: false, example: '"Jane Doe"' },
-  {
-    name: "authorImage",
-    required: false,
-    example: '"/images/authors/jane.png"',
-  },
-  { name: "layout", required: false, example: '"sidebar"' },
-  { name: "rightSidebar", required: false, example: "true" },
-  { name: "showFooter", required: false, example: "true" },
-  {
-    name: "footer",
-    required: false,
-    example: '"Built with [Convex](https://convex.dev)."',
-  },
-  { name: "showSocialFooter", required: false, example: "true" },
-  { name: "aiChat", required: false, example: "true" },
-  { name: "newsletter", required: false, example: "true" },
-  { name: "contactForm", required: false, example: "true" },
-  { name: "unlisted", required: false, example: "true" },
-  { name: "docsSection", required: false, example: "true" },
-  { name: "docsSectionOrder", required: false, example: "1" },
-  { name: "docsSectionGroup", required: false, example: '"Setup"' },
-  { name: "docsSectionGroupOrder", required: false, example: "1" },
-  { name: "docsSectionGroupIcon", required: false, example: '"Rocket"' },
-  { name: "docsLanding", required: false, example: "true" },
-];
-
-// Generate frontmatter template based on content type
+// A local draft starts unpublished. Switching type retains its contents.
 function generateTemplate(type: "post" | "page"): string {
-  if (type === "post") {
-    return `---
-title: "Your Post Title"
-description: "A brief description for SEO and social sharing"
-date: "${new Date().toISOString().split("T")[0]}"
-slug: "your-post-url"
-published: true
-tags: ["tag1", "tag2"]
-readTime: "5 min read"
----
-
-# Your Post Title
-
-Start writing your content here...
-
-## Section Heading
-
-Add your markdown content. You can use:
-
-- **Bold text** and *italic text*
-- [Links](https://example.com)
-- Code blocks with syntax highlighting
-
-\`\`\`typescript
-const greeting = "Hello, world";
-console.log(greeting);
-\`\`\`
-
-## Conclusion
-
-Wrap up your thoughts here.
-`;
-  }
-
-  return `---
-title: "Page Title"
-slug: "page-url"
-published: true
-order: 1
-showInNav: true
-layout: "sidebar"
----
-
-# Page Title
-
-Your page content goes here...
-
-## Section
-
-Add your markdown content.
-
-## Another Section
-
-With sidebar layout enabled, headings automatically appear in the table of contents.
-`;
+  return serializeFrontmatter(type, { ...createDefaultFrontmatter(type), published: false }) + "\n";
 }
 
 // localStorage keys
@@ -206,10 +74,17 @@ function getThemeIcon(theme: string) {
 export default function Write() {
   const { theme, toggleTheme } = useTheme();
   const { fontFamily: globalFont } = useFont();
-  const [contentType, setContentType] = useState<"post" | "page">("post");
-  const [content, setContent] = useState("");
+  const [contentType, setContentType] = useState<"post" | "page">(() => localStorage.getItem(STORAGE_KEY_TYPE) === "page" ? "page" : "post");
+  const [content, setContent] = useState(() => localStorage.getItem(STORAGE_KEY_CONTENT) ?? generateTemplate(contentType));
   const [copied, setCopied] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const isAdmin = useQuery(api.authAdmin.isCurrentUserDashboardAdmin) === true;
+  const authorsPosts = useQuery(api.posts.listAll, isAdmin ? {} : "skip");
+  const authorsPages = useQuery(api.pages.listAll, isAdmin ? {} : "skip");
+  const authorSuggestions = collectAuthorSuggestions([...(authorsPosts ?? []), ...(authorsPages ?? [])]);
+  const [imageField, setImageField] = useState<FrontmatterImageField | null>(null);
+  const [imageTab, setImageTab] = useState<"upload" | "library">("library");
+  const [confirmReset, setConfirmReset] = useState(false);
+  const parsed = parseWriteFrontmatter(content, contentType);
   const [font, setFont] = useState<"serif" | "sans" | "monospace">("sans");
   const [isAIChatMode, setIsAIChatMode] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -224,33 +99,40 @@ export default function Write() {
     const saved = localStorage.getItem(STORAGE_KEY_FRONTMATTER);
     return saved === "true";
   });
+  const sidebar = useResizableSidebar(FRONTMATTER_SIDEBAR_WIDTH_KEY);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const settingsRef = useRef<HTMLElement>(null);
+  const resetDialogRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!confirmReset) return;
+    const previousFocus = document.activeElement;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setConfirmReset(false); }
+      if (event.key !== "Tab") return;
+      const buttons = resetDialogRef.current?.querySelectorAll<HTMLButtonElement>("button");
+      if (!buttons?.length) return;
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+    };
+  }, [confirmReset]);
 
   // Check if AI chat is enabled for write page
   const aiChatEnabled = siteConfig.aiChat.enabledOnWritePage;
 
   // Load from localStorage on mount
   useEffect(() => {
-    const savedContent = localStorage.getItem(STORAGE_KEY_CONTENT);
-    const savedType = localStorage.getItem(STORAGE_KEY_TYPE) as
-      | "post"
-      | "page"
-      | null;
     const savedFont = localStorage.getItem(STORAGE_KEY_FONT) as
       | "serif"
       | "sans"
       | "monospace"
       | null;
-
-    if (savedContent) {
-      setContent(savedContent);
-    } else {
-      setContent(generateTemplate("post"));
-    }
-
-    if (savedType) {
-      setContentType(savedType);
-    }
 
     // Use saved font preference, or fall back to global font, or default to sans
     if (
@@ -335,6 +217,19 @@ export default function Write() {
     });
   }, []);
 
+  const openSettings = () => {
+    if (window.matchMedia("(max-width: 1100px)").matches) {
+      setFrontmatterCollapsed(false);
+      localStorage.setItem(STORAGE_KEY_FRONTMATTER, "false");
+      requestAnimationFrame(() => {
+        settingsRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+        settingsRef.current?.focus({ preventScroll: true });
+      });
+    } else {
+      toggleFrontmatter();
+    }
+  };
+
   // Keyboard shortcut: Cmd+. to toggle sidebar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -343,7 +238,7 @@ export default function Write() {
         toggleSidebar();
       }
       // Escape to exit focus mode
-      if (e.key === "Escape" && focusMode) {
+      if (e.key === "Escape" && focusMode && !confirmReset) {
         e.preventDefault();
         toggleFocusMode();
       }
@@ -351,15 +246,14 @@ export default function Write() {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar, toggleFocusMode, focusMode]);
+  }, [toggleSidebar, toggleFocusMode, focusMode, confirmReset]);
 
   // Handle type change and update content template
   const handleTypeChange = (newType: "post" | "page") => {
     if (newType === contentType) return;
 
     setContentType(newType);
-    // Always update to the new template when switching types
-    setContent(generateTemplate(newType));
+    // Preserve the draft when switching its publishing destination.
   };
 
   // Copy content to clipboard
@@ -381,32 +275,19 @@ export default function Write() {
     }
   }, [content]);
 
-  // Copy a single frontmatter field to clipboard
-  const handleCopyField = useCallback(
-    async (fieldName: string, example: string) => {
-      const fieldText = `${fieldName}: ${example}`;
-      try {
-        await navigator.clipboard.writeText(fieldText);
-        setCopiedField(fieldName);
-        setTimeout(() => setCopiedField(null), 1500);
-      } catch {
-        // Fallback
-        const textarea = document.createElement("textarea");
-        textarea.value = fieldText;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-        setCopiedField(fieldName);
-        setTimeout(() => setCopiedField(null), 1500);
-      }
-    },
-    [],
-  );
+  const handleDownload = () => {
+    const url = URL.createObjectURL(new Blob([content], { type: "text/markdown" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${parsed.values.slug.replace(/[^a-z0-9-]/gi, "") || "draft"}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Clear content and reset to template
   const handleClear = useCallback(() => {
     setContent(generateTemplate(contentType));
+    setConfirmReset(false);
     if (textareaRef.current) {
       textareaRef.current.focus();
     }
@@ -417,11 +298,17 @@ export default function Write() {
   const characters = content.length;
   const words = content.trim() ? content.trim().split(/\s+/).length : 0;
 
-  const fields = contentType === "post" ? POST_FIELDS : PAGE_FIELDS;
 
   return (
+    // FrontmatterForm renders Radix tooltips, which need a provider above them
+    <TooltipProvider delayDuration={350} skipDelayDuration={400}>
     <div
-      className={`write-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${focusMode ? "focus-mode" : ""} ${frontmatterCollapsed ? "frontmatter-collapsed" : ""}`}
+      className={`write-layout write-workspace ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${focusMode ? "focus-mode" : ""} ${frontmatterCollapsed ? "frontmatter-collapsed" : ""}`}
+      style={
+        frontmatterCollapsed
+          ? undefined
+          : ({ "--write-fm-width": `${sidebar.width}px` } as CSSProperties)
+      }
     >
       {/* Left Sidebar: Type selector */}
       <aside
@@ -496,9 +383,9 @@ export default function Write() {
                 <span>{isAIChatMode ? "Text Editor" : "Agent"}</span>
               </button>
             )}
-            <button onClick={handleClear} className="write-nav-item">
+            <button onClick={() => setConfirmReset(true)} className="write-nav-item">
               <Trash size={18} />
-              <span>Clear</span>
+              <span>New draft</span>
             </button>
             <button onClick={toggleTheme} className="write-nav-item">
               {getThemeIcon(theme)}
@@ -520,7 +407,7 @@ export default function Write() {
         {/* Local storage notice */}
         <div className="write-warning">
           <Warning size={14} />
-          <span>Saved locally in this browser only. Copy to avoid losing.</span>
+          <span>Draft stays in this browser. Download a backup before clearing browser data.</span>
         </div>
       </aside>
 
@@ -537,6 +424,8 @@ export default function Write() {
             </h1>
           </div>
           <div className="write-header-actions">
+            {!isAIChatMode && <button className="write-copy-btn" onClick={handleDownload}><DownloadSimple size={16} />Download .md</button>}
+            <button className="write-copy-btn" onClick={openSettings} aria-expanded={!frontmatterCollapsed} aria-controls="write-frontmatter">{contentType === "post" ? "Post settings" : "Page settings"}</button>
             {!isAIChatMode && (
               <button
                 onClick={handleCopy}
@@ -550,7 +439,7 @@ export default function Write() {
                 ) : (
                   <>
                     <CopySimple size={16} />
-                    <span>Copy All</span>
+                    <span>Copy markdown</span>
                   </>
                 )}
               </button>
@@ -559,6 +448,7 @@ export default function Write() {
               onClick={toggleFocusMode}
               className={`write-focus-btn ${focusMode ? "active" : ""}`}
               title={focusMode ? "Exit focus mode (Esc)" : "Enter focus mode"}
+              aria-label={focusMode ? "Exit focus mode" : "Enter focus mode"}
             >
               {focusMode ? (
                 <ArrowsIn size={18} weight="regular" />
@@ -580,6 +470,7 @@ export default function Write() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             className="write-textarea"
+            aria-label="Markdown draft including frontmatter"
             placeholder="Start writing your markdown..."
             spellCheck={true}
             autoComplete="off"
@@ -599,7 +490,7 @@ export default function Write() {
               <span>{characters} chars</span>
             </div>
             <div className="write-save-hint">
-              Save to{" "}
+              Download to{" "}
               <code>content/{contentType === "post" ? "blog" : "pages"}/</code>{" "}
               then <code>npm run sync</code>
             </div>
@@ -609,55 +500,55 @@ export default function Write() {
 
       {/* Right Sidebar: Frontmatter fields */}
       <aside
-        className={`write-sidebar-right ${frontmatterCollapsed ? "collapsed" : ""}`}
+        id="write-frontmatter"
+        ref={settingsRef}
+        tabIndex={-1}
+        aria-label="Frontmatter settings"
+        className={`write-sidebar-right ${frontmatterCollapsed ? "collapsed" : ""} ${sidebar.isResizing ? "resizing" : ""}`}
       >
+        {!frontmatterCollapsed && (
+          <Tip content="Drag to resize. Arrow keys nudge, double-click resets." side="left">
+            <div className="dashboard-sidebar-resize-handle" {...sidebar.handleProps} />
+          </Tip>
+        )}
         <div className="write-sidebar-header">
           <span className="write-sidebar-title">Frontmatter</span>
           <button
             onClick={toggleFrontmatter}
             className="write-sidebar-toggle"
-            title={frontmatterCollapsed ? "Expand" : "Collapse"}
+            title={frontmatterCollapsed ? "Expand settings" : "Collapse settings"}
+            aria-label={frontmatterCollapsed ? "Expand settings" : "Collapse settings"}
+            aria-expanded={!frontmatterCollapsed}
           >
             <SidebarSimple size={16} weight="regular" />
           </button>
         </div>
 
         <div className="write-fields">
-          <div className="write-fields-section">
-            <span className="write-fields-label">
-              {contentType === "post" ? "Blog Post" : "Page"} Fields
-            </span>
-            {fields.map((field) => (
-              <div key={field.name} className="write-field-row">
-                <div className="write-field-info">
-                  <code className="write-field-name">
-                    {field.name}
-                    {field.required && (
-                      <span className="write-field-required">*</span>
-                    )}
-                  </code>
-                  <span className="write-field-example">{field.example}</span>
-                </div>
-                <button
-                  onClick={() => handleCopyField(field.name, field.example)}
-                  className={`write-field-copy ${copiedField === field.name ? "copied" : ""}`}
-                  title={`Copy ${field.name}`}
-                >
-                  {copiedField === field.name ? (
-                    <Check size={14} weight="bold" />
-                  ) : (
-                    <CopySimple size={14} />
-                  )}
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="write-fields-note">
-            <span className="write-field-required">*</span> Required fields
-          </div>
+          <p className="write-settings-hint">Edit these fields or the YAML above your markdown. This draft is saved locally; it is not published.</p>
+          {parsed.formIssue ? <p role="status">{parsed.formIssue}</p> : (
+            <FrontmatterForm
+              key={contentType}
+              kind={contentType}
+              value={parsed.values}
+              authorSuggestions={authorSuggestions}
+              onChange={(next) => setContent(patchWriteFrontmatter(content, contentType, parsed.values, next))}
+              onRequestImage={isAdmin ? (field, initialTab = "upload") => { setImageField(field); setImageTab(initialTab); } : undefined}
+            />
+          )}
+          {!isAdmin && <p className="write-settings-hint"><Link to="/dashboard">Sign in as a dashboard admin</Link> to upload images or choose from the media library. Image URLs work without signing in.</p>}
         </div>
       </aside>
+      {isAdmin && imageField && <ImageUploadModal isOpen requiredProvider="r2" initialTab={imageTab} onClose={() => setImageField(null)} onSelectUrl={(url) => {
+        setContent(patchWriteFrontmatter(content, contentType, parsed.values, { ...parsed.values, [imageField]: url }));
+        setImageField(null);
+      }} />}
+      {confirmReset && <div className="write-reset-scrim"><section ref={resetDialogRef} className="write-reset-dialog" role="alertdialog" aria-modal="true" aria-labelledby="write-reset-title">
+        <h2 id="write-reset-title">Start a new draft?</h2>
+        <p>This replaces the draft saved in this browser. Download it first if you want to keep a copy.</p>
+        <div className="write-header-actions"><button className="write-copy-btn" onClick={() => setConfirmReset(false)} autoFocus>Keep writing</button><button className="write-copy-btn" onClick={handleDownload}>Download draft</button><button className="write-copy-btn" onClick={handleClear}>Start new draft</button></div>
+      </section></div>}
     </div>
+    </TooltipProvider>
   );
 }

@@ -5,6 +5,7 @@ import type { Id } from "./_generated/dataModel";
 import { internalAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import FirecrawlApp from "@mendable/firecrawl-js";
+import { resolveVendorKey } from "./lib/vendorKeyResolver";
 
 type ImportJobActionArgs = {
   jobId: Id<"importUrlJobs">;
@@ -70,7 +71,8 @@ async function importFromUrlJobFromSnapshot(
   ctx: ActionCtx,
   args: ImportJobActionArgs,
 ): Promise<null> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
+  // Dashboard BYOK override first, then the env var
+  const apiKey = await resolveVendorKey(ctx, "FIRECRAWL_API_KEY");
   if (!apiKey) {
     return await failImportJob(
       ctx,

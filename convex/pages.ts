@@ -2,6 +2,7 @@ import { query, mutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
+import { assertSyncCaller } from "./lib/syncAuth";
 import {
   scheduleDiscoverySyncIfEnabled,
   pageDiscoveryEntry,
@@ -387,10 +388,12 @@ export const getDocsLandingPage = query({
   },
 });
 
-// Public mutation for syncing pages from markdown files
+// Public mutation for the CLI sync script. Gated by assertSyncCaller (admin
+// session, matching SYNC_SECRET, or open when SYNC_SECRET is unset).
 // Respects source field: only syncs pages where source !== "dashboard"
 export const syncPagesPublic = mutation({
   args: {
+    syncSecret: v.optional(v.string()),
     pages: v.array(
       v.object({
         slug: v.string(),
@@ -435,7 +438,8 @@ export const syncPagesPublic = mutation({
     skipped: v.number(),
   }),
   handler: async (ctx, args) => {
-    await ctx.auth.getUserIdentity();
+    const identity = await ctx.auth.getUserIdentity();
+    await assertSyncCaller(ctx, identity, args.syncSecret);
     let created = 0;
     let updated = 0;
     let deleted = 0;
@@ -507,6 +511,7 @@ export const syncPagesPublic = mutation({
           docsSectionGroupOrder: page.docsSectionGroupOrder,
           docsSectionGroupIcon: page.docsSectionGroupIcon,
           docsLanding: page.docsLanding,
+          slides: page.slides,
           source: "sync",
           lastSyncedAt: now,
         });

@@ -46,6 +46,12 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   // Newsletter subscribe: prevent signup spam
   newsletterSubscribe: { kind: "fixed window", rate: 5, period: MINUTE },
 
+  // Contact form: each submit stores a row and sends an AgentMail message
+  contactSubmit: { kind: "fixed window", rate: 5, period: MINUTE },
+
+  // Demo mode CRUD: anonymous writes, already capped at 50 rows per table
+  demoWrite: { kind: "token bucket", rate: 30, period: MINUTE, capacity: 10 },
+
   // Agent blog pipeline: draft submissions (API-key gated, still bounded)
   draftsApi: { kind: "token bucket", rate: 20, period: MINUTE, capacity: 5 },
 
@@ -72,6 +78,9 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   // Raw markdown file serving
   rawMarkdown: { kind: "token bucket", rate: 60, period: MINUTE, capacity: 20 },
 
+  // Public R2 fallback redirects. Pages can request many media objects at once.
+  mediaRedirect: { kind: "token bucket", rate: 600, period: MINUTE, capacity: 100 },
+
   // MCP server JSON-RPC endpoint (matches the old Netlify 50/min limit)
   mcp: { kind: "token bucket", rate: 50, period: MINUTE, capacity: 15 },
 });
@@ -81,9 +90,9 @@ type RateLimitName =
   | "askAiStream"
   | "aiImageGen" | "aiChatResponse"
   | "vfsExec" | "vfsTree" | "apiExport" | "rssFullFeed"
-  | "heartbeat" | "pageView" | "newsletterSubscribe"
+  | "heartbeat" | "pageView" | "newsletterSubscribe" | "contactSubmit" | "demoWrite"
   | "draftsApi" | "webhookInbound" | "xCallback"
-  | "apiPosts" | "apiPost" | "sitemap" | "rssFeed" | "rawMarkdown"
+  | "apiPosts" | "apiPost" | "sitemap" | "rssFeed" | "rawMarkdown" | "mediaRedirect"
   | "mcp";
 
 // Internal mutation for rate limiting from HTTP actions.

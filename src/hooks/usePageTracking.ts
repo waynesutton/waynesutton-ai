@@ -143,15 +143,16 @@ export function usePageTracking(): void {
       }
     };
 
+    const currentTabId = tabIdRef.current;
     // Announce when this tab closes so others can become leader
     const handleBeforeUnload = () => {
-      channel.postMessage({ type: "close", tabId: tabIdRef.current });
+      channel.postMessage({ type: "close", tabId: currentTabId });
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      channel.postMessage({ type: "close", tabId: tabIdRef.current });
+      channel.postMessage({ type: "close", tabId: currentTabId });
       channel.close();
       broadcastChannelRef.current = null;
     };

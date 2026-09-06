@@ -4,6 +4,7 @@ import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { AgentMailClient } from "agentmail";
+import { resolveVendorKeys } from "./lib/vendorKeyResolver";
 
 // Simple markdown to HTML converter for email content
 // Supports: headers, bold, italic, links, lists, paragraphs
@@ -14,47 +15,65 @@ function markdownToHtml(markdown: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     // Headers (must be at start of line)
-    .replace(/^### (.+)$/gm, '<h3 style="font-size: 18px; color: #1a1a1a; margin: 16px 0 8px;">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 style="font-size: 20px; color: #1a1a1a; margin: 20px 0 10px;">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 style="font-size: 24px; color: #1a1a1a; margin: 24px 0 12px;">$1</h1>')
+    .replace(
+      /^### (.+)$/gm,
+      '<h3 style="font-size: 18px; color: #1a1a1a; margin: 16px 0 8px;">$1</h3>',
+    )
+    .replace(
+      /^## (.+)$/gm,
+      '<h2 style="font-size: 20px; color: #1a1a1a; margin: 20px 0 10px;">$1</h2>',
+    )
+    .replace(
+      /^# (.+)$/gm,
+      '<h1 style="font-size: 24px; color: #1a1a1a; margin: 24px 0 12px;">$1</h1>',
+    )
     // Bold and italic
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/__(.+?)__/g, '<strong>$1</strong>')
-    .replace(/_(.+?)_/g, '<em>$1</em>')
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/__(.+?)__/g, "<strong>$1</strong>")
+    .replace(/_(.+?)_/g, "<em>$1</em>")
     // Links
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #1a73e8; text-decoration: none;">$1</a>')
+    .replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" style="color: #1a73e8; text-decoration: none;">$1</a>',
+    )
     // Unordered lists
     .replace(/^- (.+)$/gm, '<li style="margin: 4px 0;">$1</li>')
-    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul style="padding-left: 20px; margin: 12px 0;">$&</ul>')
+    .replace(
+      /(<li[^>]*>.*<\/li>\n?)+/g,
+      '<ul style="padding-left: 20px; margin: 12px 0;">$&</ul>',
+    )
     // Line breaks (double newline = paragraph)
     .replace(/\n\n/g, '</p><p style="margin: 12px 0; line-height: 1.6;">')
     // Single line breaks
-    .replace(/\n/g, '<br />');
-  
+    .replace(/\n/g, "<br />");
+
   // Wrap in paragraph if not starting with a block element
-  if (!html.startsWith('<h') && !html.startsWith('<ul')) {
+  if (!html.startsWith("<h") && !html.startsWith("<ul")) {
     html = `<p style="margin: 12px 0; line-height: 1.6;">${html}</p>`;
   }
-  
+
   return html;
 }
 
 // Convert markdown to plain text for email fallback
 function markdownToText(markdown: string): string {
-  return markdown
-    // Remove markdown formatting
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/_(.+?)_/g, '$1')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')
-    .replace(/^#{1,3} /gm, '')
-    .replace(/^- /gm, '* ');
+  return (
+    markdown
+      // Remove markdown formatting
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/\*(.+?)\*/g, "$1")
+      .replace(/__(.+?)__/g, "$1")
+      .replace(/_(.+?)_/g, "$1")
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+      .replace(/^#{1,3} /gm, "")
+      .replace(/^- /gm, "* ")
+  );
 }
 
 // Environment variable error message for production
-const ENV_VAR_ERROR_MESSAGE = "AgentMail Environment Variables are not configured in production. Please set AGENTMAIL_API_KEY and AGENTMAIL_INBOX.";
+const ENV_VAR_ERROR_MESSAGE =
+  "AgentMail Environment Variables are not configured in production. Please set AGENTMAIL_API_KEY and AGENTMAIL_INBOX.";
 
 // Narrow the active subscriber list to a selected set of emails when the
 // admin picked specific recipients. Only active subscribers can ever be
@@ -126,9 +145,9 @@ export const sendPostNewsletter = internalAction({
       };
     }
 
-    // Get API key and inbox from environment
-    const apiKey = process.env.AGENTMAIL_API_KEY;
-    const inbox = process.env.AGENTMAIL_INBOX;
+    // Dashboard BYOK overrides first, then env vars, in one query
+    const { AGENTMAIL_API_KEY: apiKey, AGENTMAIL_INBOX: inbox } =
+      await resolveVendorKeys(ctx, ["AGENTMAIL_API_KEY", "AGENTMAIL_INBOX"]);
 
     if (!apiKey || !inbox) {
       return {
@@ -266,9 +285,9 @@ export const sendWeeklyDigest = internalAction({
       };
     }
 
-    // Get API key and inbox from environment
-    const apiKey = process.env.AGENTMAIL_API_KEY;
-    const inbox = process.env.AGENTMAIL_INBOX;
+    // Dashboard BYOK overrides first, then env vars, in one query
+    const { AGENTMAIL_API_KEY: apiKey, AGENTMAIL_INBOX: inbox } =
+      await resolveVendorKeys(ctx, ["AGENTMAIL_API_KEY", "AGENTMAIL_INBOX"]);
 
     if (!apiKey || !inbox) {
       return {
@@ -297,14 +316,14 @@ export const sendWeeklyDigest = internalAction({
           <p style="font-size: 14px; color: #666; margin: 0 0 8px 0;">${escapeHtml(post.description)}</p>
           <p style="font-size: 12px; color: #888; margin: 0;">${post.date}</p>
         </div>
-      `
+      `,
       )
       .join("");
 
     const postsText = recentPosts
       .map(
         (post) =>
-          `${post.title}\n${post.description}\n${args.siteUrl}/${post.slug}\n${post.date}`
+          `${post.title}\n${post.description}\n${args.siteUrl}/${post.slug}\n${post.date}`,
       )
       .join("\n\n");
 
@@ -368,11 +387,16 @@ export const notifyNewSubscriber = internalAction({
     success: v.boolean(),
     message: v.string(),
   }),
-  handler: async (_ctx, args) => {
-    // Get API key and inbox from environment
-    const apiKey = process.env.AGENTMAIL_API_KEY;
-    const inbox = process.env.AGENTMAIL_INBOX;
-    const contactEmail = process.env.AGENTMAIL_CONTACT_EMAIL || inbox;
+  handler: async (ctx, args) => {
+    // Dashboard BYOK overrides first, then env vars, in one query
+    const keys = await resolveVendorKeys(ctx, [
+      "AGENTMAIL_API_KEY",
+      "AGENTMAIL_INBOX",
+      "AGENTMAIL_CONTACT_EMAIL",
+    ]);
+    const apiKey = keys.AGENTMAIL_API_KEY;
+    const inbox = keys.AGENTMAIL_INBOX;
+    const contactEmail = keys.AGENTMAIL_CONTACT_EMAIL || inbox;
 
     if (!apiKey || !contactEmail) {
       return {
@@ -430,10 +454,15 @@ export const sendWeeklyStatsSummary = internalAction({
     message: v.string(),
   }),
   handler: async (ctx, args) => {
-    // Get API key and inbox from environment
-    const apiKey = process.env.AGENTMAIL_API_KEY;
-    const inbox = process.env.AGENTMAIL_INBOX;
-    const contactEmail = process.env.AGENTMAIL_CONTACT_EMAIL || inbox;
+    // Dashboard BYOK overrides first, then env vars, in one query
+    const keys = await resolveVendorKeys(ctx, [
+      "AGENTMAIL_API_KEY",
+      "AGENTMAIL_INBOX",
+      "AGENTMAIL_CONTACT_EMAIL",
+    ]);
+    const apiKey = keys.AGENTMAIL_API_KEY;
+    const inbox = keys.AGENTMAIL_INBOX;
+    const contactEmail = keys.AGENTMAIL_CONTACT_EMAIL || inbox;
 
     if (!apiKey || !contactEmail) {
       return { success: false, message: ENV_VAR_ERROR_MESSAGE };
@@ -499,8 +528,10 @@ export const sendCustomNewsletter = internalAction({
   }),
   handler: async (ctx, args) => {
     // Get subscribers, narrowed to the selected recipients when provided
-    const activeSubscribers: Array<{ email: string; unsubscribeToken: string }> =
-      await ctx.runQuery(internal.newsletter.getActiveSubscribers);
+    const activeSubscribers: Array<{
+      email: string;
+      unsubscribeToken: string;
+    }> = await ctx.runQuery(internal.newsletter.getActiveSubscribers);
     const isTargetedSend =
       args.recipientEmails !== undefined && args.recipientEmails.length > 0;
     const subscribers = filterSubscribersByEmails(
@@ -518,9 +549,9 @@ export const sendCustomNewsletter = internalAction({
       };
     }
 
-    // Get API key and inbox from environment
-    const apiKey = process.env.AGENTMAIL_API_KEY;
-    const inbox = process.env.AGENTMAIL_INBOX;
+    // Dashboard BYOK overrides first, then env vars, in one query
+    const { AGENTMAIL_API_KEY: apiKey, AGENTMAIL_INBOX: inbox } =
+      await resolveVendorKeys(ctx, ["AGENTMAIL_API_KEY", "AGENTMAIL_INBOX"]);
 
     if (!apiKey || !inbox) {
       return {
@@ -590,4 +621,3 @@ export const sendCustomNewsletter = internalAction({
     return { success: sentCount > 0, sentCount, message: resultMessage };
   },
 });
-

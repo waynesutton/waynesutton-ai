@@ -7,6 +7,8 @@
 # convex/siteConfigData.ts: getOverrides is intentionally public (site config is public data,
 #   every visitor needs it at app bootstrap, same class as RSS/sitemap). saveOverrides is
 #   admin-checked via requireDashboardAdmin.
+# convex/**/*.test.ts: vitest + convex-test files are never deployed. They read whole tables
+#   with .collect() and call component functions directly on purpose to assert on state.
 #
 # Rule tuning rationale:
 #   generated-code-modified  OFF  working tree is always dirty right after `npx convex codegen`
@@ -19,6 +21,27 @@
 #   monolithic-file          OFF  files are organized by domain (posts, pages, newsletter)
 #   large-handler            OFF  email templates, sync logic, and search ranking are inherently multi-step
 #   missing-auth-check       OFF  demo.ts mutations are intentionally unauthenticated for anonymous dashboard demo mode
+#
+# convex-doctor 0.3.x additions (tuned 2026-09-05, each verified against the code). The config only
+# supports "off", so these are off with the reasoning recorded here:
+#   perf/action-from-client      OFF   the 6 remaining public actions are admin-gated dashboard calls that
+#                                      must return a value synchronously: an OAuth URL (beginXConnect), a
+#                                      one-time plaintext key (generateApiKey), a PR URL (openReviewPr), and
+#                                      X share results. A job table would add a poll for no user benefit.
+#   security/http-missing-cors   OFF   the 4 flagged routes are never called by cross-origin fetch: `/` is the
+#                                      static SPA catch-all, `/x/callback` is an OAuth top-level redirect,
+#                                      `/r2/` is an <img> 302 redirect (already sends ACAO *), and
+#                                      `/api/v1/drafts` is server-to-server with an x-api-key. Adding OPTIONS
+#                                      to the drafts route would only invite browser callers we do not want.
+#   correctness/old-function-syntax OFF false positive: `httpAction(async (ctx, request) => ...)` is the only
+#                                      valid httpAction form; the rule pattern-matches it as legacy syntax.
+#   correctness/direct-function-ref OFF `components.selfHosting.lib.getByPath` is the documented way to call a
+#                                      component function; there is no api/internal reference for it.
+#   perf/sequential-run-calls    OFF   remaining hits are the queued-job pattern (load job, mark running, then
+#   arch/deep-function-chain     OFF   exactly one of finalize/fail). The counter adds mutually exclusive
+#                                      branches together, so 3 to 6 "sequential" calls is really 2 or 3.
+#   schema/index-name-includes-fields kept ON: every index now follows the lowercase-field convention.
+#   perf/loop-run-mutation       kept ON: newsletter delivery batches one action per subscriber page.
 
 [rules]
 "correctness/generated-code-modified" = "off"
@@ -30,6 +53,12 @@
 "arch/duplicated-auth" = "off"
 "arch/monolithic-file" = "off"
 "arch/large-handler" = "off"
+"perf/action-from-client" = "off"
+"security/http-missing-cors" = "off"
+"correctness/old-function-syntax" = "off"
+"correctness/direct-function-ref" = "off"
+"perf/sequential-run-calls" = "off"
+"arch/deep-function-chain" = "off"
 
 [ignore]
 files = [
@@ -38,4 +67,10 @@ files = [
   "convex/agentReady/**",
   "convex/demo.ts",
   "convex/siteConfigData.ts",
+  "convex/**/*.test.ts",
 ]
+
+# Fail `npx convex-doctor` (exit 1) if the score ever slips below 100 so a
+# regression shows up in the terminal instead of a later audit.
+[ci]
+fail_below = 100

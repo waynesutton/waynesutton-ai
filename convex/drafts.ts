@@ -1,3 +1,4 @@
+import { queueNewsletterPublication } from "./lib/newsletterAutomation";
 import {
   mutation,
   query,
@@ -208,6 +209,7 @@ async function materializeDraft(
         wasPublic && !isPublic ? [`/${existingPost.slug}`] : undefined,
     });
 
+    if (isPublic && !wasPublic) await queueNewsletterPublication(ctx, existingPost._id);
     if (published) {
       await schedulePostAudioIfNeeded(ctx, existingPost._id);
     }
@@ -268,6 +270,7 @@ async function materializeDraft(
     });
   }
 
+  if (published && !unlisted) await queueNewsletterPublication(ctx, postId);
   if (published) {
     await schedulePostAudioIfNeeded(ctx, postId);
   }
@@ -294,7 +297,7 @@ export async function insertDraftHelper(
   if (args.sourceMessageId) {
     const existing = await ctx.db
       .query("drafts")
-      .withIndex("by_source_message_id", (q) =>
+      .withIndex("by_sourcemessageid", (q) =>
         q.eq("sourceMessageId", args.sourceMessageId),
       )
       .first();
@@ -642,7 +645,7 @@ export const getDraftByPrNumber = internalQuery({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("drafts")
-      .withIndex("by_pr_number", (q) => q.eq("prNumber", args.prNumber))
+      .withIndex("by_prnumber", (q) => q.eq("prNumber", args.prNumber))
       .first();
   },
 });

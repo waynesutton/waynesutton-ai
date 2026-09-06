@@ -19,6 +19,7 @@ import { useTheme } from "../context/ThemeContext";
 import PostList from "../components/PostList";
 import FeaturedCards from "../components/FeaturedCards";
 import LogoMarquee from "../components/LogoMarquee";
+import HomepageHighlights from "../components/HomepageHighlights";
 import HomeCategories from "../components/HomeCategories";
 import HomeHeroImage, { isHeroAside } from "../components/HomeHeroImage";
 import GitHubContributions from "../components/GitHubContributions";
@@ -32,6 +33,7 @@ import {
   shouldShowNewsletter,
 } from "../utils/newsletter";
 import { resolveHomeCategories } from "../utils/homeCategories";
+import { resolveHomeHeroImage } from "../utils/homeHeroImage";
 
 // Sanitize schema for home intro markdown
 const homeSanitizeSchema = {
@@ -505,12 +507,11 @@ export default function Home() {
     }
   };
 
-  const asideHero = isHeroAside(siteConfig.homeHeroImage);
-  const asideSide = siteConfig.homeHeroImage?.side === "left" ? "left" : "right";
-  const asideCol = Math.min(
-    56,
-    Math.max(30, siteConfig.homeHeroImage?.width || 40),
-  );
+  // Dashboard Homepage saves land here live, same as categories above
+  const heroImage = resolveHomeHeroImage(configOverrides);
+  const asideHero = isHeroAside(heroImage);
+  const asideSide = heroImage?.side === "left" ? "left" : "right";
+  const asideCol = Math.min(56, Math.max(30, heroImage?.width || 40));
 
   return (
     <div className="home">
@@ -541,7 +542,7 @@ export default function Home() {
         </div>
       )}
       {/* Wide 16:9 strip. Hidden when the image sits beside the intro. */}
-      <HomeHeroImage config={siteConfig.homeHeroImage} slot="top" />
+      <HomeHeroImage config={heroImage} slot="top" />
 
       {/* Aside layout: intro and portrait in one row. Banner layout: pass through. */}
       <div
@@ -799,7 +800,7 @@ export default function Home() {
           </div>
         )}
       </header>
-        <HomeHeroImage config={siteConfig.homeHeroImage} slot="aside" />
+        <HomeHeroImage config={heroImage} slot="aside" />
       </div>
 
       {/* Logo gallery (below-featured position) */}
@@ -809,6 +810,8 @@ export default function Home() {
       {categoriesEnabled && homeCategories?.position !== "below-posts" && posts && (
         <HomeCategories config={homeCategories} posts={posts} />
       )}
+
+      <HomepageHighlights position="above-posts" />
 
       {/* Blog posts section - conditionally shown based on config */}
       {showPostsOnHome && (
@@ -846,6 +849,7 @@ export default function Home() {
               />
               {/* Show "read more" link if enabled and there are more posts than the limit */}
               {siteConfig.postsDisplay.homePostsReadMore?.enabled &&
+                (siteConfig.postsDisplay.homePostsReadMore.link !== "/blog" || siteConfig.blogPage.enabled) &&
                 siteConfig.postsDisplay.homePostsLimit &&
                 posts.length > siteConfig.postsDisplay.homePostsLimit && (
                   <div className="home-posts-read-more">
@@ -861,6 +865,8 @@ export default function Home() {
           )}
         </section>
       )}
+
+      <HomepageHighlights position="below-posts" />
 
       {/* Tag-driven category sections, below the post list */}
       {categoriesEnabled && homeCategories?.position === "below-posts" && posts && (
@@ -890,7 +896,7 @@ export default function Home() {
         siteConfig.socialFooter.showOnHomepage && <SocialFooter />}
 
       {/* Wide 16:9 strip. Hidden when the image sits beside the intro. */}
-      <HomeHeroImage config={siteConfig.homeHeroImage} slot="bottom" />
+      <HomeHeroImage config={heroImage} slot="bottom" />
     </div>
   );
 }

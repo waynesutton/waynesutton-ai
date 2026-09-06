@@ -186,6 +186,141 @@
    name, a filled/total denominator, and a caret. When collapsed it also lists
    the YAML keys inside so a writer can tell what is hidden without opening it. */
 
+/* Toolbar above the groups: required readout leads, view controls trail */
+.fmf-toolbar {
+  display: flex;
+  flex-wrap: wrap; /* readout and controls drop to two rows in a narrow panel */
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.5rem;
+  min-height: 28px;
+}
+
+.fmf-required-readout {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fmf-required-readout.ok {
+  color: var(--text-muted);
+}
+
+.fmf-toolbar-actions {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  gap: 0.25rem;
+}
+
+.fmf-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  height: 28px;
+  min-height: 28px;
+  padding: 0 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid var(--db-border, var(--border-color));
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-tertiary, var(--text-muted));
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.fmf-tool-btn:hover {
+  color: var(--text-primary);
+  background: var(--db-inset, var(--bg-hover));
+}
+
+.fmf-tool-btn.active {
+  color: var(--text-primary);
+  border-color: var(--db-border, var(--border-color));
+  background: var(--db-surface, var(--bg-secondary));
+}
+
+.fmf-tool-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Minimap: one chip per group, wraps on narrow panels */
+.fmf-minimap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.fmf-minimap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.55rem 0.25rem 0.5rem;
+  border: 1px solid var(--db-border, var(--border-color));
+  border-radius: 999px;
+  background: var(--db-surface, var(--bg-secondary));
+  font-family: var(--font-family);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.fmf-minimap-chip:hover {
+  color: var(--text-primary);
+  background: var(--db-inset, var(--bg-hover));
+}
+
+.fmf-minimap-chip.open {
+  color: var(--text-primary);
+  border-color: var(--text-tertiary, var(--text-muted));
+}
+
+.fmf-minimap-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.fmf-minimap-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
+.fmf-minimap-chip.complete .fmf-minimap-dot {
+  background: var(--text-primary);
+  opacity: 1;
+}
+
+.fmf-minimap-chip.missing .fmf-minimap-dot {
+  background: var(--accent);
+  opacity: 1;
+}
+
+.fmf-minimap-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
 .fmf-group {
   border: 1px solid var(--db-border, var(--border-color));
   border-radius: var(--db-radius);
@@ -193,11 +328,60 @@
   overflow: hidden;
 }
 
+.fmf-group.dragging {
+  opacity: 0.45;
+}
+
+/* Header row: the toggle button fills, the grab handle sits at the edge */
+.fmf-group-bar {
+  display: flex;
+  align-items: stretch;
+}
+
+.fmf-group-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex-shrink: 0;
+  color: var(--text-tertiary, var(--text-muted));
+  opacity: 0;
+  cursor: grab;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
+}
+
+.fmf-group-bar:hover .fmf-group-handle {
+  opacity: 1;
+}
+
+.fmf-group-handle:hover {
+  color: var(--text-secondary);
+  background: var(--db-inset, rgba(128, 128, 128, 0.12));
+}
+
+.fmf-group-handle:active {
+  cursor: grabbing;
+}
+
+/* Count of required fields still empty in this group */
+.fmf-group-missing {
+  flex-shrink: 0;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 .fmf-group-head {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 0.55rem 0.7rem;
   min-height: 40px;
   font-family: var(--font-family);
@@ -554,15 +738,18 @@
 /* Put the frontmatter panel above the body editor when the write layout
    stacks into a single column. Higher specificity than the global.css
    mobile rules so import order does not matter. */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .dashboard-write-section .dashboard-write-container {
     flex-direction: column;
   }
 
-  /* Natural height: the page scrolls, so nothing clips the group cards */
+  /* Natural height: the page scrolls, so nothing clips the group cards.
+     !important beats the desktop inline width from the resize handle. */
   .dashboard-write-section .dashboard-write-container .dashboard-write-sidebar {
     order: -1;
-    width: 100%;
+    width: 100% !important;
+    min-width: 0;
+    max-width: none;
     border-left: none;
     border-top: none;
     border-bottom: 1px solid var(--border-color);
@@ -626,7 +813,8 @@
   }
 
   /* No hover on touch, so drag sort is a desktop affordance only */
-  .fmf-drag-handle {
+  .fmf-drag-handle,
+  .fmf-group-handle {
     display: none;
   }
 
@@ -671,6 +859,7 @@
 .pipeline-vendor-row > .pipeline-vendor-edit {
   flex: 1 1 100%;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-top: 8px;
@@ -681,12 +870,137 @@
   min-width: 0;
 }
 
+/* Full-width note above the input explaining what saving does to the env var */
+.pipeline-vendor-edit-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* Docs link sits inline after the vendor purpose text */
+.pipeline-vendor-docs-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-decoration-color: var(--border-color);
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.pipeline-vendor-docs-link:hover {
+  color: var(--text-primary);
+  text-decoration-color: currentColor;
+}
+
+/* Model slots: a divided list under a configured vendor key. Indented past
+   the status icon (18px icon + 12px gap) so ids align with the key name. */
+.pipeline-vendor-row > .pipeline-model-slots {
+  flex: 1 1 100%;
+  list-style: none;
+  margin: 8px 0 0 30px;
+  padding: 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.pipeline-model-slot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 8px 0;
+}
+
+.pipeline-model-slot + .pipeline-model-slot {
+  border-top: 1px solid var(--border-color);
+}
+
+.pipeline-model-slot-meta {
+  flex: 0 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pipeline-model-slot-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pipeline-model-slot-uses {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.pipeline-model-slot-current {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pipeline-model-id {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pipeline-model-id.is-override {
+  color: var(--text-primary);
+}
+
+.pipeline-model-slot-current > .pipeline-vendor-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.pipeline-model-slot-edit {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pipeline-model-slot-edit .dashboard-field-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
 @media (max-width: 700px) {
   .pipeline-vendor-row > .pipeline-vendor-edit {
     flex-wrap: wrap;
   }
 
   .pipeline-vendor-edit .dashboard-field-input {
+    flex-basis: 100%;
+  }
+
+  .pipeline-vendor-row > .pipeline-model-slots {
+    margin-left: 0;
+  }
+
+  .pipeline-model-slot-meta {
+    flex-basis: 100%;
+  }
+
+  .pipeline-model-slot-edit {
+    flex-wrap: wrap;
+  }
+
+  .pipeline-model-slot-edit .dashboard-field-input {
     flex-basis: 100%;
   }
 }
@@ -734,7 +1048,7 @@
   min-width: 0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .dashboard-form-row {
     flex-direction: column;
     align-items: stretch;
@@ -798,30 +1112,47 @@
   accent-color: var(--accent);
 }
 
-/* Dashboard internal docs: grouped sidebar on the left, article on the right */
+/* Dashboard internal docs: grouped sidebar on the left, article on the right.
+   The shell fills the height of .dashboard-content, the only scrolling element
+   on a dashboard page, so the topic list and the article each own their scroll.
+   Sizing off the pane instead of 100vh keeps this correct when a demo banner or
+   the auth warning renders above the pane and shortens it. */
 .dashboard-docs {
+  position: relative;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
 }
 
 .dashboard-docs-sidebar {
-  position: sticky;
-  top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
+  gap: 14px;
+  min-height: 0;
+  overflow: hidden;
   padding: 14px;
   background: var(--db-surface, var(--bg-secondary));
   border: 1px solid var(--db-border, var(--border-color));
   border-radius: var(--db-radius-lg);
 }
 
+/* Filter field stays put at the top of the card; only the groups move */
+.dashboard-docs-topic-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .dashboard-docs-search {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 8px;
   padding: 0 10px;
@@ -879,8 +1210,12 @@
   color: var(--text-secondary);
 }
 
+/* Toolbar pinned, article scrolls, so Copy markdown is always in reach */
 .dashboard-docs-main {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
   max-width: 860px;
 }
 
@@ -951,6 +1286,11 @@
 }
 
 .dashboard-docs-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* The content pane's own bottom padding sits below this scroller */
   padding: 0;
 }
 
@@ -967,14 +1307,18 @@
   overflow: hidden;
 }
 
+/* Stays out of flow when focused so it cannot add a grid row and shift the
+   columns; the docs shell is the positioning context */
 .dashboard-docs-skip:focus {
-  position: static;
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 2;
   width: auto;
   height: auto;
   overflow: visible;
   display: inline-flex;
   align-items: center;
-  margin-bottom: 8px;
   padding: 8px 12px;
   min-height: 44px;
   font-size: 0.85rem;
@@ -986,6 +1330,7 @@
 
 .dashboard-docs-toolbar {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -1002,18 +1347,33 @@
    DOCS_MOBILE_QUERY in DashboardDocsSection.tsx, which resets the pane state
    when the viewport grows back past it. */
 @media (max-width: 900px) {
+  /* One column that grows with its content: the page pane scrolls, not the
+     panes inside it, so a phone keeps a single scroll surface */
   .dashboard-docs {
     display: block;
+    flex: none;
+    min-height: auto;
   }
 
   .dashboard-docs-sidebar {
-    position: static;
-    max-height: none;
+    overflow: visible;
+  }
+
+  .dashboard-docs-topic-scroll {
+    flex: none;
+    min-height: auto;
     overflow-y: visible;
   }
 
   .dashboard-docs-main {
+    display: block;
     max-width: none;
+  }
+
+  .dashboard-docs-content {
+    flex: none;
+    min-height: auto;
+    overflow-y: visible;
   }
 
   /* Sidebar only until a topic is picked, then article only with a way back */
@@ -1096,4 +1456,58 @@
   align-items: center;
   gap: 6px;
   color: var(--text-muted);
+}
+
+/* Select labels stay above controls even in the narrow editor sidebar. */
+.fmf-switch-row.fmf-select-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.fmf-select-row .fmf-switch-row-text {
+  width: 100%;
+  min-width: 0;
+}
+.fmf-select-row .fmf-select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Keep thumbnail controls usable when the URL shares a narrow form row. */
+@media (max-width: 640px) {
+  .project-thumbnail-input-row {
+    flex-wrap: wrap;
+  }
+  .project-thumbnail-input-row input {
+    flex-basis: 100%;
+  }
+  .project-thumbnail-input-row .dashboard-action-btn {
+    flex: 1;
+  }
+}
+
+/* Past author credits remain part of the form flow, including narrow sidebars. */
+.fmf-author-options {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+}
+.fmf-author-options [role="option"] {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px;
+  gap: 8px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.fmf-author-options [role="option"]:hover,
+.fmf-author-options [aria-selected="true"] {
+  background: var(--bg-hover);
 }

@@ -6,8 +6,18 @@ import {
   isDashboardAdmin,
   requireDashboardAdmin,
 } from "./dashboardAuth";
+import { secretEquals } from "./lib/secretCompare";
 
 const DASHBOARD_ADMIN_QUERY_LIMIT = 25;
+
+// Bootstrap key check shared by the two bootstrap entry points. Fails closed
+// when the env var is unset and compares in constant time.
+function assertBootstrapKey(candidate: string): void {
+  const expectedKey = process.env.DASHBOARD_ADMIN_BOOTSTRAP_KEY;
+  if (!expectedKey || !secretEquals(candidate, expectedKey)) {
+    throw new ConvexError("Unauthorized");
+  }
+}
 
 function normalizeEmail(email: string | undefined): string | undefined {
   if (!email) {
@@ -59,6 +69,8 @@ export const isCurrentUserAuthenticated = query({
   },
 });
 
+// Powers the "signed in but not an admin" screen. Exposes whether strict
+// admin mode is on, never the configured email itself.
 export const getCurrentDashboardAuthDebug = query({
   args: {},
   returns: v.object({
@@ -66,16 +78,16 @@ export const getCurrentDashboardAuthDebug = query({
     isDashboardAdmin: v.boolean(),
     identityEmail: v.optional(v.string()),
     authUserEmail: v.optional(v.string()),
-    strictAdminEmail: v.optional(v.string()),
+    strictAdminConfigured: v.boolean(),
   }),
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    const strictAdminEmail = getStrictDashboardAdminEmail();
+    const strictAdminConfigured = Boolean(getStrictDashboardAdminEmail());
     if (!identity) {
       return {
         isAuthenticated: false,
         isDashboardAdmin: false,
-        strictAdminEmail,
+        strictAdminConfigured,
       };
     }
 
@@ -87,7 +99,7 @@ export const getCurrentDashboardAuthDebug = query({
       isDashboardAdmin: await isDashboardAdmin(ctx, identity),
       identityEmail: identity.email ?? undefined,
       authUserEmail: authUser?.email,
-      strictAdminEmail,
+      strictAdminConfigured,
     };
   },
 });
@@ -162,10 +174,7 @@ export const listAuthUsersForBootstrap = query({
   ),
   handler: async (ctx, args) => {
     await ctx.auth.getUserIdentity();
-    const expectedKey = process.env.DASHBOARD_ADMIN_BOOTSTRAP_KEY;
-    if (!expectedKey || args.bootstrapKey !== expectedKey) {
-      throw new ConvexError("Unauthorized");
-    }
+    assertBootstrapKey(args.bootstrapKey);
 
     const items = await ctx.db.query("users").order("desc").take(100);
     return items.map((item) => ({
@@ -206,6 +215,16 @@ export const grantDashboardAdmin = mutation({
     const existingAny = await ctx.db.query("dashboardAdmins").first();
     if (existingAny) {
       await requireDashboardAdmin(ctx);
+    } else if (
+      process.env.DASHBOARD_ADMIN_BOOTSTRAP_KEY ||
+      getStrictDashboardAdminEmail()
+    ) {
+      // The open first-admin path only exists for fresh forks with no auth
+      // env configured. Once the owner set a bootstrap key or strict email,
+      // an anonymous caller must not be able to seed the allowlist.
+      throw new ConvexError(
+        "No dashboard admin exists yet. Run `npx convex run authAdmin:bootstrapDashboardAdmin` with your DASHBOARD_ADMIN_BOOTSTRAP_KEY, or sign in with DASHBOARD_PRIMARY_ADMIN_EMAIL.",
+      );
     }
 
     const requestedSubject = args.subject?.trim();
@@ -257,10 +276,7 @@ export const bootstrapDashboardAdmin = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.auth.getUserIdentity();
-    const expectedKey = process.env.DASHBOARD_ADMIN_BOOTSTRAP_KEY;
-    if (!expectedKey || args.bootstrapKey !== expectedKey) {
-      throw new ConvexError("Unauthorized");
-    }
+    assertBootstrapKey(args.bootstrapKey);
 
     const subject = normalizeSubject(args.subject);
     const email = normalizeEmail(args.email);

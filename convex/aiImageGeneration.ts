@@ -6,7 +6,7 @@ import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { GoogleGenAI } from "@google/genai";
 import type { GenericActionCtx } from "convex/server";
-import { resolveVendorKey } from "./lib/vendorKeyResolver";
+import { resolveAiProvider } from "./lib/aiProviderResolver";
 
 type AiImageActionCtx = GenericActionCtx<DataModel>;
 
@@ -38,10 +38,14 @@ async function generateImageFromSnapshot(
   },
 ): Promise<null> {
   const isRunwareModel = args.model.startsWith("runware:");
-  // Dashboard override first, then the deployment env var
-  const apiKey = await resolveVendorKey(
+  // One query: dashboard key override plus the image model override for the
+  // vendor this pick routes to. The job keeps args.model as the user's pick;
+  // requestModel is what the provider actually receives.
+  const { apiKey, model: requestModel } = await resolveAiProvider(
     ctx,
     isRunwareModel ? "RUNWARE_API_KEY" : "GOOGLE_AI_API_KEY",
+    "image",
+    args.model,
   );
   if (!apiKey) {
     await ctx.runMutation(internal.aiImageJobs.finalizeImageGeneration, {
@@ -64,7 +68,7 @@ async function generateImageFromSnapshot(
     if (isRunwareModel) {
       const result = await callRunwareImageApi(
         apiKey,
-        args.model,
+        requestModel,
         args.prompt,
         args.aspectRatio,
       );
@@ -81,10 +85,11 @@ async function generateImageFromSnapshot(
       }
       imageBytes = result.bytes;
       mimeType = result.mimeType;
-    } else if (args.model === "gemini-2.0-flash-exp-image-generation") {
+    } else if (!isImagenModel(requestModel)) {
+      // Gemini multimodal models return images as inline parts
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
-        model: args.model,
+        model: requestModel,
         contents: [{ role: "user", parts: [{ text: args.prompt }] }],
         config: {
           responseModalities: ["image", "text"],
@@ -117,9 +122,10 @@ async function generateImageFromSnapshot(
       mimeType = inlineData.mimeType;
       imageBytes = base64ToBytes(inlineData.data);
     } else {
+      // Imagen models use the dedicated image endpoint
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateImages({
-        model: args.model,
+        model: requestModel,
         prompt: args.prompt,
         config: {
           numberOfImages: 1,
@@ -183,6 +189,11 @@ function base64ToBytes(base64: string): Uint8Array {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes;
+}
+
+/** Google routes Imagen ids to generateImages; every other Gemini id is multimodal. */
+function isImagenModel(model: string): boolean {
+  return model.toLowerCase().startsWith("imagen");
 }
 
 function isAspectRatio(value: string): value is "1:1" | "16:9" | "9:16" | "4:3" | "3:4" {

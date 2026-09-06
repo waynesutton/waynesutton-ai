@@ -2,7 +2,241 @@
 
 A brief description of each file in the codebase.
 
-## Recent session updates (2026-09-04)
+## Dashboard docs sidebar scroll (2026-09-06 18:20 UTC)
+
+- `prds/dashboard-docs-sidebar-scroll.md`: Why the sticky `100vh` cap outran the content pane, and the pane-filling split-scroll fix.
+- **Modified** `src/styles/dashboard-forms.css`: Docs shell fills `.dashboard-content` (`flex: 1; min-height: 0`); new `.dashboard-docs-topic-scroll` region; sidebar drops sticky and the `100vh` cap; article column scrolls under a pinned toolbar; focused skip link stays absolute; 900px block resets all of it.
+- **Modified** `src/components/DashboardDocsSection.tsx`: Topic groups wrapped in the scroll region so the filter field stays pinned; `contentRef` resets the article scroll when a topic changes.
+
+## Dashboard docs scan (2026-09-06 17:55 UTC)
+
+- `prds/dashboard-docs-scan.md`: Slides how-to, skills topic, self-hosting deploy commands, env-filled deployment table.
+- `src/utils/deployments.ts`: Parse Convex cloud URLs, build docs placeholders from env, interpolate `{{PUBLIC_URL}}` and friends.
+- `src/utils/deployments.test.tsx`: Fork URLs, missing prod env file, Wayne leftover-deployment note.
+- **Modified** `vite.config.ts`: Injects `VITE_DEV_CONVEX_URL`, `VITE_PROD_CONVEX_URL`, `VITE_PROD_SITE_URL` from `.env.local` and `.env.production.local`.
+- **Modified** `src/components/dashboard/docsTopics.ts`: Tokens instead of hardcoded slugs; slides, skills, deploying rewrite.
+- **Modified** `src/components/DashboardDocsSection.tsx`: Interpolates before render and copy; Skills topic in Getting started.
+- **Modified** `src/utils/dashboardSearch.ts`: Interpolated doc bodies; slides feature entry.
+
+## Site audit: security, sync parity, dashboard parity (2026-09-06)
+
+- `prds/site-audit-2026-09.md`: Findings, the opt-in `SYNC_SECRET` design, admin bootstrap hardening, every file touched, edge cases, and the reviewed-and-accepted list.
+- `convex/lib/secretCompare.ts`: `secretEquals`, constant-time string compare shared by http webhooks, MCP bearer, bootstrap key, unsubscribe token, and sync secret checks.
+- `convex/lib/syncAuth.ts`: `assertSyncCaller(ctx, identity, syncSecret)`. Dashboard admin passes, matching `SYNC_SECRET` passes, unset `SYNC_SECRET` stays open.
+- `src/utils/homeHeroImage.ts`: `resolveHomeHeroImage(overrides)` merges the dashboard `homeHeroImage` override over the file config so `/` shows saves live.
+- **Modified** `convex/posts.ts`, `convex/pages.ts`, `convex/embeddingsAdmin.ts`: optional `syncSecret` arg, `assertSyncCaller` gate, `slides` kept in the update patch.
+- **Modified** `convex/authAdmin.ts`: `assertBootstrapKey` helper, closed anonymous first-admin path when bootstrap key or strict email exists, `strictAdminConfigured` replaces `strictAdminEmail` in the debug query.
+- **Modified** `convex/demo.ts`, `convex/contact.ts`, `convex/rateLimits.ts`: `demoWrite` and `contactSubmit` limits; demo lists hide non-demo unpublished rows.
+- **Modified** `convex/mcp.ts`, `convex/newsletter.ts`, `convex/http.ts`, `convex/rss.ts`, `convex/agentReady/analytics.ts`: `secretEquals`, `cdata()` split, escaped OG image attributes, admin gate on analytics.
+- **Modified** `scripts/sync-posts.ts`, `scripts/validate-env.ts`: forward `SYNC_SECRET`; list it as recommended.
+- **Modified** `src/pages/Home.tsx`, `src/pages/Dashboard.tsx`: live hero, footer and social footer page toggles, visitor map title input, `strictAdminConfigured`.
+- **Modified** `.cursor/rules/sec-check.mdc`: rewritten for the current architecture (trust tiers, env gates, public surfaces, checklist).
+- **Modified** `content/pages/docs-frontmatter.md`, `AGENTS.md`, `.claude/skills/frontmatter.md`, `README.md`: `minimap`, `hideNav`, `slides`, `unlisted` rows and the `SYNC_SECRET` note.
+
+## First-party WebMCP for in-page agents (2026-09-06 02:48 UTC)
+
+- `prds/webmcp-in-page-tools.md`: Problem (remote agents served, in-page agents not; `create_draft` advertised to everyone), two audience design, v1 tool allowlist, files, edge cases, verification.
+- `src/utils/webmcp/catalog.ts`: Shared tool catalog. Name, description, JSON Schema, `audiences` (`page`, `remote-public`, `remote-pipeline`), `readOnly`, and `requiresPageAction` for tools that only exist while a form or player is mounted. `toolsForAudience`, `pageToolsFor`, `isPageTool`.
+- `src/utils/webmcp/catalog.test.tsx`: Page audience excludes `create_draft` and `export_all`, spec safe unique names, mount scoped tools, remote names match `MCP_TOOLS`, `tools/list` counts with and without a key, palette finds the webmcp docs topic and config card.
+- `src/utils/webmcp/detect.ts`: Feature detects `document.modelContext`, falls back to Chrome's `navigator.modelContextTesting` behind the local flag, returns null elsewhere. References `webmcp-types`.
+- `src/utils/webmcp/register.ts`: `registerTools(context, tools, handlers)` wraps every register and unregister in try/catch and returns one unregister function. `ToolHandler` and `ToolResult` types.
+- `src/utils/webmcp/pageActions.ts`: Mount scoped action registry for `newsletter`, `contact`, and `listen`. `usePageAction(kind, handler)` registers a stable wrapper once and reads the latest handler through a ref; `subscribePageActions` feeds `useSyncExternalStore`.
+- `src/hooks/useWebMcp.ts`: Route scoped registration. Detects once, skips `/dashboard`, `/write`, `/newsletter-admin`, subscribes to public post and page queries only while active, re-registers on route or mounted form change, and implements every page tool handler (search, current page, recent posts, open, theme, confirm gated newsletter and contact, listen).
+- `src/components/WebMcpProvider.tsx`: Mounted from `Layout`. Owns the confirm dialog state, resolves `confirm()` promises, and hands `openSearch` and `setTheme` to the hook. Reads `siteConfig.webmcp.enabled`.
+- `src/components/WebMcpConfirmDialog.tsx`: Site styled modal for agent initiated writes: eyebrow, title, description, label and value rows, Cancel and confirm. Escape and backdrop cancel; focus lands on Cancel.
+- **Modified** `convex/mcp.ts`: `PIPELINE_ONLY_TOOLS` and exported `visibleMcpTools(hasPipelineKey)`; `tools/list` omits `create_draft` for anonymous callers.
+- **Modified** `src/components/Layout.tsx`: Mounts `WebMcpProvider`, tracks `searchInitialQuery`, adds `openSearchWithQuery`, header button and Cmd+K open blank.
+- **Modified** `src/components/SearchModal.tsx`: `initialQuery` prop pre-fills the box on open.
+- **Modified** `src/components/NewsletterSignup.tsx`, `src/components/ContactForm.tsx`: Submission logic extracted to `submitEmail` and `submitMessage`, shared by the form and the `usePageAction` handler; honeypot stays empty on agent submits.
+- **Modified** `src/components/PostAudioPlayer.tsx`: Registers the `listen` action only while a generated reading is rendered.
+- **Modified** `src/config/siteConfig.ts`: `WebMcpConfig` and `webmcp: { enabled: true }`.
+- **Modified** `src/pages/Dashboard.tsx`: `webmcpEnabled` state, override output, and a WebMCP card in Features.
+- **Modified** `src/components/dashboard/configGroups.ts`: `webmcp` card in the Features group.
+- **Modified** `src/components/dashboard/docsTopics.ts`: New `webmcp` topic (WebMCP in the browser); Overview loop and sections table, Publish from agents, Drafts Inbox, and MCP server (remote vs in-page, seven vs eight tools) cross-links.
+- **Modified** `src/components/DashboardDocsSection.tsx`: `webmcp` in Agents and automation with a `Browser` icon.
+- **Modified** `src/utils/dashboardSearch.ts`: `feature-webmcp` entry targeting the docs topic.
+- **Modified** `src/styles/global.css`: `.webmcp-confirm*` styles on the search modal backdrop.
+- **Modified** `agent-ready.config.json`, `AGENTS.md`: One line each on in-page tools.
+- **Modified** `package.json`: `webmcp-types` dev dependency.
+- **Modified** `prds/webmcp-in-page-tools.md` (2026-09-06 04:36 UTC): Verification logs the stubbed `navigator.modelContextTesting` browser pass (tool lists per route, guards, navigation, confirm dialog cancel paths) and narrows the open item to the real flagged Chrome view plus one live Confirm.
+- **Modified** `prds/lessons.md` (2026-09-06): Lesson on re-running a blocker before carrying it forward from a session note, and on stubbing the smallest surface a browser API detector accepts with a page scoped `Runtime.evaluate` so app logic can be verified without the real flag.
+
+## Write sidebar drag resize (2026-09-06)
+
+- `prds/write-sidebar-resize.md`: Root cause (Write sidebar not a positioning context; `/write` never wired the hook), files, edge cases, and verification.
+- `src/hooks/useResizableSidebar.ts`: Pointer and keyboard drag-to-resize. Exports `FRONTMATTER_SIDEBAR_WIDTH_KEY` so Edit, dashboard Write, and `/write` share one persisted width.
+- **Modified** `src/pages/Dashboard.tsx`: Imports the shared storage key instead of a local constant.
+- **Modified** `src/pages/Write.tsx`: Frontmatter panel uses the hook and `--write-fm-width` on the grid.
+- **Modified** `src/styles/global.css`: `.dashboard-write-sidebar` is `position: relative` with clamp and resizing states; stacked layouts force `width: 100% !important`.
+- **Modified** `src/styles/dashboard.css`, `src/styles/dashboard-forms.css`: Stacked Write sidebar full width so the desktop inline width does not leak.
+- **Modified** `src/styles/write-workspace.css`: Right column from `--write-fm-width`; handle hidden when stacked.
+
+## Dashboard input consistency (2026-09-06 00:55 UTC)
+
+- `prds/dashboard-input-consistency.md`: Problem, root cause (two stylesheet input contract with a type list that stopped at text and number), the three selector fixes, files, edge cases, verification, completion log.
+- **Modified** `src/styles/global.css`: `.config-field` box rule and `:focus-visible` twin now list `url`, `email`, `password`, `search`, and `input:not([type])`; new `.dashboard-config-card > h3 + .config-field-note` card intro spacing; `.image-upload-field input` covers the typeless Alt text field.
+- **Modified** `.interface-design/system.md`: Inputs section documents the skin vs box split and the explicit type list, new "Card intro note" pattern, radius table corrected to the real `var(--radius)` values, two Do not lines, and a "Verification habit" control scan.
+- **Modified** `prds/lessons.md`: 2026-09-06 lesson on checking rendered width, not just colors, and widening shared selectors instead of patching components.
+
+## Skills directory page (2026-09-05 17:15 UTC-7)
+
+- `prds/skills-directory.md`: Problem, intent, rejected defaults, data model, files to change, public page, dashboard, agent surfaces, edge cases, follow-ups, verification.
+- `convex/lib/skillsDirectory.ts`: Pure helpers shared by the public page, VFS, agent-ready sync, and copy button: `SkillDoc` and `SkillSectionDoc` types, `compareSkills` (featured, order, title), `compareSkillSections`, `groupSkills` (missing or unpublished section falls to a default "Skills" group), `buildSkillsMarkdown`, `DEFAULT_SKILL_SECTION_TITLE`, `MAX_SKILL_INSTALL_COMMANDS`. No server imports.
+- `convex/skills.ts`: Public `listDirectory` (published sections and skills in one query) and `getMarkdown`; admin `listAllSections`, `listAllSkills`; `createSection`, `updateSection`, `removeSection` (unassigns skills via `by_sectionid`); `createSkill`, `updateSkill`, `removeSkill` with `clearFields`; slug conflicts throw `ConvexError`; install commands capped at 4 and required complete. Every write schedules a `refreshSkills` discovery sync.
+- `convex/skills.test.ts`: Directory grouping and featured sort, markdown renderer output, admin gate, slug conflicts on create and rename, install command cap and completeness, section delete unassigns skills, `clearFields` removes optional values.
+- `src/pages/Skills.tsx`: Public `/skills`. Header with title, description, count, agents `skills.md` hint, and Copy as markdown; sections as `h2` with description and collection install line; `SkillCard` with mono command eyebrow, title linking to the repo, description, author, `InstallBlock` tabs over one `$` line with `CopyButton`, collapsible When to use, `SkillLinkRail` for filled URLs only, hover anchor; filter past six skills; deep link scroll; `document.title`.
+- `src/components/dashboard/SkillsSection.tsx`: Dashboard Skills section. Sections card with inline add/edit and a table showing slug, skill count, order, status; skills table with command, section, order, status, pinned, and link glyphs; skill editor with Details (Prefill from SKILL.md, title, auto slug, command, description, When to use, section, order, published, pinned), Install commands rows (max 4), Author, Links; `ConfirmDeleteModal` for skills and sections (section copy says how many skills become ungrouped); hint when the route is off.
+- `src/utils/skillMdPrefill.ts`: `resolveSkillMdSource` (GitHub blob, tree, bare repo, and raw URLs to a raw fetch URL, folder link, repo slug, and folder name), `parseSkillFrontmatter` (plain, quoted, multi line quoted, `>` and `|` block scalars, skips nested mappings, CRLF and BOM safe), `slugifySkillName`, `buildSkillPrefill` (title, slug, `/command`, description, repo URL, Skills CLI install suggestion with folder and heading fallbacks), `prefillFromSkillMdUrl` (browser fetch, 404 and host errors).
+- `src/utils/skillMdPrefill.test.ts`: URL resolution cases, frontmatter parser cases, prefill output and fallbacks, slugify.
+- **Modified** `convex/schema.ts`: `skillSections` (`by_slug`, `by_published`) and `skills` (`by_slug`, `by_published`, `by_sectionid`) tables.
+- **Modified** `convex/virtualFs.ts`: Re-exports the skills helpers, `getPublishedSkillDirectory`, and serves `/skills.md` in the tree, `readFileHelper`, and the `index.md` Skills link when published skills exist.
+- **Modified** `convex/agentReady/autoSync.ts`: `refreshSkills` event flag on `scheduleDiscoverySyncIfEnabled` and `syncDiscovery`; `reconcileSkills` upserts or archives the `/skills` agent-ready entry with the full directory markdown.
+- **Modified** `convex/agentReady/content.ts`: `regenerateAll` calls `reconcileSkills` after `reconcileProjects`.
+- **Modified** `convex/agentReadyAutoSync.test.ts`: Regenerate publishes `/skills` with the install command and section heading; `reconcileSkills` archives when the last skill is unpublished.
+- **Modified** `src/config/siteConfig.ts`: `SkillsPageConfig` and `skillsPage` (enabled false, showInNav, title, description, order 4).
+- **Modified** `src/App.tsx`, `src/components/Layout.tsx`: Lazy `/skills` route gated on `skillsPage.enabled`; Skills nav item after Projects.
+- **Modified** `src/pages/Dashboard.tsx`: `skills` section id with Toolbox icon in the Content nav, `SkillsSection` render branch (demo gated), Skills Page config card, `skillsPage` state and `buildOverrides`.
+- **Modified** `src/components/dashboard/configGroups.ts`: Content group renamed "Blog, projects, and skills" with a `skills-page` card.
+- **Modified** `src/utils/dashboardSearch.ts`: `feature-skills` entry targeting the Skills section.
+- **Modified** `src/components/dashboard/docsTopics.ts`: Site Config tabs table lists Skills Page.
+- **Modified** `src/components/AgentReadySection.tsx`: Auto sync and Regenerate copy mention skills.
+- **Modified** `src/styles/global.css`: `.skills-*` and `.skill-*` public page styles on theme tokens with 768px and 480px breakpoints.
+- **Modified** `src/styles/dashboard.css`: `.skills-dashboard-hint`, `.skills-sections-card`, `.skill-section-form*`, `.skill-prefill-row`, `.skill-install-row*`, `.skill-row-command`, `.skill-row-links`.
+- **Modified** `scripts/sync-discovery-files.ts`: Queries `api.skills.listDirectory` and writes a Skills block to llms.txt (command, description, first install command, repo, `cat /skills.md` hint); VFS paths list `/skills.md`.
+- **Modified** `agent-ready.config.json`: Skills page entry (order 4); `/skills.md` in `agentInstructions` and the `/vfs/tree` blurb.
+- **Modified** `AGENTS.md`, `CLAUDE.md`: Skills feature, `convex/skills.ts` and `convex/lib/skillsDirectory.ts` key files, tables list, VFS `/skills.md` example and paths, Skills section, auto sync note.
+
+## Vendor keys BYOK and model overrides (2026-09-05 23:10 UTC)
+
+- `prds/vendor-model-overrides.md`: Problem, design, slot catalog, BYOK coverage table, edge cases, verification, and completion log.
+- `convex/lib/aiModelSlots.ts`: Registration-free catalog of overridable model slots (vendor key, kind, label, hardcoded defaults, features, docs URL), `AI_VENDOR_DOCS` model list links, `findModelSlot`, `isValidModelId`.
+- `convex/lib/aiProviderResolver.ts`: `resolveAiProvider(ctx, vendor, kind, fallback)` returns `{ apiKey, model, overridden }` from one internal query: dashboard key override then env var, dashboard model override then the caller's fallback.
+- `convex/aiModels.ts`: Admin `modelSlotStatus` query, `setModelOverride` and `removeModelOverride` mutations, internal `providerConfig` query that reads the vendor key and model override together, shared `findOverrideRow` helper.
+- `convex/aiModels.test.ts`: Slot id validation, status listing, upsert and reset, provider config, batch vendor key lookup, vendor key status shape, and admin gate.
+- **Modified** `convex/lib/vendorKeyResolver.ts`: `envVendorKey` (empty and `unset` treated as missing) and `resolveVendorKeys` batch helper alongside `resolveVendorKey`.
+- **Modified** `convex/pipelineKeys.ts`: `resolveConfigValue` exported for mutations, new internal `getVendorKeyValues` batch query, `vendorKeyStatus` reads rows in parallel and reports `envConfigured`.
+- **Modified** `convex/schema.ts`: `aiModelOverrides` table with `by_vendor_and_kind`.
+- **Modified** `convex/aiChatActions.ts`, `convex/askAI.node.ts`, `convex/aiImageGeneration.ts`, `convex/audioGeneration.ts`, `convex/voiceAgent.ts`: Key and model resolved through `resolveAiProvider`; Firecrawl and embedding keys through `resolveVendorKey`; voice agent chat and RAG clients built per call.
+- **Modified** `convex/embeddings.ts`, `convex/embeddingsAdmin.ts`, `convex/semanticSearch.ts`, `convex/importAction.ts`, `convex/newsletterActions.ts`, `convex/contactActions.ts`, `convex/newsletterAutomationActions.ts`, `convex/newsletterAutomation.ts`, `convex/githubReview.ts`, `convex/http.ts`: Dashboard vendor key overrides honored before env vars (OpenAI, Firecrawl, AgentMail, GitHub, webhook secrets).
+- **Modified** `src/components/dashboard/ApiKeysSection.tsx`: Model docs link and per-slot model override rows on configured vendors; Override / Replace / Set key labels, Override (env set) badge with tooltip, edit hint about env var fallback.
+- **Modified** `src/styles/dashboard-forms.css`: `.pipeline-vendor-docs-link`, `.pipeline-model-slot*`, `.pipeline-vendor-edit-hint`.
+- **Modified** `src/components/dashboard/docsTopics.ts`: Vendor keys topic covers BYOK and model overrides.
+- **Modified** `convex-doctor.toml`: `convex/**/*.test.ts` excluded with rationale.
+
+## Hide empty project link icons (2026-09-05 22:15 UTC)
+
+- `prds/hide-empty-project-link-icons.md`: Empty X, GitHub, and LinkedIn fields hide their icons instead of showing dimmed glyphs.
+- **Modified** `src/pages/Projects.tsx`: `ProjectLinkRail` renders only filled social URLs and omits the rail when none are set. Homepage cards reuse this component.
+- **Modified** `src/styles/global.css`: Removed `.project-rail-icon-empty`.
+- **Modified** `src/components/dashboard/ProjectsSection.tsx`: Links hint copy matches the hide-empty behavior.
+
+## Dashboard Homepage section layout (2026-09-05 22:15 UTC)
+
+- `prds/dashboard-homepage-layout.md`: Problem, layout direction, running order rail, single save, files, edge cases, and verification for the Homepage dashboard section.
+- `src/utils/homepageOrder.ts`: Pure `buildHomepageOrder` that maps hero, highlights, and category config to the ordered list of homepage blocks with `on`, `off`, or `warn` state and a status line. Feeds the Running order rail.
+- `src/utils/homepageOrder.test.tsx`: Default order, position swaps, warn states for a missing featured post or empty sections, and off blocks.
+- **Modified** `src/components/dashboard/HomepageSection.tsx`: One settings column in page order, header Save on desktop and a phone save bar, sticky Running order rail, one save for banner, highlights, and category sections, dirty tracking against the saved snapshot, ordinal chips, heading and tag row, inset picker.
+- **Modified** `src/components/dashboard/HomepageHighlightsSettings.tsx`: Exports `HomepageHighlightsFields` as a controlled fields component; the default export wraps it with its own state and save for the Site Config card.
+- **Modified** `src/styles/dashboard.css`: `homepage-desk-grid`, `homepage-desk-main`, `homepage-desk-rail`, `home-order-*` rail states, `home-highlight-group`, `home-highlight-picker`, `home-section-row`, `home-field-row`, responsive collapse under 1024px.
+- **Modified** `src/styles/global.css`: Removed the old `.home-highlight-picker` rules that fought the dashboard styles.
+- **Modified** `.interface-design/system.md`: New "Settings column with a sticky rail" component pattern (grid spec, one Save rule, rail dot states, ordinal chips, indented groups, inset pickers, two-field rows) plus two Do not lines, so the next arrange-into-one-output section reuses it.
+
+## Hide site nav per post (2026-09-05 22:51 UTC)
+
+- `prds/hide-nav-per-post.md`: Problem, why the feature never existed, solution, files, edge cases, verification, and the 22:51 UTC revision from hiding the nav to letting it scroll away with the page.
+- **Modified** `src/context/SidebarContext.tsx`: Added `hideNav` state and setter so a post can tell `Layout` to unpin the top nav bar.
+- **Modified** `src/components/Layout.tsx`: Adds a `top-nav-scroll` class to `.top-nav` when `hideNav` is set in the sidebar context.
+- **Modified** `src/styles/global.css`: `.top-nav.top-nav-scroll` switches the nav from `position: fixed` to `position: absolute` so it scrolls out of view with the page.
+- **Modified** `src/pages/Post.tsx`: Effect publishes `post.hideNav` to the context and resets it on unmount so the nav is pinned again on every other route.
+- **Modified** `convex/schema.ts`, `convex/posts.ts`, `convex/cms.ts`, `scripts/sync-posts.ts`: `hideNav` optional boolean on posts through schema, `listAll`, `getPostBySlug`, both sync upserts, the CMS validators, and the YAML exporter.
+- **Modified** `src/pages/Dashboard.tsx`, `src/components/FrontmatterForm.tsx`: Hide Site Nav checkbox in the post field defs plus a Hide site nav switch in the Visibility group, round-tripping through the edit and Write Post flows.
+
+## Site Config tabs (2026-09-05 22:10 UTC)
+
+- `prds/site-config-tabs.md`: Problem, grouping, tab bar design, command palette deep links, files, edge cases, and verification for the Site Config tabs.
+- `src/components/dashboard/configGroups.ts`: Single list of the six Site Config groups with card ids, titles, hints, and palette keywords. Exports `CONFIG_TABS`, `CONFIG_GROUP_BY_ID`, the `ConfigTab` and `ConfigDeepLink` types, `localStorage` key, DOM id helpers (`configTabDomId`, `configPanelDomId`, `configCardDomId`), and the `isConfigTab` guard. Add a card here when you add one to `ConfigSection`.
+- `src/components/dashboard/configGroups.test.tsx`: Reads `Dashboard.tsx` as raw source and fails if a rendered `data-config-card` is missing from a group, duplicated, or placed inside the wrong `ConfigPanel`; also checks tab order and the saved tab guard.
+- **Modified** `src/pages/Dashboard.tsx`: `ConfigPanel` component (always mounted, `hidden` when inactive, `tabpanel` or labelled `region` in All mode); `ConfigSection` gained the sticky tab bar, persisted `activeTab`, roving tabindex keys, and a `deepLink` prop that switches tabs, scrolls, and flashes the card. Every card carries `id` and `data-config-card`; Homepage card renamed Homepage route; Enable newsletter moved into Newsletter Signup Locations. Parent `Dashboard` routes palette `setting` picks into `configDeepLink`.
+- **Modified** `src/styles/dashboard.css`: `.dashboard-config-tabs` sticky underline bar (edge bleed and 44px tabs on phones), `.dashboard-config-panel*` eyebrow and hint, `scroll-margin-top` for cards and slots, `.dashboard-config-slot` wrapper, `.is-targeted` ring.
+- **Modified** `src/utils/dashboardSearch.ts`, `src/components/DashboardSearch.tsx`: `setting` search kind built from `CONFIG_GROUPS` with `configGroup` and `configCard` targets; palette label and `SlidersHorizontal` icon.
+- **Modified** `src/components/dashboard/docsTopics.ts`: Site Config topic gained a Tabs section with the group to card table and palette tip; site ops search list mentions settings.
+
+## Post minimap heading outline (2026-09-05 22:05 UTC)
+
+- `prds/post-minimap-outline.md`: Problem, solution, files, edge cases, verification, and completion log for the `minimap` frontmatter field and the public right-rail outline.
+- `src/components/PostMinimap.tsx`: Right-aligned h1-h6 outline for posts with `minimap: true`. Scroll spy, smooth scroll with header offset, hash push, active item kept in view. Sits in the right margin so the article stays centered. Styles live under `.post-minimap*` in `src/styles/global.css`.
+- `prds/minimap-centered-content.md`: Bug PRD for the off-center article when Minimap is on.
+
+## Dashboard frontmatter, tooltips, AI models, search, embeds (2026-09-05 19:45 UTC)
+
+- `prds/dashboard-frontmatter-tooltips-search.md`: Problem, root causes, solution, files, edge cases, verification, and completion log for this batch.
+- `src/components/ui/Tooltip.tsx`: Radix tooltip wrapper. `TooltipProvider` for the root, `Tip` (content plus optional `shortcut` kbd, `side`, `align`, `delay`), and `InfoTip` help icon. Empty content renders children untouched.
+- `src/styles/tooltip.css`: Tooltip surface, arrow, kbd chip, `InfoTip` icon, and `.dashboard-tip-wrap` for hints on disabled controls.
+- `src/hooks/useResizableSidebar.ts`: Pointer and keyboard drag-to-resize for a side panel, clamped to min/max and persisted under `FRONTMATTER_SIDEBAR_WIDTH_KEY`. Shared by Edit, dashboard Write, and `/write`.
+- `src/utils/aiModelAvailability.ts`: Maps AI model ids to providers and filters chat and image model lists by which vendor keys are configured (dashboard override or env). Returns grouped options and a hint for missing providers.
+- `src/utils/dashboardSearch.ts`: Client-side search index over dashboard sections, features, docs topics, quick actions, posts, and pages with a ranked `searchDashboard` function.
+- `src/components/DashboardSearch.tsx`: Header command palette. Cmd+K opens it, arrows move, Enter runs the item, results are grouped by kind.
+- `src/utils/embedMarkdown.ts`: Parses X status URLs, tweet ids, YouTube watch, Shorts, and `youtu.be` links and builds the sanitizer-safe iframe markup the site renders.
+- `src/components/EmbedDialog.tsx`: Embed dialog for the Write and Edit markdown toolbars with a live preview line and Enter to insert.
+- **Modified** `src/components/FrontmatterForm.tsx`: Toolbar (required readout, Minimap, Expand/Collapse all), `FrontmatterMinimap`, group drag reorder with `useDragSort`, `useGroupsOpen` for per-kind persisted open state, `required` and `label` on `FieldBlock`, `Tip` on drag handles.
+- **Modified** `src/styles/dashboard-forms.css`: `.fmf-toolbar`, `.fmf-required-readout`, `.fmf-minimap*`, `.fmf-group-bar`, `.fmf-group-handle`, dragging and missing-required states; handles hidden on touch.
+- **Modified** `src/styles/write-workspace.css`: Pins `--db-font` on the readout, minimap chips, and missing-required label so `/write` never inherits the reader's serif choice. Right column width comes from `--write-fm-width`.
+- **Modified** `src/pages/Dashboard.tsx`: `TooltipProvider` at the root, `title=` hints converted to `Tip`, data-driven `RICH_TEXT_TOOLS`, `useResizableSidebar` in `EditorView` and `WriteSection`, `DashboardSearch` in the header, Embed buttons, iframe allowed in `dashboardSanitizeSchema`. `ModelPicker` and `AIAgentSection` read `aiModelAvailability`: label for one provider, dropdown for several, hint when none.
+- **Modified** `src/pages/Write.tsx`: `TooltipProvider` around the workspace so FrontmatterForm tooltips render. Frontmatter panel uses `useResizableSidebar` and `--write-fm-width` so it matches the dashboard Write/Edit width.
+- **Modified** `src/components/dashboard/docsTopics.ts`, `src/components/DashboardDocsSection.tsx`: New `embeds` topic in Getting started; `writing`, `ai-features`, and `site-ops` describe the panel, model filtering, search, and tooltips.
+- **Modified** `package.json`: `@radix-ui/react-tooltip`.
+
+## Dashboard docs Git guide (2026-09-05 18:15 UTC)
+
+- `prds/dashboard-git-guide.md`: Problem, content outline, files, edge cases, and verification for the new docs topic.
+- **Modified** `src/components/dashboard/docsTopics.ts`: New `git-guide` topic covering session order of operations, checking GitHub for changes, pull follow-ups, export before commit, stash and conflict flows, and repo git safety rules.
+- **Modified** `src/components/DashboardDocsSection.tsx`: GitBranch icon and Git guide placed first in the Operations sidebar group.
+
+## Writing and discovery improvements (2026-09-05 06:52 UTC)
+
+- `prds/author-media-write-discovery.md`: Scope, implementation, local verification, live discovery findings, and remaining operational steps.
+- `src/components/AuthorNameField.tsx`: Editable author combobox with @ matching and keyboard navigation.
+- `src/utils/authorSuggestions.ts`, `src/utils/authorSuggestions.test.tsx`: Case-insensitive author history collection, avatar reuse, and filtering regressions.
+- `src/components/FrontmatterForm.tsx`, `src/components/ImageUploadModal.tsx`: Shared author suggestions and explicit upload/gallery actions for all three image fields.
+- `src/pages/Write.tsx`, `src/styles/write-workspace.css`: Responsive local writing workspace with shared form controls and admin-only media access.
+- `src/utils/writeFrontmatter.ts`, `src/utils/writeFrontmatter.test.tsx`: Non-destructive local YAML parsing/patching with quoted-key, block-list, CRLF, EOF, duplicate-field, and unsupported-syntax safeguards.
+- `convex/agentReady/autoSync.ts`, `convex/agentReady/content.ts`: Current-content reconciliation, full-body discovery, batched manual backfill, and narrow legacy wording repair.
+- `convex/agentReadyAutoSync.test.ts`: Discovery visibility, backfill, authorization, custom-entry preservation, and legacy migration regressions.
+- `src/components/AgentReadySection.tsx`, `src/pages/Dashboard.tsx`, `scripts/sync-discovery-files.ts`: Accurate live-discovery and repository-sync instructions.
+
+## Dashboard responsive polish (2026-09-05T06:41:46Z)
+
+- `prds/dashboard-responsive-polish.md`: Phone/tablet issues, scoped fixes, browser evidence, and local-only verification.
+- `.impeccable.md`: User-grounded dashboard design context and responsive accessibility principles.
+- `src/styles/dashboard.css`, `src/styles/dashboard-forms.css`: Compact dashboard shell and editors through 1024px, wrapped actions, touch targets, and bounded content sizing.
+- `src/styles/global.css`: Viewport-bounded confirmation/media dialogs and touch-friendly media controls.
+- `src/pages/Dashboard.tsx`: Responsive navigation focus handling and shared Media action labels.
+- `src/components/dashboard/ProjectsSection.tsx`: Accessible project delete dialog labels and site-wide removal copy.
+
+## Dashboard and newsletter improvements (2026-09-05T06:29:12Z)
+
+- `prds/dashboard-homepage-newsletters.md`: Feature behavior, newsletter delivery semantics, verification evidence, config audit, and production handoff.
+- `src/components/HomepageHighlights.tsx`, `src/utils/homepageHighlights.ts`: Published homepage selections and safe defaults for partial runtime settings.
+- `src/components/dashboard/HomepageHighlightsSettings.tsx`: Saved project and featured-post selectors with placement and thumbnail controls.
+- `src/components/dashboard/NewsletterAutomationSettings.tsx`: Private automation controls, preview, and recent delivery summaries.
+- `convex/lib/newsletterAutomation.ts`: Typed settings, UTC scheduling, subject rendering, and idempotent publication enqueue helper.
+- `convex/newsletterAutomation.ts`, `convex/newsletterAutomationActions.ts`: Admin settings/history, transactionally claimed campaigns and recipients, and AgentMail delivery.
+- `convex/schema.ts`, `convex/crons.ts`, `convex/cms.ts`, `convex/posts.ts`, `convex/drafts.ts`: Additive automation tables, opt-in cron, and publication hooks across every existing publishing door.
+- `src/hooks/useMediaQuery.ts`: Synchronous breakpoint subscriptions for public content sidebars and the dashboard mobile/tablet navigation.
+- `convex/newsletterAutomation.test.ts`, `convex/siteConfigData.test.ts`, `src/pages/Post.test.tsx`, `vitest.config.ts`: Newsletter, config-ownership, homepage-default, and loading regression coverage; provider sends mocked.
+- Existing editor, homepage, layout, config, media, and CSS files: Sidebar/audio/media fixes, read-more controls, navigation wiring, size limits, and safe config export.
+
+## Recent session updates (2026-09-05)
+
+### R2 media gallery and video (2026-09-05)
+
+- **New file** `prds/r2-media-gallery.md`: Cloudflare/Convex setup, implementation, credential-rotation incident, development and production R2 verification, security boundaries, and live deployment evidence.
+- **Modified** `.cursor/plans/r2_media_and_gallery_91b10a3b.plan.md`: Completed todo state, production deployment evidence, verification results, and approval-gated exclusions.
+- **Modified** `convex/schema.ts`, `convex/media.ts`: Durable `mediaAssets` catalog and admin-gated record/list/delete API with provider capabilities and size limits.
+- **Modified** `convex/r2.ts`, `convex/http.ts`, `convex/rateLimits.ts`: Permanent custom-domain URLs, public `/r2/{key}` seven-day signed redirect fallback, and a generous media read limit.
+- **Modified** `convex/files.ts`, `src/utils/imageUpload.ts`: MP4/WebM/MOV support, provider-specific caps, MIME inference, and shared XHR progress upload.
+- **Modified** `src/components/ImageUploadModal.tsx`, `src/components/MediaLibrary.tsx`: Persistent catalog browsing, filename search, image/video upload/preview/insert/copy/delete, selection, and progress.
+- **Modified** `src/components/BlogPost.tsx`, `src/pages/Dashboard.tsx`, `src/styles/global.css`: Sanitized responsive video rendering and mobile media controls.
 
 ### Auto discovery sync for pages, projects, and CLI sync (2026-09-04)
 
@@ -30,7 +264,7 @@ A brief description of each file in the codebase.
 
 - **New file** `prds/projects-page.md`: Problem, layout decisions, schema, files touched, edge cases, verification steps.
 - **New file** `convex/projects.ts`: `listPublished` for the public page, `listAll` for the dashboard, and `create` / `update` / `remove` behind `requireDashboardAdmin`. Shared `projectFields` validator and a `compareProjects` sort (order, then newest).
-- **New file** `src/pages/Projects.tsx`: The `/projects` index. List, one column, and two column layouts with a segmented switcher, view choice kept in localStorage. `ProjectLinkRail` renders live, repo, X, and LinkedIn in a fixed order so glyphs never move between rows, dimming the ones with no URL. `ProjectThumbnail` holds 16:9 and is skipped in list view.
+- **New file** `src/pages/Projects.tsx`: The `/projects` index. List, one column, and two column layouts with a segmented switcher, view choice kept in localStorage. `ProjectLinkRail` renders X, GitHub, and LinkedIn only when those URLs are set. `ProjectThumbnail` holds 16:9 and is skipped in list view.
 - **New file** `src/components/dashboard/ProjectsSection.tsx`: Dashboard CRUD. Inline create and edit form, slug auto-filled from the title, published and featured switches, the three external link fields, thumbnail by URL or `ImageUploadModal` upload with a 16:9 preview, and the site confirm modal for deletes.
 - **Modified** `convex/schema.ts`: `projects` table with `by_slug` and `by_published`.
 - **Modified** `src/config/siteConfig.ts`: `ProjectsPageConfig` and its defaults. Route, nav visibility, nav order, title, description, default layout, layout switcher.
@@ -1314,7 +1548,7 @@ A brief description of each file in the codebase.
 | `DocsPage.tsx` | Docs landing page component for `/docs` route. Renders the page/post with `docsLanding: true` in DocsLayout. Fetches landing content via `getDocsLandingPage` and `getDocsLandingPost` queries. Includes Footer component (respects showFooter frontmatter), AI chat support (aiChatEnabled), and fallback to first docs item if no landing page is set. |
 | `TagPage.tsx` | Tag archive at `/tags/:tag`. Uses Blog chrome (title, count, list/cards, footer, newsletter). Category sections with Show in nav land here and use the section title. No Back arrow. |
 | `AuthorPage.tsx` | Author archive page displaying posts by a specific author. Includes view mode toggle (list/cards) with localStorage persistence. Author name clickable in posts links to this page. |
-| `Write.tsx`   | Three-column markdown writing page with Cursor docs-style UI, frontmatter reference with copy buttons, theme toggle, font switcher (serif/sans/monospace), localStorage persistence, and optional AI Agent mode (toggleable via siteConfig.aiChat.enabledOnWritePage). When enabled, Agent replaces the textarea with AIChatView component. Includes scroll prevention when switching to Agent mode to prevent page jump. Title changes to "Agent" when in AI chat mode. |
+| `Write.tsx`   | Three-column markdown writing page with Cursor docs-style UI, shared frontmatter form, drag-to-resize settings panel (`useResizableSidebar`, same persisted width as dashboard Write/Edit), theme toggle, font switcher (serif/sans/monospace), localStorage persistence, and optional AI Agent mode (toggleable via siteConfig.aiChat.enabledOnWritePage). When enabled, Agent replaces the textarea with AIChatView component. Includes scroll prevention when switching to Agent mode to prevent page jump. Title changes to "Agent" when in AI chat mode. |
 | `Dashboard.tsx` | Centralized dashboard at `/dashboard` for content management and site configuration. **Cloud CMS Features:** Direct database save ("Save to DB" button), source tracking (Dashboard vs Synced badges), delete confirmation modal with warning, CRUD operations for dashboard-created content, sync warning modal for synced content (warns that local file changes will overwrite dashboard edits with download/copy options). **Content Management:** Posts and Pages list views with filtering, search, pagination, items per page selector, source badges, delete buttons (dashboard content only); Post/Page editor with markdown editor, live preview, "Save Changes" button, draggable/resizable frontmatter sidebar (200px-600px), independent scrolling, download markdown, export to markdown, all 30+ frontmatter fields synchronized with schema; Write Post/Page sections with three editor modes (Markdown, Rich Text, Preview), full-screen writing interface. **Rich Text Editor:** lightweight `contentEditable` editor with simple toolbar (bold, italic, strike, headings, lists, quote), image insertion support, automatic HTML-to-Markdown conversion on mode switch, theme-aware styling. **AI Agent:** Tab-based UI for Chat and Image Generation, multi-model selector (Claude Sonnet 4, GPT-4o, Gemini 2.0 Flash), image generation with Nano Banana models, aspect ratio selection, download button, and MD/HTML copy options with code preview. **Other Features:** Newsletter management (all Newsletter Admin features integrated); Content import (direct database import via Firecrawl, no file sync needed); Site configuration (Config Generator UI with Version Control toggle); Index HTML editor; Analytics (real-time stats dashboard); Sync commands UI with sync server integration; Header sync buttons; Dashboard search; Toast notifications; Command modal; Version history modal for viewing diffs and restoring previous versions; Mobile responsive design. Uses Convex queries for real-time data, localStorage for preferences, ReactMarkdown for preview. Optional WorkOS authentication via siteConfig.dashboard.requireAuth. |
 | `Callback.tsx` | OAuth callback handler for WorkOS authentication. Handles redirect from WorkOS after user login, exchanges authorization code for user information, then redirects to dashboard. Only used when WorkOS is configured. |
 | `NewsletterAdmin.tsx` | Three-column newsletter admin page for managing subscribers and sending newsletters. Left sidebar with navigation and stats, main area with searchable subscriber list, right sidebar with send newsletter panel and recent sends. Access at /newsletter-admin, configurable via siteConfig.newsletterAdmin. |
@@ -1343,6 +1577,7 @@ A brief description of each file in the codebase.
 | `VisitorMap.tsx`          | Real-time visitor location map with dotted world display, theme-aware colors, and GPU-composited pulse animations using transform: scale()                                                                                                                                                                                                                            |
 | `PageSidebar.tsx`         | Collapsible table of contents sidebar for pages/posts with sidebar layout, extracts headings (H1-H6), active heading highlighting, smooth scroll navigation, localStorage persistence for expanded/collapsed state                                                                                                                                                    |
 | `RightSidebar.tsx`        | Right sidebar component that displays CopyPageDropdown or AI chat on posts/pages at 1135px+ viewport width, controlled by siteConfig.rightSidebar.enabled and frontmatter rightSidebar/aiChat fields                                                                                                                                                                  |
+| `PostMinimap.tsx`         | Right-aligned heading outline for posts with frontmatter `minimap: true`. Sits in the right margin so the article stays viewport-centered. Reads h1-h6 via `extractHeadings`, links to the ids `BlogPost` writes, tracks the active section with a rAF-throttled window scroll spy, smooth-scrolls with header offset, updates the hash, and keeps the active item in view when the rail overflows. Depth classes are relative to the shallowest heading present. |
 | `AIChatView.tsx`          | AI chat interface component (Agent) using Anthropic Claude API. Supports per-page chat history, page content context, markdown rendering, and copy functionality. Used in Write page (replaces textarea when enabled) and optionally in RightSidebar. Requires ANTHROPIC_API_KEY environment variable in Convex. System prompt configurable via CLAUDE_PROMPT_STYLE, CLAUDE_PROMPT_COMMUNITY, CLAUDE_PROMPT_RULES, or CLAUDE_SYSTEM_PROMPT environment variables. Includes error handling for missing API keys. |
 | `NewsletterSignup.tsx`    | Newsletter signup form component for email-only subscriptions. Displays configurable title/description, validates email, and submits to Convex. Shows on home, blog page, and posts based on siteConfig.newsletter settings. Supports frontmatter override via newsletter: true/false. Includes honeypot field for bot protection. |
 | `ContactForm.tsx`         | Contact form component with name, email, and message fields. Displays when contactForm: true in frontmatter. Submits to Convex which sends email via AgentMail to configured recipient. Requires AGENTMAIL_API_KEY and AGENTMAIL_INBOX environment variables. Includes honeypot field for bot protection. |
@@ -1366,6 +1601,7 @@ A brief description of each file in the codebase.
 | -------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `extractHeadings.ts` | Parses markdown content to extract headings (H1-H6), generates slugs, filters out headings inside code blocks |
 | `homeCategories.ts`  | Live `homeCategories` resolver, `/tags/{tag}` path helper, nav items for Show in nav, match a tag to a section |
+| `homeHeroImage.ts`   | Live `homeHeroImage` resolver so dashboard Homepage saves show on `/` without a rebuild |
 | `imageUpload.ts`     | Shared image picker accept list and MIME inference for PNG, JPG, GIF, WebP, and SVG                           |
 | `workos.ts`          | WorkOS configuration utility. Exports isWorkOSConfigured boolean (checks if VITE_WORKOS_CLIENT_ID and VITE_WORKOS_REDIRECT_URI are set) and workosConfig object with clientId and redirectUri. Used throughout app to conditionally enable WorkOS features. |
 
@@ -1374,6 +1610,7 @@ A brief description of each file in the codebase.
 | File                       | Description                                                                                                                                              |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `useDragSort.ts`           | Persisted drag-and-drop ordering for a flat list of string ids. Native HTML5 drag events, order saved to localStorage, used by the Dashboard sidebar nav and the FrontmatterForm field blocks. |
+| `useResizableSidebar.ts`   | Pointer and keyboard drag-to-resize for a right-hand panel. Clamped 240-600px, persisted under `FRONTMATTER_SIDEBAR_WIDTH_KEY`. Used by Edit, dashboard Write, and `/write`. |
 | `usePageTracking.ts`       | Page view recording and active session heartbeat. Respects `siteConfig.statsPage.enabled` (no DB writes when disabled) |
 | `useSearchHighlighting.ts` | Search term highlighting and scroll-to-match. Reads `?q=` URL param, waits for content to load, highlights matches in DOM, scrolls to first match. |
 
@@ -1667,7 +1904,7 @@ npx create-markdown-sync my-site
 | `dev2.mdc`                   | Development guidelines and best practices     |
 | `help.mdc`                   | Core development guidelines                   |
 | `rulesforconvex.mdc`         | Convex schema and function best practices     |
-| `sec-check.mdc`              | Security guidelines and audit checklist       |
+| `sec-check.mdc`              | Security checklist: trust tiers, env gates, public surfaces, pre-ship list (rewritten 2026-09-06) |
 | `task.mdc`                   | Task list management guidelines               |
 | `write.mdc`                  | Writing style guide (activate with @write)    |
 

@@ -1,12 +1,155 @@
 # Markdown Blog - Tasks
 
-Session updates complete on 2026-09-04: discovery files refresh (projects in VFS, llms.txt, agent-ready config, AGENTS.md/CLAUDE.md rewrite) and auto discovery sync extended to pages, projects, and the CLI sync commands. Both verified on dev; prod push is the first To Do item.
+## Current Status
+
+Session updates complete on 2026-09-06.
+
+Minimap centering (2026-09-06 18:00 UTC): posts with `minimap: true` no longer shift the article left. The outline sits in the right margin. `/test-longttes` at 1440px matches `/why-i-joined-convex` (article 800px, center 716). Rail sticky, click updates the hash, 1024px unmounts the rail. Not deployed. PRD: `prds/minimap-centered-content.md`.
+
+Dashboard Docs scan (2026-09-06 17:55 UTC): slides how-to, Skills directory topic, Convex self-hosting deploy commands, `--prod` vs `:prod` table, and Production/Development names filled from `.env.local` / `.env.production.local` so a fork does not keep Wayne's slugs. `tsc` and 66 vitest tests pass. Signed-in Docs click-through still open. PRD: `prds/dashboard-docs-scan.md`.
+
+First-party WebMCP is in the working tree: public pages register in-page tools on `document.modelContext` for Chrome agents, `POST /mcp` `tools/list` hides `create_draft` without a pipeline key, Site Config has a WebMCP card, and Dashboard Docs has a WebMCP in the browser topic. The app side of WebMCP is verified through a stubbed testing surface (2026-09-06 04:36 UTC); only the real flagged Chrome check is open. `npx convex dev` is healthy again: the `convex/voiceAgent.ts` typecheck error in its scrollback is old, its last pushes at 18:17 to 18:19 PT succeeded, and `tsc -p convex` passes. Write sidebar drag-resize is restored; its signed-in Write pass is still open. Not deployed.
+
+Compared local `main` to https://github.com/waynesutton/waynesutton-ai: not behind GitHub. `HEAD` and `origin/main` are both `0212406` (2026-09-04, agent discovery for projects/pages/CLI sync). No open PRs or issues. GitHub is missing all 2026-09-05 work because it is still uncommitted locally.
+
+R2 media/gallery/video is complete and live. Cloudflare R2, `waynesutton-media`, exact CORS, active `media.waynesutton.ai`, the rotated bucket-scoped token, and all seven environment variables on development and production are configured. Backend and static assets are deployed to `helpful-ptarmigan-118`. Signed-in development and production R2 PNG/MP4 upload, durable catalog persistence, custom-domain delivery, editor insertion, frontmatter selection, and dashboard preview checks pass.
+
+## Current handoff (2026-09-05 23:10 UTC)
+
+GitHub `main` matches the last local commit. It does not include the uncommitted 2026-09-05 work: R2 media (already live on production), homepage/newsletter automation, dashboard polish, author/write/discovery, Site Config tabs, homepage layout, post minimap, hide-nav, hide-empty project link icons, and Vendor keys BYOK plus model overrides (pushed to dev `notable-loris-927` only; production still reads env vars directly for embeddings, AgentMail, Firecrawl, GitHub, and webhook secrets until deployed). Newsletter delivery remains untested against real recipients, and automation stays off. Docs sync for hide-empty project icons is done. No commit, push, or deploy in this pass.
+
+## Dismissible index.html reminder (2026-09-06 14:47 UTC)
+
+- [x] Site Config reminder banner gets an X. `ConfigSection` in `src/pages/Dashboard.tsx` seeds `reminderDismissed` from `localStorage` key `dashboard-index-html-reminder`, which holds a fingerprint of `siteConfig` name, title, and bio. No key or a stale fingerprint means the banner shows (fresh fork, new browser, metadata changed). A successful Save whose name, title, or bio differs from the live config clears the dismissal so the banner returns immediately. PRD: `prds/index-html-reminder-dismiss.md`
+- [x] `.dashboard-config-reminder-text` and `.dashboard-config-reminder-close` added to `global.css`, close button styled like the toast close. Site Config docs topic notes the dismiss behavior.
+- [x] Verified with `tsc --noEmit` and `vite build`. No Convex changes, so convex-doctor was not rerun. Dashboard sign in blocks the automation browser, so the click path was not exercised in a browser.
+- [ ] Not deployed. Ships with the next static deploy.
+
+## WebMCP app side verification and stale blocker cleanup (2026-09-06 04:36 UTC)
+
+- [x] Verified the WebMCP app side without a flagged Chrome by stubbing `navigator.modelContextTesting` on the running dev page (page scoped `Runtime.evaluate`, no persistent injection) and flipping the route so `useWebMcp` re-detected. Home registers six tools, `/dashboard` none, and leaving a post to `/dashboard` unregisters all. `search_site` prefills the modal, `get_current_page` returns route on home and the post object on a post, `open_post` refuses empty and unknown slugs and navigates a listed one, `set_theme` refuses unknown themes, `listen_to_post` and `subscribe_newsletter` register only where a player and newsletter form are mounted, `submit_contact` is absent on a post. The confirm `alertdialog` traps focus, shows the address, and Cancel, Escape, and the close button all return `ok: false, reason: cancelled` with zero fetches. Screenshot checked the dialog against the light theme.
+- [x] Corrected the stale `TASK.md` session note that said `npx convex dev` was blocked by `convex/voiceAgent.ts`: that error is old scrollback, the last pushes succeeded, and `tsc --noEmit -p convex`, `tsc --noEmit`, and vitest (58/58) pass on the current tree.
+- [x] Logged the pass in `prds/webmcp-in-page-tools.md` Verification and narrowed the To Do item to the real flagged Chrome check; added a `prds/lessons.md` entry on re-running blockers and stubbing browser-only surfaces.
+- [ ] Real flagged Chrome plus Model Context Tool Inspector, and one live Confirm on `subscribe_newsletter` with a throwaway address (see To Do).
+
+## Dashboard input consistency (2026-09-06 00:55 UTC)
+
+- [x] Scanned all 250 `<input>`, `<textarea>`, `<select>` controls under the dashboard. Every short box traced to one cause: `global.css` sized `.config-field` inputs only for `type="text"` and `type="number"`, so `type="url"` (Skills Links x5, Projects Links x4, Site Config Site URL) and bare `<input>` (Blog Read-more x2, Newsletter subject) kept the UA width while `dashboard.css` still painted them. The upload modal Alt text had the same `[type="text"]` filter. PRD: `prds/dashboard-input-consistency.md`
+- [x] Widened the `global.css` box rule and its `:focus-visible` twin to `url`, `email`, `password`, `search`, and `input:not([type])`; added `.dashboard-config-card > h3 + .config-field-note` so a card intro sits 8px under the heading rule and 16px above the first field; extended `.image-upload-field input` to the typeless case. No component edits.
+- [x] Verified by injecting a probe card on the `/dashboard` route (GitHub sign in blocks the automation browser from the real editor): `url`, `text`, bare, and `email` inputs measure the same width and 40px height with the `--db-inset` fill and `--db-border` hairline; `color` stays 60px; checkbox untouched; note margins resolve to -0.5rem / 1rem. `npm run build` passes.
+- [x] `.interface-design/system.md` now documents the two stylesheet input contract, the explicit type list, the card intro note placement, the real radius values (all `--db-radius-*` alias `--radius` 0.25rem, not 8/10/12px), two new Do not lines, and a "Verification habit" control scan. Lesson recorded in `prds/lessons.md`.
+- [ ] Not deployed. Ships with the next static deploy.
+
+## Dashboard and newsletter update (2026-09-05T06:29:12Z)
+
+- [x] Fix sidebar flash, audio-label layout, and saved-post/page R2 media controls.
+- [x] Add homepage project and featured-post selection, position, and thumbnail options.
+- [x] Add Blog Page read-more controls; audit project, stats, upload-limit, sidebar and config-export wiring.
+- [x] Add disabled-by-default newsletter automation, customizable email copy, delivery history and duplicate/consent safeguards.
+- [x] Pass 12 tests, lint, frontend/backend type checks, build, development push and focused signed-in desktop/mobile browser checks.
+- [ ] Release these changes to production and perform a separately authorized email-delivery check. Details: `prds/dashboard-homepage-newsletters.md`.
+
+## Hide empty project link icons (2026-09-05 22:15 UTC)
+
+- [x] Public project cards hide X, GitHub, and LinkedIn icons when the URL is empty; the rail is omitted when none are set. Live URL stays a title arrow. Homepage cards share `ProjectCard`. Files: `src/pages/Projects.tsx`, `src/styles/global.css`, `src/components/dashboard/ProjectsSection.tsx`
+- [x] Verified in the browser on `/projects` list, one column, and two column. PRD: `prds/hide-empty-project-link-icons.md`
+
+## Hide site nav per post (2026-09-05 22:51 UTC)
+
+- [x] Post-only frontmatter boolean `hideNav` end to end: schema, `posts.listAll`/`getPostBySlug`/both sync upserts, `cms` post validator, `updatePost` args and YAML exporter, `scripts/sync-posts.ts`. Files: `convex/schema.ts`, `convex/posts.ts`, `convex/cms.ts`, `scripts/sync-posts.ts`
+- [x] `SidebarContext` carries `hideNav`; `Post.tsx` publishes it (reset on unmount) and `Layout.tsx` adds a `top-nav-scroll` class to `.top-nav` when true. Files: `src/context/SidebarContext.tsx`, `src/pages/Post.tsx`, `src/components/Layout.tsx`
+- [x] Behavior revised per user feedback (22:51 UTC): the nav is no longer removed. `.top-nav.top-nav-scroll` switches `position: fixed` to `position: absolute` so the nav shows at the top of the post and scrolls away with the page. Files: `src/components/Layout.tsx`, `src/styles/global.css`
+- [x] Dashboard: Hide Site Nav checkbox in the post field defs and a Hide site nav switch in the FrontmatterForm Visibility group (posts only); round-trips through `ContentItem`, `itemToFrontmatter`, `applyFrontmatterToItem`, edit save, and Write Post create. Files: `src/pages/Dashboard.tsx`, `src/components/FrontmatterForm.tsx`
+- [x] Docs: `content/pages/docs-frontmatter.md` post table and `.claude/skills/frontmatter.md`
+- [x] Verified: `tsc` clean (app and convex), 42 vitest tests, no new eslint issues, convex-doctor unchanged from the pre-change run, and a dev browser pass: on a `hideNav: true` post the nav is `position: absolute`, visible at the top (rect top 0), and out of view after scrolling (rect top -1471); on the homepage it stays `fixed` and pinned at 0. Test frontmatter reverted and re-synced. Not deployed. PRD: `prds/hide-nav-per-post.md`
+
+## Site Config tabs (2026-09-05 22:10 UTC)
+
+- [x] `src/components/dashboard/configGroups.ts` is the one list for the six groups (Site, Homepage, Blog and projects, Audience, Features, Developer), every card id, title, hint, and palette keywords, plus `CONFIG_TABS`, DOM id helpers, and the `ConfigDeepLink` type.
+- [x] Sticky underline tab bar under the Site Config header with All first, `role=tablist`, roving tabindex, arrow/Home/End keys, last tab persisted in `localStorage`. Panels are `ConfigPanel` sections that stay mounted and use `hidden`, so unsaved edits survive a tab switch and Save still writes the whole config. All mode shows an uppercase eyebrow per group. Files: `src/pages/Dashboard.tsx`, `src/styles/dashboard.css`
+- [x] Every card has `id="config-card-<id>"` and `data-config-card`; cards that render their own root (Homepage highlights, Automatic newsletters, Version Control) sit in a `dashboard-config-slot` wrapper. Homepage card renamed Homepage route to stop colliding with the tab. Enable newsletter moved from Features into Newsletter Signup Locations on the Audience tab.
+- [x] Command palette: `setting` entries for all 27 cards (title plus hidden keywords) open the owning tab, scroll the card under the sticky bar (`scroll-margin-top`), and pulse a ring on it for 1.8s. The deep link re-runs after the tab switch commits so the scroll target is visible. Files: `src/utils/dashboardSearch.ts`, `src/components/DashboardSearch.tsx`
+- [x] Docs: Site Config topic gained a Tabs section with the group to card table and palette tip; site ops search list mentions settings. File: `src/components/dashboard/docsTopics.ts`
+- [x] Tests: `src/components/dashboard/configGroups.test.tsx` reads `Dashboard.tsx` source and fails if a rendered card is missing from a group, listed twice, or rendered inside the wrong panel. 42 vitest tests pass, eslint clean, `tsc` clean, `vite build` passes. Not deployed. PRD: `prds/site-config-tabs.md`
+- [ ] Signed-in check: open Site Config, switch tabs with the mouse and arrow keys, edit a field on one tab and confirm it is still dirty after switching, reload and confirm the tab is remembered, then Cmd+K "read time" and confirm the Homepage tab opens with Posts Display flashing.
+
+## Post minimap heading outline (2026-09-05 22:05 UTC)
+
+- [x] Post-only frontmatter boolean `minimap` end to end: schema, `posts.listAll`/`getPostBySlug`/both sync upserts, `cms` post validator, `updatePost` args and YAML serializer, `demo` list validators, `scripts/sync-posts.ts`. Files: `convex/schema.ts`, `convex/posts.ts`, `convex/cms.ts`, `convex/demo.ts`, `scripts/sync-posts.ts`
+- [x] Dashboard Visibility group gets a Minimap switch (posts only) with a hint that separates it from the editor toolbar Minimap; round-trips through `ContentItem`, `itemToFrontmatter`, `applyFrontmatterToItem`, edit save, and Write Post create. Files: `src/components/FrontmatterForm.tsx`, `src/pages/Dashboard.tsx`
+- [x] `PostMinimap` right rail on the public post: h1-h6 from `extractHeadings`, shallowest level bold as group header, deeper levels smaller and muted, right-aligned with a hairline track and accent segment on the active item, rAF scroll spy, smooth scroll with header offset, hash push, active item kept in view. Takes the right column over `rightSidebar`; hidden below 1135px with headings routed to the mobile menu. Files: `src/components/PostMinimap.tsx`, `src/pages/Post.tsx`, `src/styles/global.css`
+- [x] Docs: dashboard `writing` topic, `AGENTS.md` frontmatter table, `.claude/skills/frontmatter.md`
+- [x] Verified: `npx tsc --noEmit` (only pre-existing errors in a concurrently edited `convex/voiceAgent.ts`), eslint clean, 38 vitest tests, `vite build`. Dev browser at 1440px on an unlisted test post: 11 items with depth 0 to 4, the fenced-code `#` skipped, ids match the rendered headings, scroll spy follows, click sets `#highways-in-the-sky` and lands under the header, 1024px unmounts the rail and returns to one column. Not deployed. PRD: `prds/post-minimap-outline.md`
+- [x] Final pass (2026-09-05 22:45 UTC): `tsc` now fully clean (the concurrent `convex/voiceAgent.ts` edit landed), eslint clean, 42 vitest tests, `vite build`. Dev browser re-check on the test post: rail hidden at 672px, visible at 1440px with 11 links and the spy following scroll. Deleted the dev-only verification post `minimap-verify-tmp` from `notable-loris-927` with a throwaway internal mutation that was removed right after; deployment settled clean and `posts:getPostBySlug` returns null for the slug.
+- [ ] Signed-in check: toggle Minimap in Visibility on Edit Post, save, reload, confirm the switch stays on and the live post shows the rail.
+- [ ] convex-doctor reads 82/100 (8 errors, 37 warnings) on the current working tree. None of the findings are in the minimap diff: `newsletterPublications.by_status_time` naming and a `scheduler.runAfter` in a loop come from the in-flight newsletter automation files, plus older items (`generateAudio` chain, public `openReviewPr`, `/` route without OPTIONS, `serveStaticWithMeta` syntax, unbounded `.collect()`). Bring it back to 100 once the newsletter work is settled.
+
+## Dashboard frontmatter, tooltips, AI models, search, embeds (2026-09-05 19:45 UTC)
+
+- [x] Shared `useResizableSidebar` hook. Write Post and Write Page get the same drag-to-resize frontmatter panel as Edit, one persisted width for both. Files: `src/hooks/useResizableSidebar.ts`, `src/pages/Dashboard.tsx`
+- [x] FrontmatterForm toolbar: required-field readout, Minimap toggle (chips per group with filled count and missing-required dot, click jumps and opens), Expand/Collapse all, group drag reorder with per-kind persisted order and open state. Files: `src/components/FrontmatterForm.tsx`, `src/styles/dashboard-forms.css`
+- [x] Radix tooltip wrapper (`Tip`, `InfoTip`, `TooltipProvider`) styled with site tokens; provider at the dashboard root and the `/write` root; `title=` hints in Dashboard.tsx converted (sidebar toggle, list row actions, rich text toolbar, AI image actions, sync commands, frontmatter drag handles). Files: `src/components/ui/Tooltip.tsx`, `src/styles/tooltip.css`, `src/pages/Write.tsx`
+- [x] AI Agent chat and image model lists follow configured vendor keys (dashboard override or env). One provider shows a label, several show a dropdown, missing keys show a hint linking to API Keys. Files: `src/utils/aiModelAvailability.ts`, `src/pages/Dashboard.tsx` (`ModelPicker`, `AIAgentSection`)
+- [x] Header search is a command palette: dashboard sections, features, docs topics, quick actions, posts, and pages, ranked client side, Cmd+K and arrow keys. Files: `src/utils/dashboardSearch.ts`, `src/components/DashboardSearch.tsx`
+- [x] Embed button on Write and Edit markdown toolbars with an X/YouTube dialog that writes sanitizer-safe iframes; dashboard preview sanitizer allows the same hosts as `BlogPost.tsx`. Files: `src/utils/embedMarkdown.ts`, `src/components/EmbedDialog.tsx`
+- [x] Dashboard docs: new `embeds` topic; `writing`, `ai-features`, and `site-ops` describe the frontmatter panel, model filtering, search, and tooltips. Files: `src/components/dashboard/docsTopics.ts`, `src/components/DashboardDocsSection.tsx`
+- [x] Fixed serif font fallback on the readout and minimap chips in `/write` (`src/styles/write-workspace.css` pins `--db-font`).
+- [x] Verified: `npx tsc --noEmit`, eslint, 28 vitest tests, `vite build`. Not deployed. PRD: `prds/dashboard-frontmatter-tooltips-search.md`
+- [ ] Signed-in browser pass: resize the frontmatter panel in Write Post, reload, same width in Edit Post; drag Media above Visibility and confirm the order holds per kind; toggle Minimap and click a chip; hover Sync Dev for the tooltip and tab to it; remove a vendor key override and confirm that provider leaves the AI Agent dropdown; type "vendor" in header search and Enter opens API Keys; Embed inserts an X iframe that renders in Preview and on the live post.
+
+## Dashboard docs Git guide (2026-09-05 18:15 UTC)
+
+- [x] Add a Git guide topic to the dashboard Docs section: order of operations, checking GitHub for changes, pull follow-ups, export:db before commit, stash/conflict flows, and git safety rules. Files: `src/components/dashboard/docsTopics.ts`, `src/components/DashboardDocsSection.tsx`. Verified with `npx tsc --noEmit` and lints. PRD: `prds/dashboard-git-guide.md`
+- [ ] Signed-in browser pass on the Git guide: open Dashboard Docs, confirm Git guide sits first under Operations with a branch icon, `?docs=git-guide` deep links to it, tables and bash blocks render, and Copy markdown copies the full topic. The dev dashboard login blocked an automated check.
+
+## Dashboard Homepage section layout (2026-09-05 22:15 UTC)
+
+- [x] `src/utils/homepageOrder.ts`: pure `buildHomepageOrder` that turns hero, highlights, and category config into the block order the homepage renders, with on/off/warn states. Tests in `src/utils/homepageOrder.test.tsx`.
+- [x] `HomepageHighlightsSettings.tsx` split: `HomepageHighlightsFields` is a controlled fields component; the wrapper keeps the standalone Site Config card working with its own save.
+- [x] `HomepageSection.tsx`: one settings column in page order (Banner image, Homepage highlights, Category sections), header Save on desktop, sticky Running order rail with counts and warnings, phone save bar, one Save for banner + highlights + sections, dirty tracking against the saved snapshot.
+- [x] Field fixes: typed heading input, span checkbox labels, inset project picker, ordinal chips aligned with inputs, heading and tag on one row, "after the next full page load" note on the banner card.
+- [x] `dashboard.css`: `homepage-desk-grid` (`minmax(0,1fr) 272px`, stacks under 1024px), `home-order-*` rail, `home-highlight-group` and `home-highlight-picker`, `home-section-row` and `home-field-row` two-column grids. Removed the competing `.home-highlight-picker` rules from `global.css`.
+- [x] Verified: `npx tsc --noEmit`, eslint, 42 vitest tests, `vite build`. Static CSS mock checked at 1280px (two columns, rail sticks) and 390px (single column, save bar). PRD: `prds/dashboard-homepage-layout.md`
+- [ ] Signed-in browser pass: open Dashboard Homepage, confirm Running order updates as you toggle the banner, highlights, and sections; Save once and confirm all three groups persist after reload; check the tan and dark themes at desktop and 390px.
+
+## Vendor keys BYOK and model overrides (2026-09-05 23:10 UTC)
+
+- [x] `aiModelOverrides` table (`by_vendor_and_kind`), slot catalog with provider model docs URLs, `aiModels.ts` (`modelSlotStatus`, `setModelOverride`, `removeModelOverride`, internal `providerConfig`), and `resolveAiProvider` returning key plus model in one query. Files: `convex/schema.ts`, `convex/lib/aiModelSlots.ts`, `convex/aiModels.ts`, `convex/lib/aiProviderResolver.ts`
+- [x] AI chat, Ask AI, image generation (Runware, Gemini, Imagen by id), post audio TTS, and the voice agent rewrite resolve their model through the helper. Files: `convex/aiChatActions.ts`, `convex/askAI.node.ts`, `convex/aiImageGeneration.ts`, `convex/audioGeneration.ts`, `convex/voiceAgent.ts`
+- [x] Vendor keys grid: Model docs link on configured model vendors and one line per slot with the effective id, Default/Override badge, Set model / Change / Reset with inline input. Files: `src/components/dashboard/ApiKeysSection.tsx`, `src/styles/dashboard-forms.css`
+- [x] BYOK for every key in the grid. Embeddings (batch, regenerate, semantic search, Ask AI retrieval, voice agent RAG), Firecrawl (import, chat link scrape), AgentMail (all newsletter sends, contact, automation delivery), GitHub review PRs, and both webhook secrets now read the dashboard override first, then env. Mutations that gate on a key (`embeddingsAdmin`, newsletter automation enable) use `resolveConfigValue`. New `resolveVendorKeys` batch helper backed by `pipelineKeys.getVendorKeyValues`. Files: `convex/lib/vendorKeyResolver.ts`, `convex/pipelineKeys.ts`, `convex/embeddings.ts`, `convex/embeddingsAdmin.ts`, `convex/semanticSearch.ts`, `convex/importAction.ts`, `convex/newsletterActions.ts`, `convex/contactActions.ts`, `convex/newsletterAutomationActions.ts`, `convex/newsletterAutomation.ts`, `convex/githubReview.ts`, `convex/http.ts`
+- [x] Existing keys are never replaced: saving writes a `vendorKeys` row and leaves the env var alone. UI labels Override (from env) vs Replace (existing override), badge Override (env set) with tooltip, and a hint above the input. `vendorKeyStatus` adds `envConfigured` and reads rows in parallel.
+- [x] Docs: Vendor keys topic rewritten (BYOK and model overrides, stale "still reads process.env" note removed). Tests: `convex/aiModels.test.ts` (slot validation, upsert/reset, provider config, batch key lookup, status, admin gate). `tsc` app and convex, eslint, 44 vitest tests pass. convex-doctor 0.3.3 at 88/100 with test files excluded; remaining findings pre-existing (see PRD). Not deployed. PRD: `prds/vendor-model-overrides.md`
+
+## Skills directory page (2026-09-05 17:15 UTC-7)
+
+- [x] Schema: `skillSections` (`by_slug`, `by_published`) and `skills` (`by_slug`, `by_published`, `by_sectionid`) tables. `convex/skills.ts`: public `listDirectory` and `getMarkdown`, admin `listAllSections`/`listAllSkills`, `createSection`/`updateSection`/`removeSection` (unassigns skills instead of deleting them), `createSkill`/`updateSkill`/`removeSkill` with `clearFields`, slug conflict `ConvexError`, install commands capped at 4 with label and command required. Every write schedules `scheduleDiscoverySyncIfEnabled(ctx, { refreshSkills: true })`. Files: `convex/schema.ts`, `convex/skills.ts`
+- [x] Shared pure module `convex/lib/skillsDirectory.ts`: `compareSkills` (featured, order, title), `compareSkillSections`, `groupSkills` (unpublished or missing section falls to a default "Skills" group), `buildSkillsMarkdown` (H2 per section with description and collection install, H3 per skill with command, description, author, details, fenced install commands, link line). No server imports so the public page bundles the same code as the VFS and agent-ready sync.
+- [x] VFS `/skills.md` in tree, `readFileHelper` (`skills.md` or `skills`), and the `index.md` Skills link, present only when published skills exist. autoSync `refreshSkills` event flag and `reconcileSkills` (path `/skills`, section Skills, archives when empty); `regenerateAll` calls it after `reconcileProjects`. Files: `convex/virtualFs.ts`, `convex/agentReady/autoSync.ts`, `convex/agentReady/content.ts`
+- [x] `siteConfig.skillsPage` (`enabled` default false, `showInNav`, `title`, `description`, `order` 4), lazy `/skills` route gated on `enabled`, nav item after Projects. Files: `src/config/siteConfig.ts`, `src/App.tsx`, `src/components/Layout.tsx`
+- [x] Public `src/pages/Skills.tsx`: header with title, description, count, agents `skills.md` hint, and Copy as markdown (uses `getMarkdown`); sections as `h2` with optional description and collection install line; cards with mono `/command` eyebrow, title linking to `repoUrl` when set, description, `by Author`, install tabs over one `$ command` line with per-button copy state (1.5s), collapsible When to use, link rail with Phosphor glyphs only for filled URLs, hover anchor to `#slug`, `:target` accent, deep link scroll; filter input over 6 skills; sets `document.title`. `.skills-*` styles on theme tokens with 768px and 480px breakpoints. Files: `src/pages/Skills.tsx`, `src/styles/global.css`
+- [x] Dashboard `SkillsSection.tsx`: sections card with inline add/edit (title, auto slug, description, collection install, order, published) and a table showing slug and skill count; skills table (title, command, section, order, status, pinned, link glyphs, open repo); skill editor with Details, Install commands (repeatable label + command rows, max 4), Author, Links; Prefill from SKILL.md URL (`src/utils/skillMdPrefill.ts`: blob/tree/raw/bare repo to raw URL, frontmatter parser with quoted and block scalars, folder and heading fallbacks, Skills CLI install suggestion); site modal delete confirms that say how many skills become ungrouped; hint when the route is off; `DemoSectionGate` in demo. Dashboard: Skills nav item (Toolbox), render branch, Skills Page config card (enabled, show in nav, title, description, order) with `skillsPage` in `buildOverrides`; `configGroups` card `skills-page` and content group renamed "Blog, projects, and skills"; `dashboardSearch` `feature-skills`; docs table row. Files: `src/components/dashboard/SkillsSection.tsx`, `src/utils/skillMdPrefill.ts`, `src/pages/Dashboard.tsx`, `src/components/dashboard/configGroups.ts`, `src/utils/dashboardSearch.ts`, `src/components/dashboard/docsTopics.ts`, `src/styles/dashboard.css`
+- [x] Discovery: `agent-ready.config.json` Skills page (order 4), `/skills.md` in `agentInstructions` and the `/vfs/tree` blurb; `scripts/sync-discovery-files.ts` queries `api.skills.listDirectory` and writes a `# Skills` block to llms.txt (command, description, first install command, repo, `cat /skills.md` hint) plus `/skills.md` in the VFS paths; AGENTS.md Skills feature, `skills.ts` in the tree, tables list, VFS example and paths, new Skills section, auto sync note; CLAUDE.md key files; AgentReadySection copy says posts, pages, projects, and skills.
+- [x] Tests: `convex/skills.test.ts` (grouping and featured sort, markdown renderer, admin gate, slug conflicts on create and rename, install command cap and completeness, section delete unassigns, `clearFields`), `convex/agentReadyAutoSync.test.ts` (`regenerateAll` publishes `/skills` with the install command and section heading; `reconcileSkills` archives when the last skill is unpublished), `src/utils/skillMdPrefill.test.ts` (blob, tree, bare repo, raw refs/heads URLs, non GitHub rejection, quoted and multi line frontmatter, CRLF and BOM, nested mapping skip, prefill fallbacks). 52 vitest tests pass, `tsc` clean for app and convex, `vite build` passes.
+- [x] convex-doctor 0.3.3: 88/100, 1 error, 27 warnings. Nothing in the skills diff is flagged (the `by_section` index was renamed `by_sectionid` to match the repo's `by_sessionid` convention and clear the one new warning). Remaining findings predate this work: `scheduler.runAfter` in a loop in `newsletterAutomation.ts`, `generateAudio` chain, public `openReviewPr`, `serveStaticWithMeta` syntax, `/` route without OPTIONS, index names on newsletter, drafts, apiKeys, and audioJobs tables. Not deployed. PRD: `prds/skills-directory.md`
+- [x] Dev seed (2026-09-05 17:37 UTC-7): `notable-loris-927` now has two published sections ("My skills" with the `npx skills add https://github.com/waynesutton/convexskills` collection install, "Skills I recommend") and five published skills: `convex` (waynesutton/convexskills, pinned, three install tabs, repo + skills.sh + docs links), `find-skills` (vercel-labs/skills), `frontend-design` (anthropics/skills, two install tabs), `impeccable` (pbakaus/impeccable, docs link), and `design-taste-frontend` (leonxlnx/taste-skill, repo link only, no install block). The seed also wrote `skillsPage.enabled: true, showInNav: true` into the `runtimeOverrides` row so `/skills` and the nav item are live on dev without touching `siteConfig.ts`. Seeded through a throwaway `internalMutation` that was deleted after one `npx convex run`; nothing lands in the repo. Verified in the browser at `localhost:5173/skills` (nav link, both headings, tabs only on multi install skills, GitHub glyph only on the repo-only card) and `cat /skills.md` on the dev `/vfs/exec` returns the same directory. Production is untouched.
+- [ ] Signed-in browser pass: in Dashboard Skills add a section "My skills" with a collection install command, then two skills (one prefilled from a GitHub SKILL.md URL, one by hand with two install commands and only a repo link). Open `/skills` after enabling the route in Site Config: confirm the section heading, collection install copy, command eyebrow, install tabs switch and copy, the second skill shows only the GitHub glyph, `#slug` scrolls to the card with an accent border, Copy as markdown matches `cat /skills.md` on `/vfs/exec`. Delete the section and confirm both skills stay under a plain "Skills" heading. Toggle Show in nav and the route. Check four themes at desktop and 375px.
 
 ## To Do
 
-- [ ] Push the discovery refresh to production: `npx convex deploy` (ships the `/projects.md` VFS file and the pages/projects/CLI auto-sync hooks), then `npm run sync:discovery:prod` and `npx agent-ready sync --prod`, then confirm `https://waynesutton.ai/llms.txt` lists Projects and `cat /projects.md` works against prod `/vfs/exec` (PRDs: prds/discovery-files-projects-refresh.md, prds/discovery-auto-sync-pages-projects.md)
+- [ ] Signed-in Docs click-through: Overview table shows this machine's dev/prod slugs, Writing has Markdown slides, Deploying has the `--prod` table and no `npm run deploy --prod`, Skills topic opens. PRD: `prds/dashboard-docs-scan.md`
 
-- [ ] Signed-in browser pass on Projects: in Dashboard Projects add a project with a title, description, live URL, all three external links, and an uploaded thumbnail, confirm the preview holds 16:9 and the slug auto-fills, then Save. Open `/projects` and switch all three layouts: list shows no images, one column pairs a small still with the text, two column is a card grid. Confirm a project with no live URL has no arrow after its title, a project with a missing link shows that glyph dimmed and non-clickable in the same slot, and a project with no thumbnail still renders in all three layouts. Unpublish one and confirm it leaves `/projects` but stays in the dashboard. Turn Show in nav off in Site Config and confirm the header link goes while `/projects` still loads, then turn the route off and confirm the URL 404s. Check all four themes at desktop and 375px. PRD: prds/projects-page.md
+- [ ] Signed-in Docs scroll pass: at desktop width scroll the topic sidebar from "Getting started" to "Operations" and confirm the article does not move, the Filter topics field stays pinned, and the Copy markdown toolbar stays pinned while the article scrolls. Pick a topic while scrolled deep and confirm the new article starts at the top. Resize below 900px and confirm the master/detail view and single page scroll still work. PRD: `prds/dashboard-docs-sidebar-scroll.md`
+
+- [ ] Set `SYNC_SECRET` on the dev and prod Convex deployments (`npx convex env set SYNC_SECRET <value>` and `--prod`) and add the same value to `.env.local` and `.env.production.local`, then run `npm run sync` once per environment to confirm. Until then the sync mutations stay open, as before. PRD: prds/site-audit-2026-09.md
+
+- [ ] WebMCP real flagged Chrome pass: enable `chrome://flags/#enable-webmcp-testing`, install Model Context Tool Inspector, load localhost:5173. Confirm the inspector lists six tools on home and eight on a post with a player and newsletter form, then press Confirm on `subscribe_newsletter` with a throwaway address and check the real success state. Everything else in the original checklist (tool lists per route, `/dashboard` empty, `search_site` prefill, `get_current_page`, `open_post` refusals, `listen_to_post` gating, confirm dialog Cancel and Escape with zero requests) passed on 2026-09-06 04:36 UTC through a stubbed `navigator.modelContextTesting`; details in prds/webmcp-in-page-tools.md Verification. Docs: Dashboard, Docs, WebMCP.
+
+- [ ] Signed-in browser pass: drag the Frontmatter divider on Write Post and Write Page, reload, confirm Edit Post keeps the same width. PRD: prds/write-sidebar-resize.md
+
+- [ ] After explicit deployment authorization, release the latest backend and frontend changes to the approved environment, then run Agent Ready Regenerate as an admin to backfill published content and repair obsolete wiki wording. Verify llms.txt includes posts/pages/projects, llms-full.txt includes article bodies, agents.md has current instructions, and /vfs/exec serves projects.md. Local discovery generation alone does not refresh these live files. PRD: prds/author-media-write-discovery.md
+
+- [ ] Signed-in browser pass on Projects: in Dashboard Projects add a project with a title, description, live URL, all three external links, and an uploaded thumbnail, confirm the preview holds 16:9 and the slug auto-fills, then Save. Open `/projects` and switch all three layouts: list shows no images, one column pairs a small still with the text, two column is a card grid. Confirm a project with no live URL has no arrow after its title, a project with a missing X/GitHub/LinkedIn URL hides that icon, and a project with no thumbnail still renders in all three layouts. Unpublish one and confirm it leaves `/projects` but stays in the dashboard. Turn Show in nav off in Site Config and confirm the header link goes while `/projects` still loads, then turn the route off and confirm the URL 404s. Check all four themes at desktop and 375px. PRD: prds/projects-page.md
 
 - [ ] Category sections as page nav: in Dashboard Homepage, check Show in nav on a section with a real tag, Save, confirm the heading appears in desktop and mobile nav and opens `/tags/{tag}` with the section title, no Back arrow, and the wide column. Uncheck Show on homepage (leave Show in nav on) and confirm `/` no longer lists that section while the header link stays. Uncheck Show in nav and confirm the nav link leaves while the tag URL still loads. Group posts off should keep the nav link. A homepage limit smaller than the tag count should show View all. PRD: prds/category-section-nav-pages.md
 
@@ -81,7 +224,88 @@ Session updates complete on 2026-09-04: discovery files refresh (projects in VFS
 - [ ] Decide phase 2 of the dashboard overhaul, each blocked on a choice rather than on code: the X section layout and every other section reusing `.dashboard-import-form` as a generic block wrapper, Docs as a sidebar plus content pane (needs the 860px cap lifted and topic ids in the URL), and Logo Gallery image management from Site Config (blocked by design, `buildOverrides` omits `logoGallery.images` and `deepMerge` replaces arrays whole so a dashboard save cannot clobber file managed images) (PRD: prds/homepage-and-dashboard-overhaul.md)
 - [ ] Decide phase 3 of the dashboard overhaul: homepage category sections (there is no category concept in the schema, only tags and the docs group fields, so this needs a call on tag driven vs a new frontmatter field vs hand curated in config), the homepage 16:9 image with a resize scaler, and whether to apply the supplied dashboard design spec (it is a single light palette while this dashboard themes four ways off `--db-*` tokens, and Inter is named in the font stack but never loaded) (PRD: prds/homepage-and-dashboard-overhaul.md)
 
+## Recently Completed
+
+- 2026-09-06 - Write sidebar drag-resize restored. Handle was clipped on dashboard Write (missing `position: relative`) and missing on `/write`. Shared width key, `/write` grid column, stacked layouts full width. Verified on `/write` at 1440px. Signed-in dashboard Write pass still open. PRD: prds/write-sidebar-resize.md
+
+- 2026-09-05 17:35 UTC - Compared local `main` to GitHub `waynesutton/waynesutton-ai`: 0 behind, 0 ahead of `origin/main` at `0212406`. Confirmed no open PRs or issues. Recorded that GitHub lacks the uncommitted 2026-09-05 R2, homepage/newsletter, dashboard polish, and author/write/discovery work. Documentation-only; no commit, push, or deploy.
+
+- 2026-09-05 15:17 UTC - Synced task, changelog, and file reference with completed author/media, /write, responsive dashboard, homepage/newsletter, and discovery work; separated previous R2 production evidence from newer local-only changes and documented the authorized deploy/Regenerate handoff. Documentation-only; no deployment or code execution changes.
+
+- 2026-09-05 06:52 UTC - Added past-author autocomplete and direct media gallery actions, brought /write to the shared frontmatter UI with safe local YAML editing, fixed full-body/stale-event Agent Ready reconciliation and manual backfill, and clarified Sync Content. Lint, both type checks, 28 tests, build, and local browser checks passed. No deployment; live discovery awaits authorized deploy and Regenerate. PRD: prds/author-media-write-discovery.md
+
+- 2026-09-05 06:41 UTC - Completed phone/tablet dashboard polish: compact navigation through 1024px, keyboard drawer behavior, wrapped editor actions, scrollable focus mode and short media dialogs, 44px controls, and overflow fixes for Drafts Inbox, Agent Ready, and Index HTML. Local browser checks, lint, both type checks, 12 tests, and build passed. No deployment. PRD: prds/dashboard-responsive-polish.md
+
+- [x] R2 production deployment and live media smoke (2026-09-05 00:27 UTC) (PRD: `prds/r2-media-gallery.md`)
+  - [x] Deployed backend schema/functions and the static bundle to production `helpful-ptarmigan-118`; static deployment `70c963db-be3e-4719-b74f-7c8e7ad88870` completed successfully.
+  - [x] Verified the signed-in production dashboard reports provider `r2` and a 500 MB video cap.
+  - [x] Uploaded PNG and MP4 smoke assets, reloaded to prove durable catalog persistence, and loaded both permanent `media.waynesutton.ai` URLs publicly.
+  - [x] Inserted both from the production editor library; preview loaded the 1200x630 image and video with `controls`, `playsinline`, and `preload="metadata"` intact.
+  - [x] Kept the production draft local-only. Smoke assets remain in development and production because cloud deletion and public-post publication require separate action-time approval.
+
+- [x] R2 durable media catalog, gallery, and video code on development (2026-09-04 17:30 UTC)
+  - [x] Added `mediaAssets` with `by_key` and `by_kind`; admin-gated idempotent record, paginated list, and underlying-provider delete.
+  - [x] R2 content stores a permanent custom-domain URL, with a rate-limited public `/r2/{key}` seven-day signed redirect fallback.
+  - [x] Image/video validation and provider caps: 10MB images, 500MB R2 videos, 50MB Convex/ConvexFS videos.
+  - [x] Shared editor picker and Media Library now use the durable catalog, filename search, video preview/insert/copy/delete, and XHR progress.
+  - [x] Public and dashboard markdown sanitizers allow responsive `video` and `source` elements; mobile controls use 44px tap targets.
+  - [x] `npx tsc -p convex --noEmit`, `npx tsc --noEmit`, changed-file lint, and `npm run build` pass.
+  - [x] Schema/functions deployed cleanly to development `notable-loris-927`; Convex Doctor reports 91/100 with 22 pre-existing warnings and none left from this feature.
+
 ## Completed
+
+- [x] Dashboard docs sidebar scrolls on its own (2026-09-06 18:20 UTC)
+  - [x] Root cause: sticky sidebar capped at `calc(100vh - 32px)` while its scroll container `.dashboard-content` is ~80px shorter (56px header plus pane padding), so its scrollport ran past the visible bottom
+  - [x] Docs shell fills the content pane with `flex: 1; min-height: 0` instead of `100vh` math, so a demo banner or auth warning above it cannot break the height
+  - [x] Topic list is its own scroll region (`.dashboard-docs-topic-scroll`) with the Filter topics field pinned above it; article scrolls in its column with the Copy markdown toolbar pinned. `overscroll-behavior: contain` on both
+  - [x] Picking a topic resets the article scroll to the top; focused skip link stays absolute so it cannot add a grid row
+  - [x] Verified on a dev harness of the real dashboard shell at 1440x780: pane `scrollHeight === clientHeight`, topic region and article each reach their end, "Deploying" visible with pane `scrollTop` 0, and at 420px only the pane scrolls. `tsc` and 66 vitest tests pass. Not deployed. PRD: `prds/dashboard-docs-sidebar-scroll.md`
+
+- [x] Minimap keeps post content centered (2026-09-06 18:00 UTC)
+  - [x] `Post.tsx` no longer counts the minimap as `hasRightColumn`. The rail is a sibling of the article, not a `post-sidebar-right` grid cell
+  - [x] `.post-minimap-layout` uses `1fr minmax(0, 800px) 1fr` so the article stays viewport-centered. Left TOC and AI chat keep their existing grids; the rail overlays
+  - [x] Rail is `justify-self: end` in the right `1fr` so it stays flush right (right edge at the scrollbar at 1440px) instead of hugging the article (2026-09-06 18:06 UTC)
+  - [x] Verified in the browser: `/test-longttes` at 1440px grid `316px 800px 316px`, article box matches `/why-i-joined-convex`, rail sticky at top 80 after scroll, click sets `#choose-one-useful-measurement`, 1024px unmounts the rail. 3 Post.test.tsx tests pass. Not deployed. PRD: `prds/minimap-centered-content.md`
+
+- [x] Dashboard docs scan (2026-09-06 17:55 UTC)
+  - [x] Slides how-to in Writing (`slides: true`, `---` split, Present keys). Skills directory topic. hideNav called out. Overview lists Homepage, Projects, Skills
+  - [x] Deploying rewritten for Convex self-hosting: `deploy:dev`, `deploy:static`, `npm run deploy` interactive. No `npm run deploy --prod`. `--prod` vs `:prod` table
+  - [x] Dev/prod names and URLs tokenized and filled from `.env.local` / `.env.production.local` (`src/utils/deployments.ts`, Vite inject). Forks get their own table. Copy markdown copies filled URLs
+  - [x] `tsc --noEmit` and 66 vitest tests. Signed-in Docs click-through still in To Do. PRD: `prds/dashboard-docs-scan.md`
+
+- [x] Site audit: security, sync parity, dashboard parity (2026-09-06)
+  - [x] `convex/lib/syncAuth.ts` gates `syncPostsPublic`, `syncPagesPublic`, `generateMissingEmbeddings`, `regeneratePostEmbedding`: admin session, matching `SYNC_SECRET`, or open when unset. `scripts/sync-posts.ts` forwards the secret, `validate-env` lists it
+  - [x] `authAdmin.grantDashboardAdmin` refuses anonymous first-admin seeding once a bootstrap key or strict email exists; `assertBootstrapKey` helper; `getCurrentDashboardAuthDebug` returns `strictAdminConfigured`
+  - [x] `convex/lib/secretCompare.ts` `secretEquals` used by http webhooks, MCP bearer, bootstrap key, unsubscribe token, sync secret
+  - [x] `demo.listAll*` hide non-demo unpublished rows; `contactSubmit` and `demoWrite` rate limits
+  - [x] RSS `cdata()` splits `]]>`; OG image URLs escaped in `content` attributes; `agentReady.analytics.*` admin only
+  - [x] `slides` kept in all three sync update patches; `minimap`, `hideNav`, `slides`, `unlisted` doc rows
+  - [x] `resolveHomeHeroImage` makes the dashboard hero live on `/`; Site Config footer and social footer page toggles and visitor map title input
+  - [x] `.cursor/rules/sec-check.mdc` rewritten; README, AGENTS.md, changelog, files.md updated
+  - [x] Verified: convex and app `tsc` clean, 58 vitest tests pass, `vite build` ok, convex-doctor 100/100 with 0 warnings
+
+- [x] First-party WebMCP for in-page agents (2026-09-06 02:48 UTC)
+  - [x] Shared tool catalog `src/utils/webmcp/catalog.ts` with `page`, `remote-public`, and `remote-pipeline` audiences; `create_draft` and `export_all` never carry `page`
+  - [x] `convex/mcp.ts` `tools/list` hides `create_draft` from anonymous callers (seven tools) and shows it with a pipeline key (eight); calls without a key fail as before
+  - [x] `detect.ts` (document.modelContext, Chrome testing flag fallback), `register.ts` (failure isolated register and unregister), `pageActions.ts` (mount scoped registry with `usePageAction`)
+  - [x] `useWebMcp` hook: route scoped registration, skips `/dashboard`, `/write`, `/newsletter-admin`, public queries only subscribe when an agent surface exists, handlers read live data through refs
+  - [x] `WebMcpProvider` mounted from `Layout`, site styled `WebMcpConfirmDialog` for `subscribe_newsletter` and `submit_contact`, `SearchModal` `initialQuery`, newsletter and contact `submitEmail` / `submitMessage` shared by form and agent (honeypot stays empty), `PostAudioPlayer` `listen` action
+  - [x] `siteConfig.webmcp.enabled` (default true), Dashboard Site Config WebMCP card in Features, `configGroups` entry
+  - [x] Dashboard Docs topic `webmcp` (WebMCP in the browser) under Agents and automation with a Browser icon; cross-links in Overview, Publish from agents, Drafts Inbox, MCP server (remote vs in-page, new `tools/list` counts); `feature-webmcp` palette entry; one line each in `agent-ready.config.json` and `AGENTS.md`
+  - [x] Verified: 58 vitest tests (catalog audiences, spec safe names, mount scoped tools, remote name parity, `tools/list` counts, palette finds the webmcp topic and card), `tsc` app and convex, eslint clean on touched files; dev browser without WebMCP shows no registrations and no console errors. convex-doctor findings (1 error, 27 warnings) are pre-existing from other uncommitted work, none in `convex/mcp.ts`. Not deployed.
+  - [x] App side browser pass through a stubbed `navigator.modelContextTesting` (2026-09-06 04:36 UTC): tool lists per route, `/dashboard` empty, guards, navigation, and confirm dialog cancel paths all correct; only the real flagged Chrome view and one live Confirm remain (To Do)
+
+- [x] Write sidebar drag resize (2026-09-06)
+  - [x] Root cause: `.dashboard-write-sidebar` lacked `position: relative`, so the 4px absolute handle clipped; `/write` never used `useResizableSidebar`
+  - [x] Shared `FRONTMATTER_SIDEBAR_WIDTH_KEY`; Write sidebars position and paint like Edit; stacked layouts use `width: 100% !important`; `/write` uses `--write-fm-width`
+  - [x] Verified on `/write` at 1440px: keyboard 300 to 332, pointer drag to 433, double-click reset to 300
+  - PRD: `prds/write-sidebar-resize.md`
+
+- [x] Hide empty project link icons (2026-09-05 22:15 UTC) (PRD: prds/hide-empty-project-link-icons.md)
+  - `/projects` list, one column, and two column, plus homepage `ProjectCard`, omit X/GitHub/LinkedIn icons when the URL is empty
+  - Live URL stays a title arrow when set; missing live URL stays plain text
+  - Dashboard list already hid empty glyphs; Links hint copy updated
+  - Verified in browser: waynesutton.ai shows X + GitHub, markdown.fast shows GitHub + LinkedIn, Code Sauce has no rail; zero `.project-rail-icon-empty` nodes
 
 - [x] Auto discovery sync for pages, projects, and CLI sync (2026-09-04 09:05 UTC) (PRD: prds/discovery-auto-sync-pages-projects.md)
   - `convex/agentReady/autoSync.ts`: event generalized to publish arrays with sections, `removePaths`, and `refreshProjects`; `/projects` entry carries the full VFS `/projects.md` markdown as `fullContent`, archived when zero projects are published
@@ -103,7 +327,7 @@ Session updates complete on 2026-09-04: discovery files refresh (projects in VFS
   - `convex/projects.ts` with `listPublished` (public), `listAll` (admin), and `create` / `update` / `remove`
   - `projects` table in `convex/schema.ts` with `by_slug` and `by_published`
   - `src/pages/Projects.tsx`: list, one column, and two column layouts, view choice persisted
-  - Fixed-order link rail (live, repo, X, LinkedIn) so glyph positions never shift between rows
+  - Link rail shows only filled X, GitHub, and LinkedIn URLs; empty fields hide the icon
   - Live URL is signalled by an arrow after the title, not accent color, which is pure black in the light theme
   - `src/components/dashboard/ProjectsSection.tsx`: inline CRUD, auto slug, 16:9 thumbnail preview, `ImageUploadModal`, site confirm modal for deletes
   - Projects Page card in Site Config: route, nav link, nav order, title, description, default layout, layout switcher
@@ -1425,4 +1649,3 @@ v2.19.1 ready. Configuration consolidated into siteConfig.ts.
   - [x] Removed fork-config.json (siteConfig.ts is now the single source of truth)
   - [x] Fixed TypeScript errors across Layout.tsx, AskAIModal.tsx, Post.tsx, and 10+ other files
   - [x] Updated files.md, changelog.md, task.md documentation
-

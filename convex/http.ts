@@ -2,7 +2,10 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal, components } from "./_generated/api";
 import { handleRssFeed, handleRssFullFeed } from "./rss";
-import { handleStreamResponse, handleStreamResponseOptions } from "./askAI.node";
+import {
+  handleStreamResponse,
+  handleStreamResponseOptions,
+} from "./askAI.node";
 import { registerRoutes } from "convex-fs";
 import { registerRoutes as registerAgentReadyRoutes } from "@waynesutton/agent-ready";
 import { fs } from "./fs";
@@ -22,6 +25,8 @@ import {
   cleanEmailBody,
 } from "./lib/agentMailMessage";
 import type { EmailDoorConfig } from "./lib/agentMailMessage";
+import { resolveVendorKey } from "./lib/vendorKeyResolver";
+import { secretEquals } from "./lib/secretCompare";
 
 function rateLimitedResponse(retryAfter?: number): Response {
   return new Response(
@@ -30,7 +35,9 @@ function rateLimitedResponse(retryAfter?: number): Response {
       status: 429,
       headers: {
         "Content-Type": "application/json",
-        ...(retryAfter ? { "Retry-After": String(Math.ceil(retryAfter / 1000)) } : {}),
+        ...(retryAfter
+          ? { "Retry-After": String(Math.ceil(retryAfter / 1000)) }
+          : {}),
         "Access-Control-Allow-Origin": "*",
       },
     },
@@ -90,7 +97,9 @@ http.route({
       return new Response("Not found", { status: 404 });
     }
 
-    const post = await ctx.runQuery(internal.posts.getPostBySlugWithContent, { slug });
+    const post = await ctx.runQuery(internal.posts.getPostBySlugWithContent, {
+      slug,
+    });
     if (post) {
       const frontmatter = [
         "---",
@@ -116,7 +125,9 @@ http.route({
       });
     }
 
-    const page = await ctx.runQuery(internal.pages.getPageBySlugInternal, { slug });
+    const page = await ctx.runQuery(internal.pages.getPageBySlugInternal, {
+      slug,
+    });
     if (page) {
       const today = new Date().toISOString().split("T")[0];
       const frontmatter = `---\nType: page\nDate: ${today}\n---`;
@@ -319,16 +330,25 @@ http.route({
       url: SITE_URL,
       description:
         "An open-source publishing framework built for AI agents and developers to ship websites, docs, or blogs. Write markdown, sync from the terminal. Your content is instantly available to browsers, LLMs, and AI agents. Built on Convex.",
-      posts: posts.map((post: { title: string; slug: string; description: string; date: string; readTime?: string; tags: string[] }) => ({
-        title: post.title,
-        slug: post.slug,
-        description: post.description,
-        date: post.date,
-        readTime: post.readTime,
-        tags: post.tags,
-        url: `${SITE_URL}/${post.slug}`,
-        markdownUrl: `${SITE_URL}/api/post?slug=${post.slug}`,
-      })),
+      posts: posts.map(
+        (post: {
+          title: string;
+          slug: string;
+          description: string;
+          date: string;
+          readTime?: string;
+          tags: string[];
+        }) => ({
+          title: post.title,
+          slug: post.slug,
+          description: post.description,
+          date: post.date,
+          readTime: post.readTime,
+          tags: post.tags,
+          url: `${SITE_URL}/${post.slug}`,
+          markdownUrl: `${SITE_URL}/api/post?slug=${post.slug}`,
+        }),
+      ),
     };
 
     return new Response(JSON.stringify(response, null, 2), {
@@ -378,7 +398,9 @@ http.route({
       });
     }
 
-    const post = await ctx.runQuery(internal.posts.getPostBySlugWithContent, { slug });
+    const post = await ctx.runQuery(internal.posts.getPostBySlugWithContent, {
+      slug,
+    });
 
     if (!post) {
       return new Response(JSON.stringify({ error: "Post not found" }), {
@@ -462,7 +484,9 @@ http.route({
     });
     if (!rl.ok) return rateLimitedResponse(rl.retryAfter);
 
-    const posts = await ctx.runQuery(internal.posts.getAllPostsWithContentInternal);
+    const posts = await ctx.runQuery(
+      internal.posts.getAllPostsWithContentInternal,
+    );
 
     const response = {
       site: SITE_NAME,
@@ -570,7 +594,7 @@ function generateMetaHtml(content: {
     hideImage
       ? ""
       : `
-  <meta property="og:image" content="${ogImage}">`
+  <meta property="og:image" content="${escapeHtml(ogImage)}">`
   }
   <meta property="og:url" content="${canonicalUrl}">
   <meta property="og:type" content="${ogType}">
@@ -592,7 +616,7 @@ function generateMetaHtml(content: {
     hideImage
       ? ""
       : `
-  <meta name="twitter:image" content="${ogImage}">`
+  <meta name="twitter:image" content="${escapeHtml(ogImage)}">`
   }
   <meta name="twitter:site" content="">
   <meta name="twitter:creator" content="">
@@ -631,7 +655,9 @@ http.route({
 
     try {
       // First try to find a post
-      const post = await ctx.runQuery(internal.posts.getPostBySlugWithContent, { slug });
+      const post = await ctx.runQuery(internal.posts.getPostBySlugWithContent, {
+        slug,
+      });
 
       if (post) {
         const html = generateMetaHtml({
@@ -656,7 +682,9 @@ http.route({
       }
 
       // If no post found, try to find a page
-      const page = await ctx.runQuery(internal.pages.getPageBySlugInternal, { slug });
+      const page = await ctx.runQuery(internal.pages.getPageBySlugInternal, {
+        slug,
+      });
 
       if (page) {
         const html = generateMetaHtml({
@@ -754,15 +782,35 @@ http.route({
       body = await request.json();
     } catch {
       return new Response(
-        JSON.stringify({ stdout: "", stderr: "invalid JSON body", exitCode: 1 }),
-        { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } },
+        JSON.stringify({
+          stdout: "",
+          stderr: "invalid JSON body",
+          exitCode: 1,
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        },
       );
     }
 
     if (!body.command || typeof body.command !== "string") {
       return new Response(
-        JSON.stringify({ stdout: "", stderr: "missing command field", exitCode: 1 }),
-        { status: 400, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } },
+        JSON.stringify({
+          stdout: "",
+          stderr: "missing command field",
+          exitCode: 1,
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        },
       );
     }
 
@@ -827,28 +875,9 @@ async function sha256HexHttp(value: string): Promise<string> {
     .join("");
 }
 
-function pipelineEnvConfigured(name: string): string | null {
-  const value = process.env[name];
-  if (!value || value.trim().length === 0 || value.trim() === "unset") {
-    return null;
-  }
-  return value.trim();
-}
-
-// Constant-time string comparison so secret checks do not leak timing info
-function timingSafeEqual(a: string, b: string): boolean {
-  const encoder = new TextEncoder();
-  const aBytes = encoder.encode(a);
-  const bBytes = encoder.encode(b);
-  if (aBytes.length !== bBytes.length) {
-    return false;
-  }
-  let diff = 0;
-  for (let i = 0; i < aBytes.length; i++) {
-    diff |= aBytes[i] ^ bBytes[i];
-  }
-  return diff === 0;
-}
+// Constant-time string comparison so secret checks do not leak timing info.
+// Shared with MCP, bootstrap, unsubscribe, and sync secret checks.
+const timingSafeEqual = secretEquals;
 
 // Bound draft submissions well under the 1MB Convex document limit
 const MAX_DRAFT_INPUT_CHARS = 400_000;
@@ -906,9 +935,7 @@ async function verifySvixSignature(
     cryptoKey,
     encoder.encode(`${id}.${timestamp}.${rawBody}`),
   );
-  const expected = btoa(
-    String.fromCharCode(...new Uint8Array(signatureBytes)),
-  );
+  const expected = btoa(String.fromCharCode(...new Uint8Array(signatureBytes)));
 
   // Header holds space-delimited "v1,<sig>" entries; any match is valid
   for (const entry of signatureHeader.split(" ")) {
@@ -930,10 +957,13 @@ http.route({
     // floods cannot starve legitimate submissions
     const apiKey = request.headers.get("x-api-key");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Missing x-api-key header" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Missing x-api-key header" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
     const keyHash = await sha256HexHttp(apiKey);
     const verified = await ctx.runQuery(internal.pipelineKeys.verifyApiKey, {
@@ -979,7 +1009,9 @@ http.route({
     }
     if (payload.rawInput.length > MAX_DRAFT_INPUT_CHARS) {
       return new Response(
-        JSON.stringify({ error: `rawInput exceeds ${MAX_DRAFT_INPUT_CHARS} characters` }),
+        JSON.stringify({
+          error: `rawInput exceeds ${MAX_DRAFT_INPUT_CHARS} characters`,
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
@@ -1023,7 +1055,8 @@ http.route({
   path: "/api/hooks/agentmail",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const secret = pipelineEnvConfigured("AGENTMAIL_WEBHOOK_SECRET");
+    // Dashboard BYOK override first, then the env var
+    const secret = await resolveVendorKey(ctx, "AGENTMAIL_WEBHOOK_SECRET");
     if (!secret) {
       return new Response(
         JSON.stringify({ error: "Email door not configured" }),
@@ -1063,10 +1096,10 @@ http.route({
     const eventType =
       typeof body.event_type === "string" ? body.event_type : "";
     if (!isInboundEventType(eventType)) {
-      return new Response(
-        JSON.stringify({ ok: true, skipped: eventType }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ ok: true, skipped: eventType }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // AgentMail wraps the message differently per event version; be defensive
@@ -1087,10 +1120,10 @@ http.route({
       ownInbox &&
       normalizeEmailAddress(sender) === normalizeEmailAddress(ownInbox)
     ) {
-      return new Response(
-        JSON.stringify({ ok: true, skipped: "self-sent" }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ ok: true, skipped: "self-sent" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // A valid signature proves AgentMail sent this webhook, not that the mail
@@ -1131,10 +1164,10 @@ http.route({
             messageId: sourceMessageId,
           },
         );
-        return new Response(
-          JSON.stringify({ ok: true, scheduled: true }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
+        return new Response(JSON.stringify({ ok: true, scheduled: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
       }
       return new Response(JSON.stringify({ ok: true, skipped: "empty body" }), {
         status: 200,
@@ -1182,12 +1215,15 @@ http.route({
     // Email door: new draft. "as-is:" subject prefix skips the voice agent.
     const asIs = /^as-is:/i.test(subject.trim());
     const title = subject.replace(/^as-is:\s*/i, "").trim() || undefined;
-    const draftId = await ctx.runMutation(internal.drafts.insertDraftFromEmail, {
-      title,
-      rawInput: cleaned.slice(0, MAX_DRAFT_INPUT_CHARS),
-      mode: asIs ? "as-is" : "rewrite",
-      sourceMessageId: sourceMessageId || undefined,
-    });
+    const draftId = await ctx.runMutation(
+      internal.drafts.insertDraftFromEmail,
+      {
+        title,
+        rawInput: cleaned.slice(0, MAX_DRAFT_INPUT_CHARS),
+        mode: asIs ? "as-is" : "rewrite",
+        sourceMessageId: sourceMessageId || undefined,
+      },
+    );
 
     return new Response(JSON.stringify({ ok: true, draftId }), {
       status: 200,
@@ -1202,7 +1238,8 @@ http.route({
   path: "/api/hooks/github",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const secret = pipelineEnvConfigured("GITHUB_WEBHOOK_SECRET");
+    // Dashboard BYOK override first, then the env var
+    const secret = await resolveVendorKey(ctx, "GITHUB_WEBHOOK_SECRET");
     if (!secret) {
       return new Response(
         JSON.stringify({ error: "GitHub webhook not configured" }),
@@ -1321,6 +1358,38 @@ http.route({
   }),
 });
 
+// Permanent fallback for R2 media when no public custom domain is configured.
+// The redirect target is refreshed server-side and remains valid for seven days.
+http.route({
+  pathPrefix: "/r2/",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const rl = await ctx.runMutation(internal.rateLimits.checkHttpRateLimit, {
+      name: "mediaRedirect",
+    });
+    if (!rl.ok) return rateLimitedResponse(rl.retryAfter);
+
+    const pathname = new URL(request.url).pathname;
+    let key = "";
+    try {
+      key = decodeURIComponent(pathname.slice("/r2/".length));
+    } catch {
+      return new Response("Invalid media key", { status: 400 });
+    }
+    if (!key) return new Response("Not found", { status: 404 });
+
+    const signedUrl = await ctx.runAction(internal.r2.getRedirectUrl, { key });
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: signedUrl,
+        "Cache-Control": "public, max-age=3600",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }),
+});
+
 // ConvexFS routes for file uploads/downloads
 // Only register routes when Bunny CDN is configured
 // - POST /fs/upload - Upload files to Bunny.net storage
@@ -1329,7 +1398,10 @@ if (fs) {
   registerRoutes(http, components.fs, fs, {
     pathPrefix: "/fs",
     uploadAuth: async (ctx) => {
-      return await ctx.runQuery(internal.authAdmin.isCurrentUserDashboardAdminInternal, {});
+      return await ctx.runQuery(
+        internal.authAdmin.isCurrentUserDashboardAdminInternal,
+        {},
+      );
     },
     downloadAuth: async () => {
       // Public downloads - images should be accessible to all
@@ -1413,10 +1485,12 @@ function buildContentMetaTags(meta: ContentMeta): string {
     `<meta property="og:site_name" content="${SITE_NAME}">`,
   ];
   if (!hideImage) {
-    lines.push(`<meta property="og:image" content="${ogImage}">`);
+    lines.push(`<meta property="og:image" content="${escapeHtml(ogImage)}">`);
   }
   if (meta.date) {
-    lines.push(`<meta property="article:published_time" content="${meta.date}">`);
+    lines.push(
+      `<meta property="article:published_time" content="${meta.date}">`,
+    );
   }
   lines.push(
     `<meta name="twitter:card" content="${hideImage ? "summary" : "summary_large_image"}">`,
@@ -1424,7 +1498,7 @@ function buildContentMetaTags(meta: ContentMeta): string {
     `<meta name="twitter:description" content="${safeDescription}">`,
   );
   if (!hideImage) {
-    lines.push(`<meta name="twitter:image" content="${ogImage}">`);
+    lines.push(`<meta name="twitter:image" content="${escapeHtml(ogImage)}">`);
   }
 
   // Article structured data for posts helps search engines show rich results.

@@ -220,11 +220,11 @@
 .dashboard-layout {
   font-family: var(--db-font);
   background: var(--db-canvas);
-  grid-template-columns: 236px 1fr;
+  grid-template-columns: 236px minmax(0, 1fr);
 }
 
 .dashboard-layout.sidebar-collapsed {
-  grid-template-columns: 60px 1fr;
+  grid-template-columns: 60px minmax(0, 1fr);
 }
 
 /* Sidebar shares the canvas; a hairline is enough separation */
@@ -688,7 +688,7 @@
    draws the frame. The shared input rule above would add a second frame, so on
    wide screens the field renders a box inside a box. The mobile block drops the
    group frame instead and lets the input keep its own, so scope this to desktop. */
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
   .dashboard-layout .dashboard-import-input-group {
     border-color: var(--db-border);
     border-radius: var(--db-radius-sm);
@@ -706,7 +706,9 @@
   }
 
   .dashboard-layout .dashboard-import-input-group .dashboard-import-input,
-  .dashboard-layout .dashboard-import-input-group .dashboard-import-input:focus {
+  .dashboard-layout
+    .dashboard-import-input-group
+    .dashboard-import-input:focus {
     border: none;
     background: transparent;
     box-shadow: none;
@@ -873,7 +875,7 @@
 }
 
 .dashboard-layout .dashboard-list-row .post-title-link:focus-visible {
-  outline: 2px solid var(--db-accent, var(--text-primary));
+  outline: 2px solid var(--text-primary);
   outline-offset: 2px;
   border-radius: var(--radius);
 }
@@ -984,6 +986,121 @@
   }
 }
 
+/* ── Site Config group tabs ──
+   Sticky to the top of the scrolling content pane so the group switcher is
+   always one reach away in a section that runs 28 cards deep. Underline tabs
+   rather than the pill segmented control: pills mean "filter this list" in
+   the dashboard, and these are navigation. */
+.dashboard-layout .dashboard-config-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  margin: 0 0 1.25rem;
+  padding: 0.5rem 0 0;
+  background: var(--db-canvas);
+  border-bottom: 1px solid var(--db-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dashboard-layout .dashboard-config-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.dashboard-layout .dashboard-config-tab {
+  flex: 0 0 auto;
+  position: relative;
+  min-height: 36px;
+  margin-bottom: -1px;
+  padding: 0.375rem 0.625rem 0.625rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--db-font);
+  font-size: var(--db-text-body);
+  line-height: var(--db-text-body-lh);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.dashboard-layout .dashboard-config-tab:hover {
+  color: var(--text-primary);
+  border-bottom-color: var(--db-border);
+}
+
+.dashboard-layout .dashboard-config-tab.active {
+  color: var(--text-primary);
+  font-weight: 600;
+  border-bottom-color: var(--text-primary);
+}
+
+.dashboard-layout .dashboard-config-tab:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: -2px;
+  border-radius: var(--db-radius-sm);
+}
+
+/* Panels stack in All mode with a quiet eyebrow between groups; in single tab
+   mode the eyebrow drops and only the hint stays under the tab bar. */
+.dashboard-layout .dashboard-config-panel + .dashboard-config-panel {
+  margin-top: 2.5rem;
+}
+
+.dashboard-layout .dashboard-config-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  margin: 0 0 0.875rem;
+}
+
+.dashboard-layout .dashboard-config-panel-label {
+  margin: 0;
+  font-size: var(--db-text-label);
+  line-height: var(--db-text-label-lh);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.dashboard-layout .dashboard-config-panel-hint {
+  margin: 0;
+  font-size: var(--db-text-body);
+  line-height: var(--db-text-body-lh);
+  color: var(--text-tertiary);
+}
+
+/* Cards land below the sticky bar when a palette pick scrolls to them */
+.dashboard-layout .dashboard-config-card,
+.dashboard-layout .dashboard-config-slot,
+.dashboard-layout .dashboard-config-panel {
+  scroll-margin-top: 4rem;
+}
+
+/* Wrapper for cards that render their own card root (highlights, automation,
+   version control) so they take an id like every other card */
+.dashboard-layout .dashboard-config-slot {
+  min-width: 0;
+}
+
+/* Brief ring after a command palette jump, then it fades back to the border */
+.dashboard-layout .dashboard-config-card.is-targeted,
+.dashboard-layout .dashboard-config-slot.is-targeted > .dashboard-config-card {
+  box-shadow: 0 0 0 2px var(--text-primary);
+  transition: box-shadow 0.4s ease;
+}
+
 /* Card heading: a hairline rule reads better than a full border here */
 .dashboard-layout .dashboard-config-card > h3 {
   margin: 0 0 0.875rem;
@@ -1008,6 +1125,328 @@
 /* The Config save bar is a phone affordance; the header Save serves desktop */
 .dashboard-config-savebar {
   display: none;
+}
+
+/* ── Homepage section desk ──
+   One settings column in page order (banner, highlights, category sections)
+   beside a sticky running-order rail. Both sit at card elevation so the rail
+   reads as a companion to the form, not a second dashboard. */
+.dashboard-layout .homepage-desk-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 272px;
+  gap: 1rem;
+  align-items: start;
+}
+
+.dashboard-layout .homepage-desk-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.dashboard-layout .homepage-desk-rail {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  min-width: 0;
+}
+
+/* Card intro notes get room before the first control */
+.dashboard-layout .homepage-desk .dashboard-config-card > h3 + .config-field-note {
+  margin: 0 0 0.875rem;
+}
+
+/* Paired banner fields (layout and position, alt and link) share one row */
+.dashboard-layout .home-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.875rem;
+}
+
+.dashboard-layout .home-field-row > .config-field {
+  margin: 0;
+  min-width: 0;
+}
+
+.dashboard-layout .home-field-row + .config-field-note {
+  margin: -0.5rem 0 0.875rem;
+}
+
+/* Running order: the homepage top to bottom. The mark is the only signal:
+   filled renders, hollow is off, warning is on but has nothing to show. */
+.dashboard-layout .home-order-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-layout .home-order-row {
+  display: grid;
+  grid-template-columns: 0.75rem minmax(0, 1fr);
+  column-gap: 0.625rem;
+  row-gap: 0.125rem;
+  align-items: start;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--db-border-soft);
+}
+
+.dashboard-layout .home-order-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.dashboard-layout .home-order-mark {
+  grid-row: 1 / span 2;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.375rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--db-border);
+  background: transparent;
+  justify-self: center;
+}
+
+.dashboard-layout .home-order-row.is-on .home-order-mark {
+  border-color: var(--text-primary);
+  background: var(--text-primary);
+}
+
+.dashboard-layout .home-order-row.is-warn .home-order-mark {
+  border-color: var(--db-warning);
+  background: var(--db-warning);
+}
+
+.dashboard-layout .home-order-label {
+  grid-column: 2;
+  font-family: var(--db-font);
+  font-size: var(--db-text-body);
+  line-height: var(--db-text-body-lh);
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.dashboard-layout .home-order-row.is-off .home-order-label {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.dashboard-layout .home-order-detail {
+  grid-column: 2;
+  font-family: var(--db-font);
+  font-size: var(--db-text-label);
+  line-height: var(--db-text-label-lh);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.dashboard-layout .home-order-detail:empty {
+  display: none;
+}
+
+.dashboard-layout .home-order-row.is-warn .home-order-detail {
+  color: var(--db-warning);
+}
+
+.dashboard-layout .home-order-row.is-off .home-order-detail {
+  color: var(--text-tertiary);
+}
+
+.dashboard-layout .home-order-card > .config-field-note {
+  display: block;
+  margin: 0.75rem 0 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--db-border-soft);
+}
+
+/* Save state under the order. Unsaved is the one place the accent shows,
+   which is what makes the rail worth glancing at. */
+.dashboard-layout .home-order-status {
+  margin: 0.5rem 0 0;
+  font-family: var(--db-font);
+  font-size: var(--db-text-label);
+  line-height: var(--db-text-label-lh);
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.dashboard-layout .home-order-status.is-dirty {
+  color: var(--text-primary);
+}
+
+/* Highlights: dependent fields indent under their toggle, and the project
+   picker is inset like an input. Long titles clip instead of wrapping. */
+.dashboard-layout .home-highlight-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding-left: 0.875rem;
+  border-left: 1px solid var(--db-border-soft);
+}
+
+.dashboard-layout .home-highlight-group > .config-field {
+  margin: 0;
+}
+
+.dashboard-layout .home-highlight-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-sm);
+  background: var(--db-inset);
+  min-width: 0;
+}
+
+.dashboard-layout .home-highlight-picker > legend {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 0.25rem;
+  font-family: var(--db-font);
+  font-size: var(--db-text-label);
+  line-height: var(--db-text-label-lh);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.dashboard-layout .home-highlight-picker > legend + * {
+  clear: both;
+}
+
+.dashboard-layout .home-highlight-picker-count {
+  color: var(--text-tertiary);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dashboard-layout .home-highlight-picker > .config-field-note {
+  margin: 0;
+}
+
+.dashboard-layout .home-highlight-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.25rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  max-height: 15rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.dashboard-layout .home-highlight-picker-list label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 32px;
+  padding: 0.25rem 0.375rem;
+  border-radius: var(--db-radius-sm);
+  font-family: var(--db-font);
+  font-size: var(--db-text-body);
+  line-height: var(--db-text-body-lh);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.dashboard-layout .home-highlight-picker-list label:hover {
+  background: var(--db-surface-2);
+}
+
+.dashboard-layout .home-highlight-picker-list input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.dashboard-layout .home-highlight-picker-list label > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-layout .home-highlight-status:empty {
+  display: none;
+}
+
+/* Category section rows: an ordinal chip leads each row so the form order
+   reads as the homepage order. Heading and tag share one row. */
+.dashboard-layout .home-section-row {
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  column-gap: 0.75rem;
+}
+
+.dashboard-layout .home-section-ordinal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.5rem;
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-sm);
+  font-family: var(--db-font);
+  font-size: var(--db-text-label);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  background: var(--db-canvas);
+}
+
+.dashboard-layout .home-section-fields-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.dashboard-layout .home-section-fields-row .dashboard-field-input {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  /* The rail becomes a card below the settings; the page save bar takes over */
+  .dashboard-layout .homepage-desk-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-layout .homepage-desk-rail {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-layout .home-field-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-layout .home-section-row {
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+  }
+
+  .dashboard-layout .home-section-row .config-logo-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+
+  .dashboard-layout .home-section-fields-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .dashboard-layout .dashboard-stat-card {
@@ -1546,8 +1985,8 @@
   display: none;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--db-border);
   border-radius: var(--db-radius-sm);
   background: var(--db-surface);
@@ -1574,7 +2013,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   /* Flex column shell; the sidebar leaves the flow as a drawer */
   .dashboard-layout,
   .dashboard-layout.sidebar-collapsed,
@@ -1636,7 +2075,9 @@
 
   /* Restore vertical nav inside the drawer (desktop pill strip rules undone) */
   .dashboard-layout .dashboard-sidebar-left .dashboard-sidebar-header,
-  .dashboard-layout .dashboard-sidebar-left.collapsed .dashboard-sidebar-header {
+  .dashboard-layout
+    .dashboard-sidebar-left.collapsed
+    .dashboard-sidebar-header {
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -1679,7 +2120,9 @@
   }
 
   .dashboard-layout .dashboard-sidebar-left .dashboard-sidebar-footer,
-  .dashboard-layout .dashboard-sidebar-left.collapsed .dashboard-sidebar-footer {
+  .dashboard-layout
+    .dashboard-sidebar-left.collapsed
+    .dashboard-sidebar-footer {
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -1912,7 +2355,10 @@
      The subscriber table reflows to wrapped rows via the shared list rule
      above, but that rule gives the full line to .col-title and this table
      leads with .col-email, so the email shared a line with status and date. */
-  .dashboard-layout .dashboard-newsletter-section .dashboard-list-row .col-email {
+  .dashboard-layout
+    .dashboard-newsletter-section
+    .dashboard-list-row
+    .col-email {
     flex: 1 1 100%;
     min-width: 0;
   }
@@ -1942,7 +2388,9 @@
     padding: 0.5rem 0.625rem;
   }
 
-  .dashboard-layout .dashboard-newsletter-recipient-item input[type="checkbox"] {
+  .dashboard-layout
+    .dashboard-newsletter-recipient-item
+    input[type="checkbox"] {
     width: 20px;
     height: 20px;
     flex-shrink: 0;
@@ -1999,6 +2447,17 @@
     min-height: 48px;
   }
 
+  /* Group tabs bleed to the edges like the savebar so the scroll row has no
+     visible gutter, and each tab reaches the touch size */
+  .dashboard-layout .dashboard-config-tabs {
+    margin: 0 -1rem 1rem;
+    padding: 0.5rem 1rem 0;
+  }
+
+  .dashboard-layout .dashboard-config-tab {
+    min-height: 44px;
+  }
+
   /* Config booleans become switch rows, matching the frontmatter form: label on
      the leading edge, control on the trailing edge, whole row tappable. */
   .dashboard-layout .config-field.checkbox > label {
@@ -2030,9 +2489,7 @@
   }
 
   /* ── Editor on a phone ──
-     Tier one wraps, tier two becomes one horizontal scroll row of pills
-     (a horizontal scroll row of pills), and Save moves to a sticky
-     bar so it is always one thumb away. */
+     Actions wrap into visible rows, and Save moves to a sticky bar. */
 
   /* Natural height so the sticky save bar has a page to stick to */
   .dashboard-layout .dashboard-write-section:not(.focus-mode) {
@@ -2060,15 +2517,10 @@
 
   .dashboard-layout .dashboard-editor-actions,
   .dashboard-layout .dashboard-write-actions {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     justify-content: flex-start;
     gap: 0.5rem;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    /* Let the last pill peek past the edge so the row reads as scrollable */
-    padding-right: 1.25rem;
-    margin-right: -1rem;
+    min-width: 0;
   }
 
   .dashboard-layout .dashboard-editor-actions::-webkit-scrollbar,
@@ -2117,9 +2569,10 @@
     padding: 1rem;
   }
 
-  .dashboard-layout input:not([type="checkbox"]):not([type="radio"]):not(
-      [type="range"]
-    ):not([type="color"]):not([type="file"]):not([type="hidden"]),
+  .dashboard-layout
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="color"]
+    ):not([type="file"]):not([type="hidden"]),
   .dashboard-layout textarea,
   .dashboard-layout select {
     font-size: 16px;
@@ -2138,8 +2591,8 @@
 
   .dashboard-layout .dashboard-theme-btn,
   .dashboard-layout .dashboard-font-btn {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
   }
 
   .dashboard-layout .dashboard-filter-tab {
@@ -2167,5 +2620,250 @@
   .dashboard-toast.error,
   .dashboard-modal-backdrop {
     animation: none;
+  }
+
+  .dashboard-layout .dashboard-config-tab,
+  .dashboard-layout .dashboard-config-card.is-targeted,
+  .dashboard-layout .dashboard-config-slot.is-targeted > .dashboard-config-card {
+    transition: none;
+  }
+}
+
+/* Compact editors use page scrolling, including focused writing mode. */
+@media (max-width: 1024px) {
+  .dashboard-layout .dashboard-sidebar-toggle {
+    display: none;
+  }
+  .dashboard-layout .dashboard-theme-btn,
+  .dashboard-layout .dashboard-font-btn,
+  .dashboard-layout .dashboard-sync-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .dashboard-layout .dashboard-editor,
+  .dashboard-layout .dashboard-write-section.focus-mode {
+    height: auto;
+    min-height: 0;
+  }
+  .dashboard-layout .dashboard-write-section.focus-mode {
+    overflow-y: auto;
+  }
+  .dashboard-layout .dashboard-editor-container,
+  .dashboard-layout .dashboard-write-container,
+  .dashboard-layout
+    .dashboard-write-section.focus-mode
+    .dashboard-write-container {
+    flex-direction: column;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+  .dashboard-layout .dashboard-editor-content,
+  .dashboard-layout .dashboard-write-main {
+    min-height: 0;
+    overflow: visible;
+  }
+  .dashboard-layout .dashboard-editor-sidebar,
+  .dashboard-layout .dashboard-write-sidebar {
+    width: 100% !important;
+    min-width: 0;
+    max-width: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    border-left: none;
+    border-top: 1px solid var(--db-border);
+  }
+  .dashboard-layout .dashboard-sidebar-resize-handle {
+    display: none;
+  }
+  .dashboard-layout .dashboard-editor-toolbar,
+  .dashboard-layout .dashboard-write-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dashboard-layout
+    .dashboard-write-section.focus-mode
+    .dashboard-write-textarea {
+    padding: 1rem;
+  }
+  .dashboard-layout
+    .dashboard-write-section.focus-mode
+    .dashboard-editor-savebar {
+    margin: 0;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dashboard-layout .drafts-toolbar {
+    min-width: 0;
+  }
+  .dashboard-layout .drafts-tabs,
+  .dashboard-layout .drafts-toolbar-actions {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .dashboard-layout .drafts-toolbar-actions .dashboard-action-btn {
+    flex: 1 1 120px;
+  }
+  /* The embedded discovery table owns its scroll instead of widening the page. */
+  .dashboard-layout .agent-ready-panel {
+    min-width: 0;
+    overflow-x: auto;
+  }
+  .dashboard-layout .agent-ready-panel button {
+    min-height: 44px;
+  }
+}
+
+/* Long generated code must scroll inside its panel, not size the flex page. */
+.dashboard-layout .dashboard-content > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ==========================================================================
+   Skills dashboard section
+   Sections manager card above the skills table, plus the skill editor's
+   install command rows and SKILL.md prefill row.
+   ========================================================================== */
+
+.skills-dashboard-hint {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.skills-sections-card {
+  margin-bottom: 1.5rem;
+}
+
+.skills-sections-card .dashboard-list-header {
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.skills-sections-card .dashboard-list-header h3 {
+  margin-bottom: 0.25rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.skills-sections-card .dashboard-list-table {
+  margin-top: 0;
+}
+
+.skill-section-form {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+}
+
+.skill-section-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1rem;
+}
+
+.skill-section-form .dashboard-list-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Prefill: URL input and button share one line */
+.skill-prefill-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.skill-prefill-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.skill-prefill-row .dashboard-action-btn {
+  flex-shrink: 0;
+}
+
+/* Install command rows: short label, long command, remove */
+.skill-install-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.skill-install-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.5fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.skill-install-row input {
+  min-width: 0;
+}
+
+.skill-install-row-command {
+  font-family:
+    SF Mono,
+    Monaco,
+    Cascadia Code,
+    Roboto Mono,
+    Consolas,
+    monospace;
+  font-size: var(--font-size-xs, 0.8125rem);
+}
+
+.skill-form-subheading {
+  margin-top: 1.5rem;
+}
+
+/* Row metadata in the skills table */
+.skill-row-command {
+  font-family:
+    SF Mono,
+    Monaco,
+    Cascadia Code,
+    Roboto Mono,
+    Consolas,
+    monospace;
+  font-size: 0.95em;
+  color: var(--text-secondary);
+}
+
+.skill-row-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.5rem;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+@media (max-width: 768px) {
+  .skill-section-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .skill-install-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .skill-install-row-command {
+    grid-column: 1 / -1;
+  }
+
+  .skill-prefill-row {
+    flex-direction: column;
   }
 }

@@ -9,9 +9,27 @@ import {
   CheckCircle,
   WarningCircle,
   SpinnerGap,
+  ArrowSquareOut,
 } from "@phosphor-icons/react";
+import {
+  AI_VENDOR_DOCS,
+  type AiModelKind,
+} from "../../../convex/lib/aiModelSlots";
 
 type ToastType = "success" | "error" | "info" | "warning";
+
+type ModelSlotEntry = {
+  vendor: string;
+  kind: AiModelKind;
+  label: string;
+  defaults: Array<string>;
+  usedBy: string;
+  docsUrl: string;
+  override: string | null;
+  updatedAt: number | null;
+};
+
+const slotKey = (vendor: string, kind: AiModelKind) => `${vendor}:${kind}`;
 
 function httpActionOrigin(): string {
   if (typeof window === "undefined") {
@@ -23,7 +41,9 @@ function httpActionOrigin(): string {
   }
   const convex = import.meta.env.VITE_CONVEX_URL as string | undefined;
   if (convex) {
-    return convex.replace(/\.convex\.cloud\/?$/, ".convex.site").replace(/\/+$/, "");
+    return convex
+      .replace(/\.convex\.cloud\/?$/, ".convex.site")
+      .replace(/\/+$/, "");
   }
   return "https://waynesutton.ai";
 }
@@ -64,19 +84,29 @@ export function ApiKeysSection({
   const [autoPublish, setAutoPublish] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
-  const [confirmRevoke, setConfirmRevoke] = useState<Id<"apiKeys"> | null>(null);
+  const [confirmRevoke, setConfirmRevoke] = useState<Id<"apiKeys"> | null>(
+    null,
+  );
 
   // Vendor key override editing state (one row expanded at a time)
   const [editingVendor, setEditingVendor] = useState<string | null>(null);
   const [vendorValue, setVendorValue] = useState("");
   const [savingVendor, setSavingVendor] = useState(false);
 
+  // Model override editing state (one slot expanded at a time)
+  const [editingSlot, setEditingSlot] = useState<string | null>(null);
+  const [modelValue, setModelValue] = useState("");
+  const [savingModel, setSavingModel] = useState(false);
+
   const keys = useQuery(api.pipelineKeys.listApiKeys);
   const vendorStatus = useQuery(api.pipelineKeys.vendorKeyStatus);
+  const modelSlots = useQuery(api.aiModels.modelSlotStatus);
   const generateKey = useAction(api.pipelineKeys.generateApiKey);
   const revokeKey = useMutation(api.pipelineKeys.revokeApiKey);
   const setVendorKey = useMutation(api.pipelineKeys.setVendorKey);
   const removeVendorKey = useMutation(api.pipelineKeys.removeVendorKey);
+  const setModelOverride = useMutation(api.aiModels.setModelOverride);
+  const removeModelOverride = useMutation(api.aiModels.removeModelOverride);
 
   const handleGenerate = async () => {
     if (!label.trim() || generating) return;
@@ -86,9 +116,15 @@ export function ApiKeysSection({
       setNewKey(result.key);
       setLabel("");
       setAutoPublish(false);
-      addToast("API key created. Copy it now, it will not be shown again.", "success");
+      addToast(
+        "API key created. Copy it now, it will not be shown again.",
+        "success",
+      );
     } catch (error) {
-      addToast(error instanceof Error ? error.message : "Key generation failed", "error");
+      addToast(
+        error instanceof Error ? error.message : "Key generation failed",
+        "error",
+      );
     } finally {
       setGenerating(false);
     }
@@ -130,7 +166,10 @@ export function ApiKeysSection({
       await revokeKey({ keyId });
       addToast("Key revoked", "success");
     } catch (error) {
-      addToast(error instanceof Error ? error.message : "Revoke failed", "error");
+      addToast(
+        error instanceof Error ? error.message : "Revoke failed",
+        "error",
+      );
     } finally {
       setConfirmRevoke(null);
     }
@@ -154,11 +193,60 @@ export function ApiKeysSection({
   const handleRemoveVendorKey = async (name: string) => {
     try {
       await removeVendorKey({ name });
-      addToast(`${name} override removed. Environment variable applies again.`, "success");
+      addToast(
+        `${name} override removed. Environment variable applies again.`,
+        "success",
+      );
     } catch (error) {
-      addToast(error instanceof Error ? error.message : "Remove failed", "error");
+      addToast(
+        error instanceof Error ? error.message : "Remove failed",
+        "error",
+      );
     }
   };
+
+  const closeModelEditor = () => {
+    setEditingSlot(null);
+    setModelValue("");
+  };
+
+  const handleSaveModel = async (slot: ModelSlotEntry) => {
+    const model = modelValue.trim();
+    if (!model || savingModel) return;
+    setSavingModel(true);
+    try {
+      await setModelOverride({ vendor: slot.vendor, kind: slot.kind, model });
+      addToast(
+        `${slot.label} set to ${model}. AI features use it on the next call.`,
+        "success",
+      );
+      closeModelEditor();
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : "Save failed", "error");
+    } finally {
+      setSavingModel(false);
+    }
+  };
+
+  const handleResetModel = async (slot: ModelSlotEntry) => {
+    try {
+      await removeModelOverride({ vendor: slot.vendor, kind: slot.kind });
+      addToast(`${slot.label} reset to the default model.`, "success");
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "Reset failed",
+        "error",
+      );
+    }
+  };
+
+  // Slots grouped by the vendor key that unlocks them
+  const slotsByVendor = new Map<string, Array<ModelSlotEntry>>();
+  for (const slot of modelSlots ?? []) {
+    const list = slotsByVendor.get(slot.vendor) ?? [];
+    list.push(slot);
+    slotsByVendor.set(slot.vendor, list);
+  }
 
   return (
     <div className="dashboard-import-section">
@@ -188,8 +276,13 @@ export function ApiKeysSection({
           <button
             className="dashboard-import-btn"
             onClick={() => void handleGenerate()}
-            disabled={!label.trim() || generating}>
-            {generating ? <SpinnerGap size={16} className="spin" /> : "Generate key"}
+            disabled={!label.trim() || generating}
+          >
+            {generating ? (
+              <SpinnerGap size={16} className="spin" />
+            ) : (
+              "Generate key"
+            )}
           </button>
         </div>
         <label className="pipeline-checkbox-label">
@@ -210,10 +303,16 @@ export function ApiKeysSection({
           </p>
           <div className="pipeline-new-key-row">
             <code className="pipeline-new-key-value">{newKey}</code>
-            <button className="dashboard-action-btn" onClick={() => void handleCopyKey()}>
+            <button
+              className="dashboard-action-btn"
+              onClick={() => void handleCopyKey()}
+            >
               <Copy size={16} /> Copy
             </button>
-            <button className="dashboard-action-btn" onClick={() => setNewKey(null)}>
+            <button
+              className="dashboard-action-btn"
+              onClick={() => setNewKey(null)}
+            >
               Done
             </button>
           </div>
@@ -251,8 +350,9 @@ export function ApiKeysSection({
         )}
         {keys !== undefined && keys.length === 0 && (
           <div className="dashboard-list-empty">
-            No keys yet. Generate one per tool, then copy blogskill/SKILL.md into
-            your global skills folder. Docs, Publish from agents has every step.
+            No keys yet. Generate one per tool, then copy blogskill/SKILL.md
+            into your global skills folder. Docs, Publish from agents has every
+            step.
           </div>
         )}
         {keys?.map((key) => (
@@ -265,7 +365,9 @@ export function ApiKeysSection({
               {key.lastUsed ? new Date(key.lastUsed).toLocaleString() : "Never"}
             </span>
             <span className="col-status">
-              <span className={`status-badge ${key.autoPublish ? "published" : "draft"}`}>
+              <span
+                className={`status-badge ${key.autoPublish ? "published" : "draft"}`}
+              >
                 {key.autoPublish ? "Yes" : "No"}
               </span>
             </span>
@@ -274,12 +376,14 @@ export function ApiKeysSection({
                 <>
                   <button
                     className="dashboard-action-btn"
-                    onClick={() => void handleRevoke(key._id)}>
+                    onClick={() => void handleRevoke(key._id)}
+                  >
                     Confirm revoke
                   </button>
                   <button
                     className="dashboard-action-btn"
-                    onClick={() => setConfirmRevoke(null)}>
+                    onClick={() => setConfirmRevoke(null)}
+                  >
                     Cancel
                   </button>
                 </>
@@ -287,7 +391,8 @@ export function ApiKeysSection({
                 <button
                   className="action-btn delete"
                   title="Revoke key"
-                  onClick={() => setConfirmRevoke(key._id)}>
+                  onClick={() => setConfirmRevoke(key._id)}
+                >
                   <Trash size={16} />
                 </button>
               )}
@@ -300,85 +405,257 @@ export function ApiKeysSection({
       <div className="pipeline-vendor-status">
         <h3>Vendor keys</h3>
         <p>
-          Keys the pipeline and site features use. Set or overwrite a value here to store an
-          override in this deployment's database (dev and prod each keep their own). Remove an
-          override to fall back to the Convex environment variable set with npx convex env set.
-          Values are never shown back.
+          Keys the pipeline and site features use. Set or overwrite a value here
+          to store an override in this deployment's database (dev and prod each
+          keep their own). Remove an override to fall back to the Convex
+          environment variable set with npx convex env set. Values are never
+          shown back. Once a model vendor is configured, its row shows the
+          models each feature sends and lets you paste a different model id.
         </p>
         <div className="pipeline-vendor-grid">
-          {vendorStatus?.map((entry) => (
-            <div key={entry.name} className="pipeline-vendor-row">
-              {entry.configured ? (
-                <CheckCircle size={18} weight="fill" className="pipeline-vendor-ok" />
-              ) : (
-                <WarningCircle size={18} className="pipeline-vendor-missing" />
-              )}
-              <div>
-                <code>{entry.name}</code>
-                <span className="pipeline-vendor-purpose">{entry.purpose}</span>
-              </div>
-              <span className={`status-badge ${entry.configured ? "published" : "draft"}`}>
-                {entry.source === "override"
-                  ? "Override"
-                  : entry.source === "env"
-                    ? "Env var"
-                    : "Not set"}
-              </span>
-              {editingVendor === entry.name ? (
-                <div className="pipeline-vendor-edit">
-                  <input
-                    className="dashboard-field-input"
-                    type="password"
-                    autoComplete="off"
-                    placeholder={`Paste ${entry.name} value`}
-                    value={vendorValue}
-                    onChange={(e) => setVendorValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleSaveVendorKey(entry.name);
-                      if (e.key === "Escape") {
-                        setEditingVendor(null);
-                        setVendorValue("");
-                      }
-                    }}
-                    autoFocus
+          {vendorStatus?.map((entry) => {
+            const docsUrl = AI_VENDOR_DOCS[entry.name];
+            const slots = entry.configured
+              ? (slotsByVendor.get(entry.name) ?? [])
+              : [];
+            return (
+              <div key={entry.name} className="pipeline-vendor-row">
+                {entry.configured ? (
+                  <CheckCircle
+                    size={18}
+                    weight="fill"
+                    className="pipeline-vendor-ok"
                   />
-                  <button
-                    className="dashboard-action-btn"
-                    onClick={() => void handleSaveVendorKey(entry.name)}
-                    disabled={!vendorValue.trim() || savingVendor}>
-                    {savingVendor ? <SpinnerGap size={14} className="spin" /> : "Save"}
-                  </button>
-                  <button
-                    className="dashboard-action-btn"
-                    onClick={() => {
-                      setEditingVendor(null);
-                      setVendorValue("");
-                    }}>
-                    Cancel
-                  </button>
+                ) : (
+                  <WarningCircle
+                    size={18}
+                    className="pipeline-vendor-missing"
+                  />
+                )}
+                <div>
+                  <code>{entry.name}</code>
+                  <span className="pipeline-vendor-purpose">
+                    {entry.purpose}
+                    {entry.configured && docsUrl && (
+                      <>
+                        {" "}
+                        <a
+                          className="pipeline-vendor-docs-link"
+                          href={docsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Model docs <ArrowSquareOut size={12} />
+                        </a>
+                      </>
+                    )}
+                  </span>
                 </div>
-              ) : (
-                <div className="pipeline-vendor-actions">
-                  <button
-                    className="dashboard-action-btn"
-                    onClick={() => {
-                      setEditingVendor(entry.name);
-                      setVendorValue("");
-                    }}>
-                    {entry.configured ? "Overwrite" : "Set key"}
-                  </button>
-                  {entry.source === "override" && (
+                <span
+                  className={`status-badge ${entry.configured ? "published" : "draft"}`}
+                  title={
+                    entry.source === "override"
+                      ? entry.envConfigured
+                        ? "Dashboard override in use. The Convex env var is still set and takes over if you remove the override."
+                        : "Dashboard override in use. No Convex env var is set for this key."
+                      : entry.source === "env"
+                        ? "Using the Convex environment variable"
+                        : "Not configured. Set a key here or with npx convex env set."
+                  }
+                >
+                  {entry.source === "override"
+                    ? entry.envConfigured
+                      ? "Override (env set)"
+                      : "Override"
+                    : entry.source === "env"
+                      ? "Env var"
+                      : "Not set"}
+                </span>
+                {editingVendor === entry.name ? (
+                  <div className="pipeline-vendor-edit">
+                    {entry.configured && (
+                      <p className="pipeline-vendor-edit-hint">
+                        {entry.source === "env"
+                          ? "Saves a dashboard override. Your Convex env var stays set and is used again if you remove the override."
+                          : "Replaces the current dashboard override. Your Convex env var, if any, is not changed."}
+                      </p>
+                    )}
+                    <input
+                      className="dashboard-field-input"
+                      type="password"
+                      autoComplete="off"
+                      placeholder={`Paste ${entry.name} value`}
+                      value={vendorValue}
+                      onChange={(e) => setVendorValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter")
+                          void handleSaveVendorKey(entry.name);
+                        if (e.key === "Escape") {
+                          setEditingVendor(null);
+                          setVendorValue("");
+                        }
+                      }}
+                      autoFocus
+                    />
                     <button
                       className="dashboard-action-btn"
-                      title="Remove override and fall back to the environment variable"
-                      onClick={() => void handleRemoveVendorKey(entry.name)}>
-                      Remove
+                      onClick={() => void handleSaveVendorKey(entry.name)}
+                      disabled={!vendorValue.trim() || savingVendor}
+                    >
+                      {savingVendor ? (
+                        <SpinnerGap size={14} className="spin" />
+                      ) : (
+                        "Save"
+                      )}
                     </button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                    <button
+                      className="dashboard-action-btn"
+                      onClick={() => {
+                        setEditingVendor(null);
+                        setVendorValue("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pipeline-vendor-actions">
+                    <button
+                      className="dashboard-action-btn"
+                      onClick={() => {
+                        setEditingVendor(entry.name);
+                        setVendorValue("");
+                      }}
+                    >
+                      {entry.source === "override"
+                        ? "Replace"
+                        : entry.source === "env"
+                          ? "Override"
+                          : "Set key"}
+                    </button>
+                    {entry.source === "override" && (
+                      <button
+                        className="dashboard-action-btn"
+                        title="Remove override and fall back to the environment variable"
+                        onClick={() => void handleRemoveVendorKey(entry.name)}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Model slots: which id each feature sends, with per-slot override */}
+                {slots.length > 0 && (
+                  <ul className="pipeline-model-slots">
+                    {slots.map((slot) => {
+                      const key = slotKey(slot.vendor, slot.kind);
+                      const isEditing = editingSlot === key;
+                      return (
+                        <li key={key} className="pipeline-model-slot">
+                          <div className="pipeline-model-slot-meta">
+                            <span className="pipeline-model-slot-label">
+                              {slot.label}
+                            </span>
+                            <span className="pipeline-model-slot-uses">
+                              {slot.usedBy}
+                            </span>
+                          </div>
+                          {isEditing ? (
+                            <div className="pipeline-model-slot-edit">
+                              <input
+                                className="dashboard-field-input"
+                                type="text"
+                                autoComplete="off"
+                                spellCheck={false}
+                                placeholder={slot.defaults[0]}
+                                aria-label={`${slot.label} id for ${slot.vendor}`}
+                                value={modelValue}
+                                onChange={(e) => setModelValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter")
+                                    void handleSaveModel(slot);
+                                  if (e.key === "Escape") closeModelEditor();
+                                }}
+                                autoFocus
+                              />
+                              <a
+                                className="pipeline-vendor-docs-link"
+                                href={slot.docsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Model ids <ArrowSquareOut size={12} />
+                              </a>
+                              <button
+                                className="dashboard-action-btn"
+                                onClick={() => void handleSaveModel(slot)}
+                                disabled={!modelValue.trim() || savingModel}
+                              >
+                                {savingModel ? (
+                                  <SpinnerGap size={14} className="spin" />
+                                ) : (
+                                  "Save"
+                                )}
+                              </button>
+                              <button
+                                className="dashboard-action-btn"
+                                onClick={closeModelEditor}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="pipeline-model-slot-current">
+                              <code
+                                className={
+                                  slot.override
+                                    ? "pipeline-model-id is-override"
+                                    : "pipeline-model-id"
+                                }
+                                title={
+                                  slot.override
+                                    ? `Replaces ${slot.defaults.join(", ")}`
+                                    : "Hardcoded default"
+                                }
+                              >
+                                {slot.override ?? slot.defaults.join(", ")}
+                              </code>
+                              <span
+                                className={`status-badge ${slot.override ? "published" : "draft"}`}
+                              >
+                                {slot.override ? "Override" : "Default"}
+                              </span>
+                              <div className="pipeline-vendor-actions">
+                                <button
+                                  className="dashboard-action-btn"
+                                  onClick={() => {
+                                    setEditingSlot(key);
+                                    setModelValue(slot.override ?? "");
+                                  }}
+                                >
+                                  {slot.override ? "Change" : "Set model"}
+                                </button>
+                                {slot.override && (
+                                  <button
+                                    className="dashboard-action-btn"
+                                    title={`Reset to ${slot.defaults.join(", ")}`}
+                                    onClick={() => void handleResetModel(slot)}
+                                  >
+                                    Reset
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
