@@ -5,71 +5,81 @@
 ![React](https://img.shields.io/badge/React-18-61dafb.svg)
 ![Convex](https://img.shields.io/badge/Convex-self--hosted-ff6b6b.svg)
 
-The personal blog and publishing framework behind [waynesutton.ai](https://www.waynesutton.ai/). Wayne Sutton is a Developer Community Lead at Convex, tech event organizer, and startup ecosystem builder writing about developer communities, open source, and building with AI.
+The personal blog and publishing framework behind [waynesutton.ai](https://www.waynesutton.ai/). Wayne Sutton is a Head of Community, Events and Startup Programs at Convex, tech event organizer, and startup ecosystem builder writing about building developer communities, open source, and building with AI.
 
 Posts are markdown files. Run one sync command and content is live on the site, in RSS, and readable by LLMs and AI agents. No rebuild, no redeploy. Convex keeps every connected browser in sync.
 
 This site is a fork of [markdown-site](https://github.com/waynesutton/markdown-site), an open source markdown publishing framework. Fork that repo if you want your own.
 
-## How publishing works
+## Key features
 
-Write a post in `content/blog/`, then sync:
-
-```bash
-npm run sync        # dev
-npm run sync:prod   # production
-npm run sync:all    # content + discovery files (AGENTS.md, llms.txt)
-```
-
-Markdown files live in git, so posts get commits, diffs, and rollbacks like any code. The dashboard can also write posts directly, and `npm run export:db` pulls dashboard content back into the content folders.
-
-To lock the sync mutations to your machines, set `SYNC_SECRET` on the Convex deployment (`npx convex env set SYNC_SECRET <value>`) and put the same value in `.env.local` or `.env.production.local`. Without it, sync stays open as before. Signed-in dashboard admins never need the secret.
-
-Lock the sync down before going public: set `SYNC_SECRET` on the Convex deployment (`npx convex env set SYNC_SECRET <value>`) and put the same value in `.env.local` or `.env.production.local`. Without it the sync mutations stay open, which is fine for a private fork and not fine for a live site.
-
-## Features
-
+- **Markdown in git**: write in `content/blog/`, run `npm run sync`, and the post is live. Commits, diffs, and rollbacks come free.
+- **Built for agents**: MCP server at `/mcp`, JSON API, raw markdown at `/raw/{slug}.md`, a shell-like virtual filesystem at `/vfs/exec`, and `/llms.txt` plus `/agents.md` discovery files. WebMCP tools let a browser agent search and read pages in place.
 - **Agent blog pipeline**: coding agents, email, and a paste box submit drafts to a review inbox. A voice agent rewrites them in the site voice using RAG over published posts.
-- **X integration**: connect an X account, post from the dashboard, share posts on publish, or turn any X post URL into a blog draft.
-- **Admin dashboard**: content management with live preview, drafts inbox, analytics, config editor, media library, internal docs, and runtime API key management.
-- **Ask AI and search**: semantic search with OpenAI embeddings, full text search with Command+K, and a site Q&A chat on Cmd+J.
-- **Agent access**: MCP server, JSON API, raw markdown at `/raw/{slug}.md`, a shell-like virtual filesystem at `/vfs/exec`, and discovery files at `/llms.txt` and `/agents.md`.
-- **Newsletter and contact**: AgentMail handles signups, sends, and the contact form.
-- **Themes**: dark and light defaults plus tan and cloud, with a font switcher.
-- **Rate limiting**: every public endpoint is protected with `@convex-dev/rate-limiter`.
+- **Ask AI and search**: semantic search with OpenAI embeddings, full text search on Command+K, and a site Q&A chat on Cmd+J with streamed answers.
+- **Admin dashboard**: content management with live preview, drafts inbox, projects and skills directories, analytics, config editor, media library, newsletter, and runtime API keys.
+- **X integration**: connect an account, post from the dashboard, share on publish, or turn an X post URL into a draft.
+- **Four themes**: dark, light, tan, and cloud, with a font switcher.
 
-## Tech stack
+## Stack
 
-| Layer    | Technology                                                     |
-| -------- | -------------------------------------------------------------- |
-| Frontend | React 18, TypeScript, Vite                                     |
-| Backend  | Convex (database, functions, HTTP routes, file storage)        |
-| Hosting  | Convex self-hosting via `@convex-dev/self-hosting`             |
-| Auth     | Convex Auth with GitHub OAuth                                  |
-| AI       | OpenAI, Anthropic, Google, Concentrate, OpenRouter, Runware    |
-| Email    | AgentMail                                                      |
-| Content  | Markdown with gray-matter frontmatter                          |
+| Layer    | Technology                                                                                                                                                                                                                                |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend | [React 18](https://react.dev), [TypeScript](https://www.typescriptlang.org), [Vite](https://vite.dev), [React Router](https://reactrouter.com), [react-markdown](https://github.com/remarkjs/react-markdown)                              |
+| Backend  | [Convex](https://convex.dev): database, functions, HTTP routes, scheduling, file storage, text and vector search                                                                                                                          |
+| Auth     | [Convex Auth](https://labs.convex.dev/auth) with GitHub OAuth                                                                                                                                                                             |
+| Hosting  | Convex static [self-hosting](https://github.com/get-convex/self-hosting) with a custom domain                                                                                                                                             |
+| Media    | [Cloudflare R2](https://github.com/get-convex/r2) and [ConvexFS](https://convexfs.dev) with Bunny CDN                                                                                                                                     |
+| AI       | [OpenAI](https://platform.openai.com/docs), [Anthropic](https://docs.anthropic.com), [Google Gemini](https://ai.google.dev), [Vercel AI SDK](https://ai-sdk.dev/docs), with OpenRouter, Concentrate, and Runware as dashboard vendor keys |
+| Email    | [AgentMail](https://agentmail.to) for newsletter, contact form, and the email door for drafts                                                                                                                                             |
+| Import   | [Firecrawl](https://github.com/mendableai/firecrawl) turns external URLs into markdown posts                                                                                                                                              |
+| Content  | Markdown with [gray-matter](https://github.com/jonschlinkert/gray-matter) frontmatter                                                                                                                                                     |
+| Quality  | [Vitest](https://vitest.dev), [convex-test](https://github.com/get-convex/convex-test), [convex-doctor](https://github.com/nooesc/convex-doctor) at 100/100, [@convex-dev/eslint-plugin](https://docs.convex.dev/eslint)                  |
 
-## Getting started
+### Convex components
 
-Requires Node.js 18+ and a Convex account.
+Everything registered in [`convex/convex.config.ts`](./convex/convex.config.ts). Browse more at the [components directory](https://www.convex.dev/components).
 
-```bash
-npm install
-npx convex dev     # creates the Convex project and .env.local
-npm run dev        # http://localhost:5173
-npm run sync       # push markdown content
-```
+| Component                                                                                        | Used for                                                          |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| [@convex-dev/self-hosting](https://github.com/get-convex/self-hosting)                           | Serves the built Vite app from Convex storage                     |
+| [@convex-dev/aggregate](https://github.com/get-convex/aggregate)                                 | Page view counts, unique visitors, and unique paths in O(log n)   |
+| [@convex-dev/persistent-text-streaming](https://github.com/get-convex/persistent-text-streaming) | Streams Ask AI answers to every open tab                          |
+| [@convex-dev/rate-limiter](https://github.com/get-convex/rate-limiter)                           | Limits on every public HTTP route and mutation                    |
+| [@convex-dev/agent](https://github.com/get-convex/agent)                                         | Voice agent that rewrites submitted drafts                        |
+| [@convex-dev/rag](https://github.com/get-convex/rag)                                             | Retrieval over published posts for the voice agent                |
+| [@convex-dev/crons](https://github.com/get-convex/crons)                                         | Dynamic cron scheduling                                           |
+| [@convex-dev/workpool](https://github.com/get-convex/workpool)                                   | Durable background jobs                                           |
+| [@convex-dev/r2](https://github.com/get-convex/r2)                                               | Cloudflare R2 uploads for the media library                       |
+| [convex-fs](https://github.com/jamwt/convex-fs)                                                  | File storage behind Bunny CDN                                     |
+| [@waynesutton/agent-ready](https://github.com/waynesutton/agent-ready-component)                 | Generates `/llms.txt`, `/llms-full.txt`, and `/agents.md` on sync |
 
-Deploy with `npx convex deploy` for functions and `npm run deploy` for static assets. Admin setup, auth config, and fork options are covered in [FORK_CONFIG.md](./FORK_CONFIG.md).
+### Convex docs used here
+
+- [Convex docs](https://docs.convex.dev) and [best practices](https://docs.convex.dev/understanding/best-practices/)
+- [Queries](https://docs.convex.dev/functions/query-functions), [mutations](https://docs.convex.dev/functions/mutation-functions), [actions](https://docs.convex.dev/functions/actions), and [HTTP actions](https://docs.convex.dev/functions/http-actions)
+- [Schemas and indexes](https://docs.convex.dev/database/schemas), [full text search](https://docs.convex.dev/search/text-search), and [vector search](https://docs.convex.dev/search/vector-search)
+- [Scheduling and crons](https://docs.convex.dev/scheduling), [file storage](https://docs.convex.dev/file-storage), and [testing](https://docs.convex.dev/functions/testing)
+- [Convex Auth](https://labs.convex.dev/auth), [components](https://docs.convex.dev/components), and [avoiding write conflicts](https://docs.convex.dev/error#1)
 
 ## AI development files
 
-`CLAUDE.md` and `AGENTS.md` hold project instructions for coding agents, and `llms.txt` handles agent discovery. All three update automatically during `npm run sync:discovery`.
+This repo is set up for coding agents as much as for people.
+
+| File or folder                        | Purpose                                                                                              |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `AGENTS.md`, `CLAUDE.md`              | Project instructions for agents. Both refresh during `npm run sync:discovery`                        |
+| `public/llms.txt`, `public/AGENTS.md` | Agent discovery files served by the site, regenerated on the same sync                               |
+| `convex/_generated/ai/guidelines.md`  | Convex API guidelines generated by the Convex CLI. Read first before touching `convex/`              |
+| `.cursor/rules`, `.cursor/skills`     | Cursor rules for Convex patterns, write conflicts, git safety, and the project workflow, plus skills |
+| `.claude/skills`, `.codex/skills`     | Skills for Claude Code and Codex covering Convex, auth, schema, frontmatter, and writing style       |
+| `convex-doctor.toml`                  | Documented suppressions that keep the convex-doctor score at 100                                     |
+| `prds/`                               | PRDs for every feature and fix, plus `prds/lessons.md`                                               |
+| `changelog.md`, `files.md`, `TASK.md` | Release notes, file reference, and task tracking, updated after each change                          |
 
 ## Source
 
-This is a personal site. To build your own, fork [markdown-site](https://github.com/waynesutton/markdown-site) or run `npx create-markdown-sync my-site`.
+This is a personal site and stays that way. To build your own, fork [markdown-site](https://github.com/waynesutton/markdown-site) or run `npx create-markdown-sync my-site`. Source for this fork lives at [waynesutton/waynesutton-ai](https://github.com/waynesutton/waynesutton-ai).
 
 ## License
 

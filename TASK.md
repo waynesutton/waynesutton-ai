@@ -4,6 +4,8 @@
 
 Session updates complete on 2026-09-06.
 
+README rewrite (2026-09-07 01:10 UTC): kept everything above the old "How publishing works" heading, dropped that section, the duplicate `SYNC_SECRET` paragraph, Getting started, and the dead `FORK_CONFIG.md` link. Seven key features, a linked stack table, a Convex components table from `convex/convex.config.ts`, a Convex docs list, and an AI development files table. No code changes, not deployed.
+
 Homepage posts config consolidation (2026-09-06 22:40 UTC): the Homepage dashboard section owns banner, Featured list, Spotlight, category sections, and Post list; Site Config Homepage tab has a pointer card instead of Posts Display / Featured Section / Homepage highlights. `savePartialOverrides` deep merges, `buildOverrides` sends falsy values, `ConfigSection` hydrates from live overrides. `/` reads post list and featured list live. `tsc` app and convex, 68 vitest tests, eslint, convex-doctor 100/100 pass. Signed-in Homepage section click-through open. Not deployed. PRD: `prds/homepage-posts-config-consolidation.md`.
 
 Dashboard Docs contact form how-to (2026-09-06 19:40 UTC): Writing, Newsletter, and Site Config now document the global switch, `<!-- contactform -->`, and `contactForm: true`. Cmd+K `contactform` opens the how-to. Signed-in Docs click-through still open. Not deployed. PRD: `prds/dashboard-docs-contact-form.md`.
@@ -271,6 +273,13 @@ GitHub `main` is still `0212406`. Local `HEAD` is `9f3e3bf` (2026-09-06). Remain
   - [x] Schema/functions deployed cleanly to development `notable-loris-927`; Convex Doctor reports 91/100 with 22 pre-existing warnings and none left from this feature.
 
 ## Completed
+
+- [x] README rewrite (2026-09-07 01:10 UTC)
+  - [x] Kept title, badges, intro, sync pitch, and markdown-site fork note; removed How publishing works, duplicate `SYNC_SECRET` paragraph, Getting started, and the `FORK_CONFIG.md` link to a file that does not exist
+  - [x] Key features trimmed to seven bullets
+  - [x] Stack table with links per layer, Convex components table matching `convex/convex.config.ts` with repo links and what each does here, Convex docs list
+  - [x] AI development files table: `AGENTS.md`, `CLAUDE.md`, served discovery files, `convex/_generated/ai/guidelines.md`, `.cursor` / `.claude` / `.codex`, `convex-doctor.toml`, `prds/`, tracking docs
+  - [x] Verified every package link against `node_modules/*/package.json` repository fields; no code changes
 
 - [x] Homepage posts config consolidation (2026-09-06 22:40 UTC)
   - [x] Root causes of "config not saving": `savePartialOverrides` shallow merged top level keys so two sections writing `postsDisplay` clobbered each other; `buildOverrides` dropped falsy values through conditional spreads; `ConfigSection` seeded from the boot time `siteConfig` snapshot and could save stale defaults over a newer row

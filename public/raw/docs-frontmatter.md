@@ -2,7 +2,7 @@
 
 ---
 Type: page
-Date: 2026-09-06
+Date: 2026-09-07
 ---
 
 ## Frontmatter Options

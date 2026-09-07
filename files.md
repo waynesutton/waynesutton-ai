@@ -2,6 +2,10 @@
 
 A brief description of each file in the codebase.
 
+## README rewrite (2026-09-07 01:10 UTC)
+
+- **Modified** `README.md`: Stack-first README. Intro and fork note kept, How publishing works and Getting started removed, seven key features, linked stack table, Convex components table mirroring `convex/convex.config.ts`, Convex docs list, and an AI development files table.
+
 ## Homepage posts config consolidation (2026-09-06 22:40 UTC)
 
 - `prds/homepage-posts-config-consolidation.md`: Four overlapping Site Config cards, the falsy-value and shallow-merge save bugs, and the one-owner fix.
