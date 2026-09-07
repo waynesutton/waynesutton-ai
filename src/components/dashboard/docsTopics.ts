@@ -30,7 +30,7 @@ These pages are written to skim: curl before clicks, a prompt you can paste, cop
 | Overview | Greeting, stats, shortcuts |
 | Posts and Pages | List, filter, edit, unlisted, open live URL |
 | Write | New posts and pages, markdown, frontmatter, AI assistant |
-| Homepage | Highlights, category sections, hero image |
+| Homepage | Banner image, featured list, spotlight post and projects, category sections, post list, with a live running order |
 | Projects | CRUD for the /projects index |
 | Skills | Sections and skills for the /skills directory |
 | Import URL | Firecrawl a public URL into a draft post |
@@ -245,7 +245,7 @@ Useful optional fields:
 - **hideNav** (posts only) lets the top nav start at the top of the post and scroll away with the page instead of staying pinned.
 - **slides** turns the post or page into a deck. There is no dashboard switch yet. Put \`slides: true\` in the markdown file (see **Markdown slides** below).
 - **authorName** and **authorImage** override the byline. Author image has Upload and Clear, same as the other image fields.
-- **contactForm** embeds the contact form
+- **contactForm** puts the form at the bottom of that post or page. Or drop \`<!-- contactform -->\` in the body. The Site Config switch must be on. See **Contact form** below.
 
 ### Markdown slides
 
@@ -296,6 +296,30 @@ npm run sync:prod     # production Convex (\`.env.production.local\`)
 \`\`\`
 
 Working demo in the repo: \`content/blog/slide-template-example.md\`. Dashboard Write does not persist \`slides\` yet, so keep the flag in the markdown file.
+
+### Contact form
+
+Site Config > Audience > Contact Form is the global switch. Turn **Enable contact form** on and Save. That does not place a form on any page.
+
+Then add it to a post or page.
+
+Inline, where you want it in the body:
+
+\`\`\`
+<!-- contactform -->
+\`\`\`
+
+At the bottom of that post or page, set frontmatter:
+
+\`\`\`
+contactForm: true
+\`\`\`
+
+In the dashboard editor that is the Contact Form checkbox on the post or page, not the Site Config card.
+
+If both are present, the shortcode wins and you get one form.
+
+Submissions send to \`AGENTMAIL_CONTACT_EMAIL\` (falls back to \`AGENTMAIL_INBOX\`). You also need \`AGENTMAIL_API_KEY\`. Set them in API Keys or Convex env. See **Newsletter and AgentMail**.
 
 ### Local files and sync
 
@@ -765,7 +789,27 @@ Sends include unsubscribe links per subscriber.
 
 ### Contact form
 
-Pages and posts can embed a contact form with frontmatter \`contactForm: true\`. Submissions send to \`AGENTMAIL_CONTACT_EMAIL\`.
+Site Config > Audience > Contact Form is the global switch. Turn **Enable contact form** on and Save. That does not place a form on any page.
+
+Then add it to a post or page in one of two ways.
+
+Inline, where you want it:
+
+\`\`\`
+<!-- contactform -->
+\`\`\`
+
+At the bottom of that post or page, set frontmatter:
+
+\`\`\`
+contactForm: true
+\`\`\`
+
+In the dashboard editor that is the Contact Form checkbox on the post or page, not the Site Config card.
+
+If both are present, the shortcode wins and you get one form.
+
+Submissions send to \`AGENTMAIL_CONTACT_EMAIL\` (falls back to \`AGENTMAIL_INBOX\`). You also need \`AGENTMAIL_API_KEY\`. Set them in API Keys or Convex env.
 
 ### Reading the AgentMail console
 
@@ -937,7 +981,7 @@ Switching tabs never drops unsaved edits. Every card stays on the page, hidden p
 | Tab | Cards |
 |-----|-------|
 | Site | Basic Settings, Inner Page Logo, Right Sidebar, Footer, Closing note |
-| Homepage | Homepage route, Homepage highlights, Posts Display, Featured Section, Logo Gallery |
+| Homepage | Homepage route, Homepage content (a pointer to the Homepage section), Logo Gallery |
 | Blog, projects, and skills | Blog Page, Projects Page, Skills Page, Related Posts, Post audio, Image Lightbox |
 | Audience | Automatic newsletters, Newsletter Signup Locations, Contact Form |
 | Features | Features, AI Chat, Semantic Search, Ask AI, Media Library |
@@ -946,6 +990,19 @@ Switching tabs never drops unsaved edits. Every card stays on the page, hidden p
 The command palette (Cmd+K) knows every card. Type a setting name like "read time", "lightbox", or "mcp" and pick the result: the right tab opens, the page scrolls to the card, and the card flashes so you can find it.
 
 If you hide the view toggle icons, a visitor's saved list/cards preference is ignored so the configured default always wins.
+
+### Contact Form
+
+The Audience tab card is a global switch: Enable contact form, title, description. Save. That does not put a form on any page.
+
+To show the form, pick one placement on that post or page:
+
+- Frontmatter \`contactForm: true\` (or the Contact Form checkbox in the editor). The form lands at the bottom.
+- The shortcode \`<!-- contactform -->\` in the markdown body. The form lands where you put it.
+
+Both need the global switch on. If you use both, the shortcode wins and you get one form.
+
+Mail goes to \`AGENTMAIL_CONTACT_EMAIL\`. See **Writing and publishing** for placement and **Newsletter and AgentMail** for keys.
 
 ### Index HTML
 
@@ -971,7 +1028,7 @@ The search box in the header (Cmd+K, or Ctrl+K) is a command palette. It matches
 - **Sections**: type "config", "keys", "sync" to jump to a dashboard section
 - **Posts and pages** by title or slug, opening straight into the editor
 - **Settings**: any Site Config card by name or by the fields inside it ("read time", "lightbox", "mcp") opens the right tab and scrolls to the card
-- **Features**: "embed", "unlisted", "vendor keys", "minimap", "slides", "skills", "voice profile" land on the section that owns them, even when the word never appears in the nav
+- **Features**: "embed", "unlisted", "vendor keys", "minimap", "slides", "skills", "contact form", "voice profile" land on the section that owns them, even when the word never appears in the nav
 - **Docs topics**: matches against the full body of every topic, so "iframe" finds the embeds guide. Results open the topic in Docs.
 - **Actions**: "new post", "new page", "sync dev", "sync prod"
 

@@ -1,6 +1,6 @@
 # llms.txt - Information for AI assistants and LLMs
 # Learn more: https://llmstxt.org/
-# Last updated: 2026-09-04T09:16:32.242Z
+# Last updated: 2026-09-06T19:20:30.051Z
 
 > Developer Community Lead at Convex, tech event organizer, startup ecosystem builder, and adventure motorcycle rider—helping developers and startups build faster with Convex and AI.
 
@@ -40,13 +40,13 @@ Full content RSS feed with complete markdown for each post.
 
 ## Virtual Filesystem
 GET /vfs/tree
-Returns JSON tree of all content paths (blog, pages, docs).
+Returns JSON tree of all content paths (blog, pages, docs, projects.md, and skills.md).
 
 POST /vfs/exec
 Execute shell-like commands against all site content.
 Send JSON body: {"command": "ls /blog"} or {"command": "grep convex /blog"}
 Supported commands: ls, cat, grep, find, tree, head, wc, pwd, cd
-Paths: /blog, /pages, /docs, /index.md, /projects.md
+Paths: /blog, /pages, /docs, /index.md, /projects.md, /skills.md
 
 ## MCP Server
 POST /mcp

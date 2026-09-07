@@ -16,6 +16,7 @@ export type HomepageBlockState = "on" | "off" | "warn";
 export type HomepageBlockId =
   | "banner-top"
   | "banner-aside"
+  | "featured"
   | "categories-above"
   | "post-above"
   | "projects-above"
@@ -41,8 +42,13 @@ export interface HomepageOrderInput {
     position: "above-posts" | "below-posts";
     sections: Array<HomeCategorySection>;
   };
-  /** Site Config > Blog Page "show posts on homepage". Defaults to true. */
+  /** Homepage > Post list "Show the post list". Defaults to true. */
   showPostList?: boolean;
+  /**
+   * Homepage > Featured list. `count` is the number of published posts and
+   * pages marked `featured: true`, when loaded. Omit to leave the row out.
+   */
+  featuredList?: { enabled: boolean; count?: number };
   /** Published slugs, when loaded. Undefined skips the publish check. */
   publishedProjectSlugs?: Array<string>;
   publishedPostSlugs?: Array<string>;
@@ -99,32 +105,47 @@ function bannerBlocks(hero: HomeHeroImageConfig): {
   };
 }
 
-function featuredPostBlock(
+// Featured list: every published post and page marked `featured: true`,
+// rendered under the intro. Distinct from the single spotlight post below.
+function featuredListBlock(input: HomepageOrderInput): HomepageBlock | null {
+  const { featuredList } = input;
+  if (!featuredList) return null;
+  const id = "featured";
+  const label = "Featured list";
+  if (!featuredList.enabled) return { id, label, state: "off" };
+  if (featuredList.count === undefined) return { id, label, state: "on" };
+  if (featuredList.count === 0) {
+    return {
+      id,
+      label,
+      state: "warn",
+      detail: "Nothing is marked featured: true",
+    };
+  }
+  return { id, label, state: "on", detail: plural(featuredList.count, "item") };
+}
+
+// Spotlight post: one hand picked post with an optional thumbnail.
+function spotlightPostBlock(
   input: HomepageOrderInput,
   position: Position,
 ): HomepageBlock | null {
   const { highlights, publishedPostSlugs } = input;
   const id = position === "above-posts" ? "post-above" : "post-below";
+  const label = "Spotlight post";
   if (!highlights.postEnabled) {
     // Off rows show once, at the position they would take when enabled
-    return highlights.postPosition === position
-      ? { id, label: "Featured post", state: "off" }
-      : null;
+    return highlights.postPosition === position ? { id, label, state: "off" } : null;
   }
   if (highlights.postPosition !== position) return null;
   const slug = highlights.postSlug.trim();
   if (!slug) {
-    return { id, label: "Featured post", state: "warn", detail: "No post selected" };
+    return { id, label, state: "warn", detail: "No post selected" };
   }
   if (publishedPostSlugs && !publishedPostSlugs.includes(slug)) {
-    return {
-      id,
-      label: "Featured post",
-      state: "warn",
-      detail: "Selected post is not published",
-    };
+    return { id, label, state: "warn", detail: "Selected post is not published" };
   }
-  return { id, label: "Featured post", state: "on", detail: slug };
+  return { id, label, state: "on", detail: slug };
 }
 
 function projectsBlock(
@@ -208,16 +229,16 @@ export function buildHomepageOrder(input: HomepageOrderInput): Array<HomepageBlo
   const rows: Array<HomepageBlock | null> = [
     banner.top,
     banner.aside,
+    featuredListBlock(input),
     categoriesBlock(input, "above-posts"),
-    featuredPostBlock(input, "above-posts"),
+    spotlightPostBlock(input, "above-posts"),
     projectsBlock(input, "above-posts"),
     {
       id: "posts",
       label: "Post list",
       state: input.showPostList === false ? "off" : "on",
-      detail: input.showPostList === false ? "Off in Site Config" : undefined,
     },
-    featuredPostBlock(input, "below-posts"),
+    spotlightPostBlock(input, "below-posts"),
     projectsBlock(input, "below-posts"),
     categoriesBlock(input, "below-posts"),
     banner.bottom,

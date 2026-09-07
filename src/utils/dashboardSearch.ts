@@ -194,6 +194,21 @@ const FEATURE_ENTRIES: ReadonlyArray<Omit<DashboardSearchEntry, "kind">> = [
     target: { section: "newsletter-send" },
   },
   {
+    id: "feature-contact-form",
+    title: "Contact form shortcode",
+    description:
+      "Enable in Site Config, then <!-- contactform --> or contactForm: true on the page.",
+    keywords: [
+      "contactform",
+      "contactForm",
+      "get in touch",
+      "email form",
+      "shortcode",
+      "agentmail",
+    ],
+    target: { section: "docs", docsTopic: "newsletter" },
+  },
+  {
     id: "feature-agent-ready",
     title: "Agent discovery files",
     description:

@@ -34,6 +34,7 @@ import {
 } from "../utils/newsletter";
 import { resolveHomeCategories } from "../utils/homeCategories";
 import { resolveHomeHeroImage } from "../utils/homeHeroImage";
+import { resolveFeaturedList, resolveHomePostList } from "../utils/homePostList";
 
 // Sanitize schema for home intro markdown
 const homeSanitizeSchema = {
@@ -368,11 +369,15 @@ export default function Home() {
   const configOverrides = useQuery(api.siteConfigData.getOverrides);
   const homeCategories = resolveHomeCategories(configOverrides);
   const categoriesEnabled = homeCategories.enabled === true;
+  // Post list and featured list settings come from the same live overrides,
+  // so a Homepage save shows here without a reload
+  const postList = resolveHomePostList(configOverrides);
+  const featured = resolveFeaturedList(configOverrides);
 
   // Fetch published posts from Convex (only if the homepage needs them)
   const posts = useQuery(
     api.posts.getAllPosts,
-    siteConfig.postsDisplay.showOnHome || categoriesEnabled ? {} : "skip",
+    postList.enabled || categoriesEnabled ? {} : "skip",
   );
 
   // Fetch featured posts and pages from Convex (for list view)
@@ -385,15 +390,17 @@ export default function Home() {
   // Fetch footer content from Convex (synced via markdown)
   const footerPage = useQuery(api.pages.getPageBySlug, { slug: "footer" });
 
-  // State for view mode toggle (list or cards)
-  const [viewMode, setViewMode] = useState<"list" | "cards">(
-    siteConfig.featuredViewMode,
-  );
+  // Visitor view mode choices (list or cards). Null until the visitor toggles or
+  // a saved preference loads. The choice only counts while the toggle is shown;
+  // with icons hidden the configured default always wins, live.
+  const [viewModeChoice, setViewModeChoice] = useState<"list" | "cards" | null>(null);
+  const viewMode: "list" | "cards" =
+    featured.showViewToggle && viewModeChoice ? viewModeChoice : featured.viewMode;
 
-  // Homepage post list has its own view mode, independent of the featured section
-  const [postsViewMode, setPostsViewMode] = useState<"list" | "cards">(
-    siteConfig.postsDisplay.homeViewMode ?? "list",
-  );
+  // Homepage post list has its own view mode, independent of the featured list
+  const [postsViewModeChoice, setPostsViewModeChoice] = useState<"list" | "cards" | null>(null);
+  const postsViewMode: "list" | "cards" =
+    postList.showViewToggle && postsViewModeChoice ? postsViewModeChoice : postList.viewMode;
 
   // Get code theme based on current theme
   const getCodeTheme = () => {
@@ -409,34 +416,29 @@ export default function Home() {
     }
   };
 
-  // Load saved view mode preference from localStorage
-  // Only when the toggle is shown; with icons hidden the config default always wins
+  // Load saved view mode preferences from localStorage. They only apply while
+  // the matching toggle is shown (see the derived modes above).
   useEffect(() => {
-    if (!siteConfig.showViewToggle) return;
     const saved = localStorage.getItem(VIEW_MODE_KEY);
     if (saved === "list" || saved === "cards") {
-      setViewMode(saved);
+      setViewModeChoice(saved);
+    }
+    const savedPosts = localStorage.getItem(HOME_POSTS_VIEW_MODE_KEY);
+    if (savedPosts === "list" || savedPosts === "cards") {
+      setPostsViewModeChoice(savedPosts);
     }
   }, []);
 
   // Toggle view mode and save preference
   const toggleViewMode = () => {
     const newMode = viewMode === "list" ? "cards" : "list";
-    setViewMode(newMode);
+    setViewModeChoice(newMode);
     localStorage.setItem(VIEW_MODE_KEY, newMode);
   };
 
-  useEffect(() => {
-    if (!siteConfig.postsDisplay.homeShowViewToggle) return;
-    const saved = localStorage.getItem(HOME_POSTS_VIEW_MODE_KEY);
-    if (saved === "list" || saved === "cards") {
-      setPostsViewMode(saved);
-    }
-  }, []);
-
   const togglePostsViewMode = () => {
     const newMode = postsViewMode === "list" ? "cards" : "list";
-    setPostsViewMode(newMode);
+    setPostsViewModeChoice(newMode);
     localStorage.setItem(HOME_POSTS_VIEW_MODE_KEY, newMode);
   };
 
@@ -474,13 +476,11 @@ export default function Home() {
   const featuredList = getFeaturedList();
   // The section can be switched off in config without unfeaturing anything, so
   // `featured: true` still drives blog page ordering and the frontmatter toggle
-  const showFeaturedSection =
-    siteConfig.featuredSectionEnabled !== false && featuredList.length > 0;
+  const showFeaturedSection = featured.enabled && featuredList.length > 0;
 
   // Check if posts should be shown on homepage
-  const showPostsOnHome = siteConfig.postsDisplay.showOnHome;
-  const postsDisplay = siteConfig.postsDisplay;
-  const homePostsTitle = postsDisplay.homeTitle?.trim();
+  const showPostsOnHome = postList.enabled;
+  const homePostsTitle = postList.title.trim();
   const dashboardNotice = new URLSearchParams(location.search).get("dashboardNotice");
   const showNotAdminNotice = dashboardNotice === "not-admin";
   const isAuthenticated = useQuery(api.authAdmin.isCurrentUserAuthenticated);
@@ -774,8 +774,8 @@ export default function Home() {
         {showFeaturedSection && (
           <div className="home-featured">
             <div className="home-featured-header">
-              <p className="home-featured-intro">{siteConfig.featuredTitle}</p>
-              {siteConfig.showViewToggle && (
+              <p className="home-featured-intro">{featured.title}</p>
+              {featured.showViewToggle && (
                 <ViewToggleButton
                   viewMode={viewMode}
                   onToggle={toggleViewMode}
@@ -820,14 +820,14 @@ export default function Home() {
             <p className="no-posts">No posts yet. Check back soon!</p>
           ) : (
             <>
-              {(homePostsTitle || postsDisplay.homeShowViewToggle) && (
+              {(homePostsTitle || postList.showViewToggle) && (
                 <div className="home-posts-header">
                   {homePostsTitle ? (
                     <p className="home-posts-title">{homePostsTitle}</p>
                   ) : (
                     <span />
                   )}
-                  {postsDisplay.homeShowViewToggle && (
+                  {postList.showViewToggle && (
                     <ViewToggleButton
                       viewMode={postsViewMode}
                       onToggle={togglePostsViewMode}
@@ -836,28 +836,22 @@ export default function Home() {
                 </div>
               )}
               <PostList
-                posts={
-                  postsDisplay.homePostsLimit
-                    ? posts.slice(0, postsDisplay.homePostsLimit)
-                    : posts
-                }
+                posts={postList.limit > 0 ? posts.slice(0, postList.limit) : posts}
                 viewMode={postsViewMode}
-                showReadTime={postsDisplay.homeShowReadTime !== false}
-                showDate={postsDisplay.homeShowDate !== false}
-                showYearHeadings={postsDisplay.homeShowYearHeadings !== false}
-                underlineTitles={postsDisplay.homeUnderlineTitles === true}
+                showReadTime={postList.showReadTime}
+                showDate={postList.showDate}
+                showYearHeadings={postList.showYearHeadings}
+                underlineTitles={postList.underlineTitles}
               />
-              {/* Show "read more" link if enabled and there are more posts than the limit */}
-              {siteConfig.postsDisplay.homePostsReadMore?.enabled &&
-                (siteConfig.postsDisplay.homePostsReadMore.link !== "/blog" || siteConfig.blogPage.enabled) &&
-                siteConfig.postsDisplay.homePostsLimit &&
-                posts.length > siteConfig.postsDisplay.homePostsLimit && (
+              {/* Read more link: only when a limit hides posts, and never to a disabled /blog */}
+              {postList.readMore.enabled &&
+                postList.readMore.link.trim() !== "" &&
+                (postList.readMore.link !== "/blog" || siteConfig.blogPage.enabled) &&
+                postList.limit > 0 &&
+                posts.length > postList.limit && (
                   <div className="home-posts-read-more">
-                    <Link
-                      to={siteConfig.postsDisplay.homePostsReadMore.link}
-                      className="home-posts-read-more-link"
-                    >
-                      {siteConfig.postsDisplay.homePostsReadMore.text}
+                    <Link to={postList.readMore.link} className="home-posts-read-more-link">
+                      {postList.readMore.text.trim() || "Read more posts"}
                     </Link>
                   </div>
                 )}

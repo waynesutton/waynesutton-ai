@@ -94,4 +94,16 @@ describe("homepage running order", () => {
     expect(ids(input)).not.toContain("banner-top");
     expect(states(input).posts).toBe("off");
   });
+
+  it("slots the featured list under the intro and warns when nothing is featured", () => {
+    expect(ids(base)).not.toContain("featured");
+    const on: HomepageOrderInput = { ...base, featuredList: { enabled: true, count: 3 } };
+    expect(ids(on)).toEqual(["banner-top", "featured", "categories-above", "post-above", "posts", "projects-below"]);
+    expect(buildHomepageOrder(on).find((r) => r.id === "featured")).toMatchObject({ state: "on", detail: "3 items" });
+    const empty: HomepageOrderInput = { ...base, featuredList: { enabled: true, count: 0 } };
+    expect(buildHomepageOrder(empty).find((r) => r.id === "featured")).toMatchObject({ state: "warn" });
+    const off: HomepageOrderInput = { ...base, featuredList: { enabled: false, count: 3 } };
+    expect(states(off).featured).toBe("off");
+    expect(buildHomepageOrder(on).find((r) => r.id === "post-above")?.label).toBe("Spotlight post");
+  });
 });

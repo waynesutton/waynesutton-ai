@@ -49,3 +49,44 @@ test("homepage, projects and read-more saves preserve independently owned config
     }),
   ).rejects.toThrow();
 });
+
+test("nested plain objects merge field by field, arrays and scalars replace", async () => {
+  const t = convexTest(schema, modules);
+  await t.run((ctx) =>
+    ctx.db.insert("dashboardAdmins", { subject: "test-admin", createdAt: 1 }),
+  );
+  const admin = t.withIdentity({ subject: "test-admin" });
+
+  // Homepage section owns the homepage half of postsDisplay
+  await admin.mutation(api.siteConfigData.savePartialOverrides, {
+    overrides: {
+      postsDisplay: {
+        showOnHome: false,
+        homePostsLimit: 0,
+        homePostsReadMore: { enabled: true, text: "More", link: "/blog" },
+      },
+      homeCategories: { enabled: true, sections: [{ tag: "a" }, { tag: "b" }] },
+    },
+  });
+
+  // Site Config owns the blog half and must not wipe the homepage fields
+  await admin.mutation(api.siteConfigData.savePartialOverrides, {
+    overrides: {
+      postsDisplay: { showOnBlogPage: false, blogPostsLimit: 12 },
+      homeCategories: { sections: [{ tag: "c" }] },
+      homePostsLimit: 3,
+    },
+  });
+
+  expect(await t.query(api.siteConfigData.getOverrides, {})).toEqual({
+    postsDisplay: {
+      showOnHome: false,
+      homePostsLimit: 0,
+      homePostsReadMore: { enabled: true, text: "More", link: "/blog" },
+      showOnBlogPage: false,
+      blogPostsLimit: 12,
+    },
+    homeCategories: { enabled: true, sections: [{ tag: "c" }] },
+    homePostsLimit: 3,
+  });
+});

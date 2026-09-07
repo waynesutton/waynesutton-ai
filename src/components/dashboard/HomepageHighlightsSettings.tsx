@@ -1,8 +1,4 @@
-import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import type { HomepageHighlightsConfig } from "../../config/siteConfig";
-import { resolveHomepageHighlights } from "../../utils/homepageHighlights";
 
 type PublishedProject = { slug: string; title: string };
 type PublishedPost = { slug: string; title: string };
@@ -15,10 +11,10 @@ interface HomepageHighlightsFieldsProps {
 }
 
 /**
- * Controlled highlights fields: featured post first, projects second, matching
+ * Controlled highlights fields: spotlight post first, projects second, matching
  * the order `HomepageHighlights` renders them on `/`. Owns no state and no
- * Save, so the Homepage section can fold it into one save while Site Config
- * keeps the standalone card below.
+ * Save; the Homepage section folds it into its single Save. "Spotlight" is one
+ * hand picked post, distinct from the featured list built from `featured: true`.
  */
 export function HomepageHighlightsFields({
   config,
@@ -39,13 +35,13 @@ export function HomepageHighlightsFields({
             checked={config.postEnabled}
             onChange={(e) => onChange({ postEnabled: e.target.checked })}
           />
-          <span>Show a featured post</span>
+          <span>Show a spotlight post</span>
         </label>
       </div>
       {config.postEnabled && (
         <div className="home-highlight-group">
           <div className="config-field">
-            <label htmlFor="home-featured-post">Featured post</label>
+            <label htmlFor="home-featured-post">Spotlight post</label>
             <select
               id="home-featured-post"
               value={config.postSlug}
@@ -177,69 +173,5 @@ export function HomepageHighlightsFields({
         </div>
       )}
     </>
-  );
-}
-
-/**
- * Standalone card for Site Config. Hydrates once from the live overrides and
- * saves its own key. The Homepage section does not use this wrapper; it lifts
- * the same fields into its single Save.
- */
-export function HomepageHighlightsSettings() {
-  const saved = useQuery(api.siteConfigData.getOverrides);
-  const projects = useQuery(api.projects.listPublished);
-  const posts = useQuery(api.posts.getAllPosts);
-  const save = useMutation(api.siteConfigData.savePartialOverrides);
-  const [config, setConfig] = useState<HomepageHighlightsConfig>(() =>
-    resolveHomepageHighlights(undefined),
-  );
-  const [hydrated, setHydrated] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    if (saved === undefined || hydrated) return;
-    setConfig(resolveHomepageHighlights(saved?.homepageHighlights));
-    setHydrated(true);
-  }, [saved, hydrated]);
-
-  return (
-    <div className="dashboard-config-card">
-      <h3>Homepage highlights</h3>
-      <p className="config-field-note">
-        A featured post and selected projects on the default homepage. Empty or
-        unpublished selections stay hidden. This card has its own Save.
-      </p>
-      <HomepageHighlightsFields
-        config={config}
-        onChange={(next) => setConfig((value) => ({ ...value, ...next }))}
-        projects={projects}
-        posts={posts}
-      />
-      <button
-        type="button"
-        className="dashboard-action-btn primary"
-        disabled={saving || !hydrated}
-        aria-busy={saving}
-        onClick={async () => {
-          setSaving(true);
-          setMessage("");
-          try {
-            await save({ overrides: { homepageHighlights: config } });
-            setMessage("Highlights saved.");
-          } catch {
-            setMessage("Could not save highlights. Try again.");
-          } finally {
-            setSaving(false);
-          }
-        }}
-      >
-        {saving ? "Saving..." : "Save highlights"}
-      </button>
-      {/* Always mounted so the live region announces; empty collapses via :empty */}
-      <p role="status" className="config-field-note home-highlight-status">
-        {message}
-      </p>
-    </div>
   );
 }

@@ -58,7 +58,7 @@ describe("dashboard docs for webmcp", () => {
     expect(top.some((r) => r.entry.target.configCard === "webmcp")).toBe(true);
   });
 
-  it("documents slides, skills, and self-hosting deploys", () => {
+  it("documents slides, skills, self-hosting deploys, and the contact form shortcode", () => {
     expect(DOCS_TOPICS.some((t) => t.id === "skills")).toBe(true);
     const writing = DOCS_TOPICS.find((t) => t.id === "writing")?.content ?? "";
     expect(writing).toContain("slides: true");
@@ -70,6 +70,14 @@ describe("dashboard docs for webmcp", () => {
     expect(searchDashboard(index, "slides", 8).some((r) => r.entry.id === "feature-slides")).toBe(
       true,
     );
+    const newsletter = DOCS_TOPICS.find((t) => t.id === "newsletter")?.content ?? "";
+    expect(newsletter).toContain("<!-- contactform -->");
+    expect(writing).toContain("contactForm: true");
+    const config = DOCS_TOPICS.find((t) => t.id === "config")?.content ?? "";
+    expect(config).toContain("Enable contact form");
+    expect(
+      searchDashboard(index, "contactform", 8).some((r) => r.entry.id === "feature-contact-form"),
+    ).toBe(true);
   });
 });
 

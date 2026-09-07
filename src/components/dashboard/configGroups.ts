@@ -84,7 +84,7 @@ export const CONFIG_GROUPS: ReadonlyArray<ConfigGroup> = [
   {
     id: "homepage",
     label: "Homepage",
-    hint: "What visitors see at the root URL and how the post list reads.",
+    hint: "Which route serves / and the logo marquee. Post list, featured list, and spotlight live in the Homepage section.",
     cards: [
       {
         id: "homepage-route",
@@ -92,31 +92,19 @@ export const CONFIG_GROUPS: ReadonlyArray<ConfigGroup> = [
         keywords: ["homepage type", "slug", "original home route", "landing"],
       },
       {
-        id: "homepage-highlights",
-        title: "Homepage highlights",
+        id: "homepage-content",
+        title: "Homepage content",
         keywords: [
-          "featured post",
+          "post list",
+          "posts display",
+          "featured section",
+          "featured list",
           "spotlight",
-          "projects on homepage",
-          "thumbnail",
+          "highlights",
+          "banner",
+          "category sections",
+          "running order",
         ],
-      },
-      {
-        id: "posts-display",
-        title: "Posts Display",
-        keywords: [
-          "show posts on homepage",
-          "posts limit",
-          "read time",
-          "year headings",
-          "underline titles",
-          "gallery",
-        ],
-      },
-      {
-        id: "featured-section",
-        title: "Featured Section",
-        keywords: ["featured title", "featured view mode", "view toggle"],
       },
       {
         id: "logo-gallery",
@@ -218,7 +206,14 @@ export const CONFIG_GROUPS: ReadonlyArray<ConfigGroup> = [
       {
         id: "contact-form",
         title: "Contact Form",
-        keywords: ["contact", "messages", "email form"],
+        keywords: [
+          "contact",
+          "messages",
+          "email form",
+          "shortcode",
+          "contactform",
+          "contactForm",
+        ],
       },
     ],
   },

@@ -23,6 +23,13 @@ import type {
 import { resolveHomeCategories } from "../../utils/homeCategories";
 import { resolveHomepageHighlights } from "../../utils/homepageHighlights";
 import { buildHomepageOrder } from "../../utils/homepageOrder";
+import {
+  resolveFeaturedList,
+  resolveHomePostList,
+  type FeaturedListConfig,
+  type HomePostListConfig,
+} from "../../utils/homePostList";
+import { applyRuntimeConfigOverrides } from "../../config/runtimeConfig";
 
 type ToastType = "success" | "error" | "info" | "warning";
 type CategoriesPosition = "above-posts" | "below-posts";
@@ -41,10 +48,11 @@ const DEFAULT_HERO: HomeHeroImageConfig = {
 
 /**
  * Homepage dashboard section. Cards stack in the order the homepage renders
- * them (banner, highlights, category sections) and a sticky rail shows the
- * resulting running order. One Save writes homeHeroImage, homepageHighlights,
- * and homeCategories through savePartialOverrides, leaving the rest of Site
- * Config alone.
+ * them (banner, featured list, highlights, category sections, post list) and a
+ * sticky rail shows the resulting running order. One Save writes
+ * homeHeroImage, the featured list keys, homepageHighlights, homeCategories,
+ * and the homepage half of postsDisplay through savePartialOverrides, leaving
+ * the rest of Site Config alone. Site Config owns /blog.
  */
 export function HomepageSection({
   addToast,
@@ -55,6 +63,12 @@ export function HomepageSection({
     ...DEFAULT_HERO,
     ...(siteConfig.homeHeroImage ?? {}),
   }));
+  const [featured, setFeatured] = useState<FeaturedListConfig>(() =>
+    resolveFeaturedList(undefined),
+  );
+  const [postList, setPostList] = useState<HomePostListConfig>(() =>
+    resolveHomePostList(undefined),
+  );
   const [highlights, setHighlights] = useState<HomepageHighlightsConfig>(() =>
     resolveHomepageHighlights(undefined),
   );
@@ -82,19 +96,22 @@ export function HomepageSection({
   const publishedTags = useQuery(api.posts.getAllTags);
   const publishedProjects = useQuery(api.projects.listPublished);
   const publishedPosts = useQuery(api.posts.getAllPosts);
+  const featuredPages = useQuery(api.pages.getFeaturedPages);
   const configOverrides = useQuery(api.siteConfigData.getOverrides);
 
   const currentState = useMemo(
     () => ({
       hero,
+      featured,
       highlights,
       categories: {
         enabled: categoriesEnabled,
         position: categoriesPosition,
         sections,
       },
+      postList,
     }),
-    [hero, highlights, categoriesEnabled, categoriesPosition, sections],
+    [hero, featured, highlights, categoriesEnabled, categoriesPosition, sections, postList],
   );
   const currentSnapshot = JSON.stringify(currentState);
   const dirty = hydrated && savedSnapshot !== null && savedSnapshot !== currentSnapshot;
@@ -107,6 +124,8 @@ export function HomepageSection({
     const nextHighlights = resolveHomepageHighlights(
       configOverrides?.homepageHighlights,
     );
+    const nextFeatured = resolveFeaturedList(configOverrides);
+    const nextPostList = resolveHomePostList(configOverrides);
     const savedHero = configOverrides?.homeHeroImage;
     const nextHero: HomeHeroImageConfig = {
       ...DEFAULT_HERO,
@@ -119,20 +138,30 @@ export function HomepageSection({
     setCategoriesPosition(resolved.position);
     setSections(nextSections);
     setHighlights(nextHighlights);
+    setFeatured(nextFeatured);
+    setPostList(nextPostList);
     setHero(nextHero);
     setSavedSnapshot(
       JSON.stringify({
         hero: nextHero,
+        featured: nextFeatured,
         highlights: nextHighlights,
         categories: {
           enabled: resolved.enabled,
           position: resolved.position,
           sections: nextSections,
         },
+        postList: nextPostList,
       }),
     );
     setHydrated(true);
   }, [configOverrides, hydrated]);
+
+  // Published items marked featured: true, for the rail count
+  const featuredCount =
+    publishedPosts === undefined || featuredPages === undefined
+      ? undefined
+      : publishedPosts.filter((p) => p.featured).length + featuredPages.length;
 
   // Running order derived from the form, with live publish data when loaded
   const order = useMemo(() => {
@@ -145,12 +174,23 @@ export function HomepageSection({
       hero,
       highlights,
       categories: currentState.categories,
-      showPostList: siteConfig.postsDisplay.showOnHome,
+      showPostList: postList.enabled,
+      featuredList: { enabled: featured.enabled, count: featuredCount },
       publishedProjectSlugs: publishedProjects?.map((p) => p.slug),
       publishedPostSlugs: publishedPosts?.map((p) => p.slug),
       tagCounts,
     });
-  }, [hero, highlights, currentState.categories, publishedTags, publishedProjects, publishedPosts]);
+  }, [
+    hero,
+    highlights,
+    currentState.categories,
+    postList.enabled,
+    featured.enabled,
+    featuredCount,
+    publishedTags,
+    publishedProjects,
+    publishedPosts,
+  ]);
 
   const updateSection = (
     index: number,
@@ -190,31 +230,55 @@ export function HomepageSection({
           showInNav: section.showInNav === true,
         }));
 
-      await savePartialOverrides({
-        overrides: {
-          homeHeroImage: {
-            enabled: hero.enabled,
-            src: hero.src.trim(),
-            alt: hero.alt?.trim() ?? "",
-            href: hero.href?.trim() ?? "",
-            layout: hero.layout === "aside" ? "aside" : "banner",
-            side: hero.side === "left" ? "left" : "right",
-            position: hero.position,
-            width: hero.width,
-            rounded: hero.rounded !== false,
-          },
-          homepageHighlights: {
-            ...highlights,
-            projectsTitle: highlights.projectsTitle.trim() || "Projects",
-            postSlug: highlights.postSlug.trim(),
-          },
-          homeCategories: {
-            enabled: categoriesEnabled,
-            position: categoriesPosition,
-            sections: cleanSections,
+      // Every field is sent explicitly, including false, 0, and "", because the
+      // server merge never deletes keys. Site Config owns the rest of postsDisplay.
+      const overrides = {
+        homeHeroImage: {
+          enabled: hero.enabled,
+          src: hero.src.trim(),
+          alt: hero.alt?.trim() ?? "",
+          href: hero.href?.trim() ?? "",
+          layout: hero.layout === "aside" ? "aside" : "banner",
+          side: hero.side === "left" ? "left" : "right",
+          position: hero.position,
+          width: hero.width,
+          rounded: hero.rounded !== false,
+        },
+        featuredSectionEnabled: featured.enabled,
+        featuredTitle: featured.title,
+        featuredViewMode: featured.viewMode,
+        showViewToggle: featured.showViewToggle,
+        homepageHighlights: {
+          ...highlights,
+          projectsTitle: highlights.projectsTitle.trim() || "Projects",
+          postSlug: highlights.postSlug.trim(),
+        },
+        homeCategories: {
+          enabled: categoriesEnabled,
+          position: categoriesPosition,
+          sections: cleanSections,
+        },
+        postsDisplay: {
+          showOnHome: postList.enabled,
+          homePostsLimit: postList.limit,
+          homeTitle: postList.title.trim(),
+          homeViewMode: postList.viewMode,
+          homeShowViewToggle: postList.showViewToggle,
+          homeShowReadTime: postList.showReadTime,
+          homeShowDate: postList.showDate,
+          homeShowYearHeadings: postList.showYearHeadings,
+          homeUnderlineTitles: postList.underlineTitles,
+          homePostsReadMore: {
+            enabled: postList.readMore.enabled,
+            text: postList.readMore.text.trim(),
+            link: postList.readMore.link.trim() || "/blog",
           },
         },
-      });
+      };
+      await savePartialOverrides({ overrides });
+      // Keep the in memory config current so pages that still read the
+      // siteConfig singleton (nav, /blog) see this save without a reload.
+      applyRuntimeConfigOverrides(siteConfig, overrides);
       setSavedSnapshot(currentSnapshot);
       addToast("Homepage saved.", "success");
       const navCount = cleanSections.filter((s) => s.showInNav).length;
@@ -285,8 +349,7 @@ export function HomepageSection({
           <div className="dashboard-config-card">
             <h3>Banner image</h3>
             <p className="config-field-note">
-              Shows on / after the next full page load. Highlights and category
-              sections below update live.
+              A wide strip above or below the intro, or a portrait beside it.
             </p>
             <div className="config-field checkbox">
               <label>
@@ -458,12 +521,81 @@ export function HomepageSection({
             </div>
           </div>
 
-          {/* Featured post and selected projects, above or below the post list */}
+          {/* Featured list: every post and page marked featured: true, under the intro */}
           <div className="dashboard-config-card">
-            <h3>Homepage highlights</h3>
+            <h3>Featured list</h3>
             <p className="config-field-note">
-              A featured post and selected projects on the default homepage.
-              Empty or unpublished selections stay hidden.
+              Posts and pages with <code>featured: true</code> in their
+              frontmatter, listed under the intro. Turning it off here keeps the
+              flag, so /blog ordering does not change.
+              {featuredCount !== undefined
+                ? ` ${featuredCount} ${featuredCount === 1 ? "item is" : "items are"} marked featured right now.`
+                : ""}
+            </p>
+            <div className="config-field checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={featured.enabled}
+                  onChange={(e) =>
+                    setFeatured({ ...featured, enabled: e.target.checked })
+                  }
+                />
+                <span>Show the featured list</span>
+              </label>
+            </div>
+            {featured.enabled && (
+              <div className="home-highlight-group">
+                <div className="config-field">
+                  <label htmlFor="home-featured-title">Heading</label>
+                  <input
+                    id="home-featured-title"
+                    type="text"
+                    value={featured.title}
+                    placeholder="Featured"
+                    onChange={(e) =>
+                      setFeatured({ ...featured, title: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="config-field">
+                  <label htmlFor="home-featured-view">Layout</label>
+                  <select
+                    id="home-featured-view"
+                    value={featured.viewMode}
+                    onChange={(e) =>
+                      setFeatured({
+                        ...featured,
+                        viewMode: e.target.value === "cards" ? "cards" : "list",
+                      })
+                    }
+                  >
+                    <option value="list">Titles</option>
+                    <option value="cards">Cards</option>
+                  </select>
+                </div>
+                <div className="config-field checkbox">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={featured.showViewToggle}
+                      onChange={(e) =>
+                        setFeatured({ ...featured, showViewToggle: e.target.checked })
+                      }
+                    />
+                    <span>Let readers switch between titles and cards</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Spotlight post and selected projects, above or below the post list */}
+          <div className="dashboard-config-card">
+            <h3>Spotlight</h3>
+            <p className="config-field-note">
+              One hand picked post and a few projects, placed above or below the
+              post list. Empty or unpublished selections stay hidden.
             </p>
             <HomepageHighlightsFields
               config={highlights}
@@ -704,6 +836,197 @@ export function HomepageSection({
               Sections with no matching posts are skipped, so an empty tag never
               leaves a heading behind.
             </span>
+          </div>
+
+          {/* The main post list. /blog has its own settings in Site Config. */}
+          <div className="dashboard-config-card">
+            <h3>Post list</h3>
+            <p className="config-field-note">
+              The main list of published posts on /. Spotlight, projects, and
+              category sections sit above or below it. The /blog page has its own
+              settings under Site Config, Content.
+            </p>
+            <div className="config-field checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={postList.enabled}
+                  onChange={(e) =>
+                    setPostList({ ...postList, enabled: e.target.checked })
+                  }
+                />
+                <span>Show the post list</span>
+              </label>
+            </div>
+            {postList.enabled && (
+              <div className="home-highlight-group">
+                <div className="home-field-row">
+                  <div className="config-field">
+                    <label htmlFor="home-posts-title">Heading</label>
+                    <input
+                      id="home-posts-title"
+                      type="text"
+                      value={postList.title}
+                      placeholder="Leave blank for no heading"
+                      onChange={(e) =>
+                        setPostList({ ...postList, title: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="config-field">
+                    <label htmlFor="home-posts-limit">How many</label>
+                    <input
+                      id="home-posts-limit"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={postList.limit}
+                      onChange={(e) => {
+                        const next = parseInt(e.target.value, 10);
+                        setPostList({
+                          ...postList,
+                          limit: Number.isFinite(next) && next >= 0 ? next : 0,
+                        });
+                      }}
+                    />
+                  </div>
+                </div>
+                <span className="config-field-note">
+                  {postList.limit === 0
+                    ? "0 shows every published post."
+                    : `Shows the ${postList.limit} newest ${postList.limit === 1 ? "post" : "posts"}.`}
+                </span>
+
+                <div className="config-field">
+                  <label htmlFor="home-posts-view">Layout</label>
+                  <select
+                    id="home-posts-view"
+                    value={postList.viewMode}
+                    onChange={(e) =>
+                      setPostList({
+                        ...postList,
+                        viewMode: e.target.value === "cards" ? "cards" : "list",
+                      })
+                    }
+                  >
+                    <option value="list">List</option>
+                    <option value="cards">Cards</option>
+                  </select>
+                </div>
+                <div className="config-field checkbox">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={postList.showViewToggle}
+                      onChange={(e) =>
+                        setPostList({ ...postList, showViewToggle: e.target.checked })
+                      }
+                    />
+                    <span>Let readers switch between list and cards</span>
+                  </label>
+                </div>
+
+                <div className="home-section-options">
+                  <label className="home-section-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={postList.showDate}
+                      onChange={(e) =>
+                        setPostList({ ...postList, showDate: e.target.checked })
+                      }
+                    />
+                    <span>Date</span>
+                  </label>
+                  <label className="home-section-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={postList.showReadTime}
+                      onChange={(e) =>
+                        setPostList({ ...postList, showReadTime: e.target.checked })
+                      }
+                    />
+                    <span>Read time</span>
+                  </label>
+                  <label className="home-section-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={postList.showYearHeadings}
+                      onChange={(e) =>
+                        setPostList({ ...postList, showYearHeadings: e.target.checked })
+                      }
+                    />
+                    <span>Year headings</span>
+                  </label>
+                  <label className="home-section-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={postList.underlineTitles}
+                      onChange={(e) =>
+                        setPostList({ ...postList, underlineTitles: e.target.checked })
+                      }
+                    />
+                    <span>Underline titles</span>
+                  </label>
+                </div>
+
+                <div className="config-field checkbox">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={postList.readMore.enabled}
+                      onChange={(e) =>
+                        setPostList({
+                          ...postList,
+                          readMore: { ...postList.readMore, enabled: e.target.checked },
+                        })
+                      }
+                    />
+                    <span>Add a read more link under the list</span>
+                  </label>
+                </div>
+                {postList.readMore.enabled && (
+                  <>
+                    <div className="home-field-row">
+                      <div className="config-field">
+                        <label htmlFor="home-posts-read-more-text">Link text</label>
+                        <input
+                          id="home-posts-read-more-text"
+                          type="text"
+                          value={postList.readMore.text}
+                          placeholder="Read more posts"
+                          onChange={(e) =>
+                            setPostList({
+                              ...postList,
+                              readMore: { ...postList.readMore, text: e.target.value },
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="config-field">
+                        <label htmlFor="home-posts-read-more-link">Goes to</label>
+                        <input
+                          id="home-posts-read-more-link"
+                          type="text"
+                          value={postList.readMore.link}
+                          placeholder="/blog"
+                          onChange={(e) =>
+                            setPostList({
+                              ...postList,
+                              readMore: { ...postList.readMore, link: e.target.value },
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <span className="config-field-note">
+                      {postList.limit === 0
+                        ? "Only shows when How many is above 0 and more posts exist."
+                        : "Shows when more posts exist than the limit. A /blog link hides while that route is off."}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

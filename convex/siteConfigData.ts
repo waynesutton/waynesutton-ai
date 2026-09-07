@@ -7,6 +7,40 @@ import { isAudioVoice } from "./lib/audioText";
 // Storage key for dashboard-saved config overrides in the siteConfig table
 const OVERRIDES_KEY = "runtimeOverrides";
 
+type PlainObject = Record<string, unknown>;
+
+function isPlainObject(value: unknown): value is PlainObject {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
+
+// Nested plain objects merge key by key so two dashboard sections can own
+// different fields of the same top level key (for example postsDisplay).
+// Arrays and scalars replace outright. Keys are never deleted; writers send
+// an explicit false or empty string to clear a value.
+export function mergeOverrides(
+  current: PlainObject,
+  incoming: PlainObject,
+): PlainObject {
+  const result: PlainObject = { ...current };
+  for (const [key, value] of Object.entries(incoming)) {
+    if (key === "__proto__" || key === "constructor" || key === "prototype") {
+      continue;
+    }
+    const existing = result[key];
+    if (isPlainObject(existing) && isPlainObject(value)) {
+      result[key] = mergeOverrides(existing, value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 /**
  * Returns dashboard-saved config overrides, or null if none have been saved.
  * Intentionally public and unauthenticated: site config is public data
@@ -28,9 +62,10 @@ export const getOverrides = query({
 });
 
 /**
- * Merges config overrides into the saved document, one top-level key at a time.
- * Dashboard sections each own a slice of the config (Site Config, Homepage), so a
- * full replace would let one section wipe another's saved values. Admin only.
+ * Merges config overrides into the saved document. Nested plain objects merge
+ * field by field, so dashboard sections can own different fields of the same
+ * key (Homepage owns postsDisplay.showOnHome, Site Config owns
+ * postsDisplay.showOnBlogPage) without wiping each other. Admin only.
  */
 export const savePartialOverrides = mutation({
   args: {
@@ -48,7 +83,7 @@ export const savePartialOverrides = mutation({
     if (existing) {
       const current = (existing.value ?? {}) as Record<string, unknown>;
       await ctx.db.patch(existing._id, {
-        value: { ...current, ...args.overrides },
+        value: mergeOverrides(current, args.overrides),
       });
     } else {
       await ctx.db.insert("siteConfig", {

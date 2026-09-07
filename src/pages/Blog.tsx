@@ -212,11 +212,19 @@ export default function Blog() {
       {shouldShowNewsletter(siteConfig.newsletter?.signup.blogPage) &&
         newsletterPosition(siteConfig.newsletter?.signup.blogPage, "above-footer") ===
           "below-posts" && <NewsletterSignup source="blog-page" />}
-      {/* Message when posts are disabled on blog page */}
+      {/* Posts are switched off for /blog. Plain wording for readers, with the
+          dashboard path for whoever owns the site. */}
       {!showPosts && (
         <p className="blog-disabled-message">
-          Posts are configured to not display on this page. Update{" "}
-          <code>postsDisplay.showOnBlogPage</code> in siteConfig to enable.
+          The post list is turned off for this page.
+          {siteConfig.dashboard?.enabled !== false && (
+            <>
+              {" "}
+              Turn it back on in Dashboard, Site Config, Blog Page, or set{" "}
+              <code>postsDisplay.showOnBlogPage</code> in{" "}
+              <code>siteConfig.ts</code>.
+            </>
+          )}
         </p>
       )}
 

@@ -29,7 +29,7 @@ export default function HomepageHighlights({
   return (
     <>
       {showPost && post && !post.unlisted && (
-        <section className="home-highlight" aria-label="Featured post">
+        <section className="home-highlight" aria-label="Spotlight post">
           {config?.postThumbnail && post.image && (
             <Link to={`/${post.slug}`} tabIndex={-1} aria-hidden="true">
               <img

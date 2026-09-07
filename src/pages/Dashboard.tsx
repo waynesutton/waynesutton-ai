@@ -1,6 +1,5 @@
 import { collectAuthorSuggestions, type AuthorSuggestion } from "../utils/authorSuggestions";
 import { NewsletterAutomationSettings, NewsletterAutomationHistory } from "../components/dashboard/NewsletterAutomationSettings";
-import { HomepageHighlightsSettings } from "../components/dashboard/HomepageHighlightsSettings";
 // Inter, self hosted. Imported here rather than in index.html so it ships in the
 // lazy-loaded dashboard chunk and never costs the public site a font request.
 import "@fontsource-variable/inter";
@@ -146,7 +145,11 @@ import { SkillsSection } from "../components/dashboard/SkillsSection";
 import AgentReadySection from "../components/AgentReadySection";
 import DashboardDocsSection from "../components/DashboardDocsSection";
 import siteConfig from "../config/siteConfig";
-import type { SiteConfigOverrides } from "../config/runtimeConfig";
+import {
+  applyRuntimeConfigOverrides,
+  type SiteConfigOverrides,
+} from "../config/runtimeConfig";
+import type { SiteConfig } from "../config/siteConfig";
 import AIChatView from "../components/AIChatView";
 import VersionHistoryModal from "../components/VersionHistoryModal";
 import { MediaLibrary } from "../components/MediaLibrary";
@@ -2671,6 +2674,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               <ConfigSection
                 addToast={addToast}
                 onNavigateToIndexHtml={() => setActiveSection("index-html")}
+                onNavigateToHomepage={() => setActiveSection("homepage")}
                 deepLink={configDeepLink}
                 onDeepLinkConsumed={() => setConfigDeepLink(null)}
               />
@@ -6550,29 +6554,19 @@ function readIndexHtmlReminderDismissed(): boolean {
   }
 }
 
-function ConfigSection({
-  addToast,
-  onNavigateToIndexHtml,
-  deepLink,
-  onDeepLinkConsumed,
-}: {
-  addToast: (message: string, type: ToastType) => void;
-  onNavigateToIndexHtml?: () => void;
-  /** Card requested from the command palette. Nonce lets the same card fire twice. */
-  deepLink?: ConfigDeepLink | null;
-  onDeepLinkConsumed?: () => void;
-}) {
-  const [config, setConfig] = useState({
+// Flat form state for the Site Config editor, read from the merged siteConfig.
+// A function rather than an inline initializer so the form can re-hydrate when
+// another tab or admin saves overrides (see the live overrides effect below).
+// Homepage post list, featured list, and spotlight fields are not here: the
+// Homepage section owns them and saves them through the same deep merge.
+function configStateFromSite(siteConfig: SiteConfig) {
+  return {
     name: siteConfig.name,
     title: siteConfig.title,
     logo: siteConfig.logo || "",
     bio: siteConfig.bio,
     fontFamily: siteConfig.fontFamily,
     defaultTheme: siteConfig.defaultTheme || "light",
-    featuredViewMode: siteConfig.featuredViewMode,
-    featuredTitle: siteConfig.featuredTitle,
-    showViewToggle: siteConfig.showViewToggle,
-    featuredSectionEnabled: siteConfig.featuredSectionEnabled !== false,
     // Blog page
     blogPageEnabled: siteConfig.blogPage.enabled,
     blogPageShowInNav: siteConfig.blogPage.showInNav,
@@ -6595,21 +6589,8 @@ function ConfigSection({
     skillsPageTitle: siteConfig.skillsPage?.title ?? "Skills",
     skillsPageDescription: siteConfig.skillsPage?.description || "",
     skillsPageOrder: siteConfig.skillsPage?.order ?? 4,
-    // Posts display
-    showPostsOnHome: siteConfig.postsDisplay.showOnHome,
+    // Blog list rows (/blog, tag pages, author pages)
     showPostsOnBlogPage: siteConfig.postsDisplay.showOnBlogPage,
-    homePostsLimit: siteConfig.postsDisplay.homePostsLimit || 0,
-    homePostsReadMoreEnabled: siteConfig.postsDisplay.homePostsReadMore?.enabled || false,
-    homePostsReadMoreText: siteConfig.postsDisplay.homePostsReadMore?.text || "",
-    homePostsReadMoreLink: siteConfig.postsDisplay.homePostsReadMore?.link || "",
-    // Homepage post list appearance
-    homePostsTitle: siteConfig.postsDisplay.homeTitle || "",
-    homePostsViewMode: siteConfig.postsDisplay.homeViewMode || "list",
-    homePostsShowViewToggle: siteConfig.postsDisplay.homeShowViewToggle === true,
-    homePostsShowReadTime: siteConfig.postsDisplay.homeShowReadTime !== false,
-    homePostsShowDate: siteConfig.postsDisplay.homeShowDate !== false,
-    homePostsShowYearHeadings: siteConfig.postsDisplay.homeShowYearHeadings !== false,
-    homePostsUnderlineTitles: siteConfig.postsDisplay.homeUnderlineTitles === true,
     blogPostsShowReadTime: siteConfig.postsDisplay.blogShowReadTime !== false,
     blogPostsShowDate: siteConfig.postsDisplay.blogShowDate !== false,
     blogPostsShowYearHeadings: siteConfig.postsDisplay.blogShowYearHeadings !== false,
@@ -6707,7 +6688,60 @@ function ConfigSection({
     relatedPostsShowViewToggle: siteConfig.relatedPosts?.showViewToggle !== false,
     audioEnabledDefault: siteConfig.audio?.enabledDefault !== false,
     audioDefaultVoice: siteConfig.audio?.defaultVoice === "male" ? "male" : "female",
-  });
+  };
+}
+
+type ConfigFormState = ReturnType<typeof configStateFromSite>;
+
+// Logo gallery images live outside the flat form state because they are an
+// array of objects. siteConfig allows bare strings, so normalize on the way in
+// and always write back the object form.
+function logoImagesFromSite(siteConfig: SiteConfig): Array<LogoItem> {
+  return (siteConfig.logoGallery?.images ?? []).map((image) =>
+    typeof image === "string" ? { src: image } : { ...image },
+  );
+}
+
+function ConfigSection({
+  addToast,
+  onNavigateToIndexHtml,
+  onNavigateToHomepage,
+  deepLink,
+  onDeepLinkConsumed,
+}: {
+  addToast: (message: string, type: ToastType) => void;
+  onNavigateToIndexHtml?: () => void;
+  /** Opens the Homepage section, which owns the post list and featured cards. */
+  onNavigateToHomepage?: () => void;
+  /** Card requested from the command palette. Nonce lets the same card fire twice. */
+  deepLink?: ConfigDeepLink | null;
+  onDeepLinkConsumed?: () => void;
+}) {
+  // siteConfig already has boot-time overrides merged in (src/main.tsx)
+  const [config, setConfig] = useState<ConfigFormState>(() => configStateFromSite(siteConfig));
+  const [logoImages, setLogoImages] = useState<Array<LogoItem>>(() =>
+    logoImagesFromSite(siteConfig),
+  );
+
+  // Live overrides keep this form honest when the Homepage section, another
+  // tab, or another admin saves. Unsaved edits win: the form only re-hydrates
+  // while it matches the last saved snapshot, so typing is never clobbered.
+  const liveOverrides = useQuery(api.siteConfigData.getOverrides);
+  const latestForm = useRef({ config, logoImages });
+  latestForm.current = { config, logoImages };
+  const savedSnapshot = useRef(JSON.stringify({ config, logoImages }));
+  useEffect(() => {
+    if (liveOverrides === undefined) return;
+    // Merge into the shared siteConfig object so every reader (public pages
+    // in this tab, other dashboard sections) sees the saved values
+    applyRuntimeConfigOverrides(siteConfig, liveOverrides);
+    const isDirty = JSON.stringify(latestForm.current) !== savedSnapshot.current;
+    if (isDirty) return;
+    const next = { config: configStateFromSite(siteConfig), logoImages: logoImagesFromSite(siteConfig) };
+    setConfig(next.config);
+    setLogoImages(next.logoImages);
+    savedSnapshot.current = JSON.stringify(next);
+  }, [liveOverrides]);
 
   // Active Site Config tab. Persisted so the owner lands where they left off.
   const [activeTab, setActiveTab] = useState<ConfigTab>(() => {
@@ -6774,14 +6808,6 @@ function ConfigSection({
     return () => window.cancelAnimationFrame(frame);
   }, [deepLink, activeTab, selectTab, onDeepLinkConsumed]);
 
-  // Logo gallery images live outside the flat `config` object because they are an
-  // array of objects. siteConfig allows bare strings, so normalize on the way in
-  // and always write back the object form.
-  const [logoImages, setLogoImages] = useState<Array<LogoItem>>(() =>
-    (siteConfig.logoGallery?.images ?? []).map((image) =>
-      typeof image === "string" ? { src: image } : { ...image },
-    ),
-  );
   const [logoPickerOpen, setLogoPickerOpen] = useState(false);
   const [logoUrlDraft, setLogoUrlDraft] = useState("");
 
@@ -6822,8 +6848,10 @@ function ConfigSection({
   };
 
   // Builds the runtime overrides object saved to Convex. Mirrors generateConfigCode()
-  // field mapping, but omits arrays the dashboard cannot edit (logoGallery.images,
-  // socialFooter.socialLinks, hardcodedNavItems) so the merge never clobbers file values.
+  // field mapping, but omits arrays the dashboard cannot edit (socialFooter.socialLinks,
+  // hardcodedNavItems) so the merge never clobbers file values. Every field is sent
+  // explicitly, including false, 0, and "", because the server merge never deletes
+  // keys: a value left out would keep whatever was saved before.
   const buildOverrides = (): SiteConfigOverrides => {
     return {
       name: config.name,
@@ -6832,10 +6860,6 @@ function ConfigSection({
       bio: config.bio,
       fontFamily: config.fontFamily,
       defaultTheme: config.defaultTheme,
-      featuredViewMode: config.featuredViewMode,
-      featuredTitle: config.featuredTitle,
-      showViewToggle: config.showViewToggle,
-      featuredSectionEnabled: config.featuredSectionEnabled,
       logoGallery: {
         enabled: config.logoGalleryEnabled,
         // Arrays replace rather than merge, so the dashboard list is the source
@@ -6888,22 +6912,10 @@ function ConfigSection({
         description: config.skillsPageDescription,
         order: config.skillsPageOrder,
       },
+      // Only the /blog half. The Homepage section writes showOnHome and the
+      // home* keys into the same object through the server-side deep merge.
       postsDisplay: {
-        showOnHome: config.showPostsOnHome,
         showOnBlogPage: config.showPostsOnBlogPage,
-        ...(config.homePostsLimit ? { homePostsLimit: config.homePostsLimit } : {}),
-        homePostsReadMore: {
-          enabled: config.homePostsReadMoreEnabled,
-          text: config.homePostsReadMoreText,
-          link: config.homePostsReadMoreLink,
-        },
-        homeTitle: config.homePostsTitle,
-        homeViewMode: config.homePostsViewMode as "list" | "cards",
-        homeShowViewToggle: config.homePostsShowViewToggle,
-        homeShowReadTime: config.homePostsShowReadTime,
-        homeShowDate: config.homePostsShowDate,
-        homeShowYearHeadings: config.homePostsShowYearHeadings,
-        homeUnderlineTitles: config.homePostsUnderlineTitles,
         blogShowReadTime: config.blogPostsShowReadTime,
         blogShowDate: config.blogPostsShowDate,
         blogShowYearHeadings: config.blogPostsShowYearHeadings,
@@ -6933,10 +6945,10 @@ function ConfigSection({
       },
       homepage: {
         type: config.homepageType,
-        ...(config.homepageSlug ? { slug: config.homepageSlug } : {}),
-        ...(config.homepageOriginalRoute
-          ? { originalHomeRoute: config.homepageOriginalRoute }
-          : {}),
+        // Empty strings are sent on purpose so clearing a field actually clears it.
+        // App.tsx treats "" as unset for both.
+        slug: config.homepageSlug,
+        originalHomeRoute: config.homepageOriginalRoute,
       },
       aiChat: {
         enabledOnWritePage: config.aiChatEnabledOnWritePage,
@@ -7046,8 +7058,13 @@ function ConfigSection({
     if (saving) return;
     setSaving(true);
     try {
-      await saveOverridesMutation({ overrides: buildOverrides() });
-      addToast("Config saved. Changes go live on next page load.", "success");
+      const overrides = buildOverrides();
+      await saveOverridesMutation({ overrides });
+      // Mirror the save into the shared siteConfig object and mark the form
+      // clean so the live overrides echo re-hydrates instead of being ignored
+      applyRuntimeConfigOverrides(siteConfig, overrides);
+      savedSnapshot.current = JSON.stringify({ config, logoImages });
+      addToast("Site config saved. Routes and nav pick it up on the next page load.", "success");
       // Metadata that index.html mirrors changed, so the reminder is relevant again
       if (indexHtmlMetadataFingerprint(config) !== indexHtmlMetadataFingerprint(siteConfig)) {
         setReminderDismissed(false);
@@ -7468,174 +7485,23 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
           </span>
         </div>
 
-        <div className="dashboard-config-slot" id={configCardDomId("homepage-highlights")} data-config-card="homepage-highlights">
-          <HomepageHighlightsSettings />
-        </div>
-
-        {/* Posts Display */}
-        <div className="dashboard-config-card" id={configCardDomId("posts-display")} data-config-card="posts-display">
-          <h3>Posts Display</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.showPostsOnHome}
-                onChange={(e) => handleChange("showPostsOnHome", e.target.checked)}
-              />
-              <span>Show posts on homepage</span>
-            </label>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.showPostsOnBlogPage}
-                onChange={(e) => handleChange("showPostsOnBlogPage", e.target.checked)}
-              />
-              <span>Show posts on blog page</span>
-            </label>
-          </div>
-          <div className="config-field">
-            <label>Home Posts Limit (0 = all)</label>
-            <input
-              type="number"
-              value={config.homePostsLimit}
-              onChange={(e) => handleChange("homePostsLimit", parseInt(e.target.value) || 0)}
-              min={0}
-            />
-          </div>
-          {config.showPostsOnHome && (
-            <>
-              <div className="config-field">
-                <label>Homepage list heading (blank = none)</label>
-                <input
-                  type="text"
-                  value={config.homePostsTitle}
-                  placeholder="Posts"
-                  onChange={(e) => handleChange("homePostsTitle", e.target.value)}
-                />
-              </div>
-              <div className="config-field">
-                <label>Homepage list view</label>
-                <select
-                  value={config.homePostsViewMode}
-                  onChange={(e) => handleChange("homePostsViewMode", e.target.value)}>
-                  <option value="list">List</option>
-                  <option value="cards">Gallery</option>
-                </select>
-              </div>
-              <div className="config-field checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={config.homePostsShowViewToggle}
-                    onChange={(e) =>
-                      handleChange("homePostsShowViewToggle", e.target.checked)
-                    }
-                  />
-                  <span>Show list/gallery toggle</span>
-                </label>
-              </div>
-              <div className="config-field checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={config.homePostsShowReadTime}
-                    onChange={(e) =>
-                      handleChange("homePostsShowReadTime", e.target.checked)
-                    }
-                  />
-                  <span>Show read time</span>
-                </label>
-              </div>
-              <div className="config-field checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={config.homePostsShowDate}
-                    onChange={(e) => handleChange("homePostsShowDate", e.target.checked)}
-                  />
-                  <span>Show published date</span>
-                </label>
-              </div>
-              <div className="config-field checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={config.homePostsShowYearHeadings}
-                    onChange={(e) =>
-                      handleChange("homePostsShowYearHeadings", e.target.checked)
-                    }
-                  />
-                  <span>Group by year</span>
-                </label>
-              </div>
-              <div className="config-field checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={config.homePostsUnderlineTitles}
-                    onChange={(e) =>
-                      handleChange("homePostsUnderlineTitles", e.target.checked)
-                    }
-                  />
-                  <span>Underline titles</span>
-                </label>
-              </div>
-              <span className="config-field-note">
-                Turn these on to make the homepage list read like the featured
-                section, then hide the featured section below.
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* Featured Section */}
-        <div className="dashboard-config-card" id={configCardDomId("featured-section")} data-config-card="featured-section">
-          <h3>Featured Section</h3>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.featuredSectionEnabled}
-                onChange={(e) =>
-                  handleChange("featuredSectionEnabled", e.target.checked)
-                }
-              />
-              <span>Show featured section on homepage</span>
-            </label>
-          </div>
-          <span className="config-field-note">
-            Hiding it leaves the featured flag alone, so posts keep their order on
-            the blog page.
-          </span>
-          <div className="config-field">
-            <label>Featured Title</label>
-            <input
-              type="text"
-              value={config.featuredTitle}
-              onChange={(e) => handleChange("featuredTitle", e.target.value)}
-            />
-          </div>
-          <div className="config-field">
-            <label>View Mode</label>
-            <select
-              value={config.featuredViewMode}
-              onChange={(e) => handleChange("featuredViewMode", e.target.value)}>
-              <option value="list">List</option>
-              <option value="cards">Cards</option>
-            </select>
-          </div>
-          <div className="config-field checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={config.showViewToggle}
-                onChange={(e) => handleChange("showViewToggle", e.target.checked)}
-              />
-              <span>Show view toggle</span>
-            </label>
-          </div>
+        {/* Pointer only. The Homepage section owns every card that changes what
+            renders on /, with a live running order, so those controls are not
+            repeated here. */}
+        <div className="dashboard-config-card" id={configCardDomId("homepage-content")} data-config-card="homepage-content">
+          <h3>Homepage content</h3>
+          <p className="config-field-note">
+            Banner, featured list, spotlight post and projects, category
+            sections, and the post list all live in the Homepage section, with a
+            running order that shows what / renders top to bottom.
+          </p>
+          <button
+            type="button"
+            className="dashboard-link-button"
+            onClick={onNavigateToHomepage}
+          >
+            Open Homepage
+          </button>
         </div>
 
         {/* Logo Gallery */}
@@ -7812,12 +7678,10 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
         {/* Blog Page Settings */}
         <div className="dashboard-config-card" id={configCardDomId("blog-page")} data-config-card="blog-page">
           <h3>Blog Page</h3>
-          <div className="config-field"><label>Blog description<textarea value={config.blogPageDescription} onChange={(e) => handleChange("blogPageDescription", e.target.value)} /></label></div>
-
-          <div className="config-field checkbox"><label><input type="checkbox" checked={config.homePostsReadMoreEnabled} onChange={(e) => handleChange("homePostsReadMoreEnabled", e.target.checked)} />Show homepage read-more button</label></div>
-          <div className="config-field"><label>Read-more button text<input value={config.homePostsReadMoreText} onChange={(e) => handleChange("homePostsReadMoreText", e.target.value)} /></label></div>
-          <div className="config-field"><label>Read-more destination<input value={config.homePostsReadMoreLink} onChange={(e) => handleChange("homePostsReadMoreLink", e.target.value)} /></label><span className="config-field-note">Shown when the homepage post limit leaves more articles to read. The /blog link hides when that route is disabled.</span></div>
-
+          <p className="config-field-note">
+            The /blog archive. The homepage post list has its own card in the
+            Homepage section.
+          </p>
           <div className="config-field checkbox">
             <label>
               <input
@@ -7828,6 +7692,21 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
               <span>Enable /blog route</span>
             </label>
           </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.showPostsOnBlogPage}
+                onChange={(e) => handleChange("showPostsOnBlogPage", e.target.checked)}
+              />
+              <span>List posts on /blog</span>
+            </label>
+            <span className="config-hint">
+              Off keeps the route and its description but shows no posts. Useful
+              while the blog is a placeholder.
+            </span>
+          </div>
+          <div className="config-field"><label>Blog description<textarea value={config.blogPageDescription} onChange={(e) => handleChange("blogPageDescription", e.target.value)} /></label></div>
           <div className="config-field checkbox">
             <label>
               <input
@@ -7910,8 +7789,8 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
             </label>
           </div>
           <span className="config-field-note">
-            These three apply to /blog, tag pages, and author pages. Homepage
-            list controls stay under Posts Display.
+            These three apply to /blog, tag pages, and author pages. The
+            homepage list has matching options in the Homepage section.
           </span>
         </div>
 
@@ -8563,11 +8442,13 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
 
       <div className="dashboard-config-note">
         <p>
-          <strong>Save</strong> stores these settings in Convex and applies them live on the next
-          page load. No rebuild needed. <strong>Copy Code</strong> or <strong>Download</strong>{" "}
-          exports <code>siteConfig.overrides.ts</code>. Merge its fields into your existing config
-          to make them build-time defaults. Homepage highlights and newsletter automation
-          have their own Save buttons. Newsletter delivery settings are stored privately in Convex.
+          <strong>Save</strong> stores these settings in Convex. Content settings apply right
+          away; routes and nav links need a page load. No rebuild needed.{" "}
+          <strong>Copy Code</strong> or <strong>Download</strong> exports{" "}
+          <code>siteConfig.overrides.ts</code>. Merge its fields into your existing config to
+          make them build-time defaults. Homepage content (post list, featured list, spotlight,
+          banner, category sections) saves from the Homepage section, and newsletter automation
+          has its own Save. Newsletter delivery settings are stored privately in Convex.
         </p>
       </div>
 

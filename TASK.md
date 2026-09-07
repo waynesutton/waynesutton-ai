@@ -4,19 +4,35 @@
 
 Session updates complete on 2026-09-06.
 
+Homepage posts config consolidation (2026-09-06 22:40 UTC): the Homepage dashboard section owns banner, Featured list, Spotlight, category sections, and Post list; Site Config Homepage tab has a pointer card instead of Posts Display / Featured Section / Homepage highlights. `savePartialOverrides` deep merges, `buildOverrides` sends falsy values, `ConfigSection` hydrates from live overrides. `/` reads post list and featured list live. `tsc` app and convex, 68 vitest tests, eslint, convex-doctor 100/100 pass. Signed-in Homepage section click-through open. Not deployed. PRD: `prds/homepage-posts-config-consolidation.md`.
+
+Dashboard Docs contact form how-to (2026-09-06 19:40 UTC): Writing, Newsletter, and Site Config now document the global switch, `<!-- contactform -->`, and `contactForm: true`. Cmd+K `contactform` opens the how-to. Signed-in Docs click-through still open. Not deployed. PRD: `prds/dashboard-docs-contact-form.md`.
+
 Minimap centering (2026-09-06 18:00 UTC): posts with `minimap: true` no longer shift the article left. The outline sits in the right margin. `/test-longttes` at 1440px matches `/why-i-joined-convex` (article 800px, center 716). Rail sticky, click updates the hash, 1024px unmounts the rail. Not deployed. PRD: `prds/minimap-centered-content.md`.
 
 Dashboard Docs scan (2026-09-06 17:55 UTC): slides how-to, Skills directory topic, Convex self-hosting deploy commands, `--prod` vs `:prod` table, and Production/Development names filled from `.env.local` / `.env.production.local` so a fork does not keep Wayne's slugs. `tsc` and 66 vitest tests pass. Signed-in Docs click-through still open. PRD: `prds/dashboard-docs-scan.md`.
 
 First-party WebMCP is in the working tree: public pages register in-page tools on `document.modelContext` for Chrome agents, `POST /mcp` `tools/list` hides `create_draft` without a pipeline key, Site Config has a WebMCP card, and Dashboard Docs has a WebMCP in the browser topic. The app side of WebMCP is verified through a stubbed testing surface (2026-09-06 04:36 UTC); only the real flagged Chrome check is open. `npx convex dev` is healthy again: the `convex/voiceAgent.ts` typecheck error in its scrollback is old, its last pushes at 18:17 to 18:19 PT succeeded, and `tsc -p convex` passes. Write sidebar drag-resize is restored; its signed-in Write pass is still open. Not deployed.
 
-Compared local `main` to https://github.com/waynesutton/waynesutton-ai: not behind GitHub. `HEAD` and `origin/main` are both `0212406` (2026-09-04, agent discovery for projects/pages/CLI sync). No open PRs or issues. GitHub is missing all 2026-09-05 work because it is still uncommitted locally.
+Git: local `HEAD` is `9f3e3bf` (2026-09-06, site audit plus the previously uncommitted 2026-09-05 work). That commit is not on GitHub `origin/main` yet (`0212406`). Still uncommitted locally: Dashboard Docs contact form how-to, `public/AGENTS.md` catching skills/WebMCP/frontmatter rows, and discovery timestamp bumps in `AGENTS.md` / `CLAUDE.md` / `public/llms.txt` / raw pages. No commit, push, or deploy in this pass.
 
 R2 media/gallery/video is complete and live. Cloudflare R2, `waynesutton-media`, exact CORS, active `media.waynesutton.ai`, the rotated bucket-scoped token, and all seven environment variables on development and production are configured. Backend and static assets are deployed to `helpful-ptarmigan-118`. Signed-in development and production R2 PNG/MP4 upload, durable catalog persistence, custom-domain delivery, editor insertion, frontmatter selection, and dashboard preview checks pass.
 
 ## Current handoff (2026-09-05 23:10 UTC)
 
-GitHub `main` matches the last local commit. It does not include the uncommitted 2026-09-05 work: R2 media (already live on production), homepage/newsletter automation, dashboard polish, author/write/discovery, Site Config tabs, homepage layout, post minimap, hide-nav, hide-empty project link icons, and Vendor keys BYOK plus model overrides (pushed to dev `notable-loris-927` only; production still reads env vars directly for embeddings, AgentMail, Firecrawl, GitHub, and webhook secrets until deployed). Newsletter delivery remains untested against real recipients, and automation stays off. Docs sync for hide-empty project icons is done. No commit, push, or deploy in this pass.
+GitHub `main` is still `0212406`. Local `HEAD` is `9f3e3bf` (2026-09-06). Remaining uncommitted work is the Dashboard Docs contact form how-to plus discovery file catch-up (`public/AGENTS.md`, timestamps). No commit, push, or deploy in this pass.
+
+## Homepage posts config consolidation (2026-09-06 22:40 UTC)
+
+- [x] `savePartialOverrides` deep merges plain objects with a prototype key guard; nested merge test added. `convex/siteConfigData.ts`, `convex/siteConfigData.test.ts`.
+- [x] `src/utils/homePostList.ts` resolvers for the post list and featured list; `homepageOrder.ts` gains a Featured list row and the Spotlight label, tests updated.
+- [x] `HomepageSection.tsx`: Featured list and Post list cards, explicit save of every field (0, `""`, `false` included), overrides applied in memory after Save, live featured count.
+- [x] `Dashboard.tsx` `ConfigSection`: hydrates from live `getOverrides` while clean, `buildOverrides` no longer writes homepage post fields and sends empty homepage slug / original route, three cards removed, Homepage content pointer card, Blog Page owns "Show the post list on /blog", Save applies overrides in memory.
+- [x] `Home.tsx` reads post list and featured list live; reader view-mode choice separate from config and only applied while the toggle shows. `Blog.tsx` message reworded.
+- [x] `configGroups.ts`, `docsTopics.ts`, `dashboardSearch.ts`, `HomepageHighlightsSettings.tsx` (fields only), `HomepageHighlights.tsx` aria label.
+- [x] Verified: `tsc --noEmit` app and convex, `vitest run` 68/68, eslint on touched files, `convex-doctor` 100/100 with 0 warnings, dev browser pass on `/` (banner, Writings featured cards, post list) and `/blog` (posts render, no error overlay).
+- [ ] Signed in: open Dashboard, Homepage, set Post list limit to 0, Save, reload, confirm 0 sticks; turn Featured list off and confirm `/` drops it without a reload; Site Config, Blog Page Save and confirm the `runtimeOverrides` row keeps `postsDisplay.showOnHome`.
+- [ ] Not deployed. Ships with the next `npx convex deploy` plus static deploy.
 
 ## Dismissible index.html reminder (2026-09-06 14:47 UTC)
 
@@ -137,6 +153,8 @@ GitHub `main` matches the last local commit. It does not include the uncommitted
 
 ## To Do
 
+- [ ] Signed-in Docs click-through: Writing, Newsletter, and Site Config show the contact form how-to (`<!-- contactform -->`, `contactForm: true`, Site Config switch). Cmd+K `contactform` opens Newsletter. PRD: `prds/dashboard-docs-contact-form.md`
+
 - [ ] Signed-in Docs click-through: Overview table shows this machine's dev/prod slugs, Writing has Markdown slides, Deploying has the `--prod` table and no `npm run deploy --prod`, Skills topic opens. PRD: `prds/dashboard-docs-scan.md`
 
 - [ ] Signed-in Docs scroll pass: at desktop width scroll the topic sidebar from "Getting started" to "Operations" and confirm the article does not move, the Filter topics field stays pinned, and the Copy markdown toolbar stays pinned while the article scrolls. Pick a topic while scrolled deep and confirm the new article starts at the top. Resize below 900px and confirm the master/detail view and single page scroll still work. PRD: `prds/dashboard-docs-sidebar-scroll.md`
@@ -217,7 +235,7 @@ GitHub `main` matches the last local commit. It does not include the uncommitted
 - [ ] Finish the clear-field browser pass on the two image fields the author image already proved out: open a post with both a featured image and a social share image, clear each, save, reload the editor and confirm both stay empty, then check that the raw frontmatter panel no longer lists `image:` or `ogImage:`. Note the HTTP surfaces cache, so `/api/post` and `/raw/{slug}.md` hold the old value for 5 minutes and `/rss.xml` for an hour; check the post page or the editor, not those
 - [ ] Browser pass on the new Drafts Inbox actions: save an inbox draft to draft, confirm it appears unpublished in Posts and that Open loads it in the editor, then publish it and confirm no second post is created; publish another draft unlisted and confirm the slug loads while the post stays out of the homepage, /blog, Cmd+K, /rss.xml, and /sitemap.xml
 - [ ] Browser pass on the standalone field swap: in Drafts Inbox confirm the filter box, the voice agent notes box, the paste box title, and the draft title while editing all match the other dashboard fields; in API Keys open a vendor row to edit; in X confirm the compose box keeps its height. Check all four themes (PRD: prds/drafts-inbox-input-styling.md)
-- [ ] Browser pass on the configurable homepage post list: sign in to /dashboard, open Config, turn Show posts on homepage on, then work the new Posts Display controls one at a time and confirm the homepage responds to each: heading text, list vs gallery default, the visitor toggle appearing, read time, published date, year grouping, underlined titles. Then turn Show featured section on homepage off in the Featured Section card and confirm Writings disappears while the post list stays and `/blog` ordering is unchanged (PRD: prds/homepage-and-dashboard-overhaul.md)
+- [ ] Browser pass on the configurable homepage post list, now in Dashboard, Homepage (the Site Config Posts Display and Featured Section cards are gone as of 2026-09-06): turn Show the post list on, then work the Post list card controls one at a time and confirm `/` responds without a reload: heading text, titles vs cards default, the reader toggle appearing, read time, published date, year grouping, underlined titles, limit 0 shows all. Then turn Show the featured list off in the Featured list card and confirm Writings disappears while the post list stays and `/blog` ordering is unchanged (PRDs: prds/homepage-posts-config-consolidation.md, prds/homepage-and-dashboard-overhaul.md)
 - [ ] Phone pass at 375px on the homepage with posts shown: post rows wrap with no sideways scroll, the section reads as separate from the intro, titles are not oversized, and the read more link is full width (PRD: prds/homepage-and-dashboard-overhaul.md)
 - [ ] Browser pass on the blog hero with no image: feature a post that has no image and confirm the card fills the width with even padding at desktop, tablet, and phone widths, then confirm a hero with an image still renders two columns (PRD: prds/homepage-and-dashboard-overhaul.md)
 - [ ] Browser pass on the Key label field and Agent Ready: confirm API Keys, Import URL, and the X share URL field each show one border and one focus ring on desktop and are unchanged on phones, then open Agent Ready with Show widget off and confirm Position and Widget theme are disabled with a reason, turn it on, save, and confirm each position lands where it says on a public page (PRD: prds/homepage-and-dashboard-overhaul.md)
@@ -253,6 +271,20 @@ GitHub `main` matches the last local commit. It does not include the uncommitted
   - [x] Schema/functions deployed cleanly to development `notable-loris-927`; Convex Doctor reports 91/100 with 22 pre-existing warnings and none left from this feature.
 
 ## Completed
+
+- [x] Homepage posts config consolidation (2026-09-06 22:40 UTC)
+  - [x] Root causes of "config not saving": `savePartialOverrides` shallow merged top level keys so two sections writing `postsDisplay` clobbered each other; `buildOverrides` dropped falsy values through conditional spreads; `ConfigSection` seeded from the boot time `siteConfig` snapshot and could save stale defaults over a newer row
+  - [x] `savePartialOverrides` deep merges plain objects (arrays and scalars replace) with a `__proto__` / `constructor` / `prototype` guard; nested merge test in `convex/siteConfigData.test.ts`
+  - [x] Dashboard Homepage section owns banner, Featured list (new card), Spotlight (renamed from "Featured post"), category sections, and Post list (new card). Every field saved explicitly, overrides applied in memory after Save, live featured count, Running order rail gains a Featured list row
+  - [x] Site Config: Posts Display, Featured Section, and Homepage highlights cards removed; one Homepage content pointer card; Blog Page owns "Show the post list on /blog"; `ConfigSection` hydrates from live `getOverrides` while clean; `homepage.slug` and `originalHomeRoute` send `""` so clearing sticks
+  - [x] `/` reads post list and featured list from live overrides via `src/utils/homePostList.ts`; reader list/cards choice only applies while its toggle is shown. `/blog` off-message names the dashboard path instead of a `siteConfig` field
+  - [x] `configGroups.ts`, `docsTopics.ts`, `dashboardSearch.ts` match the new cards; `HomepageHighlightsSettings.tsx` keeps only `HomepageHighlightsFields`
+  - [x] Verified: `tsc --noEmit` app and convex, vitest 68/68, eslint on touched files, convex-doctor 100/100 with 0 warnings, dev browser pass on `/` and `/blog`. Signed-in Homepage click-through in To Do. Not deployed. PRD: `prds/homepage-posts-config-consolidation.md`
+
+- [x] Dashboard Docs contact form how-to (2026-09-06 19:40 UTC)
+  - [x] Writing, Newsletter, and Site Config now cover the global switch, `<!-- contactform -->`, and `contactForm: true`. Shortcode wins if both are set.
+  - [x] Cmd+K feature entry `feature-contact-form`; Contact Form card keywords include shortcode / contactform
+  - [x] Vitest asserts the shortcode, frontmatter, switch copy, and palette hit. Signed-in Docs click-through still in To Do. Not deployed. PRD: `prds/dashboard-docs-contact-form.md`
 
 - [x] Dashboard docs sidebar scrolls on its own (2026-09-06 18:20 UTC)
   - [x] Root cause: sticky sidebar capped at `calc(100vh - 32px)` while its scroll container `.dashboard-content` is ~80px shorter (56px header plus pane padding), so its scrollport ran past the visible bottom

@@ -2,6 +2,30 @@
 
 A brief description of each file in the codebase.
 
+## Homepage posts config consolidation (2026-09-06 22:40 UTC)
+
+- `prds/homepage-posts-config-consolidation.md`: Four overlapping Site Config cards, the falsy-value and shallow-merge save bugs, and the one-owner fix.
+- `src/utils/homePostList.ts`: `resolveHomePostList(overrides)` and `resolveFeaturedList(overrides)` read the homepage post list and featured list config from live overrides with file config as the per-field fallback. `HOMEPAGE_POSTS_DISPLAY_KEYS` names the `postsDisplay` keys the Homepage section owns.
+- **Modified** `convex/siteConfigData.ts`: `savePartialOverrides` deep merges plain objects (arrays and scalars replace) with a `__proto__` / `constructor` / `prototype` guard, so two dashboard sections can own different keys inside `postsDisplay`.
+- **Modified** `convex/siteConfigData.test.ts`: Nested merge coverage, including untouched siblings and array replacement.
+- **Modified** `src/components/dashboard/HomepageSection.tsx`: New Featured list and Post list cards, hydrates and saves every field explicitly (falsy included), applies overrides to the in-memory `siteConfig` after Save, shows the live featured count.
+- **Modified** `src/components/dashboard/HomepageHighlightsSettings.tsx`: Only `HomepageHighlightsFields` remains; the standalone Site Config card wrapper is gone. "Featured post" is now "Spotlight post".
+- **Modified** `src/components/HomepageHighlights.tsx`: `aria-label="Spotlight post"`.
+- **Modified** `src/utils/homepageOrder.ts`, `src/utils/homepageOrder.test.tsx`: Featured list row in the Running order rail, Spotlight label.
+- **Modified** `src/pages/Dashboard.tsx`: `ConfigSection` hydrates from live `getOverrides` while the form is clean, `configStateFromSite` initializer, `buildOverrides` sends empty strings for `homepage.slug` and `originalHomeRoute` and no longer writes homepage post fields, Posts Display / Featured Section / Homepage highlights cards replaced by one Homepage content pointer card, Blog Page card owns "Show the post list on /blog", Save applies overrides in memory.
+- **Modified** `src/pages/Home.tsx`: Post list and featured list read from `resolveHomePostList` / `resolveFeaturedList`; reader view-mode choice is kept separately and only applies while the matching toggle is shown.
+- **Modified** `src/pages/Blog.tsx`: Plain "post list is turned off" message with the dashboard path instead of a `siteConfig` field name.
+- **Modified** `src/components/dashboard/configGroups.ts`, `src/components/dashboard/docsTopics.ts`, `src/utils/dashboardSearch.ts`: Card list, docs tables, and palette keywords match the new layout.
+
+## Dashboard docs contact form how-to (2026-09-06 19:40 UTC)
+
+- `prds/dashboard-docs-contact-form.md`: The Config toggle is a global switch. Placement is `<!-- contactform -->` or `contactForm: true`.
+- **Modified** `src/components/dashboard/docsTopics.ts`: Writing, Newsletter, and Site Config how-tos for the switch, shortcode, and frontmatter.
+- **Modified** `src/utils/dashboardSearch.ts`: `feature-contact-form` palette entry.
+- **Modified** `src/components/dashboard/configGroups.ts`: Contact Form card keywords include shortcode / contactform.
+- **Modified** `src/utils/webmcp/catalog.test.tsx`: Asserts the shortcode, frontmatter, switch copy, and palette hit.
+- **Modified** `public/AGENTS.md`: Catch-up copy of root `AGENTS.md` (skills directory, WebMCP, minimap / hideNav / slides rows). `AGENTS.md` and `CLAUDE.md` Last Updated stamps only.
+
 ## Dashboard docs sidebar scroll (2026-09-06 18:20 UTC)
 
 - `prds/dashboard-docs-sidebar-scroll.md`: Why the sticky `100vh` cap outran the content pane, and the pane-filling split-scroll fix.
@@ -1580,7 +1604,7 @@ A brief description of each file in the codebase.
 | `PostMinimap.tsx`         | Right-aligned heading outline for posts with frontmatter `minimap: true`. Sits in the right margin so the article stays viewport-centered. Reads h1-h6 via `extractHeadings`, links to the ids `BlogPost` writes, tracks the active section with a rAF-throttled window scroll spy, smooth-scrolls with header offset, updates the hash, and keeps the active item in view when the rail overflows. Depth classes are relative to the shallowest heading present. |
 | `AIChatView.tsx`          | AI chat interface component (Agent) using Anthropic Claude API. Supports per-page chat history, page content context, markdown rendering, and copy functionality. Used in Write page (replaces textarea when enabled) and optionally in RightSidebar. Requires ANTHROPIC_API_KEY environment variable in Convex. System prompt configurable via CLAUDE_PROMPT_STYLE, CLAUDE_PROMPT_COMMUNITY, CLAUDE_PROMPT_RULES, or CLAUDE_SYSTEM_PROMPT environment variables. Includes error handling for missing API keys. |
 | `NewsletterSignup.tsx`    | Newsletter signup form component for email-only subscriptions. Displays configurable title/description, validates email, and submits to Convex. Shows on home, blog page, and posts based on siteConfig.newsletter settings. Supports frontmatter override via newsletter: true/false. Includes honeypot field for bot protection. |
-| `ContactForm.tsx`         | Contact form component with name, email, and message fields. Displays when contactForm: true in frontmatter. Submits to Convex which sends email via AgentMail to configured recipient. Requires AGENTMAIL_API_KEY and AGENTMAIL_INBOX environment variables. Includes honeypot field for bot protection. |
+| `ContactForm.tsx`         | Contact form with name, email, and message. Global switch is `siteConfig.contactForm.enabled`. Place with `<!-- contactform -->` in the body or frontmatter `contactForm: true` (editor Contact Form checkbox) for the bottom of that post or page. Shortcode wins if both are set. Submits to Convex, which emails via AgentMail. Needs `AGENTMAIL_API_KEY` and `AGENTMAIL_CONTACT_EMAIL` (inbox fallback). Honeypot field for bots. |
 | `SocialFooter.tsx`        | Site footer: social icons on the left, AI discovery links in the center (llms.txt, AGENTS.md), copyright on the right. Configurable via siteConfig.socialFooter. Dashboard card is titled Footer. |
 | `AskAIModal.tsx`          | Ask AI chat modal for RAG-based Q&A about site content. Opens via header button (Cmd+J) when enabled. Uses Convex Persistent Text Streaming for real-time responses. Supports model selection (Claude, GPT-4o). Features streaming messages with markdown rendering, internal link handling via React Router, and source citations. Requires siteConfig.askAI.enabled and siteConfig.semanticSearch.enabled. |
 | `VersionHistoryModal.tsx` | Version history modal for viewing and restoring previous content versions. Shows version list with dates and source badges, diff view using DiffCodeBlock component, preview mode, and one-click restore. Used in Dashboard editor when version control is enabled. |
@@ -1602,6 +1626,7 @@ A brief description of each file in the codebase.
 | `extractHeadings.ts` | Parses markdown content to extract headings (H1-H6), generates slugs, filters out headings inside code blocks |
 | `homeCategories.ts`  | Live `homeCategories` resolver, `/tags/{tag}` path helper, nav items for Show in nav, match a tag to a section |
 | `homeHeroImage.ts`   | Live `homeHeroImage` resolver so dashboard Homepage saves show on `/` without a rebuild |
+| `dashboardSearch.ts` | Dashboard Cmd+K index: sections, features, Site Config cards, docs topics, actions. `feature-contact-form` opens the Newsletter how-to. |
 | `imageUpload.ts`     | Shared image picker accept list and MIME inference for PNG, JPG, GIF, WebP, and SVG                           |
 | `workos.ts`          | WorkOS configuration utility. Exports isWorkOSConfigured boolean (checks if VITE_WORKOS_CLIENT_ID and VITE_WORKOS_REDIRECT_URI are set) and workosConfig object with clientId and redirectUri. Used throughout app to conditionally enable WorkOS features. |
 
@@ -1710,7 +1735,7 @@ Markdown files with frontmatter for blog posts. Each file becomes a blog post.
 | `aiChat`        | Enable AI Agent chat in right sidebar (optional). Set `true` to enable (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`). Set `false` to explicitly hide even if global config is enabled. |
 | `blogFeatured`  | Show as featured on blog page (optional, first becomes hero, rest in 2-column row) |
 | `newsletter`    | Override newsletter signup display (optional, true/false) |
-| `contactForm`   | Enable contact form on this post (optional). Requires siteConfig.contactForm.enabled: true and AGENTMAIL_API_KEY/AGENTMAIL_INBOX environment variables. |
+| `contactForm`   | Enable contact form at the bottom of this post (optional). Or drop `<!-- contactform -->` in the body. Needs `siteConfig.contactForm.enabled` and AgentMail keys. |
 | `unlisted`      | Hide from listings but allow direct access via slug (optional, posts and pages). Set `true` to hide from listings, navigation, featured sections, tag pages, search results, related posts, sitemap, RSS, and API listings. Content stays accessible via direct link and serves noindex signals so search engines skip it. |
 | `aiWritten`     | Posts only. Show a note under the title that the post was written with AI and proofed by a human (optional). `true` shows the note, `false` hides it, omitted means no note. Overrules the Drafts Inbox Written with AI default. |
 | `docsSection`   | Include in docs sidebar (optional). Set `true` to show in the docs section navigation. |
@@ -1748,7 +1773,7 @@ Markdown files for static pages like About, Projects, Contact, Changelog.
 | `showSocialFooter` | Show social footer on this page (optional, overrides siteConfig default) |
 | `aiChat`        | Enable AI Agent chat in right sidebar (optional). Set `true` to enable (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`). Set `false` to explicitly hide even if global config is enabled. |
 | `newsletter`    | Override newsletter signup display (optional, true/false) |
-| `contactForm`   | Enable contact form on this page (optional). Requires siteConfig.contactForm.enabled: true and AGENTMAIL_API_KEY/AGENTMAIL_INBOX environment variables. |
+| `contactForm`   | Enable contact form at the bottom of this page (optional). Or drop `<!-- contactform -->` in the body. Needs `siteConfig.contactForm.enabled` and AgentMail keys. |
 | `textAlign`     | Text alignment: "left", "center", "right" (optional, default: "left"). Used by home.md for home intro content alignment |
 | `docsSection`   | Include in docs sidebar (optional). Set `true` to show in the docs section navigation. |
 | `docsSectionGroup` | Group name for docs sidebar (optional). Pages with the same group name appear together. |
