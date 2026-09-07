@@ -33,7 +33,7 @@ These pages are written to skim: curl before clicks, a prompt you can paste, cop
 | Homepage | Banner image, featured list, spotlight post and projects, category sections, post list, with a live running order |
 | Projects | CRUD for the /projects index |
 | Skills | Sections and skills for the /skills directory |
-| Import URL | Firecrawl a public URL into a draft post |
+| Import URL | Scrape a public URL into a draft post (Firecrawl, Exa, or Context.dev) |
 | Drafts Inbox | Review agent, email, paste, and X drafts. Voice profile. |
 | AI Agent | Multi model chat and image generation |
 | Newsletter | Subscribers, sends, signup stats |
@@ -334,7 +334,7 @@ npm run sync:all            # content + discovery, dev
 npm run sync:all:prod
 npm run export:db           # pull dashboard-written content back to files
 npm run export:db:prod
-npm run import <url>        # Firecrawl import (needs FIRECRAWL_API_KEY)
+npm run import <url>        # URL import (any web research key)
 \`\`\`
 
 Static assets (the React app) are a separate step. You only need this when app code changes, never for markdown. This site uses Convex static self-hosting, not Netlify. There is no \`npm run deploy --prod\` script. See **Deploying** for \`npm run deploy:dev\`, \`npm run deploy:static\`, and when to pass \`--prod\`.
@@ -368,7 +368,7 @@ The editor keeps versions as you save. Open version history from the editor tool
 
 ### Import URL
 
-Dashboard **Import URL** takes a public page. Firecrawl scrapes it to markdown and creates a post. Needs \`FIRECRAWL_API_KEY\`. From a terminal:
+Dashboard **Import URL** takes a public page, scrapes it to markdown, and creates a post. Scraping runs through the web research chain: Firecrawl, Exa, and Context.dev. Any one key works (\`FIRECRAWL_API_KEY\`, \`EXA_API_KEY\`, or \`CONTEXT_DEV_API_KEY\`). Pick which provider goes first in **API Keys > Web research**; the others are fallbacks. From a terminal:
 
 \`\`\`bash
 npm run import https://example.com/article
@@ -713,6 +713,8 @@ Setting a value to the word \`unset\` marks it as intentionally not configured.
 
 **Model overrides.** Once a model vendor key is configured, its row shows a Model docs link to that provider's model list and one line per model slot (chat, image, or speech) with the id each feature sends. Set model stores a different id for that slot; every feature that routes to the vendor uses it on the next call, in AI chat, Ask AI, image generation, post audio, and the voice agent rewrite. Reset returns to the hardcoded default. Embedding models are not overridable because the vector indexes are sized for them.
 
+**Web research.** Import URL, AI chat link attachments, and the voice agent's draft link context all scrape pages through one chain: Firecrawl, then Exa, then Context.dev. Any single key is enough. The Web research card below the grid shows the live order and a Try first select. Auto keeps catalog order; picking a provider moves it to the front. A provider whose key is missing or whose request fails is skipped and the next one runs. Nothing here is required at deploy time, so \`npx convex deploy\` and \`npm run sync\` work with zero research keys set.
+
 | Key | Used for |
 |-----|----------|
 | OPENAI_API_KEY | Voice agent, embeddings, Ask AI |
@@ -721,7 +723,9 @@ Setting a value to the word \`unset\` marks it as intentionally not configured.
 | CONCENTRATE_API_KEY | Concentrate gateway |
 | OPENROUTER_API_KEY | OpenRouter gateway |
 | RUNWARE_API_KEY | Runware images |
-| FIRECRAWL_API_KEY | URL import |
+| FIRECRAWL_API_KEY | Web research (URL import, chat links, draft links) |
+| EXA_API_KEY | Web research fallback |
+| CONTEXT_DEV_API_KEY | Web research fallback |
 | AGENTMAIL_API_KEY | Newsletter, contact, draft emails |
 | AGENTMAIL_INBOX | From-inbox id |
 | AGENTMAIL_CONTACT_EMAIL | Where owner mail is delivered |
@@ -732,7 +736,6 @@ Setting a value to the word \`unset\` marks it as intentionally not configured.
 | GITHUB_WEBHOOK_SECRET | PR merge publish |
 | X_CLIENT_ID / X_CLIENT_SECRET | X OAuth |
 | X_BEARER_TOKEN | Optional X read |
-| EXA_API_KEY | Research (optional) |
 
 Only the optional \`MCP_API_KEY\` and the R2 and Bunny storage credentials read Convex env alone. Everything in the table, including the two webhook secrets, honors a dashboard override first.`,
   },
@@ -845,7 +848,7 @@ The AI Agent section and the Write page assistant support several models.
 | Concentrate Auto | Concentrate gateway | CONCENTRATE_API_KEY |
 | OpenRouter Auto | OpenRouter gateway | OPENROUTER_API_KEY |
 
-Gateway options route each request. Chat supports image attachments and link attachments. Links get scraped through Firecrawl when \`FIRECRAWL_API_KEY\` is set.
+Gateway options route each request. Chat supports image attachments and link attachments. Links get scraped through the web research chain (Firecrawl, Exa, Context.dev) when any of those keys is set.
 
 ### Image generation
 

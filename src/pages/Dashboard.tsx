@@ -6064,7 +6064,7 @@ function ImportURLSection({ addToast }: { addToast: (message: string, type?: Toa
       <div className="dashboard-import-header">
         <CloudArrowDown size={32} weight="light" />
         <h2>Import from URL</h2>
-        <p>Import articles directly to the database using Firecrawl</p>
+        <p>Import articles directly to the database from any public URL</p>
       </div>
 
       <div className="dashboard-form-block">
@@ -6135,11 +6135,17 @@ function ImportURLSection({ addToast }: { addToast: (message: string, type?: Toa
         <h3>How it works</h3>
         <ol>
           <li>Enter the URL of an article you want to import</li>
-          <li>Firecrawl scrapes and converts it to markdown</li>
+          <li>
+            The first configured web research provider (Firecrawl, Exa, or
+            Context.dev) scrapes it to markdown; the others are fallbacks
+          </li>
           <li>Post is saved directly to the database</li>
           <li>Edit and publish from the Posts section</li>
         </ol>
-        <p className="note">Requires FIRECRAWL_API_KEY in Convex environment variables</p>
+        <p className="note">
+          Needs one of FIRECRAWL_API_KEY, EXA_API_KEY, or CONTEXT_DEV_API_KEY.
+          Set keys and pick the provider order in API Keys, Web research.
+        </p>
       </div>
     </div>
   );

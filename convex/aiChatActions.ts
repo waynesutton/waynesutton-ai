@@ -13,10 +13,12 @@ import type {
 } from "@anthropic-ai/sdk/resources/messages/messages";
 import OpenAI from "openai";
 import { GoogleGenAI, Content } from "@google/genai";
-import FirecrawlApp from "@mendable/firecrawl-js";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { resolveAiProvider } from "./lib/aiProviderResolver";
-import { resolveVendorKey } from "./lib/vendorKeyResolver";
+import {
+  scrapeUrlWithFallback,
+  type ProviderChainEntry,
+} from "./lib/webResearch";
 
 // Model validator for multi-model support
 const modelValidator = v.union(
@@ -118,36 +120,25 @@ function buildSystemPrompt(): string {
 }
 
 /**
- * Scrape URL content using Firecrawl (optional)
+ * Scrape URL content through the web research chain (Firecrawl, Exa,
+ * Context.dev in the dashboard's preferred order). Optional: an empty chain
+ * or a failure across every provider just leaves the link unscraped.
  */
 async function scrapeUrl(
   url: string,
-  apiKey: string | null,
+  chain: ReadonlyArray<ProviderChainEntry>,
 ): Promise<{
   content: string;
   title?: string;
 } | null> {
-  if (!apiKey) {
-    return null; // Firecrawl not configured
+  if (chain.length === 0) {
+    return null; // No provider configured
   }
-
-  try {
-    const firecrawl = new FirecrawlApp({ apiKey });
-    const result = await firecrawl.scrapeUrl(url, {
-      formats: ["markdown"],
-    });
-
-    if (!result.success || !result.markdown) {
-      return null;
-    }
-
-    return {
-      content: result.markdown,
-      title: result.metadata?.title,
-    };
-  } catch {
-    return null; // Silently fail if scraping fails
+  const outcome = await scrapeUrlWithFallback(chain, url);
+  if (!outcome.ok) {
+    return null;
   }
+  return { content: outcome.result.content, title: outcome.result.title };
 }
 
 /**
@@ -237,7 +228,7 @@ function buildSystemPromptWithContext(pageContent?: string): string {
 
 async function enrichAttachmentsWithScrapedContent(
   attachments: ChatAttachment[] | undefined,
-  firecrawlKey: string | null,
+  chain: ReadonlyArray<ProviderChainEntry>,
 ): Promise<ChatAttachment[] | undefined> {
   if (!attachments || attachments.length === 0) {
     return attachments;
@@ -250,7 +241,7 @@ async function enrichAttachmentsWithScrapedContent(
         attachment.url &&
         !attachment.scrapedContent
       ) {
-        const scraped = await scrapeUrl(attachment.url, firecrawlKey);
+        const scraped = await scrapeUrl(attachment.url, chain);
         if (scraped) {
           return {
             ...attachment,
@@ -266,7 +257,7 @@ async function enrichAttachmentsWithScrapedContent(
 
 async function enrichMessagesWithScrapedContent(
   messages: StoredChatMessage[],
-  firecrawlKey: string | null,
+  chain: ReadonlyArray<ProviderChainEntry>,
 ): Promise<StoredChatMessage[]> {
   return await Promise.all(
     messages.map(async (message) => {
@@ -278,7 +269,7 @@ async function enrichMessagesWithScrapedContent(
         ...message,
         attachments: await enrichAttachmentsWithScrapedContent(
           message.attachments,
-          firecrawlKey,
+          chain,
         ),
       };
     }),
@@ -671,18 +662,18 @@ async function generateResponseFromSnapshot(
     }
 
     const systemPrompt = buildSystemPromptWithContext(args.pageContext);
-    // Only look up the Firecrawl key when a link attachment needs scraping
+    // Only resolve the web research chain when a link attachment needs scraping
     const needsScrape = args.recentMessages.some((message) =>
       message.attachments?.some(
         (a) => a.type === "link" && a.url && !a.scrapedContent,
       ),
     );
-    const firecrawlKey = needsScrape
-      ? await resolveVendorKey(ctx, "FIRECRAWL_API_KEY")
-      : null;
+    const researchChain: Array<ProviderChainEntry> = needsScrape
+      ? await ctx.runQuery(internal.webResearch.resolveChain, {})
+      : [];
     const recentMessages = await enrichMessagesWithScrapedContent(
       args.recentMessages,
-      firecrawlKey,
+      researchChain,
     );
     const storageIds = collectStorageIds(recentMessages);
     const storageUrlMap =

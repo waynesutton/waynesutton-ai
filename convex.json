@@ -3,8 +3,7 @@
     "externalPackages": [
       "@anthropic-ai/sdk",
       "openai",
-      "@google/genai",
-      "@mendable/firecrawl-js"
+      "@google/genai"
     ]
   }
 }

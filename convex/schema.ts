@@ -566,6 +566,16 @@ export default defineSchema({
     updatedBySubject: v.optional(v.string()),
   }).index("by_vendor_and_kind", ["vendor", "kind"]),
 
+  // Which web research provider (Firecrawl, Exa, Context.dev) URL scraping
+  // tries first. Singleton row keyed by "provider"; absent means "auto"
+  // (catalog order). The others stay as fallbacks either way.
+  webResearchSettings: defineTable({
+    key: v.string(), // "provider"
+    preferredProvider: v.string(), // "auto" | "firecrawl" | "exa" | "contextdev"
+    updatedAt: v.number(),
+    updatedBySubject: v.optional(v.string()),
+  }).index("by_key", ["key"]),
+
   // Agent-ready widget settings controlled from the dashboard. Singleton row
   // keyed by "widget"; the public site reads it so changes apply live
   // without a redeploy. Falls back to App.tsx defaults when absent.

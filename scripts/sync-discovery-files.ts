@@ -451,7 +451,7 @@ ${projectsSection}${skillsSection}
 # Technical
 - Backend: Convex (real-time database)
 - Frontend: React, TypeScript, Vite
-- Hosting: Convex self-hosting
+- Hosting: Convex static hosting
 - Content: Markdown with frontmatter
 
 # Discovery Files

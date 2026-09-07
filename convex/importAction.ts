@@ -4,8 +4,10 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internalAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import FirecrawlApp from "@mendable/firecrawl-js";
-import { resolveVendorKey } from "./lib/vendorKeyResolver";
+import {
+  describeScrapeFailure,
+  scrapeUrlWithFallback,
+} from "./lib/webResearch";
 
 type ImportJobActionArgs = {
   jobId: Id<"importUrlJobs">;
@@ -71,33 +73,23 @@ async function importFromUrlJobFromSnapshot(
   ctx: ActionCtx,
   args: ImportJobActionArgs,
 ): Promise<null> {
-  // Dashboard BYOK override first, then the env var
-  const apiKey = await resolveVendorKey(ctx, "FIRECRAWL_API_KEY");
-  if (!apiKey) {
-    return await failImportJob(
-      ctx,
-      args.jobId,
-      "FIRECRAWL_API_KEY not configured. Add it to your Convex environment variables.",
-    );
-  }
+  // Ordered provider chain: dashboard preference, BYOK overrides, env vars
+  const chain = await ctx.runQuery(internal.webResearch.resolveChain, {});
 
   try {
-    const firecrawl = new FirecrawlApp({ apiKey });
-    const result = await firecrawl.scrapeUrl(args.url, {
-      formats: ["markdown"],
-    });
-
-    if (!result.success || !result.markdown) {
+    const outcome = await scrapeUrlWithFallback(chain, args.url);
+    if (!outcome.ok) {
       return await failImportJob(
         ctx,
         args.jobId,
-        result.error || "Failed to scrape URL - no content returned",
+        describeScrapeFailure(outcome),
       );
     }
 
-    const title = result.metadata?.title || "Imported Post";
-    const description = result.metadata?.description || "";
-    const content = cleanMarkdown(result.markdown);
+    const result = outcome.result;
+    const title = result.title || "Imported Post";
+    const description = result.description || "";
+    const content = cleanMarkdown(result.content);
     const contentWithAttribution = addSourceAttribution(content, args.url);
 
     await saveImportedPost(ctx, args, {

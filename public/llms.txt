@@ -1,6 +1,6 @@
 # llms.txt - Information for AI assistants and LLMs
 # Learn more: https://llmstxt.org/
-# Last updated: 2026-09-07T00:56:48.139Z
+# Last updated: 2026-09-07T12:45:39.438Z
 
 > Developer Community Lead at Convex, tech event organizer, startup ecosystem builder, and adventure motorcycle rider—helping developers and startups build faster with Convex and AI.
 
@@ -94,7 +94,7 @@ Shipped work listed at https://waynesutton.ai/projects (also readable via POST /
 # Technical
 - Backend: Convex (real-time database)
 - Frontend: React, TypeScript, Vite
-- Hosting: Convex self-hosting
+- Hosting: Convex static hosting
 - Content: Markdown with frontmatter
 
 # Discovery Files

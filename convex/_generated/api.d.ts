@@ -50,6 +50,7 @@ import type * as lib_secretCompare from "../lib/secretCompare.js";
 import type * as lib_skillsDirectory from "../lib/skillsDirectory.js";
 import type * as lib_syncAuth from "../lib/syncAuth.js";
 import type * as lib_vendorKeyResolver from "../lib/vendorKeyResolver.js";
+import type * as lib_webResearch from "../lib/webResearch.js";
 import type * as mcp from "../mcp.js";
 import type * as media from "../media.js";
 import type * as newsletter from "../newsletter.js";
@@ -75,6 +76,7 @@ import type * as stats from "../stats.js";
 import type * as versions from "../versions.js";
 import type * as virtualFs from "../virtualFs.js";
 import type * as voiceAgent from "../voiceAgent.js";
+import type * as webResearch from "../webResearch.js";
 import type * as xIntegration from "../xIntegration.js";
 
 import type {
@@ -126,6 +128,7 @@ declare const fullApi: ApiFromModules<{
   "lib/skillsDirectory": typeof lib_skillsDirectory;
   "lib/syncAuth": typeof lib_syncAuth;
   "lib/vendorKeyResolver": typeof lib_vendorKeyResolver;
+  "lib/webResearch": typeof lib_webResearch;
   mcp: typeof mcp;
   media: typeof media;
   newsletter: typeof newsletter;
@@ -151,6 +154,7 @@ declare const fullApi: ApiFromModules<{
   versions: typeof versions;
   virtualFs: typeof virtualFs;
   voiceAgent: typeof voiceAgent;
+  webResearch: typeof webResearch;
   xIntegration: typeof xIntegration;
 }>;
 
@@ -186,7 +190,7 @@ export declare const components: {
   uniqueVisitors: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"uniqueVisitors">;
   uniquePaths: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"uniquePaths">;
   persistentTextStreaming: import("@convex-dev/persistent-text-streaming/_generated/component.js").ComponentApi<"persistentTextStreaming">;
-  selfHosting: import("@convex-dev/self-hosting/_generated/component.js").ComponentApi<"selfHosting">;
+  selfHosting: import("@convex-dev/static-hosting/_generated/component.js").ComponentApi<"selfHosting">;
   r2: import("@convex-dev/r2/_generated/component.js").ComponentApi<"r2">;
   fs: import("convex-fs/_generated/component.js").ComponentApi<"fs">;
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;

@@ -5,7 +5,7 @@ Project instructions for Claude Code.
 ## Project context
 
 <!-- Auto-updated by sync:discovery -->
-<!-- Site: Wayne Sutton | Posts: 11 | Pages: 1 | Updated: 2026-09-07T00:56:48.138Z -->
+<!-- Site: Wayne Sutton | Posts: 11 | Pages: 1 | Updated: 2026-09-07T12:45:39.437Z -->
 
 Markdown sync framework. Write markdown in `content/`, run sync commands, content appears instantly via Convex real-time database. Built for developers and AI agents.
 
@@ -34,7 +34,7 @@ npm run sync                   # Sync markdown to Convex
 | `npm run build` | Production build |
 | `npx convex dev` | Start Convex dev watcher |
 | `npx convex deploy` | Deploy Convex to production |
-| `npm run deploy` | Deploy static app with Convex self-hosting |
+| `npm run deploy` | Deploy static app with Convex static hosting |
 | `npm run import <url>` | Import external URL as post |
 
 ## Default and legacy modes
@@ -67,7 +67,7 @@ npm run sync                   # Sync markdown to Convex
 ```bash
 npm run sync:all:prod          # Sync content + discovery to prod
 npx convex deploy              # Deploy Convex functions
-npm run deploy                 # Deploy static assets via Convex self-hosting
+npm run deploy                 # Deploy static assets via Convex static hosting
 ```
 
 ## AI assistance

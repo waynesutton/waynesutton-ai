@@ -6,6 +6,7 @@ import {
   query,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { requireDashboardAdmin } from "./dashboardAuth";
 
 const importJobStatusValidator = v.union(
   v.literal("pending"),
@@ -24,16 +25,6 @@ const importedPostValidator = v.object({
   readTime: v.string(),
 });
 
-async function requireAuthenticatedIdentity(ctx: {
-  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
-}) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new ConvexError("Authentication required");
-  }
-  return identity;
-}
-
 export const requestImportFromUrl = mutation({
   args: {
     url: v.string(),
@@ -43,7 +34,9 @@ export const requestImportFromUrl = mutation({
     jobId: v.id("importUrlJobs"),
   }),
   handler: async (ctx, args) => {
-    const identity = await requireAuthenticatedIdentity(ctx);
+    // Import writes a posts row and spends web research credits, so it is
+    // dashboard admin only, matching the section that calls it.
+    const identity = await requireDashboardAdmin(ctx);
     const url = args.url.trim();
     if (!url) {
       throw new ConvexError("URL is required");
@@ -87,7 +80,7 @@ export const getImportJob = query({
     v.null(),
   ),
   handler: async (ctx, args) => {
-    const identity = await requireAuthenticatedIdentity(ctx);
+    const identity = await requireDashboardAdmin(ctx);
     const job = await ctx.db.get(args.jobId);
     if (!job) {
       return null;

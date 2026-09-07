@@ -28,11 +28,11 @@ This site is a fork of [markdown-site](https://github.com/waynesutton/markdown-s
 | Frontend | [React 18](https://react.dev), [TypeScript](https://www.typescriptlang.org), [Vite](https://vite.dev), [React Router](https://reactrouter.com), [react-markdown](https://github.com/remarkjs/react-markdown)                              |
 | Backend  | [Convex](https://convex.dev): database, functions, HTTP routes, scheduling, file storage, text and vector search                                                                                                                          |
 | Auth     | [Convex Auth](https://labs.convex.dev/auth) with GitHub OAuth                                                                                                                                                                             |
-| Hosting  | Convex static [self-hosting](https://github.com/get-convex/self-hosting) with a custom domain                                                                                                                                             |
+| Hosting  | [Convex static hosting](https://github.com/get-convex/static-hosting) with a custom domain                                                                                                                                                |
 | Media    | [Cloudflare R2](https://github.com/get-convex/r2) and [ConvexFS](https://convexfs.dev) with Bunny CDN                                                                                                                                     |
 | AI       | [OpenAI](https://platform.openai.com/docs), [Anthropic](https://docs.anthropic.com), [Google Gemini](https://ai.google.dev), [Vercel AI SDK](https://ai-sdk.dev/docs), with OpenRouter, Concentrate, and Runware as dashboard vendor keys |
 | Email    | [AgentMail](https://agentmail.to) for newsletter, contact form, and the email door for drafts                                                                                                                                             |
-| Import   | [Firecrawl](https://github.com/mendableai/firecrawl) turns external URLs into markdown posts                                                                                                                                              |
+| Web      | [Firecrawl](https://docs.firecrawl.dev), [Exa](https://docs.exa.ai), and [Context.dev](https://context.dev/docs) read external URLs for URL import, chat links, and draft links. Bring your own keys; the dashboard picks the order and falls through on failure |
 | Content  | Markdown with [gray-matter](https://github.com/jonschlinkert/gray-matter) frontmatter                                                                                                                                                     |
 | Quality  | [Vitest](https://vitest.dev), [convex-test](https://github.com/get-convex/convex-test), [convex-doctor](https://github.com/nooesc/convex-doctor) at 100/100, [@convex-dev/eslint-plugin](https://docs.convex.dev/eslint)                  |
 
@@ -42,7 +42,7 @@ Everything registered in [`convex/convex.config.ts`](./convex/convex.config.ts).
 
 | Component                                                                                        | Used for                                                          |
 | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| [@convex-dev/self-hosting](https://github.com/get-convex/self-hosting)                           | Serves the built Vite app from Convex storage                     |
+| [@convex-dev/static-hosting](https://github.com/get-convex/static-hosting)                       | Serves the built Vite app from Convex storage with SPA fallback   |
 | [@convex-dev/aggregate](https://github.com/get-convex/aggregate)                                 | Page view counts, unique visitors, and unique paths in O(log n)   |
 | [@convex-dev/persistent-text-streaming](https://github.com/get-convex/persistent-text-streaming) | Streams Ask AI answers to every open tab                          |
 | [@convex-dev/rate-limiter](https://github.com/get-convex/rate-limiter)                           | Limits on every public HTTP route and mutation                    |
@@ -53,6 +53,8 @@ Everything registered in [`convex/convex.config.ts`](./convex/convex.config.ts).
 | [@convex-dev/r2](https://github.com/get-convex/r2)                                               | Cloudflare R2 uploads for the media library                       |
 | [convex-fs](https://github.com/jamwt/convex-fs)                                                  | File storage behind Bunny CDN                                     |
 | [@waynesutton/agent-ready](https://github.com/waynesutton/agent-ready-component)                 | Generates `/llms.txt`, `/llms-full.txt`, and `/agents.md` on sync |
+
+Web research talks to the [Exa](https://www.convex.dev/components/exalabs/convex-exa) and [Context.dev](https://www.convex.dev/components/context-dot-dev/convex) REST APIs directly instead of through their components. Components declare their API key as a required deploy-time env var, which would block `npx convex deploy` on a fork with no key. Calling the API from `convex/lib/webResearch.ts` keeps every provider optional and lets a key saved in the dashboard win over the env var.
 
 ### Convex docs used here
 

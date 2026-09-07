@@ -41,7 +41,7 @@ Developer Community Lead at Convex, tech event organizer, startup ecosystem buil
 - **Total Posts**: 11
 - **Total Pages**: 1
 - **Latest Post**: 2026-08-22
-- **Last Updated**: 2026-09-07T00:56:48.137Z
+- **Last Updated**: 2026-09-07T12:45:39.435Z
 
 ## Deployments
 
@@ -61,7 +61,7 @@ Never deploy to `giant-grouse-674` (buggy fork source) or `agreeable-trout-200` 
 | Frontend | React 18, TypeScript, Vite |
 | Backend | Convex (real-time serverless database) |
 | Styling | CSS variables, no preprocessor |
-| Hosting | Convex self-hosting |
+| Hosting | Convex static hosting (`@convex-dev/static-hosting`) |
 | Auth | Official Convex Auth with GitHub OAuth |
 | Content | Markdown with gray-matter frontmatter |
 
@@ -94,7 +94,7 @@ Content syncs instantly. No rebuild needed for markdown changes.
 ```bash
 npm run build                  # Build for production
 npx convex deploy              # Deploy Convex functions to production
-npm run deploy                 # Deploy with Convex self-hosting
+npm run deploy                 # Deploy with Convex static hosting
 ```
 
 ## Code style guidelines
@@ -247,6 +247,8 @@ waynesutton-ai/
 │   ├── audio.ts           # Listen-to-this-post audio (OpenAI speech)
 │   ├── newsletter.ts      # Newsletter subscribers and sends (AgentMail)
 │   ├── xIntegration.ts    # X OAuth and posting
+│   ├── webResearch.ts     # Provider preference and status for the web research chain
+│   ├── lib/webResearch.ts # Firecrawl, Exa, Context.dev REST scrapers with fallback
 │   └── agentReady/        # Agent-ready component wrappers and auto sync
 ├── public/
 │   ├── images/            # Static images and logos
@@ -465,13 +467,13 @@ Agents can submit drafts that land in the dashboard Drafts Inbox for human revie
 
 ## Content import
 
-Import external URLs as markdown posts using Firecrawl:
+Import external URLs as markdown posts:
 
 ```bash
 npm run import https://example.com/article
 ```
 
-Requires `FIRECRAWL_API_KEY` in `.env.local`. Get a key from firecrawl.dev.
+Web research runs through a provider chain in `convex/lib/webResearch.ts`: Firecrawl, Exa, and Context.dev, each called over REST with a bring-your-own key. The same chain backs the dashboard URL import, links pasted into AI chat, and links on submitted drafts. Set any of `FIRECRAWL_API_KEY`, `EXA_API_KEY`, or `CONTEXT_DEV_API_KEY` in `.env.local` (CLI) or as Convex env vars, or save them under Dashboard > API Keys > Vendor keys, which wins over the env var. Missing keys never block deploy or sync; providers without a key are skipped. The Web research card in API Keys picks the preferred provider (`auto` uses the first configured one), and the rest run as fallbacks when a scrape fails. The CLI honors `WEB_RESEARCH_PROVIDER` for the same choice.
 
 ## Environment files
 

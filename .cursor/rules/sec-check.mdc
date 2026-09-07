@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Security checklist for waynesutton.ai
 
-Convex backend, React + Vite frontend, Convex self-hosting for static assets,
+Convex backend, React + Vite frontend, Convex static hosting for static assets,
 Convex Auth with GitHub OAuth for the dashboard. Every public HTTP route and
 public mutation is rate limited with `@convex-dev/rate-limiter`
 (`convex/rateLimits.ts`). Last full audit: September 2026
@@ -29,8 +29,14 @@ Per-handler auth checks are intentional. Do not move them into a wrapper.
 
 - Every secret comparison goes through `secretEquals` in `convex/lib/secretCompare.ts`.
   Never compare API keys, tokens, or bootstrap keys with `===`.
-- Raw vendor keys (OpenAI, Anthropic, AgentMail, R2, X) are only returned by
-  `internalQuery` functions. Public `vendorKeyStatus` style queries return booleans.
+- Raw vendor keys (OpenAI, Anthropic, AgentMail, R2, X, Firecrawl, Exa, Context.dev)
+  are only returned by `internalQuery` functions. Public `vendorKeyStatus` style
+  queries return booleans. `webResearch.resolveChain` is internal; `providerStatus`
+  is admin gated and returns `configured` flags only.
+- Web research (`convex/lib/webResearch.ts`) never fetches a user supplied URL from
+  Convex. Firecrawl, Exa, and Context.dev fetch it on their side, so there is no SSRF
+  path into the deployment. Entry points that accept a URL are admin gated (URL
+  import, draft rewrite) or per-user rate limited (AI chat links).
 - `.env`, `.env.local`, `.env.*.local` are gitignored. Never commit them.
 - Never schedule or call `api.*` from server code. Use `internal.*` or `components.*`.
 

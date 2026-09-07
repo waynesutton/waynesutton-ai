@@ -979,9 +979,70 @@
   font-size: 12px;
 }
 
+/* Web research card: provider order, "try first" select, per-provider rows */
+.pipeline-research-row {
+  align-items: flex-start;
+}
+
+.pipeline-vendor-row.pipeline-research-row > .pipeline-research-order {
+  flex: 1 1 260px;
+  gap: 6px;
+}
+
+.pipeline-research-chain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.pipeline-research-chain li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.pipeline-research-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.pipeline-vendor-row.pipeline-research-row > .pipeline-research-select {
+  flex: 0 1 240px;
+  gap: 4px;
+}
+
+.pipeline-research-select label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.pipeline-research-select select.dashboard-field-input {
+  min-height: 36px;
+  padding: 0.35rem 0.6rem;
+}
+
+.pipeline-vendor-row > .pipeline-research-providers {
+  margin-left: 0;
+}
+
 @media (max-width: 700px) {
   .pipeline-vendor-row > .pipeline-vendor-edit {
     flex-wrap: wrap;
+  }
+
+  .pipeline-vendor-row.pipeline-research-row > .pipeline-research-select {
+    flex-basis: 100%;
   }
 
   .pipeline-vendor-edit .dashboard-field-input {

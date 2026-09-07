@@ -26,9 +26,9 @@
     "validate:env:prod": "npx tsx scripts/validate-env.ts --prod",
     "verify:deploy": "npx tsx scripts/verify-deploy.ts",
     "verify:deploy:prod": "npx tsx scripts/verify-deploy.ts --prod",
-    "deploy": "npx @convex-dev/self-hosting deploy",
-    "deploy:dev": "npm run build && rm -rf dist/raw && npx @convex-dev/self-hosting upload --dist ./dist",
-    "deploy:static": "npx @convex-dev/self-hosting upload --build --prod",
+    "deploy": "npx @convex-dev/static-hosting deploy --component selfHosting",
+    "deploy:dev": "npm run build && rm -rf dist/raw && npx @convex-dev/static-hosting upload --dist ./dist --component selfHosting",
+    "deploy:static": "npx @convex-dev/static-hosting upload --build --prod --component selfHosting",
     "test": "vitest run"
   },
   "dependencies": {
@@ -36,7 +36,6 @@
     "@ai-sdk/openai": "^3.0.97",
     "@anthropic-ai/sdk": "^0.71.2",
     "@auth/core": "^0.41.3",
-    "@context-dot-dev/convex": "^1.0.1",
     "@convex-dev/agent": "^0.6.4",
     "@convex-dev/aggregate": "^0.2.0",
     "@convex-dev/auth": "^0.0.95",
@@ -45,13 +44,10 @@
     "@convex-dev/r2": "^0.10.1",
     "@convex-dev/rag": "^0.7.0",
     "@convex-dev/rate-limiter": "^0.3.2",
-    "@convex-dev/self-hosting": "^0.1.1",
+    "@convex-dev/static-hosting": "^0.2.1",
     "@convex-dev/workpool": "^0.3.2",
-    "@exalabs/convex-exa": "^0.1.1",
-    "@firecrawl/firecrawl-convex": "^0.1.1",
     "@fontsource-variable/inter": "^5.3.0",
     "@google/genai": "^1.0.1",
-    "@mendable/firecrawl-js": "^1.21.1",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-icons": "^1.3.2",
@@ -113,7 +109,6 @@
   "allowScripts": {
     "esbuild@0.27.0": true,
     "esbuild@0.28.2": true,
-    "fsevents@2.3.3": true,
-    "@convex-dev/self-hosting@0.1.1": true
+    "fsevents@2.3.3": true
   }
 }

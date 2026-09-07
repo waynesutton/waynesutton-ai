@@ -101,6 +101,9 @@ export function ApiKeysSection({
   const keys = useQuery(api.pipelineKeys.listApiKeys);
   const vendorStatus = useQuery(api.pipelineKeys.vendorKeyStatus);
   const modelSlots = useQuery(api.aiModels.modelSlotStatus);
+  const webResearch = useQuery(api.webResearch.providerStatus);
+  const setPreferredProvider = useMutation(api.webResearch.setPreferredProvider);
+  const [savingProvider, setSavingProvider] = useState(false);
   const generateKey = useAction(api.pipelineKeys.generateApiKey);
   const revokeKey = useMutation(api.pipelineKeys.revokeApiKey);
   const setVendorKey = useMutation(api.pipelineKeys.setVendorKey);
@@ -160,6 +163,32 @@ export function ApiKeysSection({
         2,
       )
     : "";
+
+  // Web research: which scraper runs first. Others stay as fallbacks.
+  const handleSelectProvider = async (value: string) => {
+    if (!webResearch || savingProvider || value === webResearch.preferred) {
+      return;
+    }
+    const provider = webResearch.providers.find((p) => p.id === value)?.id;
+    if (value !== "auto" && !provider) return;
+    setSavingProvider(true);
+    try {
+      await setPreferredProvider({ provider: provider ?? "auto" });
+      addToast(
+        value === "auto"
+          ? "Web research back to auto order"
+          : `${webResearch.providers.find((p) => p.id === value)?.label} tried first`,
+        "success",
+      );
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "Could not save provider",
+        "error",
+      );
+    } finally {
+      setSavingProvider(false);
+    }
+  };
 
   const handleRevoke = async (keyId: Id<"apiKeys">) => {
     try {
@@ -657,6 +686,102 @@ export function ApiKeysSection({
             );
           })}
         </div>
+      </div>
+
+      {/* Web research: provider order for URL import, chat links, draft links */}
+      <div className="pipeline-vendor-status pipeline-research">
+        <h3>Web research</h3>
+        <p>
+          Import URL, AI chat link attachments, and Drafts Inbox link context
+          scrape pages through these providers. Any one key is enough. Auto
+          tries them in the order listed; pick a provider to try it first. If
+          it fails or its key is missing, the next configured one runs. No key
+          set never blocks deploys or syncs.
+        </p>
+        {webResearch && (
+          <div className="pipeline-vendor-row pipeline-research-row">
+            <div className="pipeline-research-order">
+              <span className="pipeline-model-slot-label">Order</span>
+              {webResearch.effectiveOrder.length > 0 ? (
+                <ol className="pipeline-research-chain">
+                  {webResearch.effectiveOrder.map((id, index) => {
+                    const provider = webResearch.providers.find(
+                      (p) => p.id === id,
+                    );
+                    return (
+                      <li key={id}>
+                        <span className="pipeline-research-step">
+                          {index + 1}
+                        </span>
+                        {provider?.label ?? id}
+                        {index === 0 && (
+                          <span className="status-badge published">
+                            Primary
+                          </span>
+                        )}
+                        {index > 0 && (
+                          <span className="status-badge draft">Fallback</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              ) : (
+                <span className="pipeline-model-slot-uses">
+                  Nothing configured yet. Set FIRECRAWL_API_KEY, EXA_API_KEY,
+                  or CONTEXT_DEV_API_KEY above.
+                </span>
+              )}
+            </div>
+            <div className="pipeline-research-select">
+              <label htmlFor="web-research-provider">Try first</label>
+              <select
+                id="web-research-provider"
+                className="dashboard-field-input"
+                value={webResearch.preferred}
+                disabled={savingProvider}
+                onChange={(e) => void handleSelectProvider(e.target.value)}
+              >
+                <option value="auto">Auto (first configured)</option>
+                {webResearch.providers.map((provider) => (
+                  <option key={provider.id} value={provider.id}>
+                    {provider.label}
+                    {provider.configured ? "" : " (no key)"}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <ul className="pipeline-model-slots pipeline-research-providers">
+              {webResearch.providers.map((provider) => (
+                <li key={provider.id} className="pipeline-model-slot">
+                  <div className="pipeline-model-slot-meta">
+                    <span className="pipeline-model-slot-label">
+                      {provider.label}
+                    </span>
+                    <span className="pipeline-model-slot-uses">
+                      <code>{provider.envVar}</code>
+                    </span>
+                  </div>
+                  <div className="pipeline-model-slot-current">
+                    <span
+                      className={`status-badge ${provider.configured ? "published" : "draft"}`}
+                    >
+                      {provider.configured ? "Configured" : "Not set"}
+                    </span>
+                    <a
+                      className="pipeline-vendor-docs-link"
+                      href={provider.docsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      API docs <ArrowSquareOut size={12} />
+                    </a>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

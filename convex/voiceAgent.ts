@@ -8,6 +8,10 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { requireDashboardAdminAction } from "./dashboardAuth";
 import { resolveAiProvider } from "./lib/aiProviderResolver";
 import { resolveVendorKey } from "./lib/vendorKeyResolver";
+import {
+  scrapeUrlWithFallback,
+  type ProviderChainEntry,
+} from "./lib/webResearch";
 
 const BASE_INSTRUCTIONS = [
   "You are the voice agent for waynesutton.ai. You turn raw notes, coding",
@@ -74,14 +78,36 @@ async function fetchXPostText(url: string): Promise<string | null> {
   }
 }
 
-/** Gather context for links attached to a draft. */
-async function gatherLinkContext(links: Array<string>): Promise<string> {
+// Cap scraped page text so a long article cannot crowd out the draft itself
+const LINK_CONTENT_MAX_CHARS = 4000;
+
+/**
+ * Gather context for links attached to a draft. X posts come from oEmbed;
+ * other pages are scraped through the web research chain when a provider is
+ * configured, and fall back to the bare URL otherwise.
+ */
+async function gatherLinkContext(
+  links: Array<string>,
+  chain: ReadonlyArray<ProviderChainEntry>,
+): Promise<string> {
   const parts: Array<string> = [];
   for (const link of links.slice(0, 5)) {
     if (/https?:\/\/(www\.)?(x\.com|twitter\.com)\//.test(link)) {
       const text = await fetchXPostText(link);
       if (text) {
         parts.push(`X post at ${link}:\n${text}`);
+        continue;
+      }
+    }
+    if (chain.length > 0) {
+      const outcome = await scrapeUrlWithFallback(chain, link);
+      if (outcome.ok) {
+        const heading = outcome.result.title
+          ? `${outcome.result.title} (${link})`
+          : link;
+        parts.push(
+          `Page at ${heading}:\n${outcome.result.content.slice(0, LINK_CONTENT_MAX_CHARS)}`,
+        );
         continue;
       }
     }
@@ -137,11 +163,15 @@ export const rewriteDraft = internalAction({
         {},
       );
 
-      // Link context (X posts via oEmbed, other links referenced by URL)
-      const linkContext =
-        draft.links && draft.links.length > 0
-          ? await gatherLinkContext(draft.links)
-          : "";
+      // Link context (X posts via oEmbed, other pages via the research chain)
+      let linkContext = "";
+      if (draft.links && draft.links.length > 0) {
+        const chain = await ctx.runQuery(
+          internal.webResearch.resolveChain,
+          {},
+        );
+        linkContext = await gatherLinkContext(draft.links, chain);
+      }
 
       // Related site content via RAG for voice and continuity
       let siteContext = "";

@@ -1547,16 +1547,20 @@ const serveStaticWithMeta = httpAction(async (ctx, request) => {
     path = "/index.html";
   }
 
+  // static-hosting 0.2.x resolves the live manifest. Files uploaded by the
+  // new CLI come back as storageUrl (component-private storage); rows the
+  // component inherited from the 0.1.x instance come back as appStorageId.
   type StaticAsset = {
-    path: string;
-    storageId?: string;
-    blobId?: string;
+    etag?: string;
     contentType: string;
+    blobId?: string;
+    appStorageId?: string;
+    storageUrl?: string;
   } | null;
 
   let asset: StaticAsset = await ctx.runQuery(
-    components.selfHosting.lib.getByPath,
-    { path },
+    components.selfHosting.lib.resolveAssetForHttp,
+    { path, spaFallback: false },
   );
 
   // SPA fallback: unknown extension-less paths serve index.html. Single
@@ -1570,9 +1574,10 @@ const serveStaticWithMeta = httpAction(async (ctx, request) => {
         slug: slugMatch[1],
       });
     }
-    asset = await ctx.runQuery(components.selfHosting.lib.getByPath, {
-      path: "/index.html",
-    });
+    asset = await ctx.runQuery(
+      components.selfHosting.lib.resolveAssetForHttp,
+      { path: "/index.html", spaFallback: false },
+    );
   }
 
   if (!asset) {
@@ -1590,35 +1595,26 @@ const serveStaticWithMeta = httpAction(async (ctx, request) => {
     });
   }
 
-  if (!asset.storageId) {
-    return new Response("Asset not available", {
-      status: 500,
-      headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
-    });
-  }
-
-  const etag = `"${asset.storageId}"`;
+  const cacheControl = isHashedAsset(path)
+    ? "public, max-age=31536000, immutable"
+    : "public, max-age=0, must-revalidate";
+  const etag = asset.etag;
   const isInjected =
     contentMeta !== null && asset.contentType.startsWith("text/html");
 
   // 304 handling only for untouched assets; injected HTML changes whenever
   // the post or page is edited, independent of the deployed file.
-  if (!isInjected) {
+  if (!isInjected && etag) {
     const ifNoneMatch = request.headers.get("If-None-Match");
     if (ifNoneMatch === etag) {
       return new Response(null, {
         status: 304,
-        headers: {
-          ETag: etag,
-          "Cache-Control": isHashedAsset(path)
-            ? "public, max-age=31536000, immutable"
-            : "public, max-age=0, must-revalidate",
-        },
+        headers: { ETag: etag, "Cache-Control": cacheControl },
       });
     }
   }
 
-  const blob = await ctx.storage.get(asset.storageId as Id<"_storage">);
+  const blob = await readStaticAsset(ctx, asset);
   if (!blob) {
     return new Response("Storage error", {
       status: 500,
@@ -1638,20 +1634,39 @@ const serveStaticWithMeta = httpAction(async (ctx, request) => {
     });
   }
 
-  const cacheControl = isHashedAsset(path)
-    ? "public, max-age=31536000, immutable"
-    : "public, max-age=0, must-revalidate";
-
   return new Response(blob, {
     status: 200,
     headers: {
       "Content-Type": asset.contentType,
       "Cache-Control": cacheControl,
-      ETag: etag,
+      ...(etag ? { ETag: etag } : {}),
       "X-Content-Type-Options": "nosniff",
     },
   });
 });
+
+/** Load a resolved static asset from app storage (inherited v1) or the
+ * component's storage URL (v2 uploads). Null when neither source has it. */
+async function readStaticAsset(
+  ctx: { storage: { get: (id: Id<"_storage">) => Promise<Blob | null> } },
+  asset: {
+    appStorageId?: string;
+    storageUrl?: string;
+  },
+): Promise<Blob | null> {
+  if (asset.appStorageId) {
+    // Component ids arrive as plain strings across the component boundary
+    return await ctx.storage.get(asset.appStorageId as Id<"_storage">);
+  }
+  if (asset.storageUrl) {
+    const response = await fetch(asset.storageUrl);
+    if (!response.ok) {
+      return null;
+    }
+    return await response.blob();
+  }
+  return null;
+}
 
 // Registered last so every explicit route above takes precedence; this is
 // the catch-all that serves the built frontend (dist/) with SPA fallback.

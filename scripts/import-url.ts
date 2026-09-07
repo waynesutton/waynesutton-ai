@@ -1,22 +1,54 @@
 import fs from "fs";
 import path from "path";
-import FirecrawlApp from "@mendable/firecrawl-js";
 import dotenv from "dotenv";
+import {
+  WEB_RESEARCH_PROVIDERS,
+  WEB_RESEARCH_PROVIDER_META,
+  describeScrapeFailure,
+  orderProviders,
+  scrapeUrlWithFallback,
+  type WebResearchPreference,
+  type WebResearchProvider,
+} from "../convex/lib/webResearch";
 
 // Load environment variables
 dotenv.config({ path: ".env.local" });
 
-const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
-
-if (!FIRECRAWL_API_KEY) {
-  console.error("Error: FIRECRAWL_API_KEY not found in .env.local");
-  console.log("\nTo set up Firecrawl:");
-  console.log("1. Get an API key from https://firecrawl.dev");
-  console.log("2. Add FIRECRAWL_API_KEY=fc-xxx to your .env.local file");
-  process.exit(1);
+// Read every provider key from the env. Any one of them is enough to import.
+function envKeys(): Record<WebResearchProvider, string | null> {
+  const keys = {} as Record<WebResearchProvider, string | null>;
+  for (const provider of WEB_RESEARCH_PROVIDERS) {
+    const raw = process.env[WEB_RESEARCH_PROVIDER_META[provider].envVar];
+    keys[provider] =
+      raw && raw.trim().length > 0 && raw.trim() !== "unset"
+        ? raw.trim()
+        : null;
+  }
+  return keys;
 }
 
-const firecrawl = new FirecrawlApp({ apiKey: FIRECRAWL_API_KEY });
+// Optional: WEB_RESEARCH_PROVIDER=exa in .env.local moves that vendor first
+function envPreference(): WebResearchPreference {
+  const raw = process.env.WEB_RESEARCH_PROVIDER?.trim();
+  return raw && (WEB_RESEARCH_PROVIDERS as ReadonlyArray<string>).includes(raw)
+    ? (raw as WebResearchProvider)
+    : "auto";
+}
+
+const chain = orderProviders(envPreference(), envKeys());
+
+if (chain.length === 0) {
+  console.error("Error: no web research provider key found in .env.local");
+  console.log("\nAdd at least one of these keys:");
+  for (const provider of WEB_RESEARCH_PROVIDERS) {
+    const meta = WEB_RESEARCH_PROVIDER_META[provider];
+    console.log(`  ${meta.envVar}=...   (${meta.label}, ${meta.docsUrl})`);
+  }
+  console.log(
+    "\nThe first configured provider is used; the others are fallbacks.",
+  );
+  process.exit(1);
+}
 
 // Generate a URL-safe slug from a title
 function generateSlug(title: string): string {
@@ -38,22 +70,26 @@ function cleanMarkdown(content: string): string {
 
 async function importFromUrl(url: string) {
   console.log(`\nScraping: ${url}`);
+  console.log(
+    `Providers: ${chain
+      .map((entry) => WEB_RESEARCH_PROVIDER_META[entry.provider].label)
+      .join(" -> ")}`,
+  );
   console.log("This may take a moment...\n");
 
   try {
-    const result = await firecrawl.scrapeUrl(url, {
-      formats: ["markdown"],
-    });
+    const outcome = await scrapeUrlWithFallback(chain, url);
 
-    if (!result.success) {
+    if (!outcome.ok) {
       console.error("Failed to scrape URL");
-      console.error("Error:", result.error || "Unknown error");
+      console.error(describeScrapeFailure(outcome));
       process.exit(1);
     }
 
-    const title = result.metadata?.title || "Imported Post";
-    const description = result.metadata?.description || "";
-    const content = cleanMarkdown(result.markdown || "");
+    const scraped = outcome.result;
+    const title = scraped.title || "Imported Post";
+    const description = scraped.description || "";
+    const content = cleanMarkdown(scraped.content);
 
     if (!content) {
       console.error("No content found at URL");
@@ -112,6 +148,7 @@ ${content}
     }
 
     console.log(`Title: ${title}`);
+    console.log(`Scraped with: ${WEB_RESEARCH_PROVIDER_META[scraped.provider].label}`);
     console.log(`Status: Draft (published: false)`);
     console.log("\nNext steps:");
     console.log("1. Review and edit the imported content");
@@ -127,13 +164,15 @@ ${content}
 const url = process.argv[2];
 
 if (!url) {
-  console.log("Firecrawl Content Importer");
-  console.log("==========================\n");
+  console.log("URL Content Importer");
+  console.log("====================\n");
   console.log("Usage: npm run import <url>\n");
   console.log("Example:");
   console.log("  npm run import https://example.com/article\n");
   console.log("This will:");
-  console.log("  1. Scrape the URL and convert to markdown");
+  console.log(
+    "  1. Scrape the URL to markdown (Firecrawl, Exa, or Context.dev)",
+  );
   console.log("  2. Create a draft post in content/blog/");
   console.log("  3. You can then review, edit, and sync\n");
   process.exit(0);
@@ -149,4 +188,3 @@ try {
 }
 
 importFromUrl(url);
-

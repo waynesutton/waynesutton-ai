@@ -4,6 +4,8 @@
 
 Session updates complete on 2026-09-06.
 
+Web research providers and static hosting (2026-09-07 02:10 UTC): Firecrawl, Exa, and Context.dev now share one provider chain (`convex/lib/webResearch.ts`) behind URL import, AI chat links, draft links, and `npm run import`. All three are bring-your-own key through Vendor keys or env vars; a missing key skips the provider and never blocks deploy or sync. API Keys has a Web research card with the preferred-provider select (`auto` uses the first configured) and the effective fallback order. `@convex-dev/self-hosting` replaced by `@convex-dev/static-hosting@0.2.x` with the `selfHosting` instance name kept so existing uploads keep serving; `http.ts` reads through `resolveAssetForHttp`. `tsc`, 76 vitest tests, eslint, convex-doctor 100/100, `npm audit` clean, `npx convex dev --once`, and a dev static upload smoke test pass. Security pass closed one pre-existing hole: URL import is now dashboard admin only instead of any signed-in GitHub account. Not deployed to production. PRD: `prds/web-research-providers-and-static-hosting.md`.
+
 README rewrite (2026-09-07 01:10 UTC): kept everything above the old "How publishing works" heading, dropped that section, the duplicate `SYNC_SECRET` paragraph, Getting started, and the dead `FORK_CONFIG.md` link. Seven key features, a linked stack table, a Convex components table from `convex/convex.config.ts`, a Convex docs list, and an AI development files table. No code changes, not deployed.
 
 Homepage posts config consolidation (2026-09-06 22:40 UTC): the Homepage dashboard section owns banner, Featured list, Spotlight, category sections, and Post list; Site Config Homepage tab has a pointer card instead of Posts Display / Featured Section / Homepage highlights. `savePartialOverrides` deep merges, `buildOverrides` sends falsy values, `ConfigSection` hydrates from live overrides. `/` reads post list and featured list live. `tsc` app and convex, 68 vitest tests, eslint, convex-doctor 100/100 pass. Signed-in Homepage section click-through open. Not deployed. PRD: `prds/homepage-posts-config-consolidation.md`.
@@ -23,6 +25,20 @@ R2 media/gallery/video is complete and live. Cloudflare R2, `waynesutton-media`,
 ## Current handoff (2026-09-05 23:10 UTC)
 
 GitHub `main` is still `0212406`. Local `HEAD` is `9f3e3bf` (2026-09-06). Remaining uncommitted work is the Dashboard Docs contact form how-to plus discovery file catch-up (`public/AGENTS.md`, timestamps). No commit, push, or deploy in this pass.
+
+## Web research providers and static hosting (2026-09-07 02:10 UTC)
+
+- [x] `convex/lib/webResearch.ts`: provider catalog (Firecrawl, Exa, Context.dev), one REST scraper per provider, `scrapeUrlWithFallback` that walks the chain and returns which provider answered, `describeScrapeFailure`. Registration free so Node actions and `scripts/import-url.ts` share it.
+- [x] `convex/webResearch.ts` + `webResearchSettings` table: `providerStatus` (dashboard badges and effective order), `setPreferredProvider` (admin only, `auto | firecrawl | exa | contextdev`), `resolveChain` internal query for actions. Keys resolve dashboard override first, env var second.
+- [x] `convex/importAction.ts`, `convex/aiChatActions.ts`, `convex/voiceAgent.ts`, `scripts/import-url.ts` call the chain. `voiceAgent` now scrapes non-X draft links instead of passing bare URLs. `@mendable/firecrawl-js` removed from `package.json` and `convex.json` externals. CLI honors `WEB_RESEARCH_PROVIDER`.
+- [x] `ApiKeysSection.tsx` Web research card: per-provider configured/missing badges, effective order, preferred-provider select. `docsTopics.ts`, `dashboardSearch.ts`, Dashboard Import copy, `pipelineKeys.ts` purposes updated.
+- [x] Static hosting: `@convex-dev/self-hosting` -> `@convex-dev/static-hosting@0.2.x`, `app.use(staticHosting, { name: "selfHosting" })` keeps the instance so v1 manifests carry over. `http.ts` `serveStaticWithMeta` reads `resolveAssetForHttp` and loads `appStorageId` (v1) or `storageUrl` (v2) through `readStaticAsset`. `staticHosting.ts` keeps only `getCurrentDeployment`. Deploy scripts use `npx @convex-dev/static-hosting ... --component selfHosting`.
+- [x] Probed before designing: a required component env var cannot bind to an optional app var and an unset required var fails `npx convex dev --once`, so Exa and Context.dev are called over REST rather than through their components.
+- [x] Verified: `tsc` app and convex, vitest 76/76 (new `convex/webResearch.test.ts`), eslint on touched files, convex-doctor 100/100 with 0 warnings, `npx convex dev --once` with no Exa or Context.dev key, dev static upload smoke test (`/`, injected meta on `/news-map-test`, hashed asset 200 + 304, `/missing.js` 404).
+- [x] README stack and components table, AGENTS.md content import section and structure tree, CLAUDE.md deploy rows, `public/llms.txt`, `scripts/sync-discovery-files.ts` hosting line.
+- [x] Security pass (2026-09-07 02:30 UTC): `requestImportFromUrl` and `getImportJob` moved from any-signed-in to `requireDashboardAdmin` (any GitHub user could insert a published post and burn scrape credits). `webResearch.resolveChain` internal, `providerStatus` admin gated and boolean only, no `api.*` server calls, no key logging, env files ignored, no SSRF path (providers fetch the URL). `sec-check.mdc` updated. convex-doctor 100/100, `npm audit` 0 vulnerabilities, tsc, eslint, vitest 76/76 after the fix.
+- [ ] Signed in: API Keys, Web research card, pick Exa, reload, confirm the select and effective order persist; Import from URL with only one key set succeeds; paste a link into AI chat and confirm the scraped excerpt lands.
+- [ ] Production: `npx convex deploy --yes` then `npm run deploy:static` (`upload --build --prod --component selfHosting`). Existing v1 assets keep serving until the first v2 upload lands.
 
 ## Homepage posts config consolidation (2026-09-06 22:40 UTC)
 

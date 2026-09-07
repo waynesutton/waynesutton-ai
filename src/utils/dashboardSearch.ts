@@ -117,6 +117,10 @@ const FEATURE_ENTRIES: ReadonlyArray<Omit<DashboardSearchEntry, "kind">> = [
       "openrouter",
       "runware",
       "firecrawl",
+      "exa",
+      "context.dev",
+      "web research",
+      "scrape",
       "agentmail",
       "env",
     ],
@@ -219,8 +223,16 @@ const FEATURE_ENTRIES: ReadonlyArray<Omit<DashboardSearchEntry, "kind">> = [
   {
     id: "feature-import-url",
     title: "Import a URL as a post",
-    description: "Firecrawl a public page into a draft you can edit.",
-    keywords: ["firecrawl", "scrape", "import", "article"],
+    description:
+      "Scrape a public page into a draft you can edit. Firecrawl, Exa, or Context.dev.",
+    keywords: [
+      "firecrawl",
+      "exa",
+      "context.dev",
+      "scrape",
+      "import",
+      "article",
+    ],
     target: { section: "import" },
   },
   {
