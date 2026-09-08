@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   MagnifyingGlass,
   SquaresFour,
@@ -72,6 +72,24 @@ type Row =
   | { type: "entry"; entry: DashboardSearchEntry }
   | { type: "content"; hit: ContentHit };
 
+function groupLabel(row: Row): string {
+  if (row.type === "content") {
+    return "Content";
+  }
+  switch (row.entry.kind) {
+    case "action":
+      return "Actions";
+    case "doc":
+      return "Docs";
+    case "setting":
+      return "Settings";
+    case "feature":
+      return "Features";
+    case "section":
+      return "Sections";
+  }
+}
+
 /**
  * Header search that doubles as a command palette. Typing filters the
  * content lists as before and also surfaces dashboard sections, features,
@@ -110,6 +128,7 @@ export function DashboardSearch({
 
   const hasQuery = value.trim().length > 0;
   const showList = open && hasQuery;
+  const [menuBox, setMenuBox] = useState<DOMRect | null>(null);
 
   // Global shortcut: Cmd/Ctrl+K focuses the search, Escape clears it
   useEffect(() => {
@@ -138,6 +157,28 @@ export function DashboardSearch({
     );
     el?.scrollIntoView({ block: "nearest" });
   }, [cursor, showList]);
+
+  // Pin the menu to the search well. The dashboard shell clips overflow, so
+  // absolute descendants never paint below the header.
+  useEffect(() => {
+    if (!showList) {
+      setMenuBox(null);
+      return;
+    }
+    const update = () => {
+      const well = inputRef.current?.closest(".dashboard-search");
+      if (well instanceof HTMLElement) {
+        setMenuBox(well.getBoundingClientRect());
+      }
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [showList]);
 
   const activate = (row: Row) => {
     if (row.type === "entry") {
@@ -209,6 +250,26 @@ export function DashboardSearch({
           ref={listRef}
           className="dashboard-search-results"
           role="listbox"
+          style={
+            menuBox
+              ? {
+                  top: menuBox.bottom + 6,
+                  left: Math.max(
+                    8,
+                    Math.min(
+                      menuBox.left,
+                      window.innerWidth -
+                        Math.min(Math.max(menuBox.width, 360), window.innerWidth - 16) -
+                        8,
+                    ),
+                  ),
+                  width: Math.min(
+                    Math.max(menuBox.width, 360),
+                    window.innerWidth - 16,
+                  ),
+                }
+              : undefined
+          }
         >
           {rows.length === 0 ? (
             <div className="dashboard-search-empty">
@@ -218,10 +279,11 @@ export function DashboardSearch({
           ) : (
             rows.map((row, i) => {
               const active = i === cursor;
-              if (row.type === "content") {
-                return (
+              const group = groupLabel(row);
+              const prev = i > 0 ? groupLabel(rows[i - 1]!) : null;
+              const button =
+                row.type === "content" ? (
                   <button
-                    key={`c-${row.hit.kind}-${row.hit.id}`}
                     id={rowId(row)}
                     type="button"
                     role="option"
@@ -239,11 +301,11 @@ export function DashboardSearch({
                       <span className="dashboard-search-row-title">
                         {row.hit.title}
                       </span>
-                      {row.hit.description && (
+                      {row.hit.description ? (
                         <span className="dashboard-search-row-desc">
                           {row.hit.description}
                         </span>
-                      )}
+                      ) : null}
                     </span>
                     <span className="dashboard-search-row-kind">
                       {row.hit.kind === "post"
@@ -253,36 +315,49 @@ export function DashboardSearch({
                           : "Project"}
                     </span>
                   </button>
+                ) : (
+                  <button
+                    id={rowId(row)}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    data-index={i}
+                    className={`dashboard-search-row ${active ? "active" : ""}`}
+                    onMouseEnter={() => setCursor(i)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => activate(row)}
+                  >
+                    <span className="dashboard-search-row-icon">
+                      <KindIcon kind={row.entry.kind} />
+                    </span>
+                    <span className="dashboard-search-row-text">
+                      <span className="dashboard-search-row-title">
+                        {row.entry.title}
+                      </span>
+                      <span className="dashboard-search-row-desc">
+                        {row.entry.description}
+                      </span>
+                    </span>
+                    <span className="dashboard-search-row-kind">
+                      {KIND_LABEL[row.entry.kind]}
+                    </span>
+                  </button>
                 );
-              }
               return (
-                <button
-                  key={row.entry.id}
-                  id={rowId(row)}
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  data-index={i}
-                  className={`dashboard-search-row ${active ? "active" : ""}`}
-                  onMouseEnter={() => setCursor(i)}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => activate(row)}
+                <Fragment
+                  key={
+                    row.type === "content"
+                      ? `c-${row.hit.kind}-${row.hit.id}`
+                      : row.entry.id
+                  }
                 >
-                  <span className="dashboard-search-row-icon">
-                    <KindIcon kind={row.entry.kind} />
-                  </span>
-                  <span className="dashboard-search-row-text">
-                    <span className="dashboard-search-row-title">
-                      {row.entry.title}
-                    </span>
-                    <span className="dashboard-search-row-desc">
-                      {row.entry.description}
-                    </span>
-                  </span>
-                  <span className="dashboard-search-row-kind">
-                    {KIND_LABEL[row.entry.kind]}
-                  </span>
-                </button>
+                  {group !== prev ? (
+                    <div className="dashboard-search-group" aria-hidden="true">
+                      {group}
+                    </div>
+                  ) : null}
+                  {button}
+                </Fragment>
               );
             })
           )}

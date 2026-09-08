@@ -1,6 +1,7 @@
 import type {
   HomeCategorySection,
   HomeHeroImageConfig,
+  HomeLinksConfig,
   HomepageHighlightsConfig,
 } from "../config/siteConfig";
 
@@ -24,6 +25,7 @@ export type HomepageBlockId =
   | "post-below"
   | "projects-below"
   | "categories-below"
+  | "home-links"
   | "banner-bottom";
 
 export interface HomepageBlock {
@@ -44,6 +46,8 @@ export interface HomepageOrderInput {
   };
   /** Homepage > Post list "Show the post list". Defaults to true. */
   showPostList?: boolean;
+  /** Homepage > External links. Omit to leave the row out of older callers. */
+  homeLinks?: HomeLinksConfig;
   /**
    * Homepage > Featured list. `count` is the number of published posts and
    * pages marked `featured: true`, when loaded. Omit to leave the row out.
@@ -218,6 +222,24 @@ function categoriesBlock(
   };
 }
 
+function homeLinksBlock(input: HomepageOrderInput): HomepageBlock | null {
+  const { homeLinks } = input;
+  if (!homeLinks) return null;
+  const id = "home-links";
+  const label = homeLinks.title.trim() || "External links";
+  if (!homeLinks.enabled) return { id, label, state: "off" };
+  if (homeLinks.items.length === 0) {
+    return { id, label, state: "warn", detail: "No links added" };
+  }
+  const count = homeLinks.items.length;
+  return {
+    id,
+    label,
+    state: "on",
+    detail: `${count} ${count === 1 ? "link" : "links"}`,
+  };
+}
+
 /**
  * Build the running order for the homepage from the current form state.
  * Rows come back in render order. Disabled blocks appear once as "off" so the
@@ -241,6 +263,7 @@ export function buildHomepageOrder(input: HomepageOrderInput): Array<HomepageBlo
     spotlightPostBlock(input, "below-posts"),
     projectsBlock(input, "below-posts"),
     categoriesBlock(input, "below-posts"),
+    homeLinksBlock(input),
     banner.bottom,
   ];
   return rows.filter((row): row is HomepageBlock => row !== null);

@@ -88,6 +88,20 @@ const FEATURE_ENTRIES: ReadonlyArray<Omit<DashboardSearchEntry, "kind">> = [
     target: { section: "homepage" },
   },
   {
+    id: "feature-home-links",
+    title: "Homepage external links",
+    description:
+      "Named links on /. Any label, any URL. Homepage section, above the closing note.",
+    keywords: [
+      "docs link",
+      "convex link",
+      "netlify link",
+      "elsewhere",
+      "link list",
+    ],
+    target: { section: "homepage" },
+  },
+  {
     id: "feature-ai-write",
     title: "AI writing assistant in the editor",
     description:
@@ -264,6 +278,25 @@ const FEATURE_ENTRIES: ReadonlyArray<Omit<DashboardSearchEntry, "kind">> = [
       "Agent skills grouped into sections with install commands and links at /skills.",
     keywords: ["skill", "skills.sh", "npx skills", "install command", "agent"],
     target: { section: "skills" },
+  },
+  {
+    id: "feature-photos",
+    title: "Photo gallery",
+    description:
+      "Upload, tag, and publish photos for /photos. Grid, full frame, lightbox, presentation mode, and an email inbox.",
+    keywords: [
+      "photo",
+      "photos",
+      "gallery",
+      "lightbox",
+      "slideshow",
+      "present",
+      "email photos",
+      "r2",
+      "upload",
+      "tags",
+    ],
+    target: { section: "photos" },
   },
   {
     id: "feature-analytics",

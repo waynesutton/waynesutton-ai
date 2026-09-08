@@ -1,5 +1,5 @@
-import siteConfig from "../config/siteConfig";
-import type { SocialLink } from "../config/siteConfig";
+import type { SocialFooterConfig, SocialLink } from "../config/siteConfig";
+import { useSocialFooter } from "../hooks/useSocialFooter";
 import {
   GithubLogo,
   XLogo,
@@ -27,16 +27,38 @@ export const platformIcons: Record<SocialLink["platform"], Icon> = {
   website: Globe,
 };
 
+export type SocialFooterSurface = "homepage" | "posts" | "pages" | "blog";
+
+function surfaceEnabled(
+  footer: SocialFooterConfig,
+  surface: SocialFooterSurface,
+): boolean {
+  switch (surface) {
+    case "homepage":
+      return footer.showOnHomepage;
+    case "posts":
+      return footer.showOnPosts;
+    case "pages":
+      return footer.showOnPages;
+    case "blog":
+      return footer.showOnBlogPage;
+  }
+}
+
 // Footer (icon bar)
 // Social icons on the left, llms.txt / AGENTS.md in the center, copyright on the right
-// Visibility: siteConfig.socialFooter and frontmatter showSocialFooter
-export default function SocialFooter() {
-  const { socialFooter } = siteConfig;
+export default function SocialFooter({
+  surface,
+  force,
+}: {
+  surface: SocialFooterSurface;
+  force?: boolean;
+}) {
+  const socialFooter = useSocialFooter();
 
-  // Don't render if the footer is globally disabled
-  if (!socialFooter?.enabled) {
-    return null;
-  }
+  if (!socialFooter.enabled) return null;
+  if (force === false) return null;
+  if (force !== true && !surfaceEnabled(socialFooter, surface)) return null;
 
   // Get current year for copyright
   const currentYear = new Date().getFullYear();
@@ -46,11 +68,11 @@ export default function SocialFooter() {
       <div className="social-footer-content">
         {/* Social links on the left */}
         <div className="social-footer-links">
-          {socialFooter.socialLinks.map((link) => {
+          {socialFooter.socialLinks.map((link, index) => {
             const IconComponent = platformIcons[link.platform];
             return (
               <a
-                key={link.platform}
+                key={`${link.platform}-${index}`}
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"

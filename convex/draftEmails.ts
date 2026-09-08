@@ -78,9 +78,9 @@ export const sendDraftPreview = internalAction({
 });
 
 const MAX_DRAFT_INPUT_CHARS = 400_000;
-const AGENTMAIL_API_BASE = "https://api.agentmail.to/v0";
+export const AGENTMAIL_API_BASE = "https://api.agentmail.to/v0";
 
-async function agentMailGet(
+export async function agentMailGet(
   apiKey: string,
   path: string,
 ): Promise<Record<string, unknown>> {
@@ -99,7 +99,10 @@ function messageLabels(message: Record<string, unknown>): Array<string> {
     : [];
 }
 
-async function ingestFetchedMessage(
+// Exported so the photo email door can fall back to the draft path when a
+// message carries no usable image attachments. `message` lets a caller that
+// already fetched the message skip the second round trip.
+export async function ingestFetchedMessage(
   ctx: ActionCtx,
   args: {
     apiKey: string;
@@ -107,14 +110,17 @@ async function ingestFetchedMessage(
     allowedSenders: Array<string>;
     inboxId: string;
     messageId: string;
+    message?: Record<string, unknown>;
   },
 ): Promise<{ draftId: Id<"drafts"> | null; skipped?: string }> {
   const encodedInbox = encodeURIComponent(args.inboxId);
   const encodedMessage = encodeURIComponent(args.messageId);
-  const message = await agentMailGet(
-    args.apiKey,
-    `/inboxes/${encodedInbox}/messages/${encodedMessage}`,
-  );
+  const message =
+    args.message ??
+    (await agentMailGet(
+      args.apiKey,
+      `/inboxes/${encodedInbox}/messages/${encodedMessage}`,
+    ));
 
   const labels = messageLabels(message);
   if (labels.includes("sent")) {

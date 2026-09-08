@@ -15,6 +15,7 @@ import { processXCallback } from "./xIntegration";
 import type { Id } from "./_generated/dataModel";
 import {
   extractBody,
+  extractImageAttachments,
   extractInboxId,
   extractMessageId,
   extractSender,
@@ -240,6 +241,28 @@ http.route({
     const pages = await ctx.runQuery(internal.pages.getAllPagesInternal);
     const tags = await ctx.runQuery(internal.posts.getAllTagsInternal);
     const authors = await ctx.runQuery(internal.posts.getAllAuthorsInternal);
+    const photos = await ctx.runQuery(internal.photos.listPublishedInternal, {});
+
+    // Only advertised when something is published; the /photos route itself
+    // is gated by siteConfig.photosPage.enabled on the client.
+    const photoUrls =
+      photos.length === 0
+        ? []
+        : [
+            `  <url>
+    <loc>${SITE_URL}/photos</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>`,
+            ...photos.map(
+              (photo: { slug: string; capturedAt?: number; createdAt: number }) => `  <url>
+    <loc>${SITE_URL}/photos/${encodeURIComponent(photo.slug)}</loc>
+    <lastmod>${new Date(photo.capturedAt ?? photo.createdAt).toISOString().slice(0, 10)}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>`,
+            ),
+          ];
 
     const urls = [
       // Homepage
@@ -281,6 +304,8 @@ http.route({
     <priority>0.6</priority>
   </url>`,
       ),
+      // Photo gallery and each photo's deep link
+      ...photoUrls,
     ];
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1151,23 +1176,32 @@ http.route({
     const sourceMessageId = extractMessageId(message);
     const text = extractBody(message);
 
-    // Webhook payloads omit text/html when they exceed 1 MB. Fetch the full
-    // message from the AgentMail API instead of dropping the mail.
-    if (!text.trim()) {
+    // Photo door: mail with non inline image attachments becomes gallery
+    // photos. Webhook payloads also omit text/html when they exceed 1 MB, so an
+    // empty body takes the same path: the action fetches the full message,
+    // files images as photos, and falls back to a draft for text only mail.
+    const hasImages = extractImageAttachments(message).length > 0;
+    if (hasImages || !text.trim()) {
       const inboxId = extractInboxId(message) || ownInbox;
       if (inboxId && sourceMessageId) {
         await ctx.scheduler.runAfter(
           0,
-          internal.draftEmails.ingestAgentMailMessage,
+          internal.photoEmails.ingestPhotoEmail,
           {
             inboxId,
             messageId: sourceMessageId,
           },
         );
-        return new Response(JSON.stringify({ ok: true, scheduled: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ ok: true, scheduled: true, photos: hasImages }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (hasImages) {
+        return new Response(
+          JSON.stringify({ ok: true, skipped: "missing message id" }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
       }
       return new Response(JSON.stringify({ ok: true, skipped: "empty body" }), {
         status: 200,

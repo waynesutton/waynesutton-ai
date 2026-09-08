@@ -2,6 +2,16 @@
 
 ## Current Status
 
+Session updates complete on 2026-09-07.
+
+Photos gallery (2026-09-07 20:15 UTC): done. `/photos` (off by default, `siteConfig.photosPage`) with grid and full frame views, TAGS rail filtering through `?tag=`, lightbox with arrows and keyboard, Present slideshow, and `/photos/<slug>` deep links. Objects live in R2 through `convex/lib/r2Client.ts`. Dashboard Photos section uploads many files with browser made WebP thumbnails, edits metadata, bulk publishes, deletes, and owns the email auto publish switch. AgentMail emails with image attachments from allowlisted senders publish straight to the gallery and get a reply with links; text only mail still becomes a draft. Agents read `cat /photos.md`, the `/photos` agent-ready entry, `llms.txt`, MCP `list_photos`, WebMCP `list_photos` and `open_photo`; the sitemap lists every photo. Docs topic in the dashboard. `tsc`, vitest 111/111, build, convex-doctor 100/100 pass; dev browser pass on the public page and agent endpoints. Signed in dashboard pass and a real email send still open. Not deployed. PRD: `prds/photos-gallery.md`.
+
+404 page redesign (2026-09-07 17:05 UTC): done. The catch-all slug miss now renders `src/components/NotFound.tsx`: a framed full bleed scene with a perspective dashed grid and four drifting isometric cubes above a giant uppercase "Page not found", one sentence, and a pill Back to home. Follows all four themes through `color-mix` on the theme variables, reduced motion stops the drift, phone layout stacks with a 44px full width button. `tsc`, eslint, prettier clean; dev browser checked at 1440px and 375px on light, dark, and tan. Real device pass open. Not deployed. PRD: `prds/not-found-page-redesign.md`.
+
+Featured badge in Posts list (2026-09-07 16:45 UTC): done. Filled `Star` plus "Featured" pill in the status column of `PostsListView` for posts with `featured: true`. `tsc` and lints clean. Signed-in dashboard visual check still open.
+
+Dashboard home links, closing note, share, and search (2026-09-07 16:55 UTC): done. PRD: `prds/dashboard-home-links-share-search.md`. Public `/` and a post share row checked. Signed-in dashboard click-through still open.
+
 Session updates complete on 2026-09-06.
 
 Web research providers and static hosting (2026-09-07 02:10 UTC): Firecrawl, Exa, and Context.dev now share one provider chain (`convex/lib/webResearch.ts`) behind URL import, AI chat links, draft links, and `npm run import`. All three are bring-your-own key through Vendor keys or env vars; a missing key skips the provider and never blocks deploy or sync. API Keys has a Web research card with the preferred-provider select (`auto` uses the first configured) and the effective fallback order. `@convex-dev/self-hosting` replaced by `@convex-dev/static-hosting@0.2.x` with the `selfHosting` instance name kept so existing uploads keep serving; `http.ts` reads through `resolveAssetForHttp`. `tsc`, 76 vitest tests, eslint, convex-doctor 100/100, `npm audit` clean, `npx convex dev --once`, and a dev static upload smoke test pass. Security pass closed one pre-existing hole: URL import is now dashboard admin only instead of any signed-in GitHub account. Not deployed to production. PRD: `prds/web-research-providers-and-static-hosting.md`.
@@ -25,6 +35,30 @@ R2 media/gallery/video is complete and live. Cloudflare R2, `waynesutton-media`,
 ## Current handoff (2026-09-05 23:10 UTC)
 
 GitHub `main` is still `0212406`. Local `HEAD` is `9f3e3bf` (2026-09-06). Remaining uncommitted work is the Dashboard Docs contact form how-to plus discovery file catch-up (`public/AGENTS.md`, timestamps). No commit, push, or deploy in this pass.
+
+## To Do
+
+### Photos gallery follow ups
+
+- [ ] Signed in: Dashboard > Photos, drop three JPEGs with tags, confirm per file progress, thumbnails, edit title and date, bulk publish, delete with the confirm modal, the email card, and Generate missing thumbnails.
+- [ ] Email: send one image with subject and a `tags: canmore, nature` line from an allowlisted address to the dev inbox, confirm it publishes, shows in the grid, and the reply lists the `/photos/<slug>` link.
+- [ ] Production: `npx convex deploy` then `npm run deploy`, turn on Photos Page in Site Config, run `npm run sync:discovery:prod`.
+
+## Photos gallery (2026-09-07 20:15 UTC)
+
+PRD: `prds/photos-gallery.md`. Dev deployment has `photosPage.enabled: true` saved in Site Config overrides so the gallery can be tested there; the smoke photos used for verification were deleted.
+
+- [x] Schema: `photos` (by_slug, by_published, by_sourcemessageid) and `photoSettings` singleton; `convex/lib/photosDirectory.ts` (sort, tag normalize, tag line parser, slug, unique slug, tag counts, markdown builder); `convex/lib/r2Client.ts` holds the R2 client and URL helpers so the Node email action can import it, `convex/r2.ts` re-exports.
+- [x] `convex/photos.ts`: public `listPublished`, `getBySlug`, `getMarkdown`; admin `listAll`, `create`, `update` (with `clearFields`), `remove` (deletes original and thumbnail objects, row goes even when storage fails), `setPublishedMany`, `getEmailSettings` (auto publish, inbox address, allowed sender count), `setEmailAutoPublish`, `generateUploadUrl` (optional `photos/<id>` or `-thumb.webp` key); internal `insertFromEmail` (idempotent per `sourceMessageId`, honors auto publish), `findBySourceMessageId`, `listPublishedInternal`. Every write schedules `refreshPhotos`.
+- [x] `convex/photoEmails.ts` (`"use node"`): `ingestPhotoEmail` fetches the AgentMail message, keeps non inline image attachments (PNG, JPEG, GIF, WebP, 10 MB, 10 per email), stores to R2 with Convex storage fallback, subject to title, body minus `tags:` line to description, replies with `/photos/<slug>` links; no usable image falls back to `ingestFetchedMessage` (now exported from `draftEmails.ts`). `convex/http.ts` webhook routes to it when images or an empty body are present. `convex/lib/agentMailMessage.ts` gained `extractImageAttachments` and `isGalleryImageType`.
+- [x] Agent surfaces: VFS `/photos.md` plus `/index.md` link; agent-ready `reconcilePhotos` behind the `refreshPhotos` flag (publishes the `/photos` entry, archives when empty); MCP `list_photos` with optional `tag`; sitemap lists `/photos` and each slug when photos exist; `photos` page type in `convex/stats.ts` and `usePageTracking`.
+- [x] `siteConfig.photosPage` (enabled, showInNav, title, description, order, viewMode, showViewToggle, showTagFilter, slideshowIntervalMs); `/photos` and `/photos/:slug` routes gated on `enabled`; Layout nav item and wide content path.
+- [x] `src/pages/Photos.tsx`: grid (square tiles, 5/3/2 columns) and full frame views with localStorage memory, TAGS rail with counts and `?tag=` filter, count line with `photos.md` hint, Present, Copy as markdown, empty and not found states, `document.title` per photo and tag. `src/components/PhotoLightbox.tsx`: one overlay for lightbox and present, arrows, keyboard (Left, Right, Home, End, Space, P, Escape), click thirds, swipe, neighbor preload, scroll lock, progress bar autoplay that loops, reduced motion. URL sync: opening pushes `/photos/<slug>` keeping the tag, closing returns to `/photos`.
+- [x] WebMCP: `list_photos` (page and remote-public, same shape as MCP) and `open_photo` (page). `catalog.test.tsx` counts updated.
+- [x] Dashboard `PhotosSection`: multi file drop zone, browser WebP thumbnails at 800px (`src/utils/photoThumbnail.ts`) with natural dimensions, upload defaults (tags, publish), per file progress, filters All / Unpublished / From email, select all and bulk publish / unpublish / delete with the delete modal, inline editor (title, slug, description, tags, date, published), Regenerate thumbnail per photo and Generate missing thumbnails for emailed ones, Email inbox card (auto publish toggle, inbox address, allowlist count), route off notice, Docs link. `Dashboard.tsx` section id, nav item (`Images`), Photos Page config card and `photosPage` state; `configGroups`, `dashboardSearch` `feature-photos`; `dashboard.css` block.
+- [x] Dashboard Docs `Photo gallery` topic: upload, one photo fields, tags and views, lightbox and presentation, email photos in, Site Config, agents, troubleshooting; overview and Site Config tables and search hints updated.
+- [x] Discovery: `scripts/sync-discovery-files.ts` Photos section in `llms.txt`; `agent-ready.config.json` Photos entry and `photos.md` mentions; `AGENTS.md` Photos section, structure tree, VFS example; `CLAUDE.md` key files; `content/pages/docs.md` MCP `list_photos` and VFS paths; `prds/setup-agent-blog.md` photo email note and troubleshooting row.
+- [x] Verified: `convex/photos.test.ts` (tags, tag line, slugs, sort, markdown, admin gate, public filter, bulk publish and discovery entry, email idempotency and auto publish) plus the `/photos` case in `convex/agentReadyAutoSync.test.ts`; `tsc` app and convex, vitest 111/111, `npm run build`, convex-doctor 100/100 with 0 warnings. Dev deployment: seeded three photos through `insertFromEmail`, checked `/photos` grid, nav item, tag rail, `?tag=nature` filter with Clear, full frame captions, deep link `/photos/<slug>` opening the lightbox with counter and title, ArrowLeft updating URL and title, Escape restoring scroll, Present autoplay looping through the filtered set, `P` back to lightbox, not found copy for a bad slug, `cat /photos.md`, `/index.md` link, MCP `list_photos` with tag filter, sitemap entries, `photos:remove` cleanup. Fixed present mode image overflowing the stage (`max-width: 100%`). Signed in dashboard pass and the real email send are open above.
 
 ## Web research providers and static hosting (2026-09-07 02:10 UTC)
 
@@ -171,6 +205,12 @@ GitHub `main` is still `0212406`. Local `HEAD` is `9f3e3bf` (2026-09-06). Remain
 
 ## To Do
 
+- [ ] 404 page on a real phone: open `/anything-missing` on iOS Safari and Android Chrome, confirm the frame sits 15px in, the cubes drift, and Back to home is easy to tap. Check the cloud theme by eye (only dark, light, and tan were checked in the dev browser). PRD: `prds/not-found-page-redesign.md`
+
+- [ ] Signed-in Posts list check: a post with `featured: true` shows the Star + Featured pill in Status; a non-featured post does not. Optional follow-ups: same badge in `PagesListView`, a Featured filter tab.
+
+- [ ] Signed-in dashboard click-through: Homepage External links, Site Config closing note / share / Footer URLs, Cmd+K "blog", dirty Save dock. PRD: `prds/dashboard-home-links-share-search.md`
+
 - [ ] Signed-in Docs click-through: Writing, Newsletter, and Site Config show the contact form how-to (`<!-- contactform -->`, `contactForm: true`, Site Config switch). Cmd+K `contactform` opens Newsletter. PRD: `prds/dashboard-docs-contact-form.md`
 
 - [ ] Signed-in Docs click-through: Overview table shows this machine's dev/prod slugs, Writing has Markdown slides, Deploying has the `--prod` table and no `npm run deploy --prod`, Skills topic opens. PRD: `prds/dashboard-docs-scan.md`
@@ -262,6 +302,12 @@ GitHub `main` is still `0212406`. Local `HEAD` is `9f3e3bf` (2026-09-06). Remain
 
 ## Recently Completed
 
+- [x] 404 page redesign (2026-09-07 17:05 UTC) (PRD: `prds/not-found-page-redesign.md`)
+  - [x] `src/components/NotFound.tsx`: framed full bleed scene with a perspective dashed diamond grid (inline SVG pattern under CSS `rotateX`, masked at the horizon) and four drifting isometric cubes sized in `cqh`/`cqw` so they fit desktop and phone panels; giant uppercase title, one sentence, pill Back to home; sets `document.title`
+  - [x] `src/pages/Post.tsx`: `post === null` renders `<NotFound />`, `ArrowLeft` import dropped
+  - [x] `src/styles/global.css`: `.not-found*` rules replace `.post-not-found`; theme colors through `color-mix`, tan button contrast step, float keyframes, reduced motion, 1024px and 768px breakpoints
+  - [x] Verified: `tsc`, eslint, prettier clean; dev browser at 1440px (24px frame, cubes inside) and 375px (15px insets, `scrollWidth` 375, 44px full width CTA, fits one screen); dark and tan themes checked. Real device and cloud theme pass open under To Do. Not deployed.
+
 - 2026-09-06 - Write sidebar drag-resize restored. Handle was clipped on dashboard Write (missing `position: relative`) and missing on `/write`. Shared width key, `/write` grid column, stacked layouts full width. Verified on `/write` at 1440px. Signed-in dashboard Write pass still open. PRD: prds/write-sidebar-resize.md
 
 - 2026-09-05 17:35 UTC - Compared local `main` to GitHub `waynesutton/waynesutton-ai`: 0 behind, 0 ahead of `origin/main` at `0212406`. Confirmed no open PRs or issues. Recorded that GitHub lacks the uncommitted 2026-09-05 R2, homepage/newsletter, dashboard polish, and author/write/discovery work. Documentation-only; no commit, push, or deploy.
@@ -289,6 +335,13 @@ GitHub `main` is still `0212406`. Local `HEAD` is `9f3e3bf` (2026-09-06). Remain
   - [x] Schema/functions deployed cleanly to development `notable-loris-927`; Convex Doctor reports 91/100 with 22 pre-existing warnings and none left from this feature.
 
 ## Completed
+
+- [x] Featured badge in the dashboard Posts list (2026-09-07 16:45 UTC)
+  - [x] `PostsListView` status column renders a filled Phosphor `Star` plus "Featured" pill when `post.featured` is true; hover title reads `featuredOrder` when set
+  - [x] `.status-badge.featured` in `src/styles/dashboard.css` on the shared 20px pill metric so row height does not change
+  - [x] `tsc --noEmit` and lints clean; `files.md` and `changelog.md` updated
+
+- [x] Dashboard home links, closing note, share, and search (2026-09-07 16:55 UTC). PRD: `prds/dashboard-home-links-share-search.md`. Homepage owns named links (any label, any URL, max 8, show on `/`). Site Config owns closing note markdown, share row, related heading, newsletter signup copy, footer social URLs, and the AI writing note. Cmd+K results are desk-styled. Save docks when dirty. Cmd+S saves. `tsc`, 22 resolver tests, eslint pass. Public `/` closing note and `/news-map-test` share row checked. Signed-in dashboard click-through still open.
 
 - [x] README rewrite (2026-09-07 01:10 UTC)
   - [x] Kept title, badges, intro, sync pitch, and markdown-site fork note; removed How publishing works, duplicate `SYNC_SECRET` paragraph, Getting started, and the `FORK_CONFIG.md` link to a file that does not exist

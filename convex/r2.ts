@@ -1,29 +1,12 @@
-import { R2 } from "@convex-dev/r2";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import type { DataModel } from "./_generated/dataModel";
-import { components } from "./_generated/api";
-import { internalAction, query, type MutationCtx } from "./_generated/server";
+import { internalAction, query } from "./_generated/server";
 import { requireDashboardAdmin } from "./dashboardAuth";
+import { r2, permanentR2Url, deleteR2Object } from "./lib/r2Client";
 
-const r2 = new R2(components.r2);
-
-function encodeObjectKey(key: string): string {
-  return key.split("/").map(encodeURIComponent).join("/");
-}
-
-export function permanentR2Url(key: string): string {
-  const publicUrl = process.env.R2_PUBLIC_URL?.replace(/\/+$/, "");
-  const encodedKey = encodeObjectKey(key);
-  if (publicUrl) return `${publicUrl}/${encodedKey}`;
-
-  const siteUrl = process.env.CONVEX_SITE_URL?.replace(/\/+$/, "");
-  if (!siteUrl) {
-    throw new ConvexError(
-      "CONVEX_SITE_URL is unavailable for the R2 redirect fallback",
-    );
-  }
-  return `${siteUrl}/r2/${encodedKey}`;
-}
+// The client instance and URL helpers live in lib/r2Client so Node actions can
+// share them. Re-exported here so existing imports keep working.
+export { permanentR2Url, deleteR2Object };
 
 export const {
   generateUploadUrl,
@@ -60,7 +43,3 @@ export const getRedirectUrl = internalAction({
     return await r2.getUrl(args.key, { expiresIn: 7 * 24 * 60 * 60 });
   },
 });
-
-export async function deleteR2Object(ctx: MutationCtx, key: string): Promise<void> {
-  await r2.deleteObject(ctx, key);
-}

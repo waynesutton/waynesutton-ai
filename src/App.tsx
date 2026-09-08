@@ -36,6 +36,7 @@ const Stats = lazy(() => import("./pages/Stats"));
 const Blog = lazy(() => import("./pages/Blog"));
 const Projects = lazy(() => import("./pages/Projects"));
 const Skills = lazy(() => import("./pages/Skills"));
+const Photos = lazy(() => import("./pages/Photos"));
 const DocsPage = lazy(() => import("./pages/DocsPage"));
 const Write = lazy(() => import("./pages/Write"));
 const TagPage = lazy(() => import("./pages/TagPage"));
@@ -162,6 +163,13 @@ function App() {
             {/* Skills directory route - only enabled when skillsPage.enabled is true */}
             {siteConfig.skillsPage?.enabled && (
               <Route path="/skills" element={<Skills />} />
+            )}
+            {/* Photos gallery: /photos/:slug opens the lightbox on that photo */}
+            {siteConfig.photosPage?.enabled && (
+              <>
+                <Route path="/photos" element={<Photos />} />
+                <Route path="/photos/:slug" element={<Photos />} />
+              </>
             )}
             {/* Docs page route - only enabled when docsSection.enabled is true */}
             {siteConfig.docsSection?.enabled && (

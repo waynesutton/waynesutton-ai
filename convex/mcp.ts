@@ -88,6 +88,21 @@ export const MCP_TOOLS = [
     inputSchema: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "list_photos",
+    description:
+      "List published photos from the /photos gallery. Returns title, description, tags, page url, image url, and date for each photo. Optional tag filter.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tag: {
+          type: "string",
+          description: "Only return photos carrying this tag (lowercase)",
+        },
+      },
+      required: [],
+    },
+  },
+  {
     name: "create_draft",
     description:
       "Submit a blog draft to the review inbox. Drafts are reviewed by the site owner before publishing. Requires a pipeline API key (wsa_...) in the x-api-key header, or Authorization: Bearer wsa_... when MCP_API_KEY is not set.",
@@ -178,6 +193,31 @@ async function sha256Hex(input: string): Promise<string> {
 async function handleListPosts(ctx: ActionCtx): Promise<unknown> {
   const posts = await ctx.runQuery(internal.posts.getAllPostsInternal, {});
   return { site: SITE_NAME, url: SITE_URL, posts };
+}
+
+// Gallery listing with absolute URLs so agents can open a photo page or fetch
+// the image directly. Tag filter mirrors the public page's ?tag= query.
+async function handleListPhotos(ctx: ActionCtx, tag: string | undefined): Promise<unknown> {
+  const photos = await ctx.runQuery(internal.photos.listPublishedInternal, {});
+  const wanted = tag?.trim().toLowerCase();
+  const filtered = wanted ? photos.filter((photo) => photo.tags.includes(wanted)) : photos;
+  return {
+    site: SITE_NAME,
+    url: `${SITE_URL}/photos`,
+    count: filtered.length,
+    photos: filtered.map((photo) => ({
+      slug: photo.slug,
+      title: photo.title ?? null,
+      description: photo.description ?? null,
+      tags: photo.tags,
+      url: `${SITE_URL}/photos/${photo.slug}`,
+      imageUrl: photo.url,
+      thumbnailUrl: photo.thumbnailUrl ?? null,
+      width: photo.width ?? null,
+      height: photo.height ?? null,
+      date: new Date(photo.capturedAt ?? photo.createdAt).toISOString().slice(0, 10),
+    })),
+  };
 }
 
 async function handleGetPost(ctx: ActionCtx, slug: string): Promise<unknown> {
@@ -333,6 +373,8 @@ async function handleToolCall(
       return handleSearchContent(ctx, args.query);
     case "export_all":
       return handleExportAll(ctx);
+    case "list_photos":
+      return handleListPhotos(ctx, typeof args.tag === "string" ? args.tag : undefined);
     case "create_draft":
       return handleCreateDraft(ctx, args, pipelineKey);
     default:

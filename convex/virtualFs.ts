@@ -5,6 +5,7 @@ import {
   type SkillDoc,
   type SkillSectionDoc,
 } from "./lib/skillsDirectory";
+import { buildPhotosMarkdown, type PhotoDoc } from "./lib/photosDirectory";
 
 const MAX_GREP_RESULTS = 100;
 const MAX_LS_ITEMS = 500;
@@ -108,6 +109,22 @@ export {
 } from "./lib/skillsDirectory";
 export type { SkillDoc, SkillSectionDoc } from "./lib/skillsDirectory";
 
+// Photos render as one markdown file at /photos.md with absolute links so an
+// agent can open a photo page or the image itself without knowing the host.
+const PHOTOS_SITE_URL = (process.env.SITE_URL || "https://waynesutton.ai").replace(/\/+$/, "");
+
+async function getPublishedPhotoDocs(ctx: QueryCtx): Promise<Array<PhotoDoc>> {
+  const photos = await ctx.db
+    .query("photos")
+    .withIndex("by_published", (q) => q.eq("published", true))
+    .take(MAX_LS_ITEMS);
+  return photos;
+}
+
+export function buildPhotosMarkdownForSite(photos: Array<PhotoDoc>): string {
+  return buildPhotosMarkdown(photos, { siteUrl: PHOTOS_SITE_URL });
+}
+
 export async function getPublishedSkillDirectory(ctx: QueryCtx): Promise<{
   sections: Array<SkillSectionDoc>;
   skills: Array<SkillDoc>;
@@ -167,6 +184,17 @@ async function buildPathTreeHelper(ctx: QueryCtx): Promise<Array<FileEntry>> {
     });
   }
 
+  const photos = await getPublishedPhotoDocs(ctx);
+  if (photos.length > 0) {
+    entries.push({
+      name: "photos.md",
+      path: "/photos.md",
+      type: "file",
+      size: buildPhotosMarkdownForSite(photos).length,
+      title: "Photos",
+    });
+  }
+
   for (const post of posts) {
     if (post.unlisted) continue;
     const dir = post.docsSection ? "/docs" : "/blog";
@@ -219,6 +247,16 @@ async function readFileHelper(
     };
   }
 
+  if (p === "photos.md" || p === "photos") {
+    const photos = await getPublishedPhotoDocs(ctx);
+    if (photos.length === 0) return null;
+    return {
+      content: buildPhotosMarkdownForSite(photos),
+      title: "Photos",
+      path: "/photos.md",
+    };
+  }
+
   if (p === "index.md" || p === "") {
     const posts = await ctx.db
       .query("posts")
@@ -247,6 +285,10 @@ async function readFileHelper(
     const skillDirectory = await getPublishedSkillDirectory(ctx);
     if (skillDirectory.skills.length > 0) {
       lines.push("", "## Skills", "", "- [Skills](/skills.md)");
+    }
+    const photos = await getPublishedPhotoDocs(ctx);
+    if (photos.length > 0) {
+      lines.push("", "## Photos", "", `- [Photos](/photos.md) (${photos.length})`);
     }
     return { content: lines.join("\n"), title: "Site index", path: "/index.md" };
   }

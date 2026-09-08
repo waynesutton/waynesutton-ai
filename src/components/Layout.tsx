@@ -13,6 +13,7 @@ import WebMcpProvider from "./WebMcpProvider";
 import { useSidebarOptional } from "../context/SidebarContext";
 import siteConfig from "../config/siteConfig";
 import { platformIcons } from "./SocialFooter";
+import { useSocialFooter } from "../hooks/useSocialFooter";
 import {
   categoryNavItems,
   resolveHomeCategories,
@@ -36,6 +37,7 @@ export default function Layout({ children }: LayoutProps) {
   const isDashboardAdmin = useQuery(api.authAdmin.isCurrentUserDashboardAdmin);
   const configOverrides = useQuery(api.siteConfigData.getOverrides);
   const homeCategories = resolveHomeCategories(configOverrides);
+  const socialFooter = useSocialFooter();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   // Query typed into the search box on open. Only the WebMCP search_site
   // tool sets it; the header button always opens blank.
@@ -177,6 +179,15 @@ export default function Layout({ children }: LayoutProps) {
       slug: "skills",
       title: siteConfig.skillsPage.title,
       order: siteConfig.skillsPage.order ?? 4,
+    });
+  }
+
+  // Add Photos link if enabled
+  if (siteConfig.photosPage?.enabled && siteConfig.photosPage?.showInNav) {
+    navItems.push({
+      slug: "photos",
+      title: siteConfig.photosPage.title,
+      order: siteConfig.photosPage.order ?? 5,
     });
   }
 
@@ -348,14 +359,13 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
           )}
           {/* Social icons in header (if enabled) */}
-          {siteConfig.socialFooter?.enabled &&
-            siteConfig.socialFooter?.showInHeader && (
+          {socialFooter.enabled && socialFooter.showInHeader && (
               <div className="header-social-links">
-                {siteConfig.socialFooter.socialLinks.map((link) => {
+                {socialFooter.socialLinks.map((link, index) => {
                   const IconComponent = platformIcons[link.platform];
                   return (
                     <a
-                      key={link.platform}
+                      key={`${link.platform}-${index}`}
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -426,12 +436,14 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
       </MobileMenu>
 
-      {/* Wider column for stats, blog, tag archives, and docs */}
+      {/* Wider column for stats, blog, tag archives, photos, and docs */}
       <main
         className={
           location.pathname === "/stats" ||
           location.pathname === "/blog" ||
           location.pathname.startsWith("/tags/") ||
+          location.pathname === "/photos" ||
+          location.pathname.startsWith("/photos/") ||
           isDocsPage
             ? "main-content-wide"
             : "main-content"

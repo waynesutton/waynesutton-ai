@@ -15,6 +15,7 @@ Developer Community Lead at Convex, tech event organizer, startup ecosystem buil
 - Markdown posts with frontmatter
 - Projects index at `/projects` with dashboard CRUD, thumbnails, and repo/X/LinkedIn links
 - Skills directory at `/skills` (optional, `siteConfig.skillsPage`) with sections, slash commands, labeled install commands with copy, and repo/skills.sh/docs/X links
+- Photo gallery at `/photos` (optional, `siteConfig.photosPage`) backed by Cloudflare R2: grid and full frame views, tag filter, lightbox with arrows, presentation mode, `/photos/<slug>` deep links, dashboard uploads with browser-made thumbnails, and an AgentMail email door that auto publishes attached images
 - Four themes (dark, light, tan, cloud)
 - Full text search with Command+K
 - Semantic search with OpenAI embeddings and Ask AI (Cmd+J)
@@ -38,10 +39,9 @@ Developer Community Lead at Convex, tech event organizer, startup ecosystem buil
 - **Site Name**: Wayne Sutton
 - **Site Title**: Developer Community Builder
 - **Site URL**: https://waynesutton.ai
-- **Total Posts**: 11
-- **Total Pages**: 1
-- **Latest Post**: 2026-08-22
-- **Last Updated**: 2026-09-07T12:45:39.435Z
+- **Total Posts**: 0
+- **Total Pages**: 0
+- **Last Updated**: 2026-09-08T01:01:29.432Z
 
 ## Deployments
 
@@ -235,6 +235,8 @@ waynesutton-ai/
 │   ├── pages.ts           # Page queries and mutations
 │   ├── projects.ts        # Projects CRUD for the /projects index
 │   ├── skills.ts          # Skills and skill sections CRUD for the /skills directory
+│   ├── photos.ts          # Photos CRUD, email settings, and public gallery queries for /photos
+│   ├── photoEmails.ts     # Node action: AgentMail image attachments to R2 and the photos table
 │   ├── stats.ts           # Analytics (conflict-free patterns)
 │   ├── search.ts          # Full text search
 │   ├── http.ts            # HTTP endpoints (sitemap, API, VFS, webhooks, static serving)
@@ -381,7 +383,7 @@ projects: defineTable({
   .index("by_published", ["published"])
 ```
 
-Other tables: `skills`, `skillSections`, `drafts`, `apiKeys`, `vendorKeys`, `newsletterSubscribers`, `contactMessages`, `aiChats`, `audioJobs`, `contentVersions`, `dashboardAdmins`, `agentReadySettings`, `voiceProfile`, `xAccounts`, `xShares`, and queued job tables (`aiImageGenerationJobs`, `importUrlJobs`, `semanticSearchJobs`). See `convex/schema.ts` for the full list.
+Other tables: `skills`, `skillSections`, `photos`, `photoSettings`, `drafts`, `apiKeys`, `vendorKeys`, `newsletterSubscribers`, `contactMessages`, `aiChats`, `audioJobs`, `contentVersions`, `dashboardAdmins`, `agentReadySettings`, `voiceProfile`, `xAccounts`, `xShares`, and queued job tables (`aiImageGenerationJobs`, `importUrlJobs`, `semanticSearchJobs`). See `convex/schema.ts` for the full list.
 
 ## HTTP endpoints
 
@@ -437,13 +439,18 @@ curl -X POST https://yoursite.example.com/vfs/exec \
 curl -X POST https://yoursite.example.com/vfs/exec \
   -H "Content-Type: application/json" \
   -d '{"command": "cat /skills.md"}'
+
+# Read the photo gallery with page and image URLs
+curl -X POST https://yoursite.example.com/vfs/exec \
+  -H "Content-Type: application/json" \
+  -d '{"command": "cat /photos.md"}'
 ```
 
 Supported commands: `ls`, `cat`, `grep`, `find`, `tree`, `head`, `wc`, `pwd`, `cd`
 
-Paths: `/blog`, `/pages`, `/docs`, `/index.md`, `/projects.md`, `/skills.md`
+Paths: `/blog`, `/pages`, `/docs`, `/index.md`, `/projects.md`, `/skills.md`, `/photos.md`
 
-Implementation: `convex/virtualFs.ts` with helper functions for path tree, file reading, and grep (uses Convex search indexes for coarse filtering, then regex refinement). `/projects.md` is a generated index of published projects with descriptions and links. `/skills.md` is the full skills directory: an H2 per section, an H3 per skill with its command, description, fenced install commands, and links. Both files only appear when they have published content.
+Implementation: `convex/virtualFs.ts` with helper functions for path tree, file reading, and grep (uses Convex search indexes for coarse filtering, then regex refinement). `/projects.md` is a generated index of published projects with descriptions and links. `/skills.md` is the full skills directory: an H2 per section, an H3 per skill with its command, description, fenced install commands, and links. `/photos.md` is the photo gallery: an H3 per photo with title, description, tags, page URL, image URL, and date. All three files only appear when they have published content.
 
 ## Projects
 
@@ -455,6 +462,16 @@ Agent skills (SKILL.md folders installed with `npx skills add`, `skills.sh`, or 
 
 The dashboard Skills section is the only writer (`convex/skills.ts`, `src/components/dashboard/SkillsSection.tsx`, `src/pages/Skills.tsx`). Its "Prefill from SKILL.md" field fetches a GitHub blob or raw URL client-side (`src/utils/skillMdPrefill.ts`) and fills title, slug, command, description, repo link, and a Skills CLI install command from the frontmatter. Grouping, sorting, and the markdown renderer live in `convex/lib/skillsDirectory.ts` so the public page, the VFS `/skills.md`, the agent-ready `/skills` entry, and the page's "Copy as markdown" button all produce the same text. Every skill or section write schedules a discovery sync.
 
+## Photos
+
+A photo gallery rendered at `/photos`, gated by `siteConfig.photosPage.enabled` (default off) and shown in the nav with `showInNav`. Grid is the default view (square tiles, five across on desktop); full frame stacks each photo at its natural aspect with title, description, and tags. A TAGS rail filters through `?tag=`, so a filtered view is a shareable link. Clicking a tile opens a lightbox with arrows, keyboard (Left, Right, Home, End, Escape), swipe, and neighbor preloading; Present runs a fullscreen slideshow at `siteConfig.photosPage.slideshowIntervalMs`. Every photo has a deep link at `/photos/<slug>` that opens the gallery with that photo in the lightbox.
+
+Two tables: `photos` (slug, optional title and description, lowercase tags, provider `r2` or `convex`, object key and permanent URL, optional thumbnail key and URL, width, height, size, content type, published, optional `capturedAt`, source `dashboard` or `email`, `sourceMessageId` for idempotency) and a `photoSettings` singleton with `autoPublishEmail`. Objects live in Cloudflare R2 (`@convex-dev/r2`, client in `convex/lib/r2Client.ts`) with Convex storage as fallback. Deleting a photo deletes the original and thumbnail objects.
+
+Two writers. The dashboard Photos section (`src/components/dashboard/PhotosSection.tsx`) uploads many files at once (PNG, JPEG, GIF, WebP, 10 MB each), makes an 800px WebP thumbnail in the browser (`src/utils/photoThumbnail.ts`), records natural dimensions, and calls `photos.create`; it also edits metadata, bulk publishes, deletes, toggles the email auto publish, and backfills thumbnails for emailed photos. The AgentMail email door (`convex/photoEmails.ts`) runs when an allowlisted sender attaches images: subject becomes the title, body the description, a `tags: a, b` line sets tags, inline images are ignored, up to 10 photos per email, and a reply lists the new `/photos/<slug>` links. Emails with no usable image fall through to the Drafts Inbox path unchanged.
+
+Agents read the gallery through `cat /photos.md` on the VFS, the `/photos` entry in `/llms.txt` and agent-ready discovery, the MCP tool `list_photos` (optional `tag`), and the WebMCP page tools `list_photos` and `open_photo`. The sitemap lists `/photos` and each `/photos/<slug>`. Sorting, tag normalization, slug generation, and the markdown renderer live in `convex/lib/photosDirectory.ts` so the public page's "Copy as markdown", the VFS file, and the agent-ready entry all match. Every photo write schedules a discovery sync.
+
 ## Agent blog pipeline
 
 Agents can submit drafts that land in the dashboard Drafts Inbox for human review:
@@ -463,7 +480,7 @@ Agents can submit drafts that land in the dashboard Drafts Inbox for human revie
 2. The MCP server at `/mcp` exposes `create_draft` using the same keys.
 3. The AgentMail email door accepts mail from allowlisted senders; replies to draft previews with `publish`, `reject`, or `edit` drive the approval loop.
 4. A voice agent (`convex/voiceAgent.ts`) rewrites `rewrite` mode drafts to the configured voice profile; `as-is` skips it.
-5. Publishing can auto-sync the change into the agent-ready discovery files when the dashboard toggle is on (`convex/agentReady/autoSync.ts`). The same hook covers dashboard page CRUD, project CRUD (which refreshes a `/projects` entry mirroring the VFS `/projects.md`), skill and skill section CRUD (which refreshes a `/skills` entry mirroring `/skills.md`), and the CLI sync mutations, which batch one refresh per run.
+5. Publishing can auto-sync the change into the agent-ready discovery files when the dashboard toggle is on (`convex/agentReady/autoSync.ts`). The same hook covers dashboard page CRUD, project CRUD (which refreshes a `/projects` entry mirroring the VFS `/projects.md`), skill and skill section CRUD (which refreshes a `/skills` entry mirroring `/skills.md`), photo CRUD and email ingest (which refresh a `/photos` entry mirroring `/photos.md`), and the CLI sync mutations, which batch one refresh per run.
 
 ## Content import
 

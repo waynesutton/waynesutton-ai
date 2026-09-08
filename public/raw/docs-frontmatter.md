@@ -2,7 +2,7 @@
 
 ---
 Type: page
-Date: 2026-09-07
+Date: 2026-09-08
 ---
 
 ## Frontmatter Options
@@ -32,7 +32,7 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 | `layout`                | No       | Set to `"sidebar"` for docs-style layout with TOC                                                                                                                                                      |
 | `rightSidebar`          | No       | Enable right sidebar with CopyPageDropdown (opt-in, requires explicit `true`)                                                                                                                          |
 | `showFooter`            | No       | Show footer on this post (overrides siteConfig default)                                                                                                                                                |
-| `footer`                | No       | Per-post footer markdown (overrides `footer.md` and siteConfig.defaultContent)                                                                                                                         |
+| `footer`                | No       | Per-post closing note markdown (wins over Site Config copy and `footer.md`)                                                                                                                         |
 | `showSocialFooter`      | No       | Show social footer on this post (overrides siteConfig default)                                                                                                                                         |
 | `aiChat`                | No       | Enable AI chat in right sidebar. Set `true` to enable (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`). Set `false` to explicitly hide even if global config is enabled. |
 | `blogFeatured`          | No       | Show as featured on blog page (first becomes hero, rest in 2-column row)                                                                                                                               |
@@ -73,7 +73,7 @@ Frontmatter is the YAML metadata at the top of each markdown file between `---` 
 | `layout`                | No       | Set to `"sidebar"` for docs-style layout with TOC                                                                                                                                                      |
 | `rightSidebar`          | No       | Enable right sidebar with CopyPageDropdown (opt-in, requires explicit `true`)                                                                                                                          |
 | `showFooter`            | No       | Show footer on this page (overrides siteConfig default)                                                                                                                                                |
-| `footer`                | No       | Per-page footer markdown (overrides `footer.md` and siteConfig.defaultContent)                                                                                                                         |
+| `footer`                | No       | Per-page closing note markdown (wins over Site Config copy and `footer.md`)                                                                                                                         |
 | `showSocialFooter`      | No       | Show social footer on this page (overrides siteConfig default)                                                                                                                                         |
 | `aiChat`                | No       | Enable AI chat in right sidebar. Set `true` to enable (requires `rightSidebar: true` and `siteConfig.aiChat.enabledOnContent: true`). Set `false` to explicitly hide even if global config is enabled. |
 | `newsletter`            | No       | Override newsletter signup display (`true` to show, `false` to hide)                                                                                                                                   |

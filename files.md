@@ -2,6 +2,68 @@
 
 A brief description of each file in the codebase.
 
+## Photos gallery (2026-09-07 20:15 UTC)
+
+- `prds/photos-gallery.md`: Problem, decisions (auto publish emailed photos, `/photos/<slug>` deep links), data model, backend, frontend, dashboard docs, edge cases, verification.
+- `convex/lib/photosDirectory.ts`: Pure helpers shared by the public page, VFS, agent-ready sync, MCP, and the copy button: `PhotoDoc`, `photoSortKey` and `sortPhotos` (capturedAt then createdAt, newest first), `normalizeTags` and `parseTagInput`, `parseTagLine` (pulls `tags: a, b` out of an email body), `slugFromTitleOrFilename`, `uniqueSlug`, `collectTagCounts`, `filterPhotosByTag`, `buildPhotosMarkdown`. No server imports.
+- `convex/lib/r2Client.ts`: The `R2` client instance plus `permanentR2Url` and `deleteR2Object`, split out of `convex/r2.ts` so the `"use node"` email action can store and delete objects without importing a file that registers queries.
+- `convex/photos.ts`: Public `listPublished` (by_published, take 600, sorted), `getBySlug`, `getMarkdown`; admin `listAll`, `create`, `update` with `clearFields`, `remove` (deletes original and thumbnail objects, row goes even if storage fails), `setPublishedMany`, `getEmailSettings` (auto publish, inbox address, allowed sender count), `setEmailAutoPublish`, `generateUploadUrl` (optional `photos/<id>` or `photos/<id>-thumb.webp` key); internal `insertFromEmail` (idempotent on `sourceMessageId`, honors auto publish), `findBySourceMessageId`, `listPublishedInternal`. Writes schedule a `refreshPhotos` discovery sync.
+- `convex/photoEmails.ts`: Node action `ingestPhotoEmail`. Fetches the AgentMail message, keeps non inline PNG, JPEG, GIF, WebP attachments (10 MB, 10 per email), downloads each, stores to R2 with Convex storage fallback, inserts a photo per attachment with subject as title, body minus the tags line as description, and replies with the `/photos/<slug>` links. Falls back to `ingestFetchedMessage` from `draftEmails.ts` when no usable image is attached.
+- `convex/photos.test.ts`: Tag normalization, tags line parsing, slug fallback and collisions, sort order, markdown output, admin gate, public filter parity with markdown, bulk publish plus discovery entry, email idempotency and auto publish switch.
+- `src/pages/Photos.tsx`: Public `/photos` and `/photos/:slug`. Header with title, description, grid / full frame toggle (localStorage `photos-view-mode`), Present, Copy as markdown; count line with active tag, Clear, and `photos.md` hint; TAGS rail with counts filtering via `?tag=`; square lazy grid or full frame column with captions; empty and not found states; opens `PhotoLightbox` and syncs the slug in the URL; `document.title` per photo and tag.
+- `src/components/PhotoLightbox.tsx`: Portal overlay with `mode: "lightbox" | "present"`. Arrows, counter, caption with clickable tags, close; keyboard (Left, Right, PageUp, PageDown, Home, End, Space, P, Escape), click thirds in present, click outside to close in lightbox, swipe, neighbor preload, body scroll lock, looping autoplay with a progress bar, reduced motion.
+- `src/utils/photoThumbnail.ts`: Browser thumbnail maker. `createImageBitmap` with orientation from EXIF, canvas scale to an 800px long edge, WebP at 0.82, returns the blob plus natural width and height; `createThumbnailFromUrl` for the emailed photo backfill; `thumbnailKeyFor` (`<key>-thumb.webp`) and the size, quality, and content type constants.
+- `src/components/dashboard/PhotosSection.tsx`: Dashboard Photos section. Multi file drop zone with per file progress (R2 `generateUploadUrl` PUT, `syncMetadata`, permanent URL, or Convex storage fallback), upload defaults for tags and publish state, filters All / Unpublished / From email, select all with bulk publish, unpublish, and delete behind the delete modal, inline editor (title, slug, description, tags, date, published), Regenerate thumbnail and Generate missing thumbnails, Email inbox card with the auto publish toggle, route off notice, Docs link.
+- **Modified** `convex/schema.ts`: `photos` table (by_slug, by_published, by_sourcemessageid) and `photoSettings` (by_key).
+- **Modified** `convex/r2.ts`: Imports the client from `lib/r2Client.ts` and re-exports `permanentR2Url` and `deleteR2Object`.
+- **Modified** `convex/draftEmails.ts`: Exports `AGENTMAIL_API_BASE` and `ingestFetchedMessage` (accepts a prefetched message) so the photo action can fall back to the draft path.
+- **Modified** `convex/lib/agentMailMessage.ts`: `EmailImageAttachment`, `isGalleryImageType`, `extractImageAttachments` (non inline images only), exported `parseAllowedSenders`.
+- **Modified** `convex/http.ts`: AgentMail webhook schedules `internal.photoEmails.ingestPhotoEmail` when the message has image attachments or an empty body; sitemap lists `/photos` and each `/photos/<slug>` when photos exist.
+- **Modified** `convex/stats.ts`, `src/hooks/usePageTracking.ts`: `photos` page type for `/photos` and `/photos/*`.
+- **Modified** `convex/virtualFs.ts`: `/photos.md` in the tree and `readFileHelper`, Photos link in `/index.md`.
+- **Modified** `convex/agentReady/autoSync.ts`: `refreshPhotos` flag and `reconcilePhotos` (publishes the `/photos` entry with the gallery markdown, archives when empty).
+- **Modified** `convex/agentReadyAutoSync.test.ts`: `/photos` entry publish and archive case.
+- **Modified** `convex/mcp.ts`: `list_photos` tool with optional `tag`.
+- **Modified** `src/config/siteConfig.ts`: `PhotosPageConfig` and `photosPage` defaults (off).
+- **Modified** `src/App.tsx`, `src/components/Layout.tsx`: `/photos` and `/photos/:slug` routes gated on `photosPage.enabled`; nav item when `showInNav`; wide content path.
+- **Modified** `src/utils/webmcp/catalog.ts`, `src/hooks/useWebMcp.ts`, `src/utils/webmcp/catalog.test.tsx`: `list_photos` (page and remote-public) and `open_photo` (page) tools and handlers; tool counts in the test.
+- **Modified** `src/pages/Dashboard.tsx`: `photos` section id with the `Images` icon, `PhotosSection` render (demo gated), Photos Page config card, `photosPage` state and generated config.
+- **Modified** `src/components/dashboard/configGroups.ts`, `src/utils/dashboardSearch.ts`, `src/components/dashboard/docsTopics.ts`: Photos Page card and group rename, `feature-photos` search entry, Photo gallery docs topic plus overview and Site Config table rows.
+- **Modified** `src/styles/global.css`, `src/styles/dashboard.css`: `.photos-*`, `.photo-tile`, `.photo-lightbox-*` public styles; `.photos-admin-*` dashboard styles.
+- **Modified** `scripts/sync-discovery-files.ts`: Photos section in `llms.txt` and `photos.md` in the VFS paths line.
+- **Modified** `agent-ready.config.json`, `AGENTS.md`, `CLAUDE.md`, `content/pages/docs.md`, `prds/setup-agent-blog.md`: Photos discovery entry and `photos.md` mentions, Photos section and key files, MCP `list_photos` and VFS paths, photo email routing note and troubleshooting row.
+
+## 404 page redesign (2026-09-07 17:05 UTC)
+
+- `prds/not-found-page-redesign.md`: Problem, Spiral DB reference, scene construction, copy, breakpoints, verification log.
+- `src/components/NotFound.tsx`: Full bleed 404 screen for the catch-all slug route. Inline SVG dashed diamond floor tilted with CSS perspective, four isometric cubes sized in `cqh`/`cqw` so they fit any panel, uppercase title, one sentence, pill Back to home. Sets `document.title` while mounted.
+- **Modified** `src/pages/Post.tsx`: `post === null` renders `<NotFound />`; `ArrowLeft` import dropped.
+- **Modified** `src/styles/global.css`: `.not-found*` rules replace `.post-not-found`: breakout to viewport width with inset frame, scene container, floor transform and mask, cube faces via `color-mix`, float keyframes, tan button override, 1024px and 768px breakpoints, reduced motion.
+
+## Featured badge in the Posts list (2026-09-07 16:45 UTC)
+
+- **Modified** `src/pages/Dashboard.tsx`: `PostsListView` status column shows a `Star` (Phosphor, filled) plus "Featured" pill when `post.featured` is true; hover title includes `featuredOrder` when set.
+- **Modified** `src/styles/dashboard.css`: `.status-badge.featured` pill on the shared badge metric.
+
+## Dashboard home links, closing note, share, and search (2026-09-07 16:40 UTC)
+
+- `prds/dashboard-home-links-share-search.md`: Named homepage links, editable closing note, share row controls, desk-styled search results, dirty Save dock.
+- `src/components/HomeLinks.tsx`: Public named links on `/`. Renders nothing when the list is off or empty.
+- `src/utils/homeLinks.ts`: Resolves `homeLinks`, drops empty rows, caps at 8.
+- `src/utils/closingNote.ts`: Frontmatter, then dashboard `footer.defaultContent`, then `footer.md`.
+- `src/utils/sharePost.ts`: Resolves share row on/off, heading, and Copy link / X / LinkedIn / RSS.
+- `src/utils/socialFooter.ts`: Resolves footer icon URLs. Dashboard owns the rows. Old saves without `socialLinks` keep the file list.
+- `src/utils/aiWrittenNote.ts`: Resolves the Written with AI line under a post title.
+- `src/utils/homeLinks.test.ts`, `src/utils/closingNote.test.ts`, `src/utils/sharePost.test.ts`, `src/utils/socialFooter.test.ts`, `src/utils/aiWrittenNote.test.ts`.
+- **Modified** `src/config/siteConfig.ts`: `homeLinks` and `sharePost` replace hardcoded Docs/Convex/Netlify `links`. Related posts gained `enabled` and `title`. `aiWrittenNote` is editable.
+- **Modified** `src/components/dashboard/HomepageSection.tsx`: External links editor, running order row, dirty Save dock.
+- **Modified** `src/pages/Dashboard.tsx`: Closing note textarea, Share this post card, AI writing note, related heading, newsletter title/description, Footer social URL rows, dirty Save. External Links card removed from Site Config.
+- **Modified** `src/pages/Home.tsx`, `src/pages/Post.tsx`, `src/components/Footer.tsx`: Live overrides for links, share, related, closing note.
+- **Modified** `src/components/DashboardSearch.tsx`, `src/styles/dashboard.css`: Desk palette results (stacked title/description, group labels, no boxed buttons, fixed menu so the shell cannot clip it), floating Save when dirty.
+- `src/hooks/useSocialFooter.ts`: Live footer icon config. Kept out of `SocialFooter.tsx` so Fast Refresh can update the component.
+- **Modified** `src/components/dashboard/configGroups.ts`, `src/utils/dashboardSearch.ts`, `src/components/dashboard/docsTopics.ts`.
+- **Modified** `vitest.config.ts`: include `src/**/*.test.ts` so resolver tests run.
+
 ## Web research providers and static hosting (2026-09-07 02:10 UTC)
 
 - `prds/web-research-providers-and-static-hosting.md`: Unused Exa and Context.dev keys, Firecrawl wired three times, the component env var probes, the REST decision, and the self-hosting to static-hosting migration plan.
@@ -1615,12 +1677,13 @@ A brief description of each file in the codebase.
 | `BlogPost.tsx`            | Markdown renderer with syntax highlighting, collapsible sections (details/summary), text wrapping for plain text code blocks, image lightbox support (click images to magnify in full-screen overlay), and iframe embed support with domain whitelisting (YouTube and Twitter/X only). Routes diff/patch code blocks to DiffCodeBlock for enhanced diff rendering. SEO: H1 headings in markdown demoted to H2 (`.blog-h1-demoted` class) for single H1 per page compliance.                                                                                                                                                                                                                                      |
 | `DiffCodeBlock.tsx`       | Lightweight diff/patch code block renderer with no syntax highlighting library. Colors added (+) and removed (-) lines with copy button. Used automatically for ```diff and ```patch code blocks in markdown. |
 | `CopyPageDropdown.tsx`    | Share dropdown with Copy page (markdown to clipboard), View as Markdown (opens raw .md file), Download as SKILL.md (Anthropic Agent Skills format), Open in AI links (ChatGPT, Claude, Perplexity) using local /raw URLs, and Export as PDF (browser print with clean formatting)                                                                                                                    |
-| `Footer.tsx`              | Closing note markdown from `content/pages/footer.md` or a per-page frontmatter footer field. Global switch is `siteConfig.footer.enabled` (off). This is not the site footer. The icon bar is SocialFooter. |
+| `Footer.tsx`              | Closing note markdown. Resolve order: per-page `footer` frontmatter, Site Config `footer.defaultContent`, then `content/pages/footer.md`. Global switch is `siteConfig.footer.enabled`. This is not the site footer. The icon bar is SocialFooter. |
 | `SearchModal.tsx`         | Full text search modal with keyboard navigation. Supports keyword and semantic search modes (toggle with Tab). Semantic mode conditionally shown when `siteConfig.semanticSearch.enabled: true`. When semantic disabled (default), shows keyword search only without mode toggle.                                                                                                                                                                                                                                                                                                                       |
 | `FeaturedCards.tsx`       | Card grid for featured posts/pages with excerpts                                                                                                                                                                                                                                                                                                                      |
 | `LogoMarquee.tsx`         | Scrolling logo gallery with clickable links. Image list is editable from the dashboard Site Config Logo Gallery card, which becomes the source of truth once saved                                                                                                                                                                                                     |
 | `HomeCategories.tsx`      | Tag driven category sections on the homepage. Each section names a title and a tag, with an item limit, one or two columns, an optional date, Show on homepage, and Show in nav. Headings link to `/tags/{tag}`. Truncated lists get View all. Filters the rows `posts.getAllPosts` already returns. Configured in the dashboard Homepage section via `siteConfig.homeCategories` |
 | `HomeHeroImage.tsx`       | Homepage image. Wide 16:9 banner (top, bottom, or both) or a vertical portrait beside the intro (left or right). PNG, JPG, GIF, WebP, SVG. Configured in the dashboard Homepage section via `siteConfig.homeHeroImage`                                                                                                               |
+| `HomeLinks.tsx`           | Named links on `/`. Any label, any URL. Homepage section owns the list. Hidden when off or empty. |
 | `MobileMenu.tsx`          | Slide-out drawer menu for mobile navigation with hamburger button. Shows social icons below nav links when `socialFooter.showInHeader` enabled (mobile only, not in header). Includes sidebar table of contents when page has sidebar layout. Uses `platformIcons` from SocialFooter.                                                                                                                                    |
 | `ScrollToTop.tsx`         | Configurable scroll-to-top button with Phosphor ArrowUp icon                                                                                                                                                                                                                                                                                                          |
 | `GitHubContributions.tsx` | GitHub activity graph with theme-aware colors and year navigation                                                                                                                                                                                                                                                                                                     |
@@ -1631,7 +1694,7 @@ A brief description of each file in the codebase.
 | `AIChatView.tsx`          | AI chat interface component (Agent) using Anthropic Claude API. Supports per-page chat history, page content context, markdown rendering, and copy functionality. Used in Write page (replaces textarea when enabled) and optionally in RightSidebar. Requires ANTHROPIC_API_KEY environment variable in Convex. System prompt configurable via CLAUDE_PROMPT_STYLE, CLAUDE_PROMPT_COMMUNITY, CLAUDE_PROMPT_RULES, or CLAUDE_SYSTEM_PROMPT environment variables. Includes error handling for missing API keys. |
 | `NewsletterSignup.tsx`    | Newsletter signup form component for email-only subscriptions. Displays configurable title/description, validates email, and submits to Convex. Shows on home, blog page, and posts based on siteConfig.newsletter settings. Supports frontmatter override via newsletter: true/false. Includes honeypot field for bot protection. |
 | `ContactForm.tsx`         | Contact form with name, email, and message. Global switch is `siteConfig.contactForm.enabled`. Place with `<!-- contactform -->` in the body or frontmatter `contactForm: true` (editor Contact Form checkbox) for the bottom of that post or page. Shortcode wins if both are set. Submits to Convex, which emails via AgentMail. Needs `AGENTMAIL_API_KEY` and `AGENTMAIL_CONTACT_EMAIL` (inbox fallback). Honeypot field for bots. |
-| `SocialFooter.tsx`        | Site footer: social icons on the left, AI discovery links in the center (llms.txt, AGENTS.md), copyright on the right. Configurable via siteConfig.socialFooter. Dashboard card is titled Footer. |
+| `SocialFooter.tsx`        | Site footer: social icons on the left, AI discovery links in the center (llms.txt, AGENTS.md), copyright on the right. Live `socialFooter` overrides. Dashboard Footer card owns the URLs. |
 | `AskAIModal.tsx`          | Ask AI chat modal for RAG-based Q&A about site content. Opens via header button (Cmd+J) when enabled. Uses Convex Persistent Text Streaming for real-time responses. Supports model selection (Claude, GPT-4o). Features streaming messages with markdown rendering, internal link handling via React Router, and source citations. Requires siteConfig.askAI.enabled and siteConfig.semanticSearch.enabled. |
 | `VersionHistoryModal.tsx` | Version history modal for viewing and restoring previous content versions. Shows version list with dates and source badges, diff view using DiffCodeBlock component, preview mode, and one-click restore. Used in Dashboard editor when version control is enabled. |
 | `MediaLibrary.tsx`        | Media library component for uploading and managing images. Features drag-and-drop upload, copy as Markdown/HTML/URL, bulk select and delete, file size display, and pagination. Supports all three media providers (convex, convexfs, r2). For convex/r2 providers, shows recent uploads with preview and embed code copy buttons (persisted to sessionStorage). Dynamic usage text based on active provider. Uses ConvexFS for file browsing when available. |
@@ -1652,7 +1715,13 @@ A brief description of each file in the codebase.
 | `extractHeadings.ts` | Parses markdown content to extract headings (H1-H6), generates slugs, filters out headings inside code blocks |
 | `homeCategories.ts`  | Live `homeCategories` resolver, `/tags/{tag}` path helper, nav items for Show in nav, match a tag to a section |
 | `homeHeroImage.ts`   | Live `homeHeroImage` resolver so dashboard Homepage saves show on `/` without a rebuild |
-| `dashboardSearch.ts` | Dashboard Cmd+K index: sections, features, Site Config cards, docs topics, actions. `feature-contact-form` opens the Newsletter how-to. |
+| `homeLinks.ts`       | Live `homeLinks` resolver. Drops empty rows, caps at 8, `homeLinksWillRender` for `/`. |
+| `closingNote.ts`     | Closing note copy: frontmatter, dashboard `defaultContent`, then `footer.md`. |
+| `sharePost.ts`       | Share row on/off, heading, and channel flags for post footers. |
+| `socialFooter.ts`    | Live footer icon URLs. Caps at 8. Empty URLs drop on save. |
+| `aiWrittenNote.ts`   | Written with AI line under a post title. |
+| `homepageOrder.ts`   | Running order for the Homepage rail, including the External links row. |
+| `dashboardSearch.ts` | Dashboard Cmd+K index: sections, features, Site Config cards, docs topics, actions. `feature-home-links` opens Homepage. |
 | `imageUpload.ts`     | Shared image picker accept list and MIME inference for PNG, JPG, GIF, WebP, and SVG                           |
 | `workos.ts`          | WorkOS configuration utility. Exports isWorkOSConfigured boolean (checks if VITE_WORKOS_CLIENT_ID and VITE_WORKOS_REDIRECT_URI are set) and workosConfig object with clientId and redirectUri. Used throughout app to conditionally enable WorkOS features. |
 
@@ -1660,6 +1729,7 @@ A brief description of each file in the codebase.
 
 | File                       | Description                                                                                                                                              |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useSocialFooter.ts`      | Live `socialFooter` overrides for the icon bar, header icons, and mobile menu. |
 | `useDragSort.ts`           | Persisted drag-and-drop ordering for a flat list of string ids. Native HTML5 drag events, order saved to localStorage, used by the Dashboard sidebar nav and the FrontmatterForm field blocks. |
 | `useResizableSidebar.ts`   | Pointer and keyboard drag-to-resize for a right-hand panel. Clamped 240-600px, persisted under `FRONTMATTER_SIDEBAR_WIDTH_KEY`. Used by Edit, dashboard Write, and `/write`. |
 | `usePageTracking.ts`       | Page view recording and active session heartbeat. Respects `siteConfig.statsPage.enabled` (no DB writes when disabled) |

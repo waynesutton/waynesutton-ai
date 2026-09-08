@@ -291,6 +291,7 @@ The site includes an HTTP-based Model Context Protocol (MCP) server for AI tool 
 | `get_homepage`   | Get homepage data with featured and recent posts |
 | `search_content` | Full text search across posts and pages          |
 | `export_all`     | Batch export all content                         |
+| `list_photos`    | Published photos from /photos with tags, page and image URLs. Optional `tag` filter |
 
 **Cursor configuration:**
 
@@ -328,6 +329,8 @@ curl -X POST https://yoursite.example.com/vfs/exec \
   -H "Content-Type: application/json" \
   -d '{"command": "ls /blog"}'
 ```
+
+Paths: `/blog`, `/pages`, `/docs`, `/index.md`, `/projects.md`, `/skills.md`, `/photos.md`. The last three are generated indexes for the projects, skills, and photo gallery pages and only appear when they have published content. `cat /photos.md` returns every published photo with its title, description, tags, page URL, and image URL.
 
 The VFS reads from the same Convex database as the live site. No extra sync step needed. VFS endpoints are rate limited to 30 requests per minute.
 

@@ -176,6 +176,7 @@ export const regenerateAll = action({
     }
     await ctx.runMutation(internal.agentReady.autoSync.reconcileProjects, {});
     await ctx.runMutation(internal.agentReady.autoSync.reconcileSkills, {});
+    await ctx.runMutation(internal.agentReady.autoSync.reconcilePhotos, {});
     return await ctx.runAction(components.agentReady.content.regenerateAll, {});
   },
 });

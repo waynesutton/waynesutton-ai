@@ -80,12 +80,16 @@ export function useWebMcp({ enabled, openSearch, setTheme, confirm }: UseWebMcpO
   const page = useQuery(api.pages.getPageBySlug, wantsDoc ? { slug: routeSlug } : "skip");
   const posts = useQuery(api.posts.getAllPosts, active ? {} : "skip");
   const pages = useQuery(api.pages.getAllPages, active ? {} : "skip");
+  // Photos only subscribe when the gallery route exists; otherwise the tools
+  // answer with an empty list and open_photo refuses
+  const photosEnabled = siteConfig.photosPage?.enabled ?? false;
+  const photos = useQuery(api.photos.listPublished, active && photosEnabled ? {} : "skip");
 
   const mounted = useSyncExternalStore(subscribePageActions, mountedKey, () => "");
 
   // Latest values for handlers registered in an earlier effect run
-  const live = useRef({ post, page, posts, pages, pathname: location.pathname, openSearch, setTheme, confirm, navigate });
-  live.current = { post, page, posts, pages, pathname: location.pathname, openSearch, setTheme, confirm, navigate };
+  const live = useRef({ post, page, posts, pages, photos, pathname: location.pathname, openSearch, setTheme, confirm, navigate });
+  live.current = { post, page, posts, pages, photos, pathname: location.pathname, openSearch, setTheme, confirm, navigate };
 
   useEffect(() => {
     if (!active || !context) {
@@ -182,6 +186,46 @@ export function useWebMcp({ enabled, openSearch, setTheme, confirm }: UseWebMcpO
         return { ok: true, message: `Opened /${target}` };
       },
 
+      list_photos: (input) => {
+        if (!photosEnabled) {
+          return [];
+        }
+        const tag = cleanString(input.tag, 60).toLowerCase();
+        const list = live.current.photos ?? [];
+        const filtered = tag ? list.filter((item) => item.tags.includes(tag)) : list;
+        return filtered.map((item) => ({
+          slug: item.slug,
+          title: item.title ?? null,
+          description: item.description ?? null,
+          tags: item.tags,
+          url: `${window.location.origin}/photos/${item.slug}`,
+          imageUrl: item.url,
+          thumbnailUrl: item.thumbnailUrl ?? null,
+          width: item.width ?? null,
+          height: item.height ?? null,
+          date: new Date(item.capturedAt ?? item.createdAt).toISOString().slice(0, 10),
+        }));
+      },
+
+      open_photo: (input) => {
+        if (!photosEnabled) {
+          return { ok: false, reason: "The photos gallery is not enabled on this site" };
+        }
+        const target = cleanString(input.slug, 200).replace(/^\/?photos\//, "").replace(/^\//, "");
+        const list = live.current.photos;
+        if (!target) {
+          return { ok: false, reason: "slug is required" };
+        }
+        if (!list) {
+          return { ok: false, reason: "Photo list is still loading, try again" };
+        }
+        if (!list.some((item) => item.slug === target)) {
+          return { ok: false, reason: "No published photo with that slug" };
+        }
+        live.current.navigate(`/photos/${encodeURIComponent(target)}`);
+        return { ok: true, message: `Opened /photos/${target}` };
+      },
+
       set_theme: (input) => {
         const theme = cleanString(input.theme, 20) as Theme;
         if (!THEMES.includes(theme)) {
@@ -253,5 +297,5 @@ export function useWebMcp({ enabled, openSearch, setTheme, confirm }: UseWebMcpO
     return registerTools(context, tools, handlers);
     // `mounted` is the external store key: it changes when a form mounts or
     // unmounts and that is exactly when the tool list needs to change
-  }, [active, context, location.pathname, mounted]);
+  }, [active, context, location.pathname, mounted, photosEnabled]);
 }

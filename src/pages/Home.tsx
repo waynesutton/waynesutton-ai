@@ -24,6 +24,7 @@ import HomeCategories from "../components/HomeCategories";
 import HomeHeroImage, { isHeroAside } from "../components/HomeHeroImage";
 import GitHubContributions from "../components/GitHubContributions";
 import Footer from "../components/Footer";
+import HomeLinks from "../components/HomeLinks";
 import SocialFooter from "../components/SocialFooter";
 import NewsletterSignup from "../components/NewsletterSignup";
 import DiffCodeBlock from "../components/DiffCodeBlock";
@@ -35,6 +36,7 @@ import {
 import { resolveHomeCategories } from "../utils/homeCategories";
 import { resolveHomeHeroImage } from "../utils/homeHeroImage";
 import { resolveFeaturedList, resolveHomePostList } from "../utils/homePostList";
+import { resolveHomeLinks } from "../utils/homeLinks";
 
 // Sanitize schema for home intro markdown
 const homeSanitizeSchema = {
@@ -373,6 +375,7 @@ export default function Home() {
   // so a Homepage save shows here without a reload
   const postList = resolveHomePostList(configOverrides);
   const featured = resolveFeaturedList(configOverrides);
+  const homeLinks = resolveHomeLinks(configOverrides?.homeLinks);
 
   // Fetch published posts from Convex (only if the homepage needs them)
   const posts = useQuery(
@@ -880,14 +883,14 @@ export default function Home() {
         newsletterPosition(siteConfig.newsletter?.signup.home, "above-footer") ===
           "above-footer" && <NewsletterSignup source="home" />}
 
+      <HomeLinks config={homeLinks} />
+
       {/* Footer section */}
       {siteConfig.footer.enabled && siteConfig.footer.showOnHomepage && (
-        <Footer content={footerPage?.content} />
+        <Footer syncedContent={footerPage?.content} />
       )}
 
-      {/* Social footer section */}
-      {siteConfig.socialFooter?.enabled &&
-        siteConfig.socialFooter.showOnHomepage && <SocialFooter />}
+      <SocialFooter surface="homepage" />
 
       {/* Wide 16:9 strip. Hidden when the image sits beside the intro. */}
       <HomeHeroImage config={heroImage} slot="bottom" />

@@ -33,6 +33,10 @@ describe("webmcp tool catalog", () => {
     expect(always).not.toContain("submit_contact");
     expect(always).not.toContain("listen_to_post");
 
+    expect(always).toContain("list_photos");
+    expect(always).toContain("open_photo");
+    expect(isPageTool("open_photo")).toBe(true);
+
     const withForms = pageToolsFor(new Set(["newsletter", "contact"] as const)).map((t) => t.name);
     expect(withForms).toContain("subscribe_newsletter");
     expect(withForms).toContain("submit_contact");
@@ -60,6 +64,10 @@ describe("dashboard docs for webmcp", () => {
 
   it("documents slides, skills, self-hosting deploys, and the contact form shortcode", () => {
     expect(DOCS_TOPICS.some((t) => t.id === "skills")).toBe(true);
+    expect(DOCS_TOPICS.some((t) => t.id === "photos")).toBe(true);
+    const photos = DOCS_TOPICS.find((t) => t.id === "photos")?.content ?? "";
+    expect(photos).toContain("/photos.md");
+    expect(photos).toContain("tags: canmore, nature");
     const writing = DOCS_TOPICS.find((t) => t.id === "writing")?.content ?? "";
     expect(writing).toContain("slides: true");
     const deploying = DOCS_TOPICS.find((t) => t.id === "deploying")?.content ?? "";
@@ -84,11 +92,12 @@ describe("dashboard docs for webmcp", () => {
 describe("remote MCP tools/list", () => {
   it("hides create_draft from anonymous callers and shows it with a pipeline key", () => {
     const anonymous = visibleMcpTools(false).map((t) => t.name);
-    expect(anonymous).toHaveLength(7);
+    expect(anonymous).toHaveLength(8);
+    expect(anonymous).toContain("list_photos");
     expect(anonymous).not.toContain("create_draft");
 
     const keyed = visibleMcpTools(true).map((t) => t.name);
-    expect(keyed).toHaveLength(8);
+    expect(keyed).toHaveLength(9);
     expect(keyed).toContain("create_draft");
   });
 });

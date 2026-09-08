@@ -91,6 +91,7 @@ import {
   TrendUp,
   SidebarSimple,
   Image,
+  Images,
   ChatText,
   SpinnerGap,
   CaretDown,
@@ -113,6 +114,7 @@ import {
   Stack,
   Toolbox,
   Code,
+  Star,
 } from "@phosphor-icons/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { useDragSort } from "../hooks/useDragSort";
@@ -142,6 +144,7 @@ import { XSection } from "../components/dashboard/XSection";
 import { HomepageSection } from "../components/dashboard/HomepageSection";
 import { ProjectsSection } from "../components/dashboard/ProjectsSection";
 import { SkillsSection } from "../components/dashboard/SkillsSection";
+import { PhotosSection } from "../components/dashboard/PhotosSection";
 import AgentReadySection from "../components/AgentReadySection";
 import DashboardDocsSection from "../components/DashboardDocsSection";
 import siteConfig from "../config/siteConfig";
@@ -149,7 +152,14 @@ import {
   applyRuntimeConfigOverrides,
   type SiteConfigOverrides,
 } from "../config/runtimeConfig";
-import type { SiteConfig } from "../config/siteConfig";
+import type { SiteConfig, SocialLink } from "../config/siteConfig";
+import { DEFAULT_AI_WRITTEN_NOTE } from "../utils/aiWrittenNote";
+import {
+  MAX_SOCIAL_LINKS,
+  SOCIAL_PLATFORM_LABEL,
+  SOCIAL_PLATFORMS,
+  sanitizeSocialLinks,
+} from "../utils/socialFooter";
 import AIChatView from "../components/AIChatView";
 import VersionHistoryModal from "../components/VersionHistoryModal";
 import { MediaLibrary } from "../components/MediaLibrary";
@@ -650,6 +660,7 @@ type DashboardSection =
   | "pages"
   | "projects"
   | "skills"
+  | "photos"
   | "post-editor"
   | "page-editor"
   | "write-post"
@@ -2104,6 +2115,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
         { id: "pages" as const, label: "Pages", icon: Files },
         { id: "projects" as const, label: "Projects", icon: Stack },
         { id: "skills" as const, label: "Skills", icon: Toolbox },
+        { id: "photos" as const, label: "Photos", icon: Images },
       ],
     },
     {
@@ -2386,6 +2398,7 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               {activeSection === "pages" && "Pages"}
               {activeSection === "projects" && "Projects"}
               {activeSection === "skills" && "Skills"}
+              {activeSection === "photos" && "Photos"}
               {activeSection === "post-editor" && "Edit Post"}
               {activeSection === "page-editor" && "Edit Page"}
               {activeSection === "write-post" && "Write Post"}
@@ -2581,6 +2594,21 @@ function DashboardContent({ isDemo = false }: { isDemo?: boolean } = {}) {
               <DemoSectionGate section="Skills" />
             ) : (
               <SkillsSection addToast={addToast} searchQuery={searchQuery} />
+            ))}
+
+          {/* Photos: uploads, tags, publish state, and the email inbox for /photos */}
+          {activeSection === "photos" &&
+            (isDemo ? (
+              <DemoSectionGate section="Photos" />
+            ) : (
+              <PhotosSection
+                addToast={addToast}
+                searchQuery={searchQuery}
+                onOpenDocs={() => {
+                  setDocsTopicRequest("photos");
+                  setActiveSection("docs");
+                }}
+              />
             ))}
 
           {/* Post/Page Editor */}
@@ -3043,6 +3071,19 @@ function PostsListView({
                   {post.published ? "Published" : "Draft"}
                 </span>
                 {post.unlisted && <span className="status-badge unlisted">Unlisted</span>}
+                {/* Featured flag from frontmatter drives the homepage featured section */}
+                {post.featured && (
+                  <span
+                    className="status-badge featured"
+                    title={
+                      post.featuredOrder !== undefined
+                        ? `Featured, order ${post.featuredOrder}`
+                        : "Featured on the homepage"
+                    }>
+                    <Star size={12} weight="fill" aria-hidden="true" />
+                    Featured
+                  </span>
+                )}
                 {post.source === "demo" && <span className="source-badge demo">Demo</span>}
                 {post.source === "dashboard" && (
                   <span className="source-badge dashboard">Dashboard</span>
@@ -3668,7 +3709,7 @@ function EditorView({
                   {item.description && <p className="lead">{item.description}</p>}
                   {item.aiWritten && (
                     <p className="post-ai-note" role="note">
-                      This post was written with AI and proofed by a human.
+                      {siteConfig.aiWrittenNote || DEFAULT_AI_WRITTEN_NOTE}
                     </p>
                   )}
                   <div className="blog-post-content">
@@ -6595,6 +6636,16 @@ function configStateFromSite(siteConfig: SiteConfig) {
     skillsPageTitle: siteConfig.skillsPage?.title ?? "Skills",
     skillsPageDescription: siteConfig.skillsPage?.description || "",
     skillsPageOrder: siteConfig.skillsPage?.order ?? 4,
+    // Photos page
+    photosPageEnabled: siteConfig.photosPage?.enabled ?? false,
+    photosPageShowInNav: siteConfig.photosPage?.showInNav ?? true,
+    photosPageTitle: siteConfig.photosPage?.title ?? "Photos",
+    photosPageDescription: siteConfig.photosPage?.description || "",
+    photosPageOrder: siteConfig.photosPage?.order ?? 5,
+    photosPageViewMode: siteConfig.photosPage?.viewMode ?? "grid",
+    photosPageShowViewToggle: siteConfig.photosPage?.showViewToggle ?? true,
+    photosPageShowTagFilter: siteConfig.photosPage?.showTagFilter ?? true,
+    photosPageSlideshowIntervalMs: siteConfig.photosPage?.slideshowIntervalMs ?? 5000,
     // Blog list rows (/blog, tag pages, author pages)
     showPostsOnBlogPage: siteConfig.postsDisplay.showOnBlogPage,
     blogPostsShowReadTime: siteConfig.postsDisplay.blogShowReadTime !== false,
@@ -6610,6 +6661,13 @@ function configStateFromSite(siteConfig: SiteConfig) {
     footerShowOnPages: siteConfig.footer.showOnPages,
     footerShowOnBlogPage: siteConfig.footer.showOnBlogPage,
     footerDefaultContent: siteConfig.footer.defaultContent || "",
+    // Share this post
+    sharePostEnabled: siteConfig.sharePost?.enabled !== false,
+    sharePostTitle: siteConfig.sharePost?.title || "Share this post",
+    sharePostCopyLink: siteConfig.sharePost?.copyLink !== false,
+    sharePostX: siteConfig.sharePost?.x !== false,
+    sharePostLinkedin: siteConfig.sharePost?.linkedin !== false,
+    sharePostRss: siteConfig.sharePost?.rss !== false,
     // AI Chat
     aiChatEnabledOnWritePage: siteConfig.aiChat.enabledOnWritePage,
     aiChatEnabledOnContent: siteConfig.aiChat.enabledOnContent,
@@ -6617,12 +6675,27 @@ function configStateFromSite(siteConfig: SiteConfig) {
     newsletterEnabled: siteConfig.newsletter?.enabled || false,
     newsletterHomeEnabled: siteConfig.newsletter?.signup?.home?.enabled || false,
     newsletterHomePosition: siteConfig.newsletter?.signup?.home?.position || "above-footer",
+    newsletterHomeTitle: siteConfig.newsletter?.signup?.home?.title || "Stay Updated",
+    newsletterHomeDescription:
+      siteConfig.newsletter?.signup?.home?.description ||
+      "Get new posts delivered to your inbox.",
     newsletterBlogPageEnabled: siteConfig.newsletter?.signup?.blogPage?.enabled || false,
     newsletterBlogPagePosition: siteConfig.newsletter?.signup?.blogPage?.position || "above-footer",
+    newsletterBlogPageTitle: siteConfig.newsletter?.signup?.blogPage?.title || "Subscribe",
+    newsletterBlogPageDescription:
+      siteConfig.newsletter?.signup?.blogPage?.description ||
+      "Get notified when new posts are published.",
     newsletterPostsEnabled: siteConfig.newsletter?.signup?.posts?.enabled || false,
     newsletterPostsPosition: siteConfig.newsletter?.signup?.posts?.position || "below-content",
+    newsletterPostsTitle: siteConfig.newsletter?.signup?.posts?.title || "Enjoyed this post?",
+    newsletterPostsDescription:
+      siteConfig.newsletter?.signup?.posts?.description || "Subscribe for more updates.",
     newsletterPagesEnabled: siteConfig.newsletter?.signup?.pages?.enabled !== false,
     newsletterPagesPosition: siteConfig.newsletter?.signup?.pages?.position || "below-content",
+    newsletterPagesTitle: siteConfig.newsletter?.signup?.pages?.title || "Stay Updated",
+    newsletterPagesDescription:
+      siteConfig.newsletter?.signup?.pages?.description ||
+      "Get new posts delivered to your inbox.",
     // Stats page
     statsPageEnabled: siteConfig.statsPage?.enabled || false,
     statsPageShowInNav: siteConfig.statsPage?.showInNav || false,
@@ -6670,10 +6743,6 @@ function configStateFromSite(siteConfig: SiteConfig) {
     logoGalleryTitle: siteConfig.logoGallery?.title || "",
     logoGalleryScrolling: siteConfig.logoGallery?.scrolling || false,
     logoGalleryMaxItems: siteConfig.logoGallery?.maxItems || 4,
-    // Links
-    linksConvex: siteConfig.links?.convex || "",
-    linksNetlify: siteConfig.links?.netlify || "",
-    linksDocs: siteConfig.links?.docs || "",
     // MCP Server
     mcpServerEnabled: siteConfig.mcpServer?.enabled || false,
     mcpServerEndpoint: siteConfig.mcpServer?.endpoint || "/mcp",
@@ -6690,8 +6759,11 @@ function configStateFromSite(siteConfig: SiteConfig) {
     mediaEnabled: siteConfig.media?.enabled || false,
     mediaMaxFileSize: siteConfig.media?.maxFileSize || 10,
     // Related posts
+    relatedPostsEnabled: siteConfig.relatedPosts?.enabled !== false,
+    relatedPostsTitle: siteConfig.relatedPosts?.title || "Related Posts",
     relatedPostsDefaultViewMode: siteConfig.relatedPosts?.defaultViewMode || "thumbnails",
     relatedPostsShowViewToggle: siteConfig.relatedPosts?.showViewToggle !== false,
+    aiWrittenNote: siteConfig.aiWrittenNote || DEFAULT_AI_WRITTEN_NOTE,
     audioEnabledDefault: siteConfig.audio?.enabledDefault !== false,
     audioDefaultVoice: siteConfig.audio?.defaultVoice === "male" ? "male" : "female",
   };
@@ -6706,6 +6778,18 @@ function logoImagesFromSite(siteConfig: SiteConfig): Array<LogoItem> {
   return (siteConfig.logoGallery?.images ?? []).map((image) =>
     typeof image === "string" ? { src: image } : { ...image },
   );
+}
+
+function socialLinksFromSite(siteConfig: SiteConfig): Array<SocialLink> {
+  return sanitizeSocialLinks(siteConfig.socialFooter?.socialLinks ?? []);
+}
+
+function configDeskSnapshot(
+  config: ConfigFormState,
+  logoImages: Array<LogoItem>,
+  socialLinks: Array<SocialLink>,
+): string {
+  return JSON.stringify({ config, logoImages, socialLinks });
 }
 
 function ConfigSection({
@@ -6728,14 +6812,22 @@ function ConfigSection({
   const [logoImages, setLogoImages] = useState<Array<LogoItem>>(() =>
     logoImagesFromSite(siteConfig),
   );
+  const [socialLinks, setSocialLinks] = useState<Array<SocialLink>>(() =>
+    socialLinksFromSite(siteConfig),
+  );
 
   // Live overrides keep this form honest when the Homepage section, another
   // tab, or another admin saves. Unsaved edits win: the form only re-hydrates
   // while it matches the last saved snapshot, so typing is never clobbered.
   const liveOverrides = useQuery(api.siteConfigData.getOverrides);
-  const latestForm = useRef({ config, logoImages });
-  latestForm.current = { config, logoImages };
-  const savedSnapshot = useRef(JSON.stringify({ config, logoImages }));
+  const footerPage = useQuery(api.pages.getPageBySlug, { slug: "footer" });
+  const latestForm = useRef({ config, logoImages, socialLinks });
+  latestForm.current = { config, logoImages, socialLinks };
+  const savedSnapshot = useRef(
+    configDeskSnapshot(config, logoImages, socialLinks),
+  );
+  const formSnapshot = configDeskSnapshot(config, logoImages, socialLinks);
+  const dirty = formSnapshot !== savedSnapshot.current;
   useEffect(() => {
     if (liveOverrides === undefined) return;
     // Merge into the shared siteConfig object so every reader (public pages
@@ -6743,11 +6835,43 @@ function ConfigSection({
     applyRuntimeConfigOverrides(siteConfig, liveOverrides);
     const isDirty = JSON.stringify(latestForm.current) !== savedSnapshot.current;
     if (isDirty) return;
-    const next = { config: configStateFromSite(siteConfig), logoImages: logoImagesFromSite(siteConfig) };
-    setConfig(next.config);
-    setLogoImages(next.logoImages);
-    savedSnapshot.current = JSON.stringify(next);
+    const nextConfig = configStateFromSite(siteConfig);
+    const nextLogos = logoImagesFromSite(siteConfig);
+    const nextLinks = socialLinksFromSite(siteConfig);
+    setConfig(nextConfig);
+    setLogoImages(nextLogos);
+    setSocialLinks(nextLinks);
+    savedSnapshot.current = configDeskSnapshot(nextConfig, nextLogos, nextLinks);
   }, [liveOverrides]);
+
+  // Show the current closing note in the textarea even before the first dashboard save
+  useEffect(() => {
+    if (!footerPage) return;
+    const synced = footerPage.content?.trim();
+    if (!synced) return;
+    if (JSON.stringify(latestForm.current) !== savedSnapshot.current) return;
+    if (latestForm.current.config.footerDefaultContent.trim()) return;
+    const nextConfig = {
+      ...latestForm.current.config,
+      footerDefaultContent: footerPage.content ?? "",
+    };
+    setConfig(nextConfig);
+    savedSnapshot.current = configDeskSnapshot(
+      nextConfig,
+      latestForm.current.logoImages,
+      latestForm.current.socialLinks,
+    );
+  }, [footerPage]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const onLeave = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [dirty]);
 
   // Active Site Config tab. Persisted so the owner lands where they left off.
   const [activeTab, setActiveTab] = useState<ConfigTab>(() => {
@@ -6854,10 +6978,10 @@ function ConfigSection({
   };
 
   // Builds the runtime overrides object saved to Convex. Mirrors generateConfigCode()
-  // field mapping, but omits arrays the dashboard cannot edit (socialFooter.socialLinks,
-  // hardcodedNavItems) so the merge never clobbers file values. Every field is sent
-  // explicitly, including false, 0, and "", because the server merge never deletes
-  // keys: a value left out would keep whatever was saved before.
+  // field mapping, but omits arrays the dashboard cannot edit (hardcodedNavItems)
+  // so the merge never clobbers file values. Every field is sent explicitly,
+  // including false, 0, and "", because the server merge never deletes keys:
+  // a value left out would keep whatever was saved before.
   const buildOverrides = (): SiteConfigOverrides => {
     return {
       name: config.name,
@@ -6918,6 +7042,17 @@ function ConfigSection({
         description: config.skillsPageDescription,
         order: config.skillsPageOrder,
       },
+      photosPage: {
+        enabled: config.photosPageEnabled,
+        showInNav: config.photosPageShowInNav,
+        title: config.photosPageTitle,
+        description: config.photosPageDescription,
+        order: config.photosPageOrder,
+        viewMode: config.photosPageViewMode,
+        showViewToggle: config.photosPageShowViewToggle,
+        showTagFilter: config.photosPageShowTagFilter,
+        slideshowIntervalMs: config.photosPageSlideshowIntervalMs,
+      },
       // Only the /blog half. The Homepage section writes showOnHome and the
       // home* keys into the same object through the server-side deep merge.
       postsDisplay: {
@@ -6925,11 +7060,6 @@ function ConfigSection({
         blogShowReadTime: config.blogPostsShowReadTime,
         blogShowDate: config.blogPostsShowDate,
         blogShowYearHeadings: config.blogPostsShowYearHeadings,
-      },
-      links: {
-        docs: config.linksDocs,
-        convex: config.linksConvex,
-        netlify: config.linksNetlify,
       },
       gitHubRepo: {
         owner: config.githubOwner,
@@ -6949,6 +7079,14 @@ function ConfigSection({
         showOnBlogPage: config.footerShowOnBlogPage,
         defaultContent: config.footerDefaultContent,
       },
+      sharePost: {
+        enabled: config.sharePostEnabled,
+        title: config.sharePostTitle.trim() || "Share this post",
+        copyLink: config.sharePostCopyLink,
+        x: config.sharePostX,
+        linkedin: config.sharePostLinkedin,
+        rss: config.sharePostRss,
+      },
       homepage: {
         type: config.homepageType,
         // Empty strings are sent on purpose so clearing a field actually clears it.
@@ -6966,34 +7104,26 @@ function ConfigSection({
           home: {
             enabled: config.newsletterHomeEnabled,
             position: config.newsletterHomePosition as "above-footer" | "below-intro",
-            title: siteConfig.newsletter?.signup.home.title ?? "Stay Updated",
-            description:
-              siteConfig.newsletter?.signup.home.description ??
-              "Get new posts delivered to your inbox.",
+            title: config.newsletterHomeTitle,
+            description: config.newsletterHomeDescription,
           },
           blogPage: {
             enabled: config.newsletterBlogPageEnabled,
             position: config.newsletterBlogPagePosition as "above-footer" | "below-posts",
-            title: siteConfig.newsletter?.signup.blogPage.title ?? "Subscribe",
-            description:
-              siteConfig.newsletter?.signup.blogPage.description ??
-              "Get notified when new posts are published.",
+            title: config.newsletterBlogPageTitle,
+            description: config.newsletterBlogPageDescription,
           },
           posts: {
             enabled: config.newsletterPostsEnabled,
             position: config.newsletterPostsPosition as "below-content" | "above-footer",
-            title: siteConfig.newsletter?.signup.posts.title ?? "Enjoyed this post?",
-            description:
-              siteConfig.newsletter?.signup.posts.description ??
-              "Subscribe for more updates.",
+            title: config.newsletterPostsTitle,
+            description: config.newsletterPostsDescription,
           },
           pages: {
             enabled: config.newsletterPagesEnabled,
             position: config.newsletterPagesPosition as "below-content" | "above-footer",
-            title: siteConfig.newsletter?.signup.pages?.title ?? "Stay Updated",
-            description:
-              siteConfig.newsletter?.signup.pages?.description ??
-              "Get new posts delivered to your inbox.",
+            title: config.newsletterPagesTitle,
+            description: config.newsletterPagesDescription,
           },
         },
       },
@@ -7009,6 +7139,7 @@ function ConfigSection({
         showOnPosts: config.socialFooterShowOnPosts,
         showOnPages: config.socialFooterShowOnPages,
         showOnBlogPage: config.socialFooterShowOnBlogPage,
+        socialLinks: sanitizeSocialLinks(socialLinks),
         copyright: {
           siteName: config.socialFooterCopyrightSiteName,
           showYear: config.socialFooterCopyrightShowYear,
@@ -7037,9 +7168,12 @@ function ConfigSection({
         maxFileSize: config.mediaMaxFileSize,
       },
       relatedPosts: {
+        enabled: config.relatedPostsEnabled,
+        title: config.relatedPostsTitle.trim() || "Related Posts",
         defaultViewMode: config.relatedPostsDefaultViewMode,
         showViewToggle: config.relatedPostsShowViewToggle,
       },
+      aiWrittenNote: config.aiWrittenNote.trim() || DEFAULT_AI_WRITTEN_NOTE,
       audio: {
         enabledDefault: config.audioEnabledDefault,
         defaultVoice: config.audioDefaultVoice === "male" ? "male" : "female",
@@ -7069,7 +7203,9 @@ function ConfigSection({
       // Mirror the save into the shared siteConfig object and mark the form
       // clean so the live overrides echo re-hydrates instead of being ignored
       applyRuntimeConfigOverrides(siteConfig, overrides);
-      savedSnapshot.current = JSON.stringify({ config, logoImages });
+      const savedLinks = sanitizeSocialLinks(socialLinks);
+      setSocialLinks(savedLinks);
+      savedSnapshot.current = configDeskSnapshot(config, logoImages, savedLinks);
       addToast("Site config saved. Routes and nav pick it up on the next page load.", "success");
       // Metadata that index.html mirrors changed, so the reminder is relevant again
       if (indexHtmlMetadataFingerprint(config) !== indexHtmlMetadataFingerprint(siteConfig)) {
@@ -7086,6 +7222,19 @@ function ConfigSection({
       setSaving(false);
     }
   };
+  const saveConfigRef = useRef(handleSaveConfig);
+  saveConfigRef.current = handleSaveConfig;
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      if (!dirty || saving) return;
+      void saveConfigRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dirty, saving]);
 
   // Export precisely the fields this editor owns. JSON escaping preserves
   // quotes, newlines and backticks without damaging the hand-written config.
@@ -7133,13 +7282,14 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
           </button>
           {/* Hidden on phones; the sticky bar at the end of the section takes over */}
           <button
-            className="dashboard-action-btn primary dashboard-save-inline"
+            className={`dashboard-action-btn dashboard-save-inline${dirty ? " primary is-dirty" : ""}`}
             onClick={handleSaveConfig}
-            disabled={saving}
+            disabled={saving || !dirty}
             aria-busy={saving}
+            aria-keyshortcuts="Meta+S Control+S"
           >
             {saving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
-            <span>Save</span>
+            <span>{dirty ? "Save" : "Saved"}</span>
           </button>
         </div>
       </div>
@@ -7372,6 +7522,90 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
               <span>Show on blog page</span>
             </label>
           </div>
+          <p className="config-field-note">
+            Icon bar URLs. Any platform, any URL. Empty rows drop on Save.
+          </p>
+          {socialLinks.length === 0 ? (
+            <p className="config-field-note">No social links yet.</p>
+          ) : (
+            <ol className="home-section-list">
+              {socialLinks.map((link, index) => (
+                <li key={index} className="home-section-row">
+                  <span className="home-section-ordinal" aria-hidden="true">
+                    {index + 1}
+                  </span>
+                  <div className="home-section-fields">
+                    <div className="home-section-fields-row">
+                      <select
+                        className="dashboard-field-input"
+                        value={link.platform}
+                        aria-label={`Link ${index + 1} platform`}
+                        onChange={(e) => {
+                          const platform = e.target.value as SocialLink["platform"];
+                          setSocialLinks(
+                            socialLinks.map((row, i) =>
+                              i === index ? { ...row, platform } : row,
+                            ),
+                          );
+                        }}
+                      >
+                        {SOCIAL_PLATFORMS.map((platform) => (
+                          <option key={platform} value={platform}>
+                            {SOCIAL_PLATFORM_LABEL[platform]}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="url"
+                        className="dashboard-field-input"
+                        value={link.url}
+                        placeholder="https://"
+                        aria-label={`Link ${index + 1} URL`}
+                        onChange={(e) => {
+                          setSocialLinks(
+                            socialLinks.map((row, i) =>
+                              i === index ? { ...row, url: e.target.value } : row,
+                            ),
+                          );
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="config-logo-actions">
+                    <button
+                      type="button"
+                      className="dashboard-action-btn"
+                      aria-label={`Remove social link ${index + 1}`}
+                      onClick={() =>
+                        setSocialLinks(socialLinks.filter((_, i) => i !== index))
+                      }
+                    >
+                      <Trash size={14} />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+          <button
+            type="button"
+            className="dashboard-action-btn"
+            disabled={socialLinks.length >= MAX_SOCIAL_LINKS}
+            onClick={() =>
+              setSocialLinks([
+                ...socialLinks,
+                { platform: "website", url: "" },
+              ])
+            }
+          >
+            <Plus size={14} />
+            Add social link
+          </button>
+          {socialLinks.length >= MAX_SOCIAL_LINKS ? (
+            <span className="config-field-note">
+              {MAX_SOCIAL_LINKS} social links is the cap.
+            </span>
+          ) : null}
           <div className="config-field">
             <label>Copyright Site Name</label>
             <input
@@ -7445,11 +7679,20 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
               <span>Show on blog page</span>
             </label>
           </div>
-          <p className="config-field-note" style={{ marginTop: "0.75rem" }}>
-            This is not the site footer. It is the Connect with me markdown
-            above the Footer icon bar. Same switch as newsletter. Copy lives in{" "}
-            <code>content/pages/footer.md</code>. Run <code>npm run sync</code>{" "}
-            after editing it.
+          <div className="config-field">
+            <label htmlFor="closing-note-copy">Note</label>
+            <textarea
+              id="closing-note-copy"
+              rows={4}
+              value={config.footerDefaultContent}
+              onChange={(e) => handleChange("footerDefaultContent", e.target.value)}
+              placeholder="Connect with me on [X](https://x.com/you) and [GitHub](https://github.com/you)."
+            />
+          </div>
+          <p className="config-field-note">
+            Markdown above the Footer icon bar. This is not the site footer.
+            A per-page <code>footer</code> field still wins.{" "}
+            <code>content/pages/footer.md</code> is the fallback if this box is empty.
           </p>
         </div>
       </ConfigPanel>
@@ -7497,8 +7740,8 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
         <div className="dashboard-config-card" id={configCardDomId("homepage-content")} data-config-card="homepage-content">
           <h3>Homepage content</h3>
           <p className="config-field-note">
-            Banner, featured list, spotlight post and projects, category
-            sections, and the post list all live in the Homepage section, with a
+            Banner, featured list, spotlight, category sections, named external
+            links, and the post list all live in the Homepage section, with a
             running order that shows what / renders top to bottom.
           </p>
           <button
@@ -7940,9 +8183,213 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
           </div>
         </div>
 
+        {/* Photos Page Settings */}
+        <div className="dashboard-config-card" id={configCardDomId("photos-page")} data-config-card="photos-page">
+          <h3>Photos Page</h3>
+          <span className="config-field-note">
+            The /photos gallery and its /photos/&lt;slug&gt; links. Upload and tag photos in the Photos section; the Docs section has a Photo gallery topic.
+          </span>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.photosPageEnabled}
+                onChange={(e) => handleChange("photosPageEnabled", e.target.checked)}
+              />
+              <span>Enable /photos route</span>
+            </label>
+            <span className="config-hint">
+              Controls the public gallery. Photos stay editable in the Photos section either way.
+            </span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.photosPageShowInNav}
+                onChange={(e) => handleChange("photosPageShowInNav", e.target.checked)}
+              />
+              <span>Show in navigation</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label>Photos Title</label>
+            <input
+              type="text"
+              value={config.photosPageTitle}
+              onChange={(e) => handleChange("photosPageTitle", e.target.value)}
+            />
+          </div>
+          <div className="config-field">
+            <label>Description</label>
+            <input
+              type="text"
+              value={config.photosPageDescription}
+              onChange={(e) => handleChange("photosPageDescription", e.target.value)}
+              placeholder="Places, rides, and people."
+            />
+            <span className="config-hint">One line under the title. Blank hides it.</span>
+          </div>
+          <div className="config-field">
+            <label>Default View</label>
+            <select
+              value={config.photosPageViewMode}
+              onChange={(e) => handleChange("photosPageViewMode", e.target.value)}>
+              <option value="grid">Grid (square tiles)</option>
+              <option value="full">Full frame (one column)</option>
+            </select>
+            <span className="config-hint">Layout new visitors see first on /photos</span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.photosPageShowViewToggle}
+                onChange={(e) => handleChange("photosPageShowViewToggle", e.target.checked)}
+              />
+              <span>Show view toggle</span>
+            </label>
+            <span className="config-hint">Hide to lock /photos to the default view</span>
+          </div>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.photosPageShowTagFilter}
+                onChange={(e) => handleChange("photosPageShowTagFilter", e.target.checked)}
+              />
+              <span>Show tag filter</span>
+            </label>
+            <span className="config-hint">
+              The TAGS rail on desktop and chip row on mobile. Filters still work from ?tag= links.
+            </span>
+          </div>
+          <div className="config-field">
+            <label>Slideshow Interval (ms)</label>
+            <input
+              type="number"
+              min={1000}
+              step={500}
+              value={config.photosPageSlideshowIntervalMs}
+              onChange={(e) =>
+                handleChange(
+                  "photosPageSlideshowIntervalMs",
+                  Math.max(1000, parseInt(e.target.value) || 5000),
+                )
+              }
+            />
+            <span className="config-hint">How long presentation mode shows each photo</span>
+          </div>
+          <div className="config-field">
+            <label>Nav Order</label>
+            <input
+              type="number"
+              value={config.photosPageOrder ?? 5}
+              onChange={(e) =>
+                handleChange("photosPageOrder", parseInt(e.target.value) || 0)
+              }
+            />
+          </div>
+        </div>
+
+        {/* Share this post */}
+        <div className="dashboard-config-card" id={configCardDomId("share-this-post")} data-config-card="share-this-post">
+          <h3>Share this post</h3>
+          <span className="config-field-note">
+            Row under each blog post. Turn the whole row off, change the heading, or pick which buttons show.
+          </span>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.sharePostEnabled}
+                onChange={(e) => handleChange("sharePostEnabled", e.target.checked)}
+              />
+              <span>Show share row</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label htmlFor="share-post-title">Heading</label>
+            <input
+              id="share-post-title"
+              type="text"
+              value={config.sharePostTitle}
+              onChange={(e) => handleChange("sharePostTitle", e.target.value)}
+              placeholder="Share this post"
+            />
+          </div>
+          <div className="home-section-options">
+            <label className="home-section-checkbox">
+              <input
+                type="checkbox"
+                checked={config.sharePostCopyLink}
+                onChange={(e) => handleChange("sharePostCopyLink", e.target.checked)}
+              />
+              <span>Copy link</span>
+            </label>
+            <label className="home-section-checkbox">
+              <input
+                type="checkbox"
+                checked={config.sharePostX}
+                onChange={(e) => handleChange("sharePostX", e.target.checked)}
+              />
+              <span>X</span>
+            </label>
+            <label className="home-section-checkbox">
+              <input
+                type="checkbox"
+                checked={config.sharePostLinkedin}
+                onChange={(e) => handleChange("sharePostLinkedin", e.target.checked)}
+              />
+              <span>LinkedIn</span>
+            </label>
+            <label className="home-section-checkbox">
+              <input
+                type="checkbox"
+                checked={config.sharePostRss}
+                onChange={(e) => handleChange("sharePostRss", e.target.checked)}
+              />
+              <span>RSS</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label htmlFor="ai-written-note">AI writing note</label>
+            <textarea
+              id="ai-written-note"
+              rows={2}
+              value={config.aiWrittenNote}
+              onChange={(e) => handleChange("aiWrittenNote", e.target.value)}
+              placeholder={DEFAULT_AI_WRITTEN_NOTE}
+            />
+          </div>
+          <p className="config-field-note">
+            Shows under the title when Written with AI is on for that post.
+          </p>
+        </div>
+
         {/* Related Posts */}
         <div className="dashboard-config-card" id={configCardDomId("related-posts")} data-config-card="related-posts">
           <h3>Related Posts</h3>
+          <div className="config-field checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={config.relatedPostsEnabled}
+                onChange={(e) => handleChange("relatedPostsEnabled", e.target.checked)}
+              />
+              <span>Show related posts</span>
+            </label>
+          </div>
+          <div className="config-field">
+            <label htmlFor="related-posts-title">Heading</label>
+            <input
+              id="related-posts-title"
+              type="text"
+              value={config.relatedPostsTitle}
+              onChange={(e) => handleChange("relatedPostsTitle", e.target.value)}
+              placeholder="Related Posts"
+            />
+          </div>
           <div className="config-field">
             <label>Default View Mode</label>
             <select
@@ -8053,17 +8500,37 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
             </label>
           </div>
           {config.newsletterHomeEnabled && (
-            <div className="config-field">
-              <label>Homepage position</label>
-              <select
-                value={config.newsletterHomePosition}
-                onChange={(e) =>
-                  handleChange("newsletterHomePosition", e.target.value)
-                }>
-                <option value="above-footer">Above footer</option>
-                <option value="below-intro">Below intro</option>
-              </select>
-            </div>
+            <>
+              <div className="config-field">
+                <label>Homepage position</label>
+                <select
+                  value={config.newsletterHomePosition}
+                  onChange={(e) =>
+                    handleChange("newsletterHomePosition", e.target.value)
+                  }>
+                  <option value="above-footer">Above footer</option>
+                  <option value="below-intro">Below intro</option>
+                </select>
+              </div>
+              <div className="config-field">
+                <label htmlFor="newsletter-home-title">Homepage title</label>
+                <input
+                  id="newsletter-home-title"
+                  type="text"
+                  value={config.newsletterHomeTitle}
+                  onChange={(e) => handleChange("newsletterHomeTitle", e.target.value)}
+                />
+              </div>
+              <div className="config-field">
+                <label htmlFor="newsletter-home-description">Homepage description</label>
+                <input
+                  id="newsletter-home-description"
+                  type="text"
+                  value={config.newsletterHomeDescription}
+                  onChange={(e) => handleChange("newsletterHomeDescription", e.target.value)}
+                />
+              </div>
+            </>
           )}
           <div className="config-field checkbox">
             <label>
@@ -8076,17 +8543,37 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
             </label>
           </div>
           {config.newsletterBlogPageEnabled && (
-            <div className="config-field">
-              <label>Blog page position</label>
-              <select
-                value={config.newsletterBlogPagePosition}
-                onChange={(e) =>
-                  handleChange("newsletterBlogPagePosition", e.target.value)
-                }>
-                <option value="above-footer">Above footer</option>
-                <option value="below-posts">Below posts</option>
-              </select>
-            </div>
+            <>
+              <div className="config-field">
+                <label>Blog page position</label>
+                <select
+                  value={config.newsletterBlogPagePosition}
+                  onChange={(e) =>
+                    handleChange("newsletterBlogPagePosition", e.target.value)
+                  }>
+                  <option value="above-footer">Above footer</option>
+                  <option value="below-posts">Below posts</option>
+                </select>
+              </div>
+              <div className="config-field">
+                <label htmlFor="newsletter-blog-title">Blog page title</label>
+                <input
+                  id="newsletter-blog-title"
+                  type="text"
+                  value={config.newsletterBlogPageTitle}
+                  onChange={(e) => handleChange("newsletterBlogPageTitle", e.target.value)}
+                />
+              </div>
+              <div className="config-field">
+                <label htmlFor="newsletter-blog-description">Blog page description</label>
+                <input
+                  id="newsletter-blog-description"
+                  type="text"
+                  value={config.newsletterBlogPageDescription}
+                  onChange={(e) => handleChange("newsletterBlogPageDescription", e.target.value)}
+                />
+              </div>
+            </>
           )}
           <div className="config-field checkbox">
             <label>
@@ -8099,17 +8586,37 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
             </label>
           </div>
           {config.newsletterPostsEnabled && (
-            <div className="config-field">
-              <label>Post position</label>
-              <select
-                value={config.newsletterPostsPosition}
-                onChange={(e) =>
-                  handleChange("newsletterPostsPosition", e.target.value)
-                }>
-                <option value="below-content">Below content</option>
-                <option value="above-footer">Above footer</option>
-              </select>
-            </div>
+            <>
+              <div className="config-field">
+                <label>Post position</label>
+                <select
+                  value={config.newsletterPostsPosition}
+                  onChange={(e) =>
+                    handleChange("newsletterPostsPosition", e.target.value)
+                  }>
+                  <option value="below-content">Below content</option>
+                  <option value="above-footer">Above footer</option>
+                </select>
+              </div>
+              <div className="config-field">
+                <label htmlFor="newsletter-posts-title">Posts title</label>
+                <input
+                  id="newsletter-posts-title"
+                  type="text"
+                  value={config.newsletterPostsTitle}
+                  onChange={(e) => handleChange("newsletterPostsTitle", e.target.value)}
+                />
+              </div>
+              <div className="config-field">
+                <label htmlFor="newsletter-posts-description">Posts description</label>
+                <input
+                  id="newsletter-posts-description"
+                  type="text"
+                  value={config.newsletterPostsDescription}
+                  onChange={(e) => handleChange("newsletterPostsDescription", e.target.value)}
+                />
+              </div>
+            </>
           )}
           <div className="config-field checkbox">
             <label>
@@ -8122,17 +8629,37 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
             </label>
           </div>
           {config.newsletterPagesEnabled && (
-            <div className="config-field">
-              <label>Page position</label>
-              <select
-                value={config.newsletterPagesPosition}
-                onChange={(e) =>
-                  handleChange("newsletterPagesPosition", e.target.value)
-                }>
-                <option value="below-content">Below content</option>
-                <option value="above-footer">Above footer</option>
-              </select>
-            </div>
+            <>
+              <div className="config-field">
+                <label>Page position</label>
+                <select
+                  value={config.newsletterPagesPosition}
+                  onChange={(e) =>
+                    handleChange("newsletterPagesPosition", e.target.value)
+                  }>
+                  <option value="below-content">Below content</option>
+                  <option value="above-footer">Above footer</option>
+                </select>
+              </div>
+              <div className="config-field">
+                <label htmlFor="newsletter-pages-title">Pages title</label>
+                <input
+                  id="newsletter-pages-title"
+                  type="text"
+                  value={config.newsletterPagesTitle}
+                  onChange={(e) => handleChange("newsletterPagesTitle", e.target.value)}
+                />
+              </div>
+              <div className="config-field">
+                <label htmlFor="newsletter-pages-description">Pages description</label>
+                <input
+                  id="newsletter-pages-description"
+                  type="text"
+                  value={config.newsletterPagesDescription}
+                  onChange={(e) => handleChange("newsletterPagesDescription", e.target.value)}
+                />
+              </div>
+            </>
           )}
         </div>
 
@@ -8408,38 +8935,6 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
           <VersionControlCard addToast={addToast} />
         </div>
 
-        {/* Links */}
-        <div className="dashboard-config-card" id={configCardDomId("external-links")} data-config-card="external-links">
-          <h3>External Links</h3>
-          <div className="config-field">
-            <label>Docs Link</label>
-            <input
-              type="text"
-              value={config.linksDocs}
-              onChange={(e) => handleChange("linksDocs", e.target.value)}
-              placeholder="/setup-guide"
-            />
-          </div>
-          <div className="config-field">
-            <label>Convex Link</label>
-            <input
-              type="text"
-              value={config.linksConvex}
-              onChange={(e) => handleChange("linksConvex", e.target.value)}
-              placeholder="https://convex.dev"
-            />
-          </div>
-          <div className="config-field">
-            <label>Netlify Link</label>
-            <input
-              type="text"
-              value={config.linksNetlify}
-              onChange={(e) => handleChange("linksNetlify", e.target.value)}
-              placeholder="https://netlify.com"
-            />
-          </div>
-        </div>
-
         <div className="dashboard-config-card" id={configCardDomId("mcp-server")} data-config-card="mcp-server">
           <h3>MCP server</h3>
           <p className="config-field-note">The server endpoint is /mcp. Its route and authentication are configured on the backend in convex/http.ts and with MCP_API_KEY. Dashboard appearance settings cannot change that security boundary.</p>
@@ -8453,21 +8948,21 @@ export default ${JSON.stringify(buildOverrides(), null, 2)} satisfies SiteConfig
           <strong>Copy Code</strong> or <strong>Download</strong> exports{" "}
           <code>siteConfig.overrides.ts</code>. Merge its fields into your existing config to
           make them build-time defaults. Homepage content (post list, featured list, spotlight,
-          banner, category sections) saves from the Homepage section, and newsletter automation
+          banner, category sections, external links) saves from the Homepage section, and newsletter automation
           has its own Save. Newsletter delivery settings are stored privately in Convex.
         </p>
       </div>
 
-      {/* Phones only: Save is otherwise 22 cards above wherever you just edited */}
-      <div className="dashboard-config-savebar">
+      <div className={`dashboard-config-savebar${dirty ? " is-floating" : ""}`}>
         <button
-          className="dashboard-action-btn primary"
+          className={`dashboard-action-btn primary${dirty ? " is-dirty" : ""}`}
           onClick={handleSaveConfig}
-          disabled={saving}
+          disabled={saving || !dirty}
           aria-busy={saving}
+          aria-keyshortcuts="Meta+S Control+S"
         >
           {saving ? <SpinnerGap size={16} className="animate-spin" /> : <FloppyDisk size={16} />}
-          <span>Save</span>
+          <span>{dirty ? "Save" : "Saved"}</span>
         </button>
       </div>
     </div>

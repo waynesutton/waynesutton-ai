@@ -106,4 +106,37 @@ describe("homepage running order", () => {
     expect(states(off).featured).toBe("off");
     expect(buildHomepageOrder(on).find((r) => r.id === "post-above")?.label).toBe("Spotlight post");
   });
+
+  it("lists external links before the bottom banner", () => {
+    const off: HomepageOrderInput = {
+      ...base,
+      homeLinks: { enabled: false, title: "", items: [] },
+    };
+    expect(ids(off)[ids(off).length - 1]).toBe("home-links");
+    expect(states(off)["home-links"]).toBe("off");
+    const empty: HomepageOrderInput = {
+      ...base,
+      homeLinks: { enabled: true, title: "Elsewhere", items: [] },
+    };
+    expect(buildHomepageOrder(empty).find((r) => r.id === "home-links")).toMatchObject({
+      state: "warn",
+      label: "Elsewhere",
+      detail: "No links added",
+    });
+    const on: HomepageOrderInput = {
+      ...base,
+      homeLinks: {
+        enabled: true,
+        title: "",
+        items: [
+          { label: "Docs", url: "/docs" },
+          { label: "X", url: "https://x.com/waynesutton" },
+        ],
+      },
+    };
+    expect(buildHomepageOrder(on).find((r) => r.id === "home-links")).toMatchObject({
+      state: "on",
+      detail: "2 links",
+    });
+  });
 });

@@ -711,6 +711,39 @@ h3,
   color: var(--link-hover);
 }
 
+/* Named homepage links. Editorial list, not a card grid. */
+.home-links {
+  max-width: 800px;
+  margin: 0 auto 2rem;
+}
+
+.home-links-title {
+  margin: 0 0 0.75rem;
+  font-size: var(--font-size-home-intro);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.home-links-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.home-links-list a {
+  color: var(--link-color);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.home-links-list a:hover {
+  color: var(--link-hover);
+}
+
 /* Home intro content from synced markdown page */
 .home-intro-content {
   max-width: 800px;
@@ -3128,20 +3161,249 @@ h3,
 .loading,
 .no-posts,
 .post-loading,
-.post-not-found {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--text-secondary);
+/* ============================================
+   404 PAGE
+   ============================================
+   Framed scene (perspective dashed grid plus drifting cubes) above an
+   oversized title. Breaks out of the 800px .main-content column to the
+   viewport width with an inset frame. .main-content has contain: layout,
+   so the overflow paints as ink and never adds a horizontal scrollbar. */
+.not-found {
+  --nf-inset: 24px;
+  --nf-sans:
+    -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial,
+    sans-serif;
+  --nf-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --nf-line: color-mix(in srgb, var(--text-primary) 18%, transparent);
+  --nf-grid: color-mix(in srgb, var(--text-primary) 42%, transparent);
+  --nf-face-top: color-mix(in srgb, var(--text-primary) 2%, var(--bg-primary));
+  --nf-face-left: color-mix(in srgb, var(--text-primary) 9%, var(--bg-primary));
+  --nf-face-right: color-mix(
+    in srgb,
+    var(--text-primary) 26%,
+    var(--bg-primary)
+  );
+  position: relative;
+  width: calc(100vw - var(--nf-inset) * 2);
+  margin: 16px 0 40px calc(50% - 50vw + var(--nf-inset));
+  border: 1px solid var(--nf-line);
+  color: var(--text-primary);
+  background: var(--bg-primary);
 }
 
-.post-not-found h1 {
-  font-size: var(--font-size-3xl);
-  margin-bottom: 16px;
+/* Scene: the perspective camera for the floor plane. It is a size container
+   so the cubes can size themselves in cqh/cqw units and stay inside. */
+.not-found-scene {
+  position: relative;
+  height: clamp(280px, 38vw, 440px);
+  overflow: hidden;
+  border-bottom: 1px solid var(--nf-line);
+  perspective: 640px;
+  perspective-origin: 50% 0%;
+  container-type: size;
+}
+
+/* Floor plane rotated about its top edge so the horizon sits at the top.
+   Height stays near the scene height so no point passes behind the camera.
+   The mask softens the dense, aliased dashes right at the horizon. */
+.not-found-floor {
+  position: absolute;
+  left: -60%;
+  top: 0;
+  width: 220%;
+  height: 130%;
+  color: var(--nf-grid);
+  transform-origin: 50% 0;
+  transform: rotateX(58deg);
+  backface-visibility: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14%);
+}
+
+.not-found-floor svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.not-found-floor path {
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+/* Cubes: positioned and sized in percentages so they scale with the panel */
+.not-found-cube {
+  position: absolute;
+  aspect-ratio: 1;
+  transform: rotate(var(--nf-tilt, 0deg));
+  animation: not-found-float 9s ease-in-out infinite;
+  animation-delay: var(--nf-delay, 0s);
+  will-change: transform;
+  filter: drop-shadow(
+    0 18px 22px color-mix(in srgb, var(--text-primary) 12%, transparent)
+  );
+}
+
+.not-found-cube svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.not-found-cube polygon {
+  stroke: var(--text-primary);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.not-found-cube-top {
+  fill: var(--nf-face-top);
+}
+
+.not-found-cube-left {
+  fill: var(--nf-face-left);
+}
+
+.not-found-cube-right {
+  fill: var(--nf-face-right);
+}
+
+@keyframes not-found-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--nf-tilt, 0deg));
+  }
+  50% {
+    transform: translateY(-7%) rotate(calc(var(--nf-tilt, 0deg) + 4deg));
+  }
+}
+
+/* Text strip: giant title left, explanation and one action right */
+.not-found-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 32px 48px;
+  align-items: center;
+  padding: 28px 28px 34px;
+}
+
+.not-found-title {
+  margin: 0;
+  font-family: var(--nf-sans);
+  font-size: clamp(3rem, 10.5vw, 10.5rem);
+  font-weight: 500;
+  line-height: 0.88;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
   color: var(--text-primary);
 }
 
-.post-not-found p {
-  margin-bottom: 24px;
+.not-found-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+  max-width: 34ch;
+}
+
+.not-found-text {
+  margin: 0;
+  font-family: var(--nf-sans);
+  font-size: 1.25rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+.not-found-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-primary);
+  font-family: var(--nf-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.not-found-cta:hover {
+  background: var(--accent-hover);
+}
+
+.not-found-cta:active {
+  transform: scale(0.98);
+}
+
+.not-found-cta:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+}
+
+/* Tan accent (#8b7355) is under 4.5:1 against the bg text; use the darker step */
+:root[data-theme="tan"] .not-found-cta {
+  background: var(--accent-hover);
+}
+
+:root[data-theme="tan"] .not-found-cta:hover {
+  background: color-mix(in srgb, var(--accent-hover) 85%, black);
+}
+
+/* .layout adds 15px side padding at 1024px and below; match the frame inset */
+@media (max-width: 1024px) {
+  .not-found {
+    --nf-inset: 15px;
+    margin-top: 8px;
+  }
+}
+
+/* Phones: span the padded .main-content box, stack the strip, full width CTA */
+@media (max-width: 768px) {
+  .not-found {
+    width: auto;
+    margin: 0 -16px 32px -24px;
+  }
+
+  .not-found-scene {
+    height: clamp(220px, 50vw, 300px);
+    perspective: 480px;
+  }
+
+  .not-found-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 22px 18px 26px;
+  }
+
+  .not-found-title {
+    font-size: clamp(2.75rem, 15.5vw, 5rem);
+  }
+
+  .not-found-aside {
+    max-width: none;
+  }
+
+  .not-found-text {
+    font-size: 1rem;
+  }
+
+  .not-found-cta {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .not-found-cube {
+    animation: none;
+  }
 }
 
 .back-link {
@@ -19869,4 +20131,712 @@ a.skill-rail-icon:focus-visible {
     min-height: 44px; min-width: 44px;
   }
   .image-upload-modal input, .image-upload-modal select { font-size: 16px; }
+}
+
+/* ==========================================================================
+   Photos gallery (/photos)
+   Square grid by default, full frame column as the alternate view, a quiet
+   tag rail on the right, and one overlay for the lightbox and presentation.
+   Every color comes from the theme tokens so all four themes match.
+   ========================================================================== */
+
+.photos-page {
+  padding-top: 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.photos-header {
+  margin-bottom: 28px;
+}
+
+.photos-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.photos-title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-blog-page-title);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  text-wrap: balance;
+}
+
+:root[data-theme="dark"] .photos-title {
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+:root[data-theme="light"] .photos-title {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.photos-description {
+  font-size: var(--font-size-blog-page-description);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 600px;
+}
+
+.photos-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-top: 6px;
+}
+
+/* Grid / full frame toggle: one bordered pill, pressed side filled */
+.photos-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background-color: var(--bg-secondary);
+}
+
+.photos-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.photos-view-btn + .photos-view-btn {
+  border-left: 1px solid var(--border-color);
+}
+
+.photos-view-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.photos-view-btn[aria-pressed="true"] {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.photos-present-btn {
+  height: 34px;
+  padding: 0 12px;
+  font-size: var(--font-size-xs, 0.8125rem);
+}
+
+.photos-present-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.photos-markdown-button {
+  height: 34px;
+}
+
+.photos-view-btn:focus-visible,
+.photos-present-btn:focus-visible,
+.photos-markdown-button:focus-visible,
+.photo-tile:focus-visible,
+.photos-full-button:focus-visible,
+.photos-tag-chip:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.photos-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: var(--font-size-xs, 0.8125rem);
+  color: var(--text-muted);
+}
+
+.photos-active-tag strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.photos-clear-tag {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.photos-clear-tag:hover {
+  color: var(--text-primary);
+}
+
+.photos-empty,
+.photos-notfound {
+  color: var(--text-secondary);
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  padding: 32px 0;
+}
+
+.photos-notfound {
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.photos-notfound p {
+  margin-bottom: 8px;
+}
+
+.photos-notfound-link,
+.photos-empty a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Layout: main column plus an optional right rail */
+.photos-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.photos-layout-with-rail {
+  grid-template-columns: minmax(0, 1fr) 180px;
+}
+
+.photos-main {
+  min-width: 0;
+}
+
+/* Grid: square tiles, edge to edge, soft fade on hover like project cards */
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.photo-tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background-color: var(--bg-secondary);
+  cursor: zoom-in;
+}
+
+.photo-tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition:
+    opacity 0.2s ease,
+    transform 0.3s ease;
+}
+
+.photo-tile:hover img {
+  opacity: 0.88;
+}
+
+/* Full frame: one column, natural aspect from stored dimensions */
+.photos-full {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.photos-full-item {
+  margin: 0;
+}
+
+.photos-full-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background-color: var(--bg-secondary);
+  cursor: zoom-in;
+}
+
+.photos-full-button img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.photos-full-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.photos-full-title {
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.photos-full-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.photos-full-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-xs, 0.8125rem);
+  color: var(--text-muted);
+}
+
+/* Tag rail: uppercase label, chip list, count. Sticky so it follows the grid */
+.photos-rail {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.photos-rail-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.photos-rail-chips {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.photos-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: var(--font-size-post-tag);
+  color: var(--text-muted);
+  background-color: var(--bg-secondary);
+  text-decoration: none;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.photos-tag-chip:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.photos-tag-chip.is-active {
+  color: var(--bg-primary);
+  background-color: var(--accent);
+}
+
+.photos-tag-chip.is-active .photos-tag-count {
+  opacity: 0.8;
+}
+
+.photos-tag-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.photos-rail-count {
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lightbox and presentation overlay */
+.photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 72px 72px 48px;
+  background-color: rgba(0, 0, 0, 0.92);
+  color: #fff;
+  animation: lightboxFadeIn 0.2s ease;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.photo-lightbox-present {
+  padding: 0;
+  background-color: #000;
+  cursor: default;
+}
+
+.photo-lightbox-toolbar {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 3;
+}
+
+.photo-lightbox-present .photo-lightbox-toolbar {
+  justify-content: flex-end;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.photo-lightbox-present:hover .photo-lightbox-toolbar,
+.photo-lightbox-present:focus-within .photo-lightbox-toolbar {
+  opacity: 1;
+}
+
+.photo-lightbox-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.photo-lightbox-counter {
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+
+.photo-lightbox-btn,
+.photo-lightbox-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.photo-lightbox-btn:hover,
+.photo-lightbox-arrow:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.photo-lightbox-btn:focus-visible,
+.photo-lightbox-arrow:focus-visible,
+.photo-lightbox-tag:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.photo-lightbox-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  z-index: 3;
+}
+
+.photo-lightbox-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.photo-lightbox-arrow-prev {
+  left: 20px;
+}
+
+.photo-lightbox-arrow-next {
+  right: 20px;
+}
+
+.photo-lightbox-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+}
+
+.photo-lightbox-image {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 200px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius);
+  animation: photoCrossfade 0.25s ease;
+}
+
+.photo-lightbox-present .photo-lightbox-image {
+  max-height: 100vh;
+  max-width: 100%;
+  border-radius: 0;
+}
+
+@keyframes photoCrossfade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.photo-lightbox-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 720px;
+  padding: 0 12px;
+  text-align: center;
+}
+
+.photo-lightbox-title {
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  color: #fff;
+}
+
+.photo-lightbox-description {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.photo-lightbox-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* Chips reuse the post tag pill but on a dark backdrop */
+.photo-lightbox-tag {
+  border: none;
+  font-family: inherit;
+  color: rgba(255, 255, 255, 0.75);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.photo-lightbox-tag:hover:not(:disabled) {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.photo-lightbox-tag:disabled {
+  cursor: default;
+}
+
+/* Present mode: autoplay progress bar and hover counter */
+.photo-lightbox-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  z-index: 3;
+}
+
+.photo-lightbox-progress-bar {
+  height: 100%;
+  width: 0;
+  background: rgba(255, 255, 255, 0.8);
+  animation-name: photoProgressFill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes photoProgressFill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.photo-lightbox-float {
+  position: absolute;
+  bottom: 20px;
+  right: 24px;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.photo-lightbox-present:hover .photo-lightbox-float {
+  opacity: 0.4;
+}
+
+/* Reduced motion: no crossfade or animated bar, keep the static fill */
+@media (prefers-reduced-motion: reduce) {
+  .photo-lightbox,
+  .photo-lightbox-image {
+    animation: none;
+  }
+
+  .photo-lightbox-progress-bar {
+    animation: none;
+  }
+
+  .photo-tile img {
+    transition: none;
+  }
+}
+
+.photo-lightbox[data-reduced-motion="true"] .photo-lightbox-progress-bar {
+  animation: none;
+}
+
+/* Responsive: 3 columns at tablet, 2 on phones; rail becomes a chip row */
+@media (max-width: 900px) {
+  .photos-layout-with-rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .photos-rail {
+    position: static;
+    order: -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .photos-rail-chips {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .photos-rail-count {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .photos-page {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .photos-header-top {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .photos-header-actions {
+    padding-top: 0;
+    flex-wrap: wrap;
+  }
+
+  .photos-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .photo-lightbox {
+    padding: 64px 12px 32px;
+  }
+
+  .photo-lightbox-toolbar {
+    top: 10px;
+    left: 12px;
+    right: 12px;
+  }
+
+  .photo-lightbox-arrow {
+    width: 40px;
+    height: 40px;
+    top: auto;
+    bottom: 12px;
+    transform: none;
+  }
+
+  .photo-lightbox-arrow-prev {
+    left: 12px;
+  }
+
+  .photo-lightbox-arrow-next {
+    right: 12px;
+  }
+
+  .photo-lightbox-image {
+    max-height: calc(100vh - 220px);
+  }
+
+  .photo-lightbox-caption {
+    padding: 0 4px;
+  }
+
+  .photo-lightbox-description {
+    font-size: var(--font-size-xs, 0.8125rem);
+  }
+}
+
+@media (max-width: 480px) {
+  .photos-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .photos-markdown-button span {
+    display: none;
+  }
+
+  .photos-markdown-button {
+    width: 34px;
+    padding: 0;
+    justify-content: center;
+  }
 }

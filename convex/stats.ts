@@ -97,6 +97,10 @@ function buildPageStats(
     let pageType = "other";
     if (path === "/" || path === "") { title = "Home"; pageType = "home"; }
     else if (path === "/stats") { title = "Stats"; pageType = "stats"; }
+    else if (path === "/photos" || path.startsWith("/photos/")) {
+      title = path === "/photos" ? "Photos" : `Photo: ${path.slice("/photos/".length)}`;
+      pageType = "photos";
+    }
     else if (post) { title = post.title; pageType = "blog"; }
     else if (page) { title = page.title; pageType = "page"; }
     return { path, title, pageType, views };

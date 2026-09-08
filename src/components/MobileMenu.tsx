@@ -5,6 +5,7 @@ import { Heading } from "../utils/extractHeadings";
 import DocsSidebar from "./DocsSidebar";
 import siteConfig from "../config/siteConfig";
 import { platformIcons } from "./SocialFooter";
+import { useSocialFooter } from "../hooks/useSocialFooter";
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export default function MobileMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const hasSidebar = sidebarHeadings.length > 0;
   const showDocsSection = showDocsNav && siteConfig.docsSection?.enabled;
+  const socialFooter = useSocialFooter();
 
   // Handle escape key to close menu
   useEffect(() => {
@@ -145,14 +147,13 @@ export default function MobileMenu({
           {children}
 
           {/* Social icons (if enabled and showInHeader is true) */}
-          {siteConfig.socialFooter?.enabled &&
-            siteConfig.socialFooter?.showInHeader && (
+          {socialFooter.enabled && socialFooter.showInHeader && (
               <div className="mobile-menu-social">
-                {siteConfig.socialFooter.socialLinks.map((link) => {
+                {socialFooter.socialLinks.map((link, index) => {
                   const IconComponent = platformIcons[link.platform];
                   return (
                     <a
-                      key={link.platform}
+                      key={`${link.platform}-${index}`}
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"

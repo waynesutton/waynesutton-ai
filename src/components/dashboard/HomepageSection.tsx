@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import {
@@ -18,6 +18,8 @@ import type {
   HomeHeroImageConfig,
   HomeHeroLayout,
   HomeHeroSide,
+  HomeLinkItem,
+  HomeLinksConfig,
   HomepageHighlightsConfig,
 } from "../../config/siteConfig";
 import { resolveHomeCategories } from "../../utils/homeCategories";
@@ -29,6 +31,7 @@ import {
   type FeaturedListConfig,
   type HomePostListConfig,
 } from "../../utils/homePostList";
+import { MAX_HOME_LINKS, resolveHomeLinks } from "../../utils/homeLinks";
 import { applyRuntimeConfigOverrides } from "../../config/runtimeConfig";
 
 type ToastType = "success" | "error" | "info" | "warning";
@@ -68,6 +71,9 @@ export function HomepageSection({
   );
   const [postList, setPostList] = useState<HomePostListConfig>(() =>
     resolveHomePostList(undefined),
+  );
+  const [homeLinks, setHomeLinks] = useState<HomeLinksConfig>(() =>
+    resolveHomeLinks(undefined),
   );
   const [highlights, setHighlights] = useState<HomepageHighlightsConfig>(() =>
     resolveHomepageHighlights(undefined),
@@ -110,8 +116,9 @@ export function HomepageSection({
         sections,
       },
       postList,
+      homeLinks,
     }),
-    [hero, featured, highlights, categoriesEnabled, categoriesPosition, sections, postList],
+    [hero, featured, highlights, categoriesEnabled, categoriesPosition, sections, postList, homeLinks],
   );
   const currentSnapshot = JSON.stringify(currentState);
   const dirty = hydrated && savedSnapshot !== null && savedSnapshot !== currentSnapshot;
@@ -126,6 +133,7 @@ export function HomepageSection({
     );
     const nextFeatured = resolveFeaturedList(configOverrides);
     const nextPostList = resolveHomePostList(configOverrides);
+    const nextHomeLinks = resolveHomeLinks(configOverrides?.homeLinks);
     const savedHero = configOverrides?.homeHeroImage;
     const nextHero: HomeHeroImageConfig = {
       ...DEFAULT_HERO,
@@ -140,6 +148,7 @@ export function HomepageSection({
     setHighlights(nextHighlights);
     setFeatured(nextFeatured);
     setPostList(nextPostList);
+    setHomeLinks(nextHomeLinks);
     setHero(nextHero);
     setSavedSnapshot(
       JSON.stringify({
@@ -152,6 +161,7 @@ export function HomepageSection({
           sections: nextSections,
         },
         postList: nextPostList,
+        homeLinks: nextHomeLinks,
       }),
     );
     setHydrated(true);
@@ -176,6 +186,7 @@ export function HomepageSection({
       categories: currentState.categories,
       showPostList: postList.enabled,
       featuredList: { enabled: featured.enabled, count: featuredCount },
+      homeLinks,
       publishedProjectSlugs: publishedProjects?.map((p) => p.slug),
       publishedPostSlugs: publishedPosts?.map((p) => p.slug),
       tagCounts,
@@ -187,6 +198,7 @@ export function HomepageSection({
     postList.enabled,
     featured.enabled,
     featuredCount,
+    homeLinks,
     publishedTags,
     publishedProjects,
     publishedPosts,
@@ -274,12 +286,21 @@ export function HomepageSection({
             link: postList.readMore.link.trim() || "/blog",
           },
         },
+        homeLinks: {
+          enabled: homeLinks.enabled,
+          title: homeLinks.title.trim(),
+          items: resolveHomeLinks(homeLinks).items,
+        },
       };
       await savePartialOverrides({ overrides });
       // Keep the in memory config current so pages that still read the
       // siteConfig singleton (nav, /blog) see this save without a reload.
       applyRuntimeConfigOverrides(siteConfig, overrides);
-      setSavedSnapshot(currentSnapshot);
+      const savedLinks = overrides.homeLinks;
+      setHomeLinks(savedLinks);
+      setSavedSnapshot(
+        JSON.stringify({ ...currentState, homeLinks: savedLinks }),
+      );
       addToast("Homepage saved.", "success");
       const navCount = cleanSections.filter((s) => s.showInNav).length;
       const homeCount = cleanSections.filter(
@@ -308,19 +329,43 @@ export function HomepageSection({
   const saveButton = (className: string) => (
     <button
       type="button"
-      className={className}
+      className={`${className}${dirty ? " is-dirty" : ""}`}
       onClick={() => void handleSave()}
-      disabled={saving || !hydrated}
+      disabled={saving || !hydrated || !dirty}
       aria-busy={saving}
+      aria-keyshortcuts="Meta+S Control+S"
     >
       {saving ? (
         <SpinnerGap size={16} className="animate-spin" />
       ) : (
         <FloppyDisk size={16} />
       )}
-      <span>Save homepage</span>
+      <span>{dirty ? "Save homepage" : "Saved"}</span>
     </button>
   );
+  const saveHomepageRef = useRef(handleSave);
+  saveHomepageRef.current = handleSave;
+
+  useEffect(() => {
+    if (!dirty) return;
+    const onLeave = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [dirty]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      if (!dirty || saving || !hydrated) return;
+      void saveHomepageRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dirty, saving, hydrated]);
 
   const statusText = saving
     ? "Saving..."
@@ -1028,6 +1073,117 @@ export function HomepageSection({
               </div>
             )}
           </div>
+
+          <div className="dashboard-config-card">
+            <h3>External links</h3>
+            <p className="config-field-note">
+              Any name and any URL. They sit on / above the closing note.
+            </p>
+            <div className="config-field checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={homeLinks.enabled}
+                  onChange={(e) =>
+                    setHomeLinks({ ...homeLinks, enabled: e.target.checked })
+                  }
+                />
+                <span>Show on the homepage</span>
+              </label>
+            </div>
+            <div className="config-field">
+              <label htmlFor="home-links-title">Heading</label>
+              <input
+                id="home-links-title"
+                type="text"
+                value={homeLinks.title}
+                placeholder="Leave blank for no heading"
+                onChange={(e) =>
+                  setHomeLinks({ ...homeLinks, title: e.target.value })
+                }
+              />
+            </div>
+            {homeLinks.items.length === 0 ? (
+              <p className="config-field-note">
+                No links yet. Add a name and a URL. Relative paths like /docs work.
+              </p>
+            ) : (
+              <ol className="home-section-list">
+                {homeLinks.items.map((item, index) => (
+                  <li key={index} className="home-section-row">
+                    <span className="home-section-ordinal" aria-hidden="true">
+                      {index + 1}
+                    </span>
+                    <div className="home-section-fields">
+                      <div className="home-section-fields-row">
+                        <input
+                          type="text"
+                          className="dashboard-field-input"
+                          value={item.label}
+                          placeholder="Link name"
+                          aria-label={`Link ${index + 1} name`}
+                          onChange={(e) => {
+                            const items = homeLinks.items.map((row, i) =>
+                              i === index ? { ...row, label: e.target.value } : row,
+                            );
+                            setHomeLinks({ ...homeLinks, items });
+                          }}
+                        />
+                        <input
+                          type="text"
+                          className="dashboard-field-input"
+                          value={item.url}
+                          placeholder="https:// or /path"
+                          aria-label={`Link ${index + 1} URL`}
+                          onChange={(e) => {
+                            const items = homeLinks.items.map((row, i) =>
+                              i === index ? { ...row, url: e.target.value } : row,
+                            );
+                            setHomeLinks({ ...homeLinks, items });
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="config-logo-actions">
+                      <button
+                        type="button"
+                        className="dashboard-action-btn"
+                        aria-label={`Remove link ${index + 1}`}
+                        onClick={() =>
+                          setHomeLinks({
+                            ...homeLinks,
+                            items: homeLinks.items.filter((_, i) => i !== index),
+                          })
+                        }
+                      >
+                        <Trash size={14} />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <button
+              type="button"
+              className="dashboard-action-btn"
+              disabled={homeLinks.items.length >= MAX_HOME_LINKS}
+              onClick={() =>
+                setHomeLinks({
+                  ...homeLinks,
+                  enabled: true,
+                  items: [...homeLinks.items, { label: "", url: "" } satisfies HomeLinkItem],
+                })
+              }
+            >
+              <Plus size={14} />
+              Add link
+            </button>
+            {homeLinks.items.length >= MAX_HOME_LINKS ? (
+              <span className="config-field-note">
+                {MAX_HOME_LINKS} links is the cap.
+              </span>
+            ) : null}
+          </div>
         </div>
 
         {/* Running order: what / will render, top to bottom, from the form above */}
@@ -1059,8 +1215,8 @@ export function HomepageSection({
         </aside>
       </div>
 
-      {/* Phones only: the header Save is a long scroll above the last card */}
-      <div className="dashboard-config-savebar">
+      {/* Sticky when there are unsaved homepage edits */}
+      <div className={`dashboard-config-savebar${dirty ? " is-floating" : ""}`}>
         {saveButton("dashboard-action-btn primary")}
       </div>
 

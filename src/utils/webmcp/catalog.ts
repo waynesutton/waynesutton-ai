@@ -107,6 +107,31 @@ export const TOOL_CATALOG: ReadonlyArray<ToolCatalogEntry> = [
     readOnly: true,
   },
   {
+    // Same name in the tab and on the remote server: same shape, same data
+    name: "list_photos",
+    title: "List photos",
+    description:
+      "Published photos from the /photos gallery: slug, title, description, tags, page url, image url, date. Optional tag filter.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tag: { type: "string", description: "Only return photos carrying this tag (lowercase)" },
+      },
+      required: [],
+    },
+    audiences: ["page", "remote-public"],
+    readOnly: true,
+  },
+  {
+    name: "open_photo",
+    title: "Open a photo",
+    description:
+      "Navigate this tab to /photos/<slug> so the photo opens in the lightbox. Unpublished slugs are refused.",
+    inputSchema: SLUG_INPUT,
+    audiences: ["page"],
+    readOnly: true,
+  },
+  {
     name: "set_theme",
     title: "Switch theme",
     description: "Change the site theme for this browser.",

@@ -12,9 +12,12 @@ import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown
 import diff from "react-syntax-highlighter/dist/esm/languages/prism/diff";
 import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
 import { Copy, Check } from "lucide-react";
+import { useQuery } from "convex/react";
 import { useTheme } from "../context/ThemeContext";
 import DiffCodeBlock from "./DiffCodeBlock";
+import { api } from "../../convex/_generated/api";
 import siteConfig from "../config/siteConfig";
+import { resolveClosingNoteContent } from "../utils/closingNote";
 
 // Register languages for syntax highlighting
 SyntaxHighlighter.registerLanguage("bash", bash);
@@ -186,16 +189,26 @@ const footerSanitizeSchema = {
 };
 
 // Closing note
-// Renders markdown from the frontmatter footer field, or siteConfig.footer.defaultContent
+// Frontmatter footer, then Site Config defaultContent, then footer.md.
 // This is not the site footer. The icon bar is SocialFooter.
-// Visibility: siteConfig.footer and frontmatter showFooter
 interface FooterProps {
-  content?: string; // Markdown content from frontmatter
+  content?: string; // Per-page frontmatter `footer`
+  syncedContent?: string; // content/pages/footer.md
 }
 
-export default function Footer({ content }: FooterProps) {
+export default function Footer({ content, syncedContent }: FooterProps) {
   const { theme } = useTheme();
   const { footer } = siteConfig;
+  const overrides = useQuery(api.siteConfigData.getOverrides);
+
+  const dashboardCopy = (() => {
+    const saved = overrides?.footer;
+    if (typeof saved === "object" && saved !== null && !Array.isArray(saved)) {
+      const copy = (saved as { defaultContent?: unknown }).defaultContent;
+      if (typeof copy === "string") return copy;
+    }
+    return footer.defaultContent;
+  })();
 
   // Get code theme based on current theme
   const getCodeTheme = () => {
@@ -211,15 +224,16 @@ export default function Footer({ content }: FooterProps) {
     }
   };
 
-  // Don't render if the closing note is globally disabled
   if (!footer.enabled) {
     return null;
   }
 
-  // Use frontmatter content if provided, otherwise fall back to siteConfig default
-  const footerContent = content || footer.defaultContent;
+  const footerContent = resolveClosingNoteContent({
+    frontmatter: content,
+    dashboard: dashboardCopy,
+    synced: syncedContent,
+  });
 
-  // Don't render if no content available
   if (!footerContent) {
     return null;
   }

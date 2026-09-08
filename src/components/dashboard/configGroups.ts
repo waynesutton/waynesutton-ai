@@ -72,12 +72,21 @@ export const CONFIG_GROUPS: ReadonlyArray<ConfigGroup> = [
           "copyright",
           "social links",
           "show in header",
+          "github",
+          "x",
+          "linkedin",
         ],
       },
       {
         id: "closing-note",
         title: "Closing note",
-        keywords: ["footer text", "default content", "outro"],
+        keywords: [
+          "footer text",
+          "default content",
+          "outro",
+          "connect with me",
+          "markdown",
+        ],
       },
     ],
   },
@@ -104,6 +113,8 @@ export const CONFIG_GROUPS: ReadonlyArray<ConfigGroup> = [
           "banner",
           "category sections",
           "running order",
+          "external links",
+          "home links",
         ],
       },
       {
@@ -121,8 +132,8 @@ export const CONFIG_GROUPS: ReadonlyArray<ConfigGroup> = [
   },
   {
     id: "content",
-    label: "Blog, projects, and skills",
-    hint: "The /blog, /projects, and /skills routes plus what shows on a single post.",
+    label: "Blog, projects, skills, and photos",
+    hint: "The /blog, /projects, /skills, and /photos routes plus what shows on a single post.",
     cards: [
       {
         id: "blog-page",
@@ -159,9 +170,37 @@ export const CONFIG_GROUPS: ReadonlyArray<ConfigGroup> = [
         ],
       },
       {
+        id: "photos-page",
+        title: "Photos Page",
+        keywords: [
+          "/photos",
+          "photos route",
+          "gallery",
+          "grid",
+          "full frame",
+          "lightbox",
+          "slideshow",
+          "tag filter",
+        ],
+      },
+      {
+        id: "share-this-post",
+        title: "Share this post",
+        keywords: [
+          "copy link",
+          "twitter",
+          "x",
+          "linkedin",
+          "rss",
+          "share row",
+          "ai written",
+          "written with AI",
+        ],
+      },
+      {
         id: "related-posts",
         title: "Related Posts",
-        keywords: ["thumbnails", "view mode", "post footer"],
+        keywords: ["thumbnails", "view mode", "post footer", "heading"],
       },
       {
         id: "post-audio",
@@ -201,6 +240,8 @@ export const CONFIG_GROUPS: ReadonlyArray<ConfigGroup> = [
           "subscribe",
           "above footer",
           "below content",
+          "signup title",
+          "signup description",
         ],
       },
       {
@@ -263,7 +304,7 @@ export const CONFIG_GROUPS: ReadonlyArray<ConfigGroup> = [
   {
     id: "developer",
     label: "Developer",
-    hint: "Repository wiring, external links, and the agent-facing MCP server.",
+    hint: "Repository wiring and the agent-facing MCP server.",
     cards: [
       {
         id: "github-repo",
@@ -280,11 +321,6 @@ export const CONFIG_GROUPS: ReadonlyArray<ConfigGroup> = [
         id: "version-control",
         title: "Version Control",
         keywords: ["content versions", "history", "revisions", "cleanup"],
-      },
-      {
-        id: "external-links",
-        title: "External Links",
-        keywords: ["docs link", "convex link", "netlify link"],
       },
       {
         id: "mcp-server",

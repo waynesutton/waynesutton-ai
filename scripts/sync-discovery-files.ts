@@ -325,6 +325,15 @@ interface SkillEntry {
   repoUrl?: string;
 }
 
+// Published photo shape for the llms.txt Photos section
+interface PhotoEntry {
+  slug: string;
+  title?: string;
+  description?: string;
+  tags: Array<string>;
+  url: string;
+}
+
 // Generate llms.txt content
 function generateLlmsTxt(
   siteConfig: SiteConfigData,
@@ -333,6 +342,7 @@ function generateLlmsTxt(
   latestPostDate?: string,
   projects: Array<ProjectEntry> = [],
   skills: Array<SkillEntry> = [],
+  photos: Array<PhotoEntry> = [],
 ): string {
   const githubUrl = getGitHubUrl(siteConfig);
 
@@ -356,6 +366,19 @@ function generateLlmsTxt(
             const install = s.installCommand ? ` Install: ${s.installCommand}` : "";
             const repo = s.repoUrl ? ` Repo: ${s.repoUrl}` : "";
             return `- ${name}: ${s.description}${install}${repo}`;
+          })
+          .join("\n")}\n`
+      : "";
+
+  // Photos section: one line per photo with its page link, tags, and image URL
+  const photosSection =
+    photos.length > 0
+      ? `\n# Photos\nPhoto gallery at ${siteUrl}/photos, one page per photo at ${siteUrl}/photos/<slug> (full markdown with image URLs via POST /vfs/exec with {"command": "cat /photos.md"}):\n${photos
+          .map((p) => {
+            const name = p.title || p.slug;
+            const tags = p.tags.length > 0 ? ` [${p.tags.join(", ")}]` : "";
+            const desc = p.description ? `: ${p.description}` : "";
+            return `- ${name}${tags}${desc} (${siteUrl}/photos/${p.slug}) Image: ${p.url}`;
           })
           .join("\n")}\n`
       : "";
@@ -401,13 +424,13 @@ Full content RSS feed with complete markdown for each post.
 
 ## Virtual Filesystem
 GET /vfs/tree
-Returns JSON tree of all content paths (blog, pages, docs, projects.md, and skills.md).
+Returns JSON tree of all content paths (blog, pages, docs, projects.md, skills.md, and photos.md).
 
 POST /vfs/exec
 Execute shell-like commands against all site content.
 Send JSON body: {"command": "ls /blog"} or {"command": "grep convex /blog"}
 Supported commands: ls, cat, grep, find, tree, head, wc, pwd, cd
-Paths: /blog, /pages, /docs, /index.md, /projects.md, /skills.md
+Paths: /blog, /pages, /docs, /index.md, /projects.md, /skills.md, /photos.md
 
 ## MCP Server
 POST /mcp
@@ -442,7 +465,7 @@ Each post contains:
 - content: string (full markdown)
 - readTime: string (optional)
 - url: string (full URL)
-${projectsSection}${skillsSection}
+${projectsSection}${skillsSection}${photosSection}
 # Permissions
 - AI assistants may freely read and summarize content
 - No authentication required for read operations
@@ -500,14 +523,17 @@ async function syncDiscoveryFiles() {
   let latestPostDate: string | undefined;
   let projects: Array<ProjectEntry> = [];
   let skills: Array<SkillEntry> = [];
+  let photos: Array<PhotoEntry> = [];
 
   try {
-    const [posts, pages, publishedProjects, skillDirectory] = await Promise.all([
-      client.query(api.posts.getAllPosts),
-      client.query(api.pages.getAllPages),
-      client.query(api.projects.listPublished),
-      client.query(api.skills.listDirectory),
-    ]);
+    const [posts, pages, publishedProjects, skillDirectory, publishedPhotos] =
+      await Promise.all([
+        client.query(api.posts.getAllPosts),
+        client.query(api.pages.getAllPages),
+        client.query(api.projects.listPublished),
+        client.query(api.skills.listDirectory),
+        client.query(api.photos.listPublished),
+      ]);
 
     postCount = posts.length;
     pageCount = pages.length;
@@ -524,6 +550,13 @@ async function syncDiscoveryFiles() {
       installCommand: s.installCommands?.[0]?.command,
       repoUrl: s.repoUrl,
     }));
+    photos = publishedPhotos.map((p) => ({
+      slug: p.slug,
+      title: p.title,
+      description: p.description,
+      tags: p.tags,
+      url: p.url,
+    }));
 
     if (posts.length > 0) {
       // Sort by date descending to get latest
@@ -537,6 +570,7 @@ async function syncDiscoveryFiles() {
     console.log(`Found ${pageCount} published pages`);
     console.log(`Found ${projects.length} published projects`);
     console.log(`Found ${skills.length} published skills`);
+    console.log(`Found ${photos.length} published photos`);
     if (latestPostDate) {
       console.log(`Latest post: ${latestPostDate}`);
     }
@@ -603,6 +637,7 @@ async function syncDiscoveryFiles() {
     latestPostDate,
     projects,
     skills,
+    photos,
   );
   const llmsPath = path.join(PUBLIC_DIR, "llms.txt");
   fs.writeFileSync(llmsPath, llmsContent, "utf-8");

@@ -15,26 +15,28 @@ import ContactForm from "../components/ContactForm";
 import { extractHeadings } from "../utils/extractHeadings";
 import { useSidebar } from "../context/SidebarContext";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Link as LinkIcon, Rss, Tag, Presentation } from "lucide-react";
+import { Link as LinkIcon, Rss, Tag, Presentation } from "lucide-react";
+import NotFound from "../components/NotFound";
 import { XLogo, LinkedinLogo } from "@phosphor-icons/react";
 import { useState, useEffect, useCallback } from "react";
 import SlidePresentation from "../components/SlidePresentation";
 import siteConfig from "../config/siteConfig";
+import type { RelatedPostsConfig } from "../config/siteConfig";
 import PostAudioPlayer from "../components/PostAudioPlayer";
 import {
   newsletterPosition,
   shouldShowNewsletter,
 } from "../utils/newsletter";
+import { resolveSharePost } from "../utils/sharePost";
+import { resolveAiWrittenNote } from "../utils/aiWrittenNote";
 
 // Local storage key for related posts view mode preference
 const RELATED_POSTS_VIEW_MODE_KEY = "related-posts-view-mode";
 
-const AI_WRITTEN_NOTE = "This post was written with AI and proofed by a human.";
-
-function AiWrittenNote() {
+function AiWrittenNote({ text }: { text: string }) {
   return (
     <p className="post-ai-note" role="note">
-      {AI_WRITTEN_NOTE}
+      {text}
     </p>
   );
 }
@@ -72,10 +74,28 @@ export default function Post({
   const page = pageQuery;
   const post = postQuery;
 
+  const configOverrides = useQuery(api.siteConfigData.getOverrides);
+  const sharePost = resolveSharePost(configOverrides?.sharePost);
+  const aiWrittenNote = resolveAiWrittenNote(configOverrides?.aiWrittenNote);
+  const relatedSaved = (configOverrides?.relatedPosts ??
+    null) as Partial<RelatedPostsConfig> | null;
+  const relatedEnabled =
+    (relatedSaved?.enabled ?? siteConfig.relatedPosts?.enabled) !== false;
+  const relatedTitle =
+    (typeof relatedSaved?.title === "string" && relatedSaved.title.trim()) ||
+    siteConfig.relatedPosts?.title ||
+    "Related Posts";
+  const relatedShowToggle =
+    (relatedSaved?.showViewToggle ?? siteConfig.relatedPosts?.showViewToggle) !==
+    false;
+  const shareVisible =
+    sharePost.enabled &&
+    (sharePost.copyLink || sharePost.x || sharePost.linkedin || sharePost.rss);
+
   // Fetch related posts based on current post's tags (only for blog posts, not pages)
   const relatedPosts = useQuery(
     api.posts.getRelatedPosts,
-    post && !page
+    post && !page && relatedEnabled
       ? { currentSlug: post.slug, tags: post.tags, limit: 3 }
       : "skip",
   );
@@ -505,7 +525,7 @@ export default function Post({
               (page.showFooter !== undefined
                 ? page.showFooter
                 : siteConfig.footer.showOnPages) && (
-                <Footer content={page.footer || footerPage?.content} />
+                <Footer content={page.footer} syncedContent={footerPage?.content} />
               )}
           </article>
         </DocsLayout>
@@ -638,14 +658,11 @@ export default function Post({
               (page.showFooter !== undefined
                 ? page.showFooter
                 : siteConfig.footer.showOnPages) && (
-                <Footer content={page.footer || footerPage?.content} />
+                <Footer content={page.footer} syncedContent={footerPage?.content} />
               )}
 
             {/* Social footer - shown inside article at bottom for pages */}
-            {siteConfig.socialFooter?.enabled &&
-              (page.showSocialFooter !== undefined
-                ? page.showSocialFooter
-                : siteConfig.socialFooter.showOnPages) && <SocialFooter />}
+            <SocialFooter surface="pages" force={page.showSocialFooter} />
           </article>
 
           {/* Left sidebar - TOC (placed after article in DOM for SEO) */}
@@ -674,18 +691,7 @@ export default function Post({
 
   // Handle not found (neither page nor post)
   if (post === null) {
-    return (
-      <div className="post-page">
-        <div className="post-not-found">
-          <h1>Page not found</h1>
-          <p>The page you're looking for doesn't exist or has been removed.</p>
-          <Link to="/" className="back-link">
-            <ArrowLeft size={16} />
-            Back to home
-          </Link>
-        </div>
-      </div>
-    );
+    return <NotFound />;
   }
 
   const handleCopyLink = async () => {
@@ -757,7 +763,7 @@ export default function Post({
             {post.description && (
               <p className="docs-article-description">{post.description}</p>
             )}
-            {post.aiWritten && <AiWrittenNote />}
+            {post.aiWritten && <AiWrittenNote text={aiWrittenNote} />}
             <PostAudioPlayer
               audio={post.audio}
               audioVoice={post.audioVoice}
@@ -779,7 +785,7 @@ export default function Post({
             (post.showFooter !== undefined
               ? post.showFooter
               : siteConfig.footer.showOnPosts) && (
-              <Footer content={post.footer || footerPage?.content} />
+              <Footer content={post.footer} syncedContent={footerPage?.content} />
             )}
         </article>
       </DocsLayout>
@@ -894,7 +900,7 @@ export default function Post({
             {post.description && (
               <p className="post-description">{post.description}</p>
             )}
-            {post.aiWritten && <AiWrittenNote />}
+            {post.aiWritten && <AiWrittenNote text={aiWrittenNote} />}
             <PostAudioPlayer
               audio={post.audio}
               audioVoice={post.audioVoice}
@@ -915,9 +921,11 @@ export default function Post({
           )}
 
           <footer className="post-footer">
+            {shareVisible ? (
             <div className="post-share">
-              <h3 className="post-share-title">Share this post</h3>
+              <h3 className="post-share-title">{sharePost.title}</h3>
             
+              {sharePost.copyLink ? (
               <button
                 onClick={handleCopyLink}
                 className="share-button"
@@ -926,6 +934,8 @@ export default function Post({
                 <LinkIcon size={16} />
                 <span>{copied ? "Copied!" : "Copy link"}</span>
               </button>
+              ) : null}
+              {sharePost.x ? (
               <button
                 onClick={handleShareTwitter}
                 className="share-button"
@@ -934,6 +944,8 @@ export default function Post({
                 <XLogo size={16} weight="bold" />
                 <span>Post</span>
               </button>
+              ) : null}
+              {sharePost.linkedin ? (
               <button
                 onClick={handleShareLinkedIn}
                 className="share-button"
@@ -942,6 +954,8 @@ export default function Post({
                 <LinkedinLogo size={16} weight="bold" />
                 <span>LinkedIn</span>
               </button>
+              ) : null}
+              {sharePost.rss ? (
               <a
                 href="/rss.xml"
                 target="_blank"
@@ -952,7 +966,9 @@ export default function Post({
                 <Rss size={16} />
                 <span>RSS</span>
               </a>
+              ) : null}
             </div>
+            ) : null}
 
             {post.tags && post.tags.length > 0 && (
               <div className="post-tags">
@@ -970,11 +986,11 @@ export default function Post({
             )}
 
             {/* Related posts section - only shown for blog posts with shared tags */}
-            {relatedPosts && relatedPosts.length > 0 && (
+            {relatedEnabled && relatedPosts && relatedPosts.length > 0 && (
               <div className="related-posts">
                 <div className="related-posts-header">
-                  <h3 className="related-posts-title">Related Posts</h3>
-                  {siteConfig.relatedPosts?.showViewToggle !== false && (
+                  <h3 className="related-posts-title">{relatedTitle}</h3>
+                  {relatedShowToggle && (
                     <button
                       className="view-toggle-button"
                       onClick={toggleRelatedPostsViewMode}
@@ -1133,14 +1149,11 @@ export default function Post({
             (post.showFooter !== undefined
               ? post.showFooter
               : siteConfig.footer.showOnPosts) && (
-              <Footer content={post.footer || footerPage?.content} />
+              <Footer content={post.footer} syncedContent={footerPage?.content} />
             )}
 
           {/* Social footer - shown inside article at bottom for posts */}
-          {siteConfig.socialFooter?.enabled &&
-            (post.showSocialFooter !== undefined
-              ? post.showSocialFooter
-              : siteConfig.socialFooter.showOnPosts) && <SocialFooter />}
+          <SocialFooter surface="posts" force={post.showSocialFooter} />
         </article>
 
         {/* Left sidebar - TOC (placed after article in DOM for SEO) */}

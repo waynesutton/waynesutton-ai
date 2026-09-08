@@ -7,6 +7,7 @@ import type { MutationCtx } from "../_generated/server";
 import { components, internal } from "../_generated/api";
 import { v } from "convex/values";
 import {
+  buildPhotosMarkdownForSite,
   buildProjectsMarkdown,
   buildSkillsMarkdown,
   getPublishedSkillDirectory,
@@ -35,6 +36,7 @@ type DiscoverySyncEvent = {
   removePaths?: Array<string>;
   refreshProjects?: boolean;
   refreshSkills?: boolean;
+  refreshPhotos?: boolean;
 };
 
 /** Post entry shape shared by dashboard, drafts, and CLI sync callers. */
@@ -78,7 +80,8 @@ export async function scheduleDiscoverySyncIfEnabled(
     (event.publish?.length ?? 0) > 0 ||
     (event.removePaths?.length ?? 0) > 0 ||
     event.refreshProjects === true ||
-    event.refreshSkills === true;
+    event.refreshSkills === true ||
+    event.refreshPhotos === true;
   if (!hasWork) return;
   const settings = await ctx.db
     .query("agentReadySettings")
@@ -126,6 +129,7 @@ export const syncDiscovery = internalAction({
     removePaths: v.optional(v.array(v.string())),
     refreshProjects: v.optional(v.boolean()),
     refreshSkills: v.optional(v.boolean()),
+    refreshPhotos: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -147,6 +151,9 @@ export const syncDiscovery = internalAction({
     }
     if (args.refreshSkills) {
       await ctx.runMutation(internal.agentReady.autoSync.reconcileSkills, {});
+    }
+    if (args.refreshPhotos) {
+      await ctx.runMutation(internal.agentReady.autoSync.reconcilePhotos, {});
     }
     await ctx.runAction(components.agentReady.content.regenerateAll, {});
     return null;
@@ -257,6 +264,40 @@ export const reconcileSkills = internalMutation({
     } else {
       await ctx.runMutation(components.agentReady.content.archivePage, {
         path: "/skills",
+      });
+    }
+    return null;
+  },
+});
+
+// One /photos entry carrying the full VFS /photos.md markdown, archived when
+// nothing is published. Image URLs are absolute so agents can fetch them.
+export const reconcilePhotos = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const photos = await ctx.db
+      .query("photos")
+      .withIndex("by_published", (q) => q.eq("published", true))
+      .take(PROJECTS_QUERY_LIMIT);
+    if (photos.length > 0) {
+      const markdown = buildPhotosMarkdownForSite(photos);
+      const suffix =
+        '\n\nRead the complete gallery using POST /vfs/exec with {"command":"cat /photos.md"}.';
+      await ctx.runMutation(components.agentReady.content.upsertPage, {
+        title: "Photos",
+        path: "/photos",
+        section: "Photos",
+        description: `Photo gallery with ${photos.length} ${photos.length === 1 ? "photo" : "photos"}, each with its own /photos/<slug> page`,
+        fullContent:
+          markdown.length <= 50_000
+            ? markdown
+            : markdown.slice(0, 50_000 - suffix.length) + suffix,
+        status: "published",
+      });
+    } else {
+      await ctx.runMutation(components.agentReady.content.archivePage, {
+        path: "/photos",
       });
     }
     return null;

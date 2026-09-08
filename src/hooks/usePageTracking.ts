@@ -64,6 +64,9 @@ function getPageType(path: string): string {
   if (path === "/stats") {
     return "stats";
   }
+  if (path === "/photos" || path.startsWith("/photos/")) {
+    return "photos";
+  }
   // Could be a blog post or static page
   return "page";
 }

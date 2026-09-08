@@ -33,6 +33,7 @@ These pages are written to skim: curl before clicks, a prompt you can paste, cop
 | Homepage | Banner image, featured list, spotlight post and projects, category sections, post list, with a live running order |
 | Projects | CRUD for the /projects index |
 | Skills | Sections and skills for the /skills directory |
+| Photos | Upload, tag, and publish photos for the /photos gallery. Email inbox. |
 | Import URL | Scrape a public URL into a draft post (Firecrawl, Exa, or Context.dev) |
 | Drafts Inbox | Review agent, email, paste, and X drafts. Voice profile. |
 | AI Agent | Multi model chat and image generation |
@@ -973,7 +974,7 @@ Live overrides for \`src/config/siteConfig.ts\`. Save writes to Convex for this 
 
 Copy Code and Download still exist so you can commit the generated file as the build-time default.
 
-Logo gallery images, social footer links, and custom nav items stay file-managed. Change those in \`siteConfig.ts\` and deploy static assets.
+Logo gallery images stay dashboard-managed. Custom nav items stay in \`siteConfig.ts\`. Footer social icon URLs are now rows on the Footer card. Closing note markdown is the textarea on Closing note.
 
 ### Tabs
 
@@ -984,11 +985,11 @@ Switching tabs never drops unsaved edits. Every card stays on the page, hidden p
 | Tab | Cards |
 |-----|-------|
 | Site | Basic Settings, Inner Page Logo, Right Sidebar, Footer, Closing note |
-| Homepage | Homepage route, Homepage content (a pointer to the Homepage section), Logo Gallery |
-| Blog, projects, and skills | Blog Page, Projects Page, Skills Page, Related Posts, Post audio, Image Lightbox |
+| Homepage | Homepage route, Homepage content (a pointer to the Homepage section, including named external links), Logo Gallery |
+| Blog, projects, skills, and photos | Blog Page, Projects Page, Skills Page, Photos Page, Share this post (heading, channels, AI writing note), Related Posts, Post audio, Image Lightbox |
 | Audience | Automatic newsletters, Newsletter Signup Locations, Contact Form |
-| Features | Features, AI Chat, Semantic Search, Ask AI, Media Library |
-| Developer | GitHub Repository, Version Control, External Links, MCP server |
+| Features | Features, AI Chat, Semantic Search, Ask AI, WebMCP, Media Library |
+| Developer | GitHub Repository, Version Control, MCP server |
 
 The command palette (Cmd+K) knows every card. Type a setting name like "read time", "lightbox", or "mcp" and pick the result: the right tab opens, the page scrolls to the card, and the card flashes so you can find it.
 
@@ -1031,7 +1032,7 @@ The search box in the header (Cmd+K, or Ctrl+K) is a command palette. It matches
 - **Sections**: type "config", "keys", "sync" to jump to a dashboard section
 - **Posts and pages** by title or slug, opening straight into the editor
 - **Settings**: any Site Config card by name or by the fields inside it ("read time", "lightbox", "mcp") opens the right tab and scrolls to the card
-- **Features**: "embed", "unlisted", "vendor keys", "minimap", "slides", "skills", "contact form", "voice profile" land on the section that owns them, even when the word never appears in the nav
+- **Features**: "embed", "unlisted", "vendor keys", "minimap", "slides", "skills", "photos", "gallery", "lightbox", "slideshow", "contact form", "voice profile" land on the section that owns them, even when the word never appears in the nav
 - **Docs topics**: matches against the full body of every topic, so "iframe" finds the embeds guide. Results open the topic in Docs.
 - **Actions**: "new post", "new page", "sync dev", "sync prod"
 
@@ -1121,6 +1122,87 @@ Skills Page card: enable the route, show in nav, title, description, nav order. 
 ### Copy as markdown
 
 The public page button, the VFS file, and agent-ready discovery all use \`convex/lib/skillsDirectory.ts\`, so they stay in lockstep. Publishing a skill schedules a discovery refresh the same way a post does.`,
+  },
+  {
+    id: "photos",
+    title: "Photo gallery",
+    content: `## Photo gallery
+
+Optional public gallery at \`/photos\`. Off until you turn **Photos Page** on in Site Config. Show in nav is a separate toggle. Every published photo also gets its own link at \`/photos/<slug>\`, which opens the gallery with that photo in the lightbox. Share it, paste it in a post, or hand it to an agent.
+
+The dashboard **Photos** section and the email inbox are the only writers. Photos live in their own table, not the Media Library, so cleaning up media never orphans a gallery image. Files go to Cloudflare R2 when the R2 provider is configured, otherwise Convex storage.
+
+### Upload from the dashboard
+
+Drop files on the zone or click to pick several at once. Rules:
+
+- PNG, JPEG, GIF, WebP, up to 10 MB each
+- HEIC is not supported. Browsers cannot decode it. Export as JPEG first.
+- Each file shows its own progress row and error text if it fails
+- The browser makes an 800px WebP thumbnail for the grid and records the natural width and height so tiles never shift
+- Set default tags and the publish state in the row above the zone before you drop. Uploads land unpublished unless you tick **Publish on upload**
+
+### One photo
+
+| Field | What readers see |
+|-------|------------------|
+| title | Caption in the lightbox and under the full frame view. Optional. |
+| description | One line under the title. Optional. |
+| tags | Lowercase chips. Drive the tag rail and the \`?tag=\` filter. |
+| date | Manual capture date. Controls sort order, newest first. Falls back to the upload time. |
+| slug | Auto from the title or filename. Editable. Collisions get \`-2\`, \`-3\`. |
+| published | Only published photos show on the site and in agent files |
+
+Click a tile or its title to open the editor. Existing tags appear as suggestions so spelling stays consistent.
+
+### Tags and views
+
+Grid is the default: square tiles, five across on desktop. **Full frame** stacks each photo at its natural aspect with title, description, and tags under it. Readers can flip between the two when **Show view toggle** is on, and the choice sticks in their browser.
+
+The TAGS rail sits on the right on desktop and becomes a chip row on mobile. Picking a tag rewrites the URL to \`/photos?tag=name\`, so a filtered view is a link you can share. The count under the rail follows the filter.
+
+### Lightbox and presentation
+
+Click a tile to open the lightbox. Arrows or Left and Right step through the filtered set. Home and End jump to the ends. Escape closes. Swipe works on touch. Neighbors preload so stepping feels instant.
+
+**Present** starts a fullscreen slideshow from the first photo in the current view. It autoplays at the interval set in Site Config, Space pauses, arrows step, and \`P\` toggles between lightbox and presentation. Crossfade is off when the reader has asked for reduced motion.
+
+### Email photos in
+
+Send from an address on the AgentMail allowlist to your inbox with images attached:
+
+- **Subject** becomes the title. If you leave it blank the filename is used.
+- **Body** becomes the description. A line like \`tags: canmore, nature\` sets tags and is removed from the description.
+- Inline images (signatures, tracking pixels) and non image attachments are ignored
+- Up to 10 photos per email, 10 MB each. Others are skipped and named in the reply.
+- Emails with no usable image fall through to the Drafts Inbox exactly as before
+
+Photos publish immediately when **Auto publish emailed photos** is on (the default). Turn it off in the email card and they wait under the **Unpublished** filter instead. Either way you get a reply listing the new \`/photos/<slug>\` links. A retried webhook never creates a duplicate.
+
+Emailed photos arrive without a thumbnail. Run **Generate missing thumbnails** in the Photos section once in a while. The browser downloads each original, encodes the WebP, and uploads it. Until then the grid shows the original, which works but is heavier.
+
+### Site Config
+
+Photos Page card: enable the route, show in nav, title, description, default view (grid or full frame), show view toggle, show tag filter, slideshow interval, nav order. The public page 404s when the route is off. Deep links start working the moment it is on.
+
+### Agents
+
+- \`cat /photos.md\` on the VFS returns the whole gallery as markdown: one heading per photo with title, description, tags, page URL, image URL, and date
+- The same text is the \`/photos\` entry in \`/llms.txt\` and agent-ready discovery
+- MCP tool \`list_photos\` (optional \`tag\` argument) returns structured rows. WebMCP adds \`list_photos\` and \`open_photo\` in the tab.
+- The sitemap lists \`/photos\` and every \`/photos/<slug>\`
+- Publishing, editing, or deleting a photo schedules a discovery refresh the same way a post does
+- **Copy as markdown** on the public page uses the same builder, \`convex/lib/photosDirectory.ts\`, so agents and readers see identical text
+
+### Troubleshooting
+
+| Symptom | Check |
+|---------|-------|
+| Photo missing on the site | Is it published? Is Photos Page enabled? Is a tag filter active in the URL? |
+| Email ignored | Sender on the allowlist? Image attached, not inline? Not HEIC? |
+| Email landed in Drafts Inbox | No usable image attachment was found, so it took the text path |
+| Grid loads slowly | Run Generate missing thumbnails |
+| Upload rejected | Over 10 MB or an unsupported type |`,
   },
   {
     id: "git-guide",

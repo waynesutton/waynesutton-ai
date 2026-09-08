@@ -179,10 +179,9 @@ export default function TagPage() {
           "above-footer",
         ) === "above-footer" && <NewsletterSignup source="blog-page" />}
 
-      {showFooter && <Footer content={footerPage?.content} />}
+      {showFooter && <Footer syncedContent={footerPage?.content} />}
 
-      {siteConfig.socialFooter?.enabled &&
-        siteConfig.socialFooter.showOnBlogPage && <SocialFooter />}
+      <SocialFooter surface="blog" />
     </div>
   );
 }

@@ -294,6 +294,45 @@ test("skills discovery entry archives when the last published skill is gone", as
   );
 });
 
+test("photos discovery entry publishes with the gallery markdown and archives when empty", async () => {
+  const t = setup();
+  const photoId = await t.run((ctx) =>
+    ctx.db.insert("photos", {
+      slug: "pass",
+      title: "The pass",
+      description: "Above the clouds",
+      tags: ["canmore"],
+      provider: "r2",
+      key: "photos/pass",
+      url: "https://media.example.com/pass.jpg",
+      size: 10,
+      contentType: "image/jpeg",
+      published: true,
+      source: "dashboard",
+      createdAt: 1,
+      updatedAt: 1,
+    }),
+  );
+  const read = () =>
+    t.run((ctx) =>
+      ctx.runQuery(components.agentReady.content.listPages, {
+        includeAllStatuses: true,
+      }),
+    );
+  await t.mutation(internal.agentReady.autoSync.reconcilePhotos, {});
+  const entry = (await read()).find((page) => page.path === "/photos");
+  expect(entry?.status).toBe("published");
+  expect(entry?.section).toBe("Photos");
+  expect(entry?.fullContent).toContain("### [The pass]");
+  expect(entry?.fullContent).toContain("https://media.example.com/pass.jpg");
+  expect(entry?.fullContent).toContain("Tags: canmore");
+  await t.run((ctx) => ctx.db.patch(photoId, { published: false }));
+  await t.mutation(internal.agentReady.autoSync.reconcilePhotos, {});
+  expect((await read()).find((page) => page.path === "/photos")?.status).toBe(
+    "archived",
+  );
+});
+
 test("legacy discovery repair updates only known removed-feature phrases", async () => {
   const t = setup();
   await t.run(async (ctx) => {

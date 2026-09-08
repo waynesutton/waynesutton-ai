@@ -199,6 +199,7 @@ Same prompt. Confirm the OpenCode skill folder name on your machine if this path
 No skill folder. Two doors:
 
 1. **Email (easiest).** Copy the article. Send to `waynesuttonai@agentmail.to` from an allowed address. Subject `as-is: Your title` keeps the text. Any other subject runs rewrite.
+   - **Photos take a different door.** An email with image attachments from an allowed sender goes to the `/photos` gallery, not the Drafts Inbox (`convex/photoEmails.ts`). Subject becomes the title, body the description, a `tags: a, b` line sets tags, inline images are ignored, up to 10 photos per email. They publish immediately unless **Auto publish emailed photos** is off in the dashboard Photos section. You get a reply with the `/photos/<slug>` links. Emails with no usable image still land as drafts. See `prds/photos-gallery.md`.
 2. **curl.** Paste the article into the `rawInput` field of the verify command above, set `"mode": "as-is"` and `"source": "grok"` or `"chatgpt"`.
 
 ### Terminal with no agent
@@ -342,6 +343,7 @@ Cap: 400k characters on `rawInput`. Links and tags capped at 10.
 | Rewrite sounds generic | `voiceProfile.rules` empty | Paste the write skill, save, reindex |
 | Rewrite fails, `agent failed` | `OPENAI_API_KEY` missing as env | `npx convex env set --prod OPENAI_API_KEY sk-...` |
 | Email does not create a draft | Sender not on allowlist, or self-sent | Send from `AGENTMAIL_CONTACT_EMAIL`. Check logs for `unauthorized-sender` or `self-sent`. |
+| Email became photos instead of a draft | It had image attachments | Expected. Attachments route to `/photos`. Send text only, or paste images inline, for a draft. |
 | Email preview never arrives | `AGENTMAIL_CONTACT_EMAIL` unset | Owner mail falls back to the inbox and you email yourself. Set the contact address. |
 | Dashboard changes missing on live site | You used localhost | Open https://waynesutton.ai/dashboard |
 

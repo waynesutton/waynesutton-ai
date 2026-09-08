@@ -197,6 +197,43 @@ export default defineSchema({
     .index("by_published", ["published"])
     .index("by_sectionid", ["sectionId"]),
 
+  // Photos shown in the /photos gallery. Kept apart from mediaAssets so the
+  // Media Library cannot orphan a gallery entry and gallery metadata (tags,
+  // captions, capture date) stays out of the editor picker. Dashboard uploads
+  // and the AgentMail email door are the only writers.
+  photos: defineTable({
+    slug: v.string(), // /photos/<slug>, unique
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    tags: v.array(v.string()), // lowercased, deduped
+    provider: v.union(v.literal("r2"), v.literal("convex")),
+    key: v.string(), // R2 key or Convex storage id
+    url: v.string(), // permanent URL
+    thumbnailKey: v.optional(v.string()),
+    thumbnailUrl: v.optional(v.string()),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    size: v.number(),
+    contentType: v.string(),
+    published: v.boolean(),
+    capturedAt: v.optional(v.number()), // manual date; sort falls back to createdAt
+    source: v.union(v.literal("dashboard"), v.literal("email")),
+    sourceMessageId: v.optional(v.string()), // AgentMail idempotency: <message id>#<attachment index>
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_published", ["published"])
+    .index("by_sourcemessageid", ["sourceMessageId"]),
+
+  // Photo gallery settings singleton keyed by "email". The auto publish kill
+  // switch for emailed photos lives here so it can flip without a redeploy.
+  photoSettings: defineTable({
+    key: v.string(), // "email"
+    autoPublishEmail: v.boolean(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
+
   // Durable catalog for every provider so uploaded media survives browser sessions.
   mediaAssets: defineTable({
     provider: v.union(

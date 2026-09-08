@@ -434,10 +434,9 @@ export default function Skills() {
         </div>
       )}
 
-      {showFooter && <Footer content={footerPage?.content} />}
+      {showFooter && <Footer syncedContent={footerPage?.content} />}
 
-      {siteConfig.socialFooter?.enabled &&
-        siteConfig.socialFooter.showOnBlogPage && <SocialFooter />}
+      <SocialFooter surface="blog" />
     </div>
   );
 }

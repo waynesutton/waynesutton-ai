@@ -137,6 +137,66 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+export type EmailImageAttachment = {
+  attachmentId: string;
+  filename: string;
+  contentType: string;
+  size: number;
+};
+
+// Image types browsers can decode. HEIC and TIFF are skipped: the gallery
+// would show a broken tile and the browser thumbnail backfill cannot read them.
+const GALLERY_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+]);
+
+export function isGalleryImageType(contentType: string): boolean {
+  return GALLERY_IMAGE_TYPES.has(contentType.toLowerCase().split(";")[0].trim());
+}
+
+/**
+ * Non inline image attachments on an AgentMail message (webhook or API shape).
+ * Inline images are signature logos and pasted screenshots that belong to the
+ * body, not the gallery. Returns them in message order so `sourceMessageId`
+ * indexes stay stable across retries.
+ */
+export function extractImageAttachments(
+  message: Record<string, unknown>,
+): Array<EmailImageAttachment> {
+  if (!Array.isArray(message.attachments)) return [];
+  const result: Array<EmailImageAttachment> = [];
+  for (const raw of message.attachments) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const row = raw as Record<string, unknown>;
+    const attachmentId =
+      typeof row.attachment_id === "string"
+        ? row.attachment_id
+        : typeof row.attachmentId === "string"
+          ? row.attachmentId
+          : "";
+    const contentType =
+      typeof row.content_type === "string"
+        ? row.content_type
+        : typeof row.contentType === "string"
+          ? row.contentType
+          : "";
+    if (!attachmentId || row.inline === true) continue;
+    if (!contentType.toLowerCase().startsWith("image/")) continue;
+    result.push({
+      attachmentId,
+      filename: typeof row.filename === "string" && row.filename ? row.filename : "photo",
+      contentType,
+      size: typeof row.size === "number" ? row.size : 0,
+    });
+  }
+  return result;
+}
+
 /** Strip quoted replies and signatures from an email body. */
 export function cleanEmailBody(text: string): string {
   const lines = text.split("\n");

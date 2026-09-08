@@ -117,7 +117,7 @@ export default function DocsPage() {
               : "date" in landingContent
                 ? siteConfig.footer.showOnPosts
                 : siteConfig.footer.showOnPages) && (
-              <Footer content={landingContent.footer || footerPage?.content} />
+              <Footer content={landingContent.footer} syncedContent={footerPage?.content} />
             )}
         </article>
       </DocsLayout>

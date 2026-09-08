@@ -234,12 +234,10 @@ export default function Blog() {
           "above-footer" && <NewsletterSignup source="blog-page" />}
 
       {/* Footer section */}
-      {showFooter && <Footer content={footerPage?.content} />}
+      {showFooter && <Footer syncedContent={footerPage?.content} />}
 
       {/* Social footer section */}
-      {siteConfig.socialFooter?.enabled && siteConfig.socialFooter.showOnBlogPage && (
-        <SocialFooter />
-      )}
+      <SocialFooter surface="blog" />
     </div>
   );
 }

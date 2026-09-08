@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "edge-runtime",
-    include: ["convex/**/*.test.ts", "src/**/*.test.tsx"],
+    include: ["convex/**/*.test.ts", "src/**/*.test.ts", "src/**/*.test.tsx"],
     restoreMocks: true,
   },
 });

@@ -79,6 +79,20 @@ export interface SkillsPageConfig {
   order?: number; // Nav order (lower = first)
 }
 
+// Photos page configuration
+// Controls the /photos gallery (grid by default) and its /photos/<slug> deep links
+export interface PhotosPageConfig {
+  enabled: boolean; // Enable the /photos route
+  showInNav: boolean; // Show "Photos" link in navigation
+  title: string; // Page title for the gallery
+  description?: string; // Optional line shown under the title
+  order?: number; // Nav order (lower = first)
+  viewMode: "grid" | "full"; // Default layout: square grid or full frame column
+  showViewToggle: boolean; // Show the grid / full frame toggle
+  showTagFilter: boolean; // Show the tag rail (filter lives in ?tag=)
+  slideshowIntervalMs: number; // Presentation mode autoplay interval
+}
+
 // Homepage posts read more link configuration
 // Optional link shown below limited post list on homepage
 export interface HomePostsReadMoreConfig {
@@ -180,15 +194,37 @@ export interface RightSidebarConfig {
 }
 
 // Closing note (not the site footer)
-// Markdown sign-off above the icon bar. Copy lives in content/pages/footer.md
-// or a per-page frontmatter `footer` field. The icon bar is socialFooter.
+// Markdown sign-off above the icon bar. Dashboard Site Config writes
+// defaultContent. Per-page frontmatter `footer` still wins. footer.md is last.
 export interface FooterConfig {
   enabled: boolean; // Global toggle for the closing note
   showOnHomepage: boolean; // Show closing note on homepage
   showOnPosts: boolean; // Default: show closing note on blog posts
   showOnPages: boolean; // Default: show closing note on static pages
   showOnBlogPage: boolean; // Show closing note on /blog page
-  defaultContent?: string; // Default markdown if no frontmatter footer field provided
+  defaultContent?: string; // Markdown from Site Config (wins over footer.md)
+}
+
+// Named links on the homepage. Any label and any URL, relative or absolute.
+export interface HomeLinkItem {
+  label: string;
+  url: string;
+}
+
+export interface HomeLinksConfig {
+  enabled: boolean; // Show the list on /
+  title: string; // Optional heading. Empty hides it
+  items: Array<HomeLinkItem>;
+}
+
+// Share row under a blog post
+export interface SharePostConfig {
+  enabled: boolean;
+  title: string;
+  copyLink: boolean;
+  x: boolean;
+  linkedin: boolean;
+  rss: boolean;
 }
 
 // Homepage configuration
@@ -394,6 +430,8 @@ export interface WebMcpConfig {
 // Related posts configuration
 // Controls the display of related posts at the bottom of blog posts
 export interface RelatedPostsConfig {
+  enabled?: boolean; // Hide the related block. Default true
+  title?: string; // Heading. Default "Related Posts"
   defaultViewMode: "list" | "thumbnails"; // Default view mode for related posts
   showViewToggle: boolean; // Show toggle button to switch between views
 }
@@ -478,6 +516,9 @@ export interface SiteConfig {
 
   // Skills page configuration
   skillsPage?: SkillsPageConfig;
+
+  // Photos gallery configuration
+  photosPage?: PhotosPageConfig;
   homepageHighlights?: HomepageHighlightsConfig;
 
   // Hardcoded navigation items for React routes (like /stats, /write)
@@ -486,12 +527,14 @@ export interface SiteConfig {
   // Posts display configuration
   postsDisplay: PostsDisplayConfig;
 
-  // Links for footer section
-  links: {
-    docs: string;
-    convex: string;
-    netlify: string;
-  };
+  // Named links shown on the homepage
+  homeLinks: HomeLinksConfig;
+
+  // Share row under blog posts
+  sharePost: SharePostConfig;
+
+  // Note under the title when a post has aiWritten: true
+  aiWrittenNote?: string;
 
   // GitHub repository configuration for AI service links
   gitHubRepo: GitHubRepoConfig;
@@ -733,6 +776,21 @@ export const siteConfig: SiteConfig = {
     order: 4, // Nav order (lower = first)
   },
 
+  // Photos gallery configuration
+  // A grid of photos with tags, a lightbox, and presentation mode, fed from
+  // the dashboard Photos section or the AgentMail email door
+  photosPage: {
+    enabled: false, // Enable the /photos route and /photos/<slug> deep links
+    showInNav: true, // Show "Photos" link in navigation
+    title: "Photos", // Page title
+    description: "", // Optional line under the title
+    order: 5, // Nav order (lower = first)
+    viewMode: "grid", // Default layout: "grid" or "full"
+    showViewToggle: true, // Show the grid / full frame toggle
+    showTagFilter: true, // Show the tag rail
+    slideshowIntervalMs: 5000, // Presentation mode autoplay interval
+  },
+
   // Hardcoded navigation items for React routes
   // Add React route pages (like /stats, /write) that should appear in navigation
   // Set showInNav: false to hide from nav while keeping the route accessible
@@ -778,12 +836,24 @@ export const siteConfig: SiteConfig = {
     blogShowYearHeadings: true, // Group /blog, tag, and author lists by year
   },
 
-  // Links for footer section
-  links: {
-    docs: "/setup-guide",
-    convex: "https://convex.dev",
-    netlify: "https://netlify.com",
+  // Named links on /. Empty until the dashboard Homepage section adds some.
+  homeLinks: {
+    enabled: false,
+    title: "",
+    items: [],
   },
+
+  // Share row under blog posts
+  sharePost: {
+    enabled: true,
+    title: "Share this post",
+    copyLink: true,
+    x: true,
+    linkedin: true,
+    rss: true,
+  },
+
+  aiWrittenNote: "This post was written with AI and proofed by a human.",
 
   // GitHub repository configuration
   // Used for "Open in AI" links (ChatGPT, Claude, Perplexity)
@@ -804,7 +874,7 @@ export const siteConfig: SiteConfig = {
     minWidth: 1135, // Minimum viewport width in pixels to show sidebar
   },
 
-  // Closing note from content/pages/footer.md ("Connect with me on ...").
+  // Closing note. Dashboard Site Config owns the markdown. footer.md is fallback.
   // This is not the site footer. The Footer is socialFooter (icon bar).
   // Same master switch pattern as newsletter.enabled. Use showFooter: false
   // in frontmatter to hide the closing note on a single post or page.
@@ -814,7 +884,6 @@ export const siteConfig: SiteConfig = {
     showOnPosts: true, // Default: show footer on blog posts (override with frontmatter)
     showOnPages: true, // Default: show footer on static pages (override with frontmatter)
     showOnBlogPage: true, // Show footer on /blog page
-    // Default footer markdown (fallback if footer.md doesn't exist - edit content/pages/footer.md instead)
     defaultContent: undefined,
   },
 
@@ -1110,6 +1179,8 @@ export const siteConfig: SiteConfig = {
   // Related posts configuration
   // Controls the display of related posts at the bottom of blog posts
   relatedPosts: {
+    enabled: true,
+    title: "Related Posts",
     defaultViewMode: "thumbnails", // Default view: "list" or "thumbnails"
     showViewToggle: true, // Show toggle button to switch between views
   },
