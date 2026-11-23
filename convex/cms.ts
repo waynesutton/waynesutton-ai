@@ -553,6 +553,90 @@ export const setPostPublishedForAgent = internalMutation({
 });
 
 /**
+ * Edit a post by slug for an agent. Only text and listing fields: the slug
+ * never changes, so live links keep working. Saves a version first, the same
+ * way the dashboard does, so any agent edit can be rolled back from the
+ * version history. Idempotent: fields that already match are not counted.
+ */
+export const updatePostForAgent = internalMutation({
+  args: {
+    slug: v.string(),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    content: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    excerpt: v.optional(v.string()),
+    unlisted: v.optional(v.boolean()),
+  },
+  returns: v.object({
+    slug: v.string(),
+    changed: v.array(v.string()),
+    published: v.boolean(),
+    unlisted: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("posts")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .unique();
+    if (!existing) {
+      throw new ConvexError(`Post not found: ${args.slug}`);
+    }
+
+    const fields = args;
+    const patch: Partial<Doc<"posts">> = {};
+    const changed: Array<string> = [];
+    // Fixed order so the changed list reads the same for every caller
+    const fieldOrder = ["title", "description", "content", "tags", "excerpt", "unlisted"] as const;
+    for (const key of fieldOrder) {
+      const value = fields[key];
+      if (value === undefined) continue;
+      const before = existing[key];
+      const same = Array.isArray(value)
+        ? JSON.stringify(value) === JSON.stringify(before ?? [])
+        : value === (before ?? (key === "unlisted" ? false : undefined));
+      if (!same) {
+        (patch as Record<string, unknown>)[key] = value;
+        changed.push(key);
+      }
+    }
+
+    const result = {
+      slug: existing.slug,
+      changed,
+      published: existing.published,
+      unlisted: patch.unlisted ?? existing.unlisted ?? false,
+    };
+    if (changed.length === 0) {
+      return result;
+    }
+
+    await ctx.scheduler.runAfter(0, internal.versions.createVersion, {
+      contentType: "post",
+      contentId: existing._id,
+      slug: existing.slug,
+      title: existing.title,
+      content: existing.content,
+      description: existing.description,
+      source: "agent",
+    });
+
+    await ctx.db.patch(existing._id, {
+      ...patch,
+      // New content means a new word count; otherwise keep the stored value
+      readTime:
+        patch.content !== undefined
+          ? resolveReadTime(undefined, patch.content)
+          : resolveReadTime(existing.readTime, existing.content),
+      lastSyncedAt: Date.now(),
+    });
+    await afterPostChange(ctx, existing._id, existing, { ...existing, ...patch });
+
+    return result;
+  },
+});
+
+/**
  * Hard delete a post by slug. Returns the deleted post's markdown and fields
  * so the calling thread holds a copy it can restore from. Idempotent: a slug
  * that is already gone returns deleted: false.

@@ -98,6 +98,8 @@ export default function VersionHistoryModal({
         return "Dashboard";
       case "restore":
         return "Restore";
+      case "agent":
+        return "Agent";
       default:
         return source;
     }

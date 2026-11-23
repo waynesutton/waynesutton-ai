@@ -284,6 +284,27 @@ export const TOOL_CATALOG: ReadonlyArray<ToolCatalogEntry> = [
     readOnly: false,
   },
   {
+    name: "update_post",
+    title: "Update post",
+    description:
+      "Edit a post's title, description, content, tags, excerpt or listing by slug, with an auto publish key",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string" },
+        title: { type: "string" },
+        description: { type: "string" },
+        content: { type: "string" },
+        tags: { type: "array", items: { type: "string" } },
+        excerpt: { type: "string" },
+        unlisted: { type: "boolean" },
+      },
+      required: ["slug"],
+    },
+    audiences: ["remote-pipeline"],
+    readOnly: false,
+  },
+  {
     name: "delete_post",
     title: "Delete post",
     description: "Permanently delete a post and return its content, with an auto publish key",

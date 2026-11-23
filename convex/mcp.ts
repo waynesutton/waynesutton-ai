@@ -167,6 +167,30 @@ export const MCP_TOOLS = [
     },
   },
   {
+    name: "update_post",
+    description:
+      "Edit a post by slug: title, description (the search and link preview text), content (full markdown body), tags, excerpt, or unlisted. Send only the fields to change. The slug never changes. The old version is saved to the post's version history first. Requires a pipeline key with auto publish enabled.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string", description: "The post slug" },
+        title: { type: "string", description: "New title" },
+        description: {
+          type: "string",
+          description: "New description, used for search results and link previews",
+        },
+        content: { type: "string", description: "New full markdown body. Replaces the old body" },
+        tags: { type: "array", items: { type: "string" }, description: "New tags. Replaces the old list" },
+        excerpt: { type: "string", description: "New excerpt for post cards" },
+        unlisted: {
+          type: "boolean",
+          description: "true hides the post from lists and the homepage, false lists it again",
+        },
+      },
+      required: ["slug"],
+    },
+  },
+  {
     name: "delete_post",
     description:
       "Permanently delete a post by slug. Prefer set_post_published with published: false unless the owner asked to delete. Returns the deleted post's content as a backup. Requires a pipeline key with auto publish enabled.",
@@ -188,6 +212,7 @@ const PIPELINE_ONLY_TOOLS = new Set([
   "create_draft",
   "list_all_posts",
   "set_post_published",
+  "update_post",
   "delete_post",
 ]);
 
@@ -377,6 +402,56 @@ async function handleSetPostPublished(
   return { site: SITE_NAME, ...result, status: result.published ? "published" : "draft" };
 }
 
+async function handleUpdatePost(
+  ctx: ActionCtx,
+  args: Record<string, unknown>,
+  pipelineKey: string | null,
+): Promise<unknown> {
+  await requireManageKey(ctx, pipelineKey);
+  if (typeof args.slug !== "string" || !args.slug.trim()) {
+    throw new Error("Missing required parameter: slug");
+  }
+  const update: {
+    slug: string;
+    title?: string;
+    description?: string;
+    content?: string;
+    tags?: Array<string>;
+    excerpt?: string;
+    unlisted?: boolean;
+  } = { slug: args.slug.trim() };
+  for (const key of ["title", "description", "content", "excerpt"] as const) {
+    const value = args[key];
+    if (value === undefined) continue;
+    if (typeof value !== "string" || (key !== "excerpt" && !value.trim())) {
+      throw new Error(`${key} must be a non-empty string`);
+    }
+    update[key] = value;
+  }
+  if (args.tags !== undefined) {
+    if (!Array.isArray(args.tags) || !args.tags.every((tag) => typeof tag === "string")) {
+      throw new Error("tags must be an array of strings");
+    }
+    update.tags = args.tags as Array<string>;
+  }
+  if (args.unlisted !== undefined) {
+    if (typeof args.unlisted !== "boolean") {
+      throw new Error("unlisted must be true or false");
+    }
+    update.unlisted = args.unlisted;
+  }
+  if (Object.keys(update).length === 1) {
+    throw new Error("Nothing to change. Send at least one of title, description, content, tags, excerpt, unlisted");
+  }
+  const result = await ctx.runMutation(internal.cms.updatePostForAgent, update);
+  return {
+    site: SITE_NAME,
+    ...result,
+    status: !result.published ? "draft" : result.unlisted ? "unlisted" : "published",
+    url: `${SITE_URL}/${result.slug}`,
+  };
+}
+
 async function handleDeletePost(
   ctx: ActionCtx,
   args: Record<string, unknown>,
@@ -488,6 +563,8 @@ async function handleToolCall(
       return handleListAllPosts(ctx, pipelineKey);
     case "set_post_published":
       return handleSetPostPublished(ctx, args, pipelineKey);
+    case "update_post":
+      return handleUpdatePost(ctx, args, pipelineKey);
     case "delete_post":
       return handleDeletePost(ctx, args, pipelineKey);
     default:

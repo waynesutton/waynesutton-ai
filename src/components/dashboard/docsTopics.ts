@@ -552,9 +552,10 @@ A Chrome agent that already has {{PUBLIC_HOST}} open uses a different, smaller s
 | create_draft | pipeline key | Submit a review draft |
 | list_all_posts | pipeline key | Every post with its status: published, unlisted, or draft |
 | set_post_published | auto publish key | Unpublish a post to draft, or republish it, by slug |
+| update_post | auto publish key | Edit a post's title, description, content, tags, excerpt or listing by slug. Saves a version first |
 | delete_post | auto publish key | Permanently delete a post. Returns its content as a backup |
 
-The three post management tools need a pipeline key. Changing or deleting a post also needs a key with **Auto publish** on, since that key can already put posts live. A draft only key can list posts but not change them. Prefer \`set_post_published\` with \`published: false\` over \`delete_post\`: a draft can come back, a deleted post only lives on in the tool's response.
+The four post management tools need a pipeline key. Changing or deleting a post also needs a key with **Auto publish** on, since that key can already put posts live. A draft only key can list posts but not change them. Prefer \`set_post_published\` with \`published: false\` over \`delete_post\`: a draft can come back, a deleted post only lives on in the tool's response.
 
 If \`MCP_API_KEY\` is set, every call (including the public reads) needs \`Authorization: Bearer <MCP_API_KEY>\`. Leave it unset for open discovery.
 
@@ -587,7 +588,7 @@ curl -X POST {{PUBLIC_URL}}/mcp \\
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 \`\`\`
 
-Without a key you should see **eight** tools. \`tools/list\` hides \`create_draft\` and the post management tools from anonymous callers so crawlers and browser side proxies never see a privileged tool they cannot use. Add \`-H "x-api-key: $BLOG_POST_KEY"\` and the list grows to **twelve**. Calling \`create_draft\` without a key fails the same way it always did.
+Without a key you should see **eight** tools. \`tools/list\` hides \`create_draft\` and the post management tools from anonymous callers so crawlers and browser side proxies never see a privileged tool they cannot use. Add \`-H "x-api-key: $BLOG_POST_KEY"\` and the list grows to **thirteen**. Calling \`create_draft\` without a key fails the same way it always did.
 
 ### Verify create_draft
 
@@ -611,7 +612,16 @@ curl -X POST {{PUBLIC_URL}}/mcp \\
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"set_post_published","arguments":{"slug":"my-post","published":false}}}'
 \`\`\`
 
-Both calls are idempotent. Unpublishing a post that is already a draft returns \`changed: false\`, and deleting a slug that is gone returns \`deleted: false\`. Unpublish and delete drop the post from \`llms.txt\` and agent-ready discovery the same way the dashboard does.
+Edit a live post. Send only the fields to change. The slug never changes, and the old text goes to the post's version history first:
+
+\`\`\`bash
+curl -X POST {{PUBLIC_URL}}/mcp \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: $BLOG_POST_KEY" \\
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"update_post","arguments":{"slug":"my-post","description":"A better search and link preview"}}}'
+\`\`\`
+
+These calls are idempotent. Editing a field to the value it already has returns it outside \`changed\`. Unpublishing a post that is already a draft returns \`changed: false\`, and deleting a slug that is gone returns \`deleted: false\`. Unpublish and delete drop the post from \`llms.txt\` and agent-ready discovery the same way the dashboard does.
 
 Prefer **Publish from agents** (HTTP + skill) as the daily path. MCP is optional.`,
   },

@@ -148,3 +148,73 @@ test("delete_post removes the post and returns a backup", async () => {
   const again = payload(await callTool(t, "delete_post", { slug: "draft-post" }, MANAGE_KEY));
   expect(again).toMatchObject({ deleted: false, backup: null });
 });
+
+test("update_post edits fields by slug, saves a version, and keeps the slug", async () => {
+  const t = await setup();
+  const denied = await callTool(t, "update_post", { slug: "live-post", description: "New" }, DRAFT_KEY);
+  expect(denied.error?.message).toMatch(/cannot change posts/);
+
+  const keyed = await rpc(t, "tools/list", {}, MANAGE_KEY);
+  expect(keyed.result?.tools?.map((tool) => tool.name)).toContain("update_post");
+  const anon = await rpc(t, "tools/list", {});
+  expect(anon.result?.tools?.map((tool) => tool.name)).not.toContain("update_post");
+
+  const body = "word ".repeat(450);
+  const result = payload(
+    await callTool(
+      t,
+      "update_post",
+      { slug: "live-post", description: "A better preview", content: body, tags: ["convex"] },
+      MANAGE_KEY,
+    ),
+  );
+  expect(result).toMatchObject({
+    slug: "live-post",
+    changed: ["description", "content", "tags"],
+    status: "published",
+  });
+  const post = await t.run((ctx) =>
+    ctx.db.query("posts").withIndex("by_slug", (q) => q.eq("slug", "live-post")).unique(),
+  );
+  expect(post).toMatchObject({
+    description: "A better preview",
+    content: body,
+    tags: ["convex"],
+    readTime: "3 min read",
+  });
+
+  // The old text is queued for the version history, marked as an agent edit
+  const scheduled = await t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+  const snapshot = scheduled.find((job) => job.name.startsWith("versions"));
+  expect(snapshot?.args[0]).toMatchObject({
+    slug: "live-post",
+    content: "Body of live-post",
+    description: "About live-post",
+    source: "agent",
+  });
+
+  const again = payload(
+    await callTool(t, "update_post", { slug: "live-post", description: "A better preview" }, MANAGE_KEY),
+  );
+  expect(again).toMatchObject({ changed: [] });
+});
+
+test("update_post lists an unlisted post again", async () => {
+  const t = await setup();
+  const result = payload(
+    await callTool(t, "update_post", { slug: "hidden-post", unlisted: false }, MANAGE_KEY),
+  );
+  expect(result).toMatchObject({ changed: ["unlisted"], status: "published" });
+});
+
+test("update_post rejects empty edits, bad values, and unknown slugs", async () => {
+  const t = await setup();
+  const empty = await callTool(t, "update_post", { slug: "live-post" }, MANAGE_KEY);
+  expect(empty.error?.message).toMatch(/Nothing to change/);
+  const blank = await callTool(t, "update_post", { slug: "live-post", title: "  " }, MANAGE_KEY);
+  expect(blank.error?.message).toMatch(/title must be a non-empty string/);
+  const tags = await callTool(t, "update_post", { slug: "live-post", tags: "convex" }, MANAGE_KEY);
+  expect(tags.error?.message).toMatch(/tags must be an array/);
+  const missing = await callTool(t, "update_post", { slug: "nope", title: "x" }, MANAGE_KEY);
+  expect(missing.error?.message).toMatch(/Post not found/);
+});

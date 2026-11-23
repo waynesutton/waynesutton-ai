@@ -17,6 +17,8 @@ const versionSnapshotValidator = v.object({
     v.literal("sync"),
     v.literal("dashboard"),
     v.literal("restore"),
+
+    v.literal("agent"),
   ),
 });
 
@@ -140,7 +142,9 @@ export const getVersionHistory = query({
       source: v.union(
         v.literal("sync"),
         v.literal("dashboard"),
-        v.literal("restore")
+        v.literal("restore"),
+
+        v.literal("agent")
       ),
       contentPreview: v.string(),
     })
@@ -183,7 +187,9 @@ export const getVersion = query({
       source: v.union(
         v.literal("sync"),
         v.literal("dashboard"),
-        v.literal("restore")
+        v.literal("restore"),
+
+        v.literal("agent")
       ),
     }),
     v.null()

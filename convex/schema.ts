@@ -500,7 +500,9 @@ export default defineSchema({
     source: v.union(
       v.literal("sync"),
       v.literal("dashboard"),
-      v.literal("restore")
+      v.literal("restore"),
+
+      v.literal("agent")
     ), // What triggered the version capture
   })
     .index("by_contenttype_and_slug", ["contentType", "slug"])
