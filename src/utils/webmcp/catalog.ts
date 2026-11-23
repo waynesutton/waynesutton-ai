@@ -263,6 +263,38 @@ export const TOOL_CATALOG: ReadonlyArray<ToolCatalogEntry> = [
     audiences: ["remote-pipeline"],
     readOnly: false,
   },
+  {
+    name: "list_all_posts",
+    title: "List all posts",
+    description: "Every post with its status (published, unlisted, draft), with a pipeline key",
+    inputSchema: { type: "object", properties: {} },
+    audiences: ["remote-pipeline"],
+    readOnly: true,
+  },
+  {
+    name: "set_post_published",
+    title: "Set post published",
+    description: "Unpublish a post to draft or republish it, with an auto publish key",
+    inputSchema: {
+      type: "object",
+      properties: { slug: { type: "string" }, published: { type: "boolean" } },
+      required: ["slug", "published"],
+    },
+    audiences: ["remote-pipeline"],
+    readOnly: false,
+  },
+  {
+    name: "delete_post",
+    title: "Delete post",
+    description: "Permanently delete a post and return its content, with an auto publish key",
+    inputSchema: {
+      type: "object",
+      properties: { slug: { type: "string" } },
+      required: ["slug"],
+    },
+    audiences: ["remote-pipeline"],
+    readOnly: false,
+  },
 ];
 
 /** Tools that carry the given audience */

@@ -5,12 +5,13 @@
 
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { secretEquals } from "./lib/secretCompare";
 
 const SITE_URL = (process.env.SITE_URL || "https://waynesutton.ai").replace(/\/+$/, "");
 const SITE_NAME = "Wayne Sutton";
 const MCP_SERVER_NAME = "waynesutton-ai-mcp";
-const MCP_SERVER_VERSION = "2.1.0";
+const MCP_SERVER_VERSION = "2.2.0";
 
 // Keep draft submissions well under the 1MB Convex document limit
 const MAX_DRAFT_INPUT_CHARS = 400_000;
@@ -143,13 +144,52 @@ export const MCP_TOOLS = [
       required: ["rawInput"],
     },
   },
+  {
+    name: "list_all_posts",
+    description:
+      "List every post with its status: published, unlisted, or draft (unpublished). Returns slug, title, date, and status. Requires a pipeline API key.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "set_post_published",
+    description:
+      "Unpublish a post back to draft (published: false) or republish it (published: true), by slug. Requires a pipeline key with auto publish enabled.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string", description: "The post slug" },
+        published: {
+          type: "boolean",
+          description: "false moves the post to draft, true makes it live again",
+        },
+      },
+      required: ["slug", "published"],
+    },
+  },
+  {
+    name: "delete_post",
+    description:
+      "Permanently delete a post by slug. Prefer set_post_published with published: false unless the owner asked to delete. Returns the deleted post's content as a backup. Requires a pipeline key with auto publish enabled.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string", description: "The post slug" },
+      },
+      required: ["slug"],
+    },
+  },
 ];
 
 // Tools that only make sense with a pipeline key. tools/list hides them from
 // anonymous callers (crawlers, browser side proxies) so a privileged tool is
 // never advertised to a client that cannot use it. Calls without a key still
 // fail the same way they always did.
-const PIPELINE_ONLY_TOOLS = new Set(["create_draft"]);
+const PIPELINE_ONLY_TOOLS = new Set([
+  "create_draft",
+  "list_all_posts",
+  "set_post_published",
+  "delete_post",
+]);
 
 /** Tool list for a caller. Anonymous callers see the public read set only. */
 export function visibleMcpTools(hasPipelineKey: boolean): typeof MCP_TOOLS {
@@ -281,6 +321,77 @@ async function handleExportAll(ctx: ActionCtx): Promise<unknown> {
   return { site: SITE_NAME, url: SITE_URL, posts };
 }
 
+async function verifyPipelineKey(
+  ctx: ActionCtx,
+  pipelineKey: string,
+): Promise<{ keyId: Id<"apiKeys">; label: string; autoPublish: boolean }> {
+  const keyHash = await sha256Hex(pipelineKey);
+  const verified = await ctx.runQuery(internal.pipelineKeys.verifyApiKey, { keyHash });
+  if (!verified) {
+    throw new Error("Invalid pipeline API key");
+  }
+  return verified;
+}
+
+// Changing or removing live posts needs the same power as publishing them,
+// so only a key that can already auto publish may do it
+async function requireManageKey(ctx: ActionCtx, pipelineKey: string | null): Promise<void> {
+  if (!pipelineKey) {
+    throw new Error("Missing pipeline API key. Send x-api-key: wsa_...");
+  }
+  const verified = await verifyPipelineKey(ctx, pipelineKey);
+  if (!verified.autoPublish) {
+    throw new Error("This pipeline key cannot change posts. Use a key with auto publish enabled.");
+  }
+}
+
+async function handleListAllPosts(ctx: ActionCtx, pipelineKey: string | null): Promise<unknown> {
+  if (!pipelineKey) {
+    throw new Error("Missing pipeline API key. Send x-api-key: wsa_...");
+  }
+  await verifyPipelineKey(ctx, pipelineKey);
+  const posts = await ctx.runQuery(internal.cms.listAllPostsForAgent, {});
+  return {
+    site: SITE_NAME,
+    count: posts.length,
+    posts: posts.map((post) => ({ ...post, url: `${SITE_URL}/${post.slug}` })),
+  };
+}
+
+async function handleSetPostPublished(
+  ctx: ActionCtx,
+  args: Record<string, unknown>,
+  pipelineKey: string | null,
+): Promise<unknown> {
+  await requireManageKey(ctx, pipelineKey);
+  if (typeof args.slug !== "string" || !args.slug.trim()) {
+    throw new Error("Missing required parameter: slug");
+  }
+  if (typeof args.published !== "boolean") {
+    throw new Error("Missing required parameter: published (true or false)");
+  }
+  const result = await ctx.runMutation(internal.cms.setPostPublishedForAgent, {
+    slug: args.slug.trim(),
+    published: args.published,
+  });
+  return { site: SITE_NAME, ...result, status: result.published ? "published" : "draft" };
+}
+
+async function handleDeletePost(
+  ctx: ActionCtx,
+  args: Record<string, unknown>,
+  pipelineKey: string | null,
+): Promise<unknown> {
+  await requireManageKey(ctx, pipelineKey);
+  if (typeof args.slug !== "string" || !args.slug.trim()) {
+    throw new Error("Missing required parameter: slug");
+  }
+  const result = await ctx.runMutation(internal.cms.deletePostForAgent, {
+    slug: args.slug.trim(),
+  });
+  return { site: SITE_NAME, ...result };
+}
+
 async function handleCreateDraft(
   ctx: ActionCtx,
   args: Record<string, unknown>,
@@ -293,11 +404,7 @@ async function handleCreateDraft(
       "Missing pipeline API key. Send x-api-key: wsa_... (or Authorization: Bearer wsa_... when MCP_API_KEY is not set)",
     );
   }
-  const keyHash = await sha256Hex(pipelineKey);
-  const verified = await ctx.runQuery(internal.pipelineKeys.verifyApiKey, { keyHash });
-  if (!verified) {
-    throw new Error("Invalid pipeline API key");
-  }
+  const verified = await verifyPipelineKey(ctx, pipelineKey);
 
   const rawInput = args.rawInput;
   if (typeof rawInput !== "string" || !rawInput.trim()) {
@@ -377,6 +484,12 @@ async function handleToolCall(
       return handleListPhotos(ctx, typeof args.tag === "string" ? args.tag : undefined);
     case "create_draft":
       return handleCreateDraft(ctx, args, pipelineKey);
+    case "list_all_posts":
+      return handleListAllPosts(ctx, pipelineKey);
+    case "set_post_published":
+      return handleSetPostPublished(ctx, args, pipelineKey);
+    case "delete_post":
+      return handleDeletePost(ctx, args, pipelineKey);
     default:
       throw new Error(`Unknown tool: ${toolName}`);
   }

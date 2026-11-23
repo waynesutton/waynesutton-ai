@@ -96,8 +96,11 @@ describe("remote MCP tools/list", () => {
     expect(anonymous).toContain("list_photos");
     expect(anonymous).not.toContain("create_draft");
 
+    expect(anonymous).not.toContain("delete_post");
+
     const keyed = visibleMcpTools(true).map((t) => t.name);
-    expect(keyed).toHaveLength(9);
+    expect(keyed).toHaveLength(12);
     expect(keyed).toContain("create_draft");
+    expect(keyed).toContain("set_post_published");
   });
 });

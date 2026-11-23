@@ -548,7 +548,13 @@ A Chrome agent that already has {{PUBLIC_HOST}} open uses a different, smaller s
 | get_homepage | public | Recent posts and counts |
 | search_content | public | Title, description, tag search |
 | export_all | public | All posts with content |
+| list_photos | public | Published photos, optional tag filter |
 | create_draft | pipeline key | Submit a review draft |
+| list_all_posts | pipeline key | Every post with its status: published, unlisted, or draft |
+| set_post_published | auto publish key | Unpublish a post to draft, or republish it, by slug |
+| delete_post | auto publish key | Permanently delete a post. Returns its content as a backup |
+
+The three post management tools need a pipeline key. Changing or deleting a post also needs a key with **Auto publish** on, since that key can already put posts live. A draft only key can list posts but not change them. Prefer \`set_post_published\` with \`published: false\` over \`delete_post\`: a draft can come back, a deleted post only lives on in the tool's response.
 
 If \`MCP_API_KEY\` is set, every call (including the public reads) needs \`Authorization: Bearer <MCP_API_KEY>\`. Leave it unset for open discovery.
 
@@ -581,7 +587,7 @@ curl -X POST {{PUBLIC_URL}}/mcp \\
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 \`\`\`
 
-Without a key you should see **seven** tools. \`tools/list\` hides \`create_draft\` from anonymous callers so crawlers and browser side proxies never see a privileged tool they cannot use. Add \`-H "x-api-key: $BLOG_POST_KEY"\` and the list grows to **eight**. Calling \`create_draft\` without a key fails the same way it always did.
+Without a key you should see **eight** tools. \`tools/list\` hides \`create_draft\` and the post management tools from anonymous callers so crawlers and browser side proxies never see a privileged tool they cannot use. Add \`-H "x-api-key: $BLOG_POST_KEY"\` and the list grows to **twelve**. Calling \`create_draft\` without a key fails the same way it always did.
 
 ### Verify create_draft
 
@@ -593,6 +599,19 @@ curl -X POST {{PUBLIC_URL}}/mcp \\
   -H "x-api-key: $BLOG_POST_KEY" \\
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"create_draft","arguments":{"title":"MCP verify","rawInput":"MCP create_draft check.","mode":"as-is","source":"mcp"}}}'
 \`\`\`
+
+### Manage posts
+
+List every post with its status, then unpublish one back to draft:
+
+\`\`\`bash
+curl -X POST {{PUBLIC_URL}}/mcp \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: $BLOG_POST_KEY" \\
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"set_post_published","arguments":{"slug":"my-post","published":false}}}'
+\`\`\`
+
+Both calls are idempotent. Unpublishing a post that is already a draft returns \`changed: false\`, and deleting a slug that is gone returns \`deleted: false\`. Unpublish and delete drop the post from \`llms.txt\` and agent-ready discovery the same way the dashboard does.
 
 Prefer **Publish from agents** (HTTP + skill) as the daily path. MCP is optional.`,
   },

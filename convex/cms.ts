@@ -1,8 +1,9 @@
 import { queueNewsletterPublication } from "./lib/newsletterAutomation";
-import { mutation, query, internalMutation } from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { v, ConvexError } from "convex/values";
 import type { Infer } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireDashboardAdmin } from "./dashboardAuth";
 import {
@@ -437,23 +438,7 @@ export const updatePost = mutation({
       lastSyncedAt: Date.now(),
     });
 
-    // Auto discovery sync: publish/unpublish/unlist/rename updates llms.txt
-    const next = { ...existing, ...args.post };
-    const wasPublic = existing.published && existing.unlisted !== true;
-    const isPublic = next.published && next.unlisted !== true;
-    const slugChanged = next.slug !== existing.slug;
-    await scheduleDiscoverySyncIfEnabled(ctx, {
-      publish: isPublic ? [postDiscoveryEntry(next)] : undefined,
-      removePaths:
-        wasPublic && (slugChanged || !isPublic)
-          ? [`/${existing.slug}`]
-          : undefined,
-    });
-
-    if (isPublic && !wasPublic) await queueNewsletterPublication(ctx, args.id);
-    if (next.published) {
-      await schedulePostAudioIfNeeded(ctx, args.id);
-    }
+    await afterPostChange(ctx, args.id, existing, { ...existing, ...args.post });
 
     return null;
   },
@@ -472,15 +457,145 @@ export const deletePost = mutation({
     }
 
     await ctx.db.delete(args.id);
-
-    // Auto discovery sync: drop a deleted public post from llms.txt
-    if (existing.published && existing.unlisted !== true) {
-      await scheduleDiscoverySyncIfEnabled(ctx, {
-        removePaths: [`/${existing.slug}`],
-      });
-    }
+    await afterPostDelete(ctx, existing);
 
     return null;
+  },
+});
+
+// Side effects shared by the dashboard and agent (MCP) post edits, so a
+// publish flip from either path updates llms.txt, newsletter, and audio alike
+async function afterPostChange(
+  ctx: MutationCtx,
+  id: Id<"posts">,
+  existing: Doc<"posts">,
+  next: Doc<"posts">,
+): Promise<void> {
+  // Auto discovery sync: publish/unpublish/unlist/rename updates llms.txt
+  const wasPublic = existing.published && existing.unlisted !== true;
+  const isPublic = next.published && next.unlisted !== true;
+  const slugChanged = next.slug !== existing.slug;
+  await scheduleDiscoverySyncIfEnabled(ctx, {
+    publish: isPublic ? [postDiscoveryEntry(next)] : undefined,
+    removePaths:
+      wasPublic && (slugChanged || !isPublic) ? [`/${existing.slug}`] : undefined,
+  });
+
+  if (isPublic && !wasPublic) await queueNewsletterPublication(ctx, id);
+  if (next.published) {
+    await schedulePostAudioIfNeeded(ctx, id);
+  }
+}
+
+async function afterPostDelete(ctx: MutationCtx, existing: Doc<"posts">): Promise<void> {
+  // Auto discovery sync: drop a deleted public post from llms.txt
+  if (existing.published && existing.unlisted !== true) {
+    await scheduleDiscoverySyncIfEnabled(ctx, {
+      removePaths: [`/${existing.slug}`],
+    });
+  }
+}
+
+// Agent (MCP) post management. The HTTP layer verifies the pipeline key and
+// its autoPublish permission before calling these; they stay internal so no
+// client can reach them directly.
+
+/** Every post with its status, newest first, for agents managing the site. */
+export const listAllPostsForAgent = internalQuery({
+  args: {},
+  returns: v.array(
+    v.object({
+      slug: v.string(),
+      title: v.string(),
+      date: v.string(),
+      status: v.union(v.literal("published"), v.literal("unlisted"), v.literal("draft")),
+      source: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const posts = await ctx.db.query("posts").withIndex("by_date").order("desc").take(1000);
+    return posts.map((post) => ({
+      slug: post.slug,
+      title: post.title,
+      date: post.date,
+      status: !post.published
+        ? ("draft" as const)
+        : post.unlisted
+          ? ("unlisted" as const)
+          : ("published" as const),
+      source: post.source,
+    }));
+  },
+});
+
+/** Publish or unpublish a post by slug. Idempotent: no-op when already in that state. */
+export const setPostPublishedForAgent = internalMutation({
+  args: { slug: v.string(), published: v.boolean() },
+  returns: v.object({ slug: v.string(), published: v.boolean(), changed: v.boolean() }),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("posts")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .unique();
+    if (!existing) {
+      throw new ConvexError(`Post not found: ${args.slug}`);
+    }
+    if (existing.published === args.published) {
+      return { slug: existing.slug, published: existing.published, changed: false };
+    }
+    await ctx.db.patch(existing._id, { published: args.published, lastSyncedAt: Date.now() });
+    await afterPostChange(ctx, existing._id, existing, {
+      ...existing,
+      published: args.published,
+    });
+    return { slug: existing.slug, published: args.published, changed: true };
+  },
+});
+
+/**
+ * Hard delete a post by slug. Returns the deleted post's markdown and fields
+ * so the calling thread holds a copy it can restore from. Idempotent: a slug
+ * that is already gone returns deleted: false.
+ */
+export const deletePostForAgent = internalMutation({
+  args: { slug: v.string() },
+  returns: v.object({
+    slug: v.string(),
+    deleted: v.boolean(),
+    backup: v.union(
+      v.object({
+        title: v.string(),
+        description: v.string(),
+        date: v.string(),
+        tags: v.array(v.string()),
+        published: v.boolean(),
+        content: v.string(),
+      }),
+      v.null(),
+    ),
+  }),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("posts")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .unique();
+    if (!existing) {
+      return { slug: args.slug, deleted: false, backup: null };
+    }
+    await ctx.db.delete(existing._id);
+    await afterPostDelete(ctx, existing);
+    return {
+      slug: existing.slug,
+      deleted: true,
+      backup: {
+        title: existing.title,
+        description: existing.description,
+        date: existing.date,
+        tags: existing.tags,
+        published: existing.published,
+        content: existing.content,
+      },
+    };
   },
 });
 

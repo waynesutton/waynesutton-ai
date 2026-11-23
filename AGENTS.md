@@ -477,7 +477,7 @@ Agents read the gallery through `cat /photos.md` on the VFS, the `/photos` entry
 Agents can submit drafts that land in the dashboard Drafts Inbox for human review:
 
 1. `POST /api/v1/drafts` with an `x-api-key` pipeline key (created in the dashboard API Keys section). Payload: `{ title?, rawInput, type, mode, source, links?, tags? }`.
-2. The MCP server at `/mcp` exposes `create_draft` using the same keys.
+2. The MCP server at `/mcp` exposes `create_draft` using the same keys, plus `list_all_posts` (every post with published, unlisted, or draft status), `set_post_published` (unpublish to draft or republish by slug), and `delete_post` (hard delete, returns the content as a backup). Changing or deleting needs a key with auto publish on. The internal mutations live in `convex/cms.ts` and share side effects with the dashboard `updatePost` and `deletePost`.
 3. The AgentMail email door accepts mail from allowlisted senders; replies to draft previews with `publish`, `reject`, or `edit` drive the approval loop.
 4. A voice agent (`convex/voiceAgent.ts`) rewrites `rewrite` mode drafts to the configured voice profile; `as-is` skips it.
 5. Publishing can auto-sync the change into the agent-ready discovery files when the dashboard toggle is on (`convex/agentReady/autoSync.ts`). The same hook covers dashboard page CRUD, project CRUD (which refreshes a `/projects` entry mirroring the VFS `/projects.md`), skill and skill section CRUD (which refreshes a `/skills` entry mirroring `/skills.md`), photo CRUD and email ingest (which refresh a `/photos` entry mirroring `/photos.md`), and the CLI sync mutations, which batch one refresh per run.

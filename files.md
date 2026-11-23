@@ -2,6 +2,14 @@
 
 A brief description of each file in the codebase.
 
+## MCP post management (2026-11-22)
+
+- **Modified** `convex/mcp.ts`: `list_all_posts`, `set_post_published`, `delete_post` tools; `verifyPipelineKey` and `requireManageKey` (auto publish keys only for changes); pipeline only set grows to four; server version 2.2.0.
+- **Modified** `convex/cms.ts`: internal agent query and mutations by slug; `afterPostChange` and `afterPostDelete` helpers now used by `updatePost` and `deletePost` too.
+- **New file** `convex/mcpPostTools.test.ts`: tools/list hiding, status listing, key permission, idempotent unpublish and delete through `POST /mcp`.
+- **Modified** `src/utils/webmcp/catalog.ts` and `catalog.test.tsx`: remote pipeline entries for the three tools; keyed tool count 12.
+- **Modified** `src/components/dashboard/docsTopics.ts`, `AGENTS.md`, `changelog.md`.
+
 ## Photos gallery (2026-09-07 20:15 UTC)
 
 - `prds/photos-gallery.md`: Problem, decisions (auto publish emailed photos, `/photos/<slug>` deep links), data model, backend, frontend, dashboard docs, edge cases, verification.
@@ -1751,7 +1759,7 @@ A brief description of each file in the codebase.
 | `audioGeneration.ts` | Node action: OpenAI `gpt-4o-mini-tts` speech, raw PCM chunks joined into one WAV in Convex file storage. Requires `OPENAI_API_KEY`. |
 | `lib/audioText.ts` | Strip markdown to speech text, parse draft audio frontmatter, hash title + body + voice, chunk sentences. |
 | `lib/readTime.ts` | Word-count reading time. Used when a post has no stored `readTime`. |
-| `cms.ts`           | CRUD mutations for dashboard cloud CMS: createPost, updatePost, deletePost, createPage, updatePage, deletePage, exportPostAsMarkdown, exportPageAsMarkdown. Posts/pages created via dashboard have `source: "dashboard"` (protected from sync overwrites). Captures versions before updates when version control is enabled. Markdown export now uses shared frontmatter helpers for post and page files. |
+| `cms.ts`           | CRUD mutations for dashboard cloud CMS: createPost, updatePost, deletePost, plus internal `listAllPostsForAgent`, `setPostPublishedForAgent`, and `deletePostForAgent` for MCP. `afterPostChange` and `afterPostDelete` hold the discovery, newsletter, and audio side effects both paths share, createPage, updatePage, deletePage, exportPostAsMarkdown, exportPageAsMarkdown. Posts/pages created via dashboard have `source: "dashboard"` (protected from sync overwrites). Captures versions before updates when version control is enabled. Markdown export now uses shared frontmatter helpers for post and page files. |
 | `importAction.ts`  | Queued web research worker for Dashboard URL import. Consumes the scheduled import-job snapshot, scrapes the source URL through the Firecrawl / Exa / Context.dev chain in `lib/webResearch.ts`, normalizes markdown, and finalizes the job through shared helpers. Needs at least one of FIRECRAWL_API_KEY, EXA_API_KEY, or CONTEXT_DEV_API_KEY (env or Vendor keys). |
 | `importJobs.ts`    | Public request or status functions and internal completion or failure helpers for queued Dashboard URL imports. Now includes the internal mutation that creates the imported post and completes the job in one transaction. |
 | `posts.ts`         | Queries and mutations for blog posts, view counts, getAllTags, getPostsByTag, getRelatedPosts, and getBlogFeaturedPosts. View counter reads use `.unique()` on `viewCounts.by_slug`. Internal equivalents for server-to-server use: getAllPostsInternal, getPostBySlugWithContent, getAllPostsWithContentInternal, getAllTagsInternal, getAllAuthorsInternal. |
@@ -1765,7 +1773,7 @@ A brief description of each file in the codebase.
 | `stats.ts`         | Real-time stats with aggregate components for O(log n) counts (pageViewsByPath, totalPageViews, uniqueVisitors, uniquePaths), page view recording, session heartbeat, top 50 page stats pagination. Extracted helpers: `updatePageViewAggregates`, `buildPageStats`, `collectVisitorLocations`, `getTopPathStats`. |
 | `crons.ts`         | Cron jobs for stale session cleanup (every 5 minutes), weekly newsletter digest (Sundays 9am UTC), weekly stats summary (Mondays 9am UTC), and version cleanup (daily 3am UTC). Uses environment variables SITE_URL and SITE_NAME for email content. |
 | `http.ts`          | HTTP endpoints: `/raw/` dynamic markdown serving with `text/plain` content type (browser-viewable and AI-readable, content served from Convex DB), sitemap (includes tag pages), API (update SITE_URL/SITE_NAME when forking, uses www.markdown.fast), Open Graph HTML generation for social crawlers with hreflang and twitter:site meta tags, `/mcp` MCP server route. Static app files served by the `serveStaticWithMeta` catch-all on top of `@convex-dev/static-hosting` (`resolveAssetForHttp`, SPA fallback, per-slug meta injection). |
-| `mcp.ts`           | MCP server (JSON-RPC 2.0) at `POST /mcp`: 8 tools backed by internal queries. Read tools public unless `MCP_API_KEY` is set. `create_draft` verifies a client pipeline key (`x-api-key: wsa_...`) against hashed `apiKeys`. Rate limited at 50/min. |
+| `mcp.ts`           | MCP server (JSON-RPC 2.0) at `POST /mcp`: 12 tools backed by internal queries. Read tools public unless `MCP_API_KEY` is set. `create_draft` and `list_all_posts` verify a client pipeline key (`x-api-key: wsa_...`) against hashed `apiKeys`; `set_post_published` and `delete_post` also require the key's `autoPublish`. Pipeline tools are hidden from anonymous `tools/list`. Rate limited at 50/min. |
 | `rss.ts`           | RSS feed generation (update SITE_URL/SITE_TITLE when forking, uses www.markdown.fast)                              |
 | `auth.config.ts`  | Legacy WorkOS JWT configuration. The default auth mode uses `@robelest/convex-auth` in `convex/auth.ts`. This file is kept for backwards compatibility when `auth.mode === "workos"`. WorkOS JWT providers are only active when `WORKOS_CLIENT_ID` is set in Convex environment variables. |
 | `authComponent.ts` | Plain async helper functions (`authUserGetByIdHelper`, `authUserListHelper`) that forward to `@robelest/convex-auth` component APIs. Callers import the helpers directly to share the same transaction. |
